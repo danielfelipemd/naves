@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply font-body bg-inalde-gray-bg text-inalde-text antialiased;
+  }
+}
+
+@layer components {
+  /* INALDE button — gradiente rojo */
+  .btn-inalde-primary {
+    @apply inline-flex items-center justify-center gap-2
+           font-primary font-semibold tracking-wider uppercase
+           text-sm text-white px-6 py-3 rounded
+           bg-gradient-to-br from-inalde-red to-inalde-red-dark
+           transition-all duration-200
+           hover:from-inalde-red-hover hover:to-inalde-red-dark
+           hover:-translate-y-0.5
+           focus:outline-none focus:ring-2 focus:ring-inalde-red/50
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
+  /* Input estilo INALDE */
+  .input-inalde {
+    @apply w-full px-4 py-3 rounded border-2 border-inalde-gray-light
+           bg-white text-inalde-text
+           font-body text-base
+           transition-colors duration-200
+           focus:outline-none focus:border-inalde-red
+           placeholder:text-inalde-gray;
+  }
+
+  /* Card con borde rojo en hover (como entregas-grid) */
+  .card-inalde {
+    @apply bg-white border-2 border-inalde-gray-light rounded-lg
+           p-8 shadow-inalde-card
+           transition-all duration-200;
+  }
+  .card-inalde-interactive {
+    @apply card-inalde cursor-pointer
+           hover:border-inalde-red hover:shadow-inalde-card-hover hover:-translate-y-0.5;
+  }
+
+  /* Tipografía secciones */
+  .section-title {
+    @apply font-primary font-bold text-2xl text-inalde-text;
+  }
+  .section-subtitle {
+    @apply font-primary font-semibold text-sm tracking-wider text-inalde-gold uppercase;
+  }
+}

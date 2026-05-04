@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.DS_Store
+*.log
+
+# Local secrets — NEVER commit
+.supabase-secrets.env
+.supabase-new-env.txt
+.supabase-source-backup.json
