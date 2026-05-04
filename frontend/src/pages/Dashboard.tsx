@@ -65,17 +65,23 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Vista profesor / super_admin */}
-          {isProfesor && (
+          {/* Vista super_admin */}
+          {isSuperAdmin && (
+            <Link to="/admin" className="card-inalde-interactive flex items-center gap-6 p-8">
+              <div className="text-5xl">⚙️</div>
+              <div className="flex-1">
+                <h2 className="font-primary font-bold text-xl mb-1">Panel administrativo</h2>
+                <p className="text-inalde-gray text-sm">
+                  Cohortes, participantes, profesores, anteproyectos, sábana de proyectos, solicitudes y auditoría.
+                </p>
+              </div>
+              <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+            </Link>
+          )}
+
+          {/* Vista profesor (no super_admin) */}
+          {isProfesor && !isSuperAdmin && (
             <div className="grid sm:grid-cols-2 gap-6">
-              {isSuperAdmin && (
-                <Link to="/admin" className="card-inalde-interactive flex flex-col gap-3">
-                  <div className="text-3xl">⚙️</div>
-                  <h2 className="font-primary font-bold text-lg">Administración</h2>
-                  <p className="text-inalde-gray text-sm">Cohortes, participantes, profesores, sábana, solicitudes y auditoría.</p>
-                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
-                </Link>
-              )}
               <Link to="/admin/anteproyectos" className="card-inalde-interactive flex flex-col gap-3">
                 <div className="text-3xl">📋</div>
                 <h2 className="font-primary font-bold text-lg">Ver anteproyectos</h2>
