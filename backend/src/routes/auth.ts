@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
-import { sha256Hex, syntheticEmailFromCedula } from '../auth/crypto.js';
+import { decryptPII, generateRecoveryToken, sha256Hex, syntheticEmailFromCedula } from '../auth/crypto.js';
+import { sendEmail } from '../services/email.js';
+import { config } from '../config.js';
 
 const router = Router();
 
@@ -32,6 +34,150 @@ router.post('/verificar-cedula', async (req, res) => {
     cohorte: data.cohorte_id,
     sintheticEmail: syntheticEmailFromCedula(cedulaClean),
   });
+});
+
+/**
+ * POST /api/auth/recovery
+ * Body: { cedula?, email? }
+ * Genera token de recovery y envía email a la dirección institucional REAL
+ * (NO al email sintético). Si el usuario no existe, devuelve 200 igual (no leak).
+ */
+const recoverySchema = z.object({
+  cedula: z.string().regex(/^\d{6,20}$/).optional(),
+  email: z.string().email().optional(),
+}).refine((d) => d.cedula || d.email, { message: 'cedula o email requerido' });
+
+router.post('/recovery', async (req, res) => {
+  const parsed = recoverySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID' });
+
+  let userId: string | null = null;
+  let realEmail: string | null = null;
+  let nombre: string | null = null;
+  let participanteId: string | null = null;
+  let profesorId: string | null = null;
+
+  if (parsed.data.cedula) {
+    // Participante
+    const cedulaClean = parsed.data.cedula.replace(/[\s.\-]/g, '');
+    const { data: p } = await supabaseAdmin
+      .from('participantes_lista')
+      .select('id, auth_user_id, email_encriptado, nombre_completo')
+      .eq('cedula_hash', sha256Hex(cedulaClean))
+      .maybeSingle();
+    if (p) {
+      participanteId = p.id;
+      userId = p.auth_user_id;
+      realEmail = decryptPII(p.email_encriptado);
+      nombre = p.nombre_completo;
+    }
+  } else if (parsed.data.email) {
+    // Profesor (su email real ES el de auth)
+    const emailHash = sha256Hex(parsed.data.email.toLowerCase());
+    const { data: prof } = await supabaseAdmin
+      .from('profesores')
+      .select('id, auth_user_id, nombre_completo, email_encriptado')
+      .eq('email_hash', emailHash)
+      .maybeSingle();
+    if (prof) {
+      profesorId = prof.id;
+      userId = prof.auth_user_id;
+      realEmail = decryptPII(prof.email_encriptado);
+      nombre = prof.nombre_completo;
+    }
+  }
+
+  // Respuesta neutra (no leak de existencia)
+  if (!userId || !realEmail) {
+    return res.json({ ok: true, mensaje: 'Si el usuario existe recibirás un email con instrucciones.' });
+  }
+
+  // Generar token y guardar
+  const { token, hash } = generateRecoveryToken();
+  await supabaseAdmin.from('recovery_tokens').insert({
+    participante_id: participanteId,
+    profesor_id: profesorId,
+    token_hash: hash,
+    expira_en: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+  });
+
+  const link = `${config.frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+  const html = `
+    <p>Hola ${nombre ?? ''},</p>
+    <p>Recibimos una solicitud de cambio de clave para tu cuenta NAVES INALDE.</p>
+    <p><a href="${link}" style="display:inline-block;padding:10px 20px;background:#e30613;color:white;text-decoration:none;border-radius:4px;">Crear nueva clave</a></p>
+    <p>O copia este enlace en tu navegador:<br/><code>${link}</code></p>
+    <p>El enlace expira en 30 minutos. Si no fuiste tú, puedes ignorar este mensaje.</p>
+    <hr/>
+    <p style="font-size:12px;color:#666">NAVES — INALDE Business School</p>
+  `;
+  const sendResult = await sendEmail(realEmail, 'Recuperación de clave NAVES', html);
+
+  res.json({
+    ok: true,
+    mensaje: 'Si el usuario existe recibirás un email con instrucciones.',
+    smtp: sendResult.ok ? 'sent' : sendResult.reason,
+  });
+});
+
+/**
+ * POST /api/auth/recovery/confirm
+ * Body: { token, password }
+ * Cambia la clave del usuario en Supabase Auth via Service Role.
+ */
+const confirmSchema = z.object({
+  token: z.string().min(20),
+  password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/\d/),
+});
+
+router.post('/recovery/confirm', async (req, res) => {
+  const parsed = confirmSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const tokenHash = sha256Hex(parsed.data.token);
+  const { data: row } = await supabaseAdmin
+    .from('recovery_tokens')
+    .select('id, participante_id, profesor_id, expira_en, usado')
+    .eq('token_hash', tokenHash)
+    .maybeSingle();
+  if (!row) return res.status(404).json({ error: 'TOKEN_NOT_FOUND' });
+  if (row.usado) return res.status(409).json({ error: 'TOKEN_USED' });
+  if (new Date(row.expira_en) < new Date()) return res.status(410).json({ error: 'TOKEN_EXPIRED' });
+
+  // Resolver auth_user_id
+  let authUserId: string | null = null;
+  if (row.participante_id) {
+    const { data: p } = await supabaseAdmin.from('participantes_lista').select('auth_user_id').eq('id', row.participante_id).maybeSingle();
+    authUserId = p?.auth_user_id ?? null;
+  } else if (row.profesor_id) {
+    const { data: pf } = await supabaseAdmin.from('profesores').select('auth_user_id').eq('id', row.profesor_id).maybeSingle();
+    authUserId = pf?.auth_user_id ?? null;
+  }
+  if (!authUserId) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+  // Cambiar clave via Service Role
+  const r = await fetch(`${config.supabase.internalUrl}/auth/v1/admin/users/${authUserId}`, {
+    method: 'PUT',
+    headers: {
+      apikey: config.supabase.serviceRoleKey,
+      Authorization: `Bearer ${config.supabase.serviceRoleKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ password: parsed.data.password }),
+  });
+  if (!r.ok) return res.status(500).json({ error: 'AUTH_UPDATE_FAILED', detail: await r.text() });
+
+  // Marcar token usado + activar al participante si estaba pendiente
+  await supabaseAdmin.from('recovery_tokens')
+    .update({ usado: true, fecha_uso: new Date().toISOString() })
+    .eq('id', row.id);
+  if (row.participante_id) {
+    await supabaseAdmin.from('participantes_lista')
+      .update({ estado: 'activo', fecha_activacion: new Date().toISOString() })
+      .eq('id', row.participante_id);
+  }
+
+  res.json({ ok: true });
 });
 
 // Health del módulo auth

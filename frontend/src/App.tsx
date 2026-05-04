@@ -2,9 +2,13 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './auth/store';
 import Login from './pages/auth/Login';
+import Recovery from './pages/auth/Recovery';
+import ResetPassword from './pages/auth/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import MiEquipo from './pages/participante/MiEquipo';
 import Anteproyecto from './pages/participante/Anteproyecto';
+import SeleccionDefinitivo from './pages/participante/SeleccionDefinitivo';
+import MiProfesor from './pages/participante/MiProfesor';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminResumen from './pages/admin/Resumen';
 import AdminCohortes from './pages/admin/Cohortes';
@@ -40,10 +44,14 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/recovery" element={<Recovery />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/equipo" element={<ProtectedRoute><MiEquipo /></ProtectedRoute>} />
         <Route path="/anteproyecto" element={<ProtectedRoute><Anteproyecto /></ProtectedRoute>} />
+        <Route path="/seleccion" element={<ProtectedRoute><SeleccionDefinitivo /></ProtectedRoute>} />
+        <Route path="/mi-profesor" element={<ProtectedRoute><MiProfesor /></ProtectedRoute>} />
 
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route index element={<AdminResumen />} />

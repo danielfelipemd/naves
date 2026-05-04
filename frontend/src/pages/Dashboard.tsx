@@ -35,20 +35,30 @@ export default function Dashboard() {
 
           {/* Vista participante */}
           {role === 'participante' && (
-            <div className="grid sm:grid-cols-2 gap-8">
-              <Link to="/equipo" className="card-inalde-interactive flex flex-col gap-4 text-center">
-                <div className="text-5xl">📋</div>
-                <h2 className="font-primary font-bold text-xl">Anteproyecto NAVES</h2>
-                <p className="text-inalde-gray text-sm">Primera etapa — tu idea de negocio en síntesis</p>
-                <p className="text-xs font-semibold tracking-wider text-inalde-gold">Equipo · Canvas · CIIU · Cronograma</p>
-                <span className="btn-inalde-primary mt-auto">Comenzar →</span>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <Link to="/equipo" className="card-inalde-interactive flex flex-col gap-3">
+                <div className="text-3xl">📋</div>
+                <h2 className="font-primary font-bold text-lg">Anteproyecto NAVES</h2>
+                <p className="text-inalde-gray text-sm">Equipo, miembros y formulario completo</p>
+                <span className="text-sm font-semibold text-inalde-red">Comenzar →</span>
               </Link>
-              <div className="card-inalde flex flex-col gap-4 text-center opacity-60">
-                <div className="text-5xl">📊</div>
-                <h2 className="font-primary font-bold text-xl">Business Plan Final</h2>
+              <Link to="/seleccion" className="card-inalde-interactive flex flex-col gap-3">
+                <div className="text-3xl">✅</div>
+                <h2 className="font-primary font-bold text-lg">Selección del proyecto definitivo</h2>
+                <p className="text-inalde-gray text-sm">Después de la Reunión 1 con tu profesor</p>
+                <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+              </Link>
+              <Link to="/mi-profesor" className="card-inalde-interactive flex flex-col gap-3">
+                <div className="text-3xl">👨‍🏫</div>
+                <h2 className="font-primary font-bold text-lg">Mi profesor</h2>
+                <p className="text-inalde-gray text-sm">Profesor asignado y agenda</p>
+                <span className="text-sm font-semibold text-inalde-red">Ver →</span>
+              </Link>
+              <div className="card-inalde flex flex-col gap-3 opacity-60">
+                <div className="text-3xl">📊</div>
+                <h2 className="font-primary font-bold text-lg">Business Plan Final</h2>
                 <p className="text-inalde-gray text-sm">Segunda etapa</p>
-                <p className="text-xs font-semibold tracking-wider text-inalde-gold">Mercado · Financiero · Riesgos</p>
-                <span className="inline-block bg-inalde-gray-bg text-inalde-gray px-5 py-3 rounded-full text-xs font-semibold mt-auto">
+                <span className="inline-block bg-inalde-gray-bg text-inalde-gray px-3 py-1 rounded-full text-xs font-semibold w-max">
                   🔒 Próximamente
                 </span>
               </div>
