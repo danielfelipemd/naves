@@ -10,7 +10,7 @@ export default function Dashboard() {
       title: 'Anteproyecto NAVES',
       desc: 'Primera etapa — Tu idea de negocio en síntesis',
       detalles: 'Problema · Cliente · Ingresos · Equipo · Cronograma',
-      href: '/anteproyecto',
+      href: '/equipo',
       enabled: true,
     },
     {
