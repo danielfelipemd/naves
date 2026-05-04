@@ -9,6 +9,9 @@ import authRouter from './routes/auth.js';
 import ciiuRouter from './routes/ciiu.js';
 import adminRouter from './routes/admin.js';
 import sabanaRouter from './routes/sabana.js';
+import equiposRouter from './routes/equipos.js';
+import participantesRouter from './routes/participantes.js';
+import anteproyectosRouter from './routes/anteproyectos.js';
 
 const app = express();
 
@@ -29,6 +32,9 @@ app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/ciiu', ciiuLimiter, ciiuRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/sabana', sabanaRouter);
+app.use('/api/equipos', equiposRouter);
+app.use('/api/participantes', participantesRouter);
+app.use('/api/anteproyectos', anteproyectosRouter);
 
 // 404 + error handlers
 app.use((_req, res) => res.status(404).json({ error: 'NOT_FOUND' }));

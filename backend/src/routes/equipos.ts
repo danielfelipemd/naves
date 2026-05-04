@@ -1,0 +1,190 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { supabaseAdmin } from '../db/supabase.js';
+import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
+
+const router = Router();
+router.use(requireAuth(), requireRole('participante'));
+
+// === Helpers =====================================================
+async function getCohorteFechas(cohorteId: string) {
+  const { data } = await supabaseAdmin
+    .from('cohortes')
+    .select('fecha_limite_formacion_equipos, fecha_limite_entrega_anteproyecto, fecha_reunion_1, fecha_limite_seleccion_definitivo')
+    .eq('id', cohorteId)
+    .maybeSingle();
+  return data;
+}
+
+function dentroDePlazo(deadline: string | null | undefined): boolean {
+  if (!deadline) return true; // si no hay fecha definida, no bloqueamos
+  return new Date() < new Date(deadline);
+}
+
+async function meAndCohorte(participanteId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('participantes_lista')
+    .select('id, cohorte_id, nombre_completo, estado')
+    .eq('id', participanteId)
+    .maybeSingle();
+  if (error || !data) throw new Error('PARTICIPANT_NOT_FOUND');
+  if (data.estado !== 'activo') throw new Error('PARTICIPANT_NOT_ACTIVE');
+  return data;
+}
+
+// === GET /api/equipos/mi-equipo =================================
+router.get('/mi-equipo', async (req: AuthenticatedRequest, res) => {
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+
+  const { data: miembro } = await supabaseAdmin
+    .from('miembros_equipo')
+    .select('equipo_id')
+    .eq('participante_id', pid)
+    .maybeSingle();
+
+  if (!miembro) return res.json({ equipo: null });
+
+  const { data: equipo, error } = await supabaseAdmin
+    .from('equipos')
+    .select(`
+      *,
+      miembros_equipo (
+        id, posicion, fue_emprendedor, quiebra, aprendizajes_quiebra, perfil,
+        participantes_lista ( id, nombre_completo )
+      )
+    `)
+    .eq('id', miembro.equipo_id)
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ equipo });
+});
+
+// === POST /api/equipos =================================
+const createSchema = z.object({
+  nombre_equipo: z.string().trim().max(100).optional(),
+});
+router.post('/', async (req: AuthenticatedRequest, res) => {
+  const parsed = createSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+
+  try {
+    const me = await meAndCohorte(pid);
+    const fechas = await getCohorteFechas(me.cohorte_id);
+    if (!dentroDePlazo(fechas?.fecha_limite_formacion_equipos)) {
+      return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA', mensaje: 'La fecha límite para formar equipos ya pasó.' });
+    }
+
+    // ¿ya está en otro equipo?
+    const { data: existing } = await supabaseAdmin
+      .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).maybeSingle();
+    if (existing) return res.status(409).json({ error: 'ALREADY_IN_TEAM', equipo_id: existing.equipo_id });
+
+    // Crear equipo
+    const { data: equipo, error: e1 } = await supabaseAdmin
+      .from('equipos')
+      .insert({ cohorte_id: me.cohorte_id, creador_id: pid, nombre_equipo: parsed.data.nombre_equipo ?? null })
+      .select().single();
+    if (e1) throw e1;
+
+    // Inscribir creador como miembro 1
+    const { error: e2 } = await supabaseAdmin
+      .from('miembros_equipo')
+      .insert({ equipo_id: equipo.id, participante_id: pid, posicion: 1 });
+    if (e2) throw e2;
+
+    // Crear anteproyecto en borrador
+    await supabaseAdmin.from('anteproyectos').insert({ equipo_id: equipo.id, ultimo_editor_id: pid });
+
+    res.status(201).json({ equipo });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message ?? 'CREATE_FAILED' });
+  }
+});
+
+// === POST /api/equipos/:id/agregar-miembro =================================
+const addMemberSchema = z.object({
+  participante_id: z.string().uuid(),
+  posicion: z.number().int().min(2).max(3),
+});
+router.post('/:id/agregar-miembro', async (req: AuthenticatedRequest, res) => {
+  const parsed = addMemberSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+
+  // Soy miembro del equipo?
+  const { data: yo } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).eq('equipo_id', req.params.id).maybeSingle();
+  if (!yo) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
+
+  // Equipo y plazo
+  const { data: equipo } = await supabaseAdmin.from('equipos').select('cohorte_id').eq('id', req.params.id).maybeSingle();
+  if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
+  const fechas = await getCohorteFechas(equipo.cohorte_id);
+  if (!dentroDePlazo(fechas?.fecha_limite_formacion_equipos)) {
+    return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA' });
+  }
+
+  // El nuevo miembro debe ser de la misma cohorte y no estar en otro equipo
+  const { data: target } = await supabaseAdmin
+    .from('participantes_lista').select('id, cohorte_id, estado').eq('id', parsed.data.participante_id).maybeSingle();
+  if (!target) return res.status(404).json({ error: 'PARTICIPANT_NOT_FOUND' });
+  if (target.cohorte_id !== equipo.cohorte_id) return res.status(400).json({ error: 'COHORTE_MISMATCH' });
+
+  const { data: alreadyIn } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', target.id).maybeSingle();
+  if (alreadyIn) return res.status(409).json({ error: 'ALREADY_IN_TEAM', equipo_id: alreadyIn.equipo_id });
+
+  // Posición ocupada?
+  const { count: posCount } = await supabaseAdmin
+    .from('miembros_equipo').select('*', { count: 'exact', head: true })
+    .eq('equipo_id', req.params.id).eq('posicion', parsed.data.posicion);
+  if ((posCount ?? 0) > 0) return res.status(409).json({ error: 'POSITION_TAKEN' });
+
+  const { data, error } = await supabaseAdmin
+    .from('miembros_equipo')
+    .insert({ equipo_id: req.params.id, participante_id: target.id, posicion: parsed.data.posicion })
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.status(201).json({ miembro: data });
+});
+
+// === POST /api/equipos/:id/remover-miembro =================================
+const removeSchema = z.object({ participante_id: z.string().uuid() });
+router.post('/:id/remover-miembro', async (req: AuthenticatedRequest, res) => {
+  const parsed = removeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID' });
+
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+
+  const { data: yo } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).eq('equipo_id', req.params.id).maybeSingle();
+  if (!yo) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
+
+  // No puedes removerte a ti mismo si eres el creador (debería disolver el equipo, lo dejamos para más adelante)
+  const { data: equipo } = await supabaseAdmin.from('equipos').select('creador_id, cohorte_id').eq('id', req.params.id).maybeSingle();
+  if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
+  if (equipo.creador_id === parsed.data.participante_id) return res.status(400).json({ error: 'CANNOT_REMOVE_CREATOR' });
+
+  const fechas = await getCohorteFechas(equipo.cohorte_id);
+  if (!dentroDePlazo(fechas?.fecha_limite_formacion_equipos)) return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA' });
+
+  const { error } = await supabaseAdmin
+    .from('miembros_equipo')
+    .delete()
+    .eq('equipo_id', req.params.id)
+    .eq('participante_id', parsed.data.participante_id);
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({ ok: true });
+});
+
+export default router;
