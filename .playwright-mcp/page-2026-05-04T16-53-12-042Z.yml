@@ -1,0 +1,23 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - paragraph [ref=e5]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e7] [cursor=pointer]:
+      - /url: /
+      - img [ref=e8]:
+        - generic [ref=e10]: "N"
+      - generic [ref=e12]:
+        - paragraph [ref=e13]: Trabajo de grado
+        - paragraph [ref=e14]: NAVES
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - navigation [ref=e17]:
+        - link "← Panel administrativo" [ref=e18] [cursor=pointer]:
+          - /url: /admin
+        - text: /Auditoría
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - paragraph [ref=e21]: Administración
+          - heading "Auditoría" [level=1] [ref=e22]
+          - paragraph [ref=e23]: Últimas acciones registradas en el sistema.
+        - textbox "Filtra por acción (ej. INSERT, UPDATE, login)…" [ref=e25]
+        - paragraph [ref=e26]: Cargando…

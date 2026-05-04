@@ -1,0 +1,37 @@
+- generic [ref=e2]:
+  - banner [ref=e64]:
+    - paragraph [ref=e66]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e68] [cursor=pointer]:
+      - /url: /
+      - img [ref=e69]:
+        - generic [ref=e71]: "N"
+      - generic [ref=e73]:
+        - paragraph [ref=e74]: Trabajo de grado
+        - paragraph [ref=e75]: NAVES
+  - main [ref=e76]:
+    - generic [ref=e77]:
+      - generic [ref=e78]:
+        - generic [ref=e79]:
+          - heading "Bienvenido a NAVES" [level=1] [ref=e80]
+          - paragraph [ref=e81]: Acceso al sistema de gestión del trabajo de grado del MBA.
+        - button "Salir" [ref=e82] [cursor=pointer]
+      - generic [ref=e83]: "Sesión: maria.profesora@inalde.edu.co · Rol: profesor"
+      - generic [ref=e84]:
+        - link "📋 Ver anteproyectos Lee los anteproyectos enviados por los equipos de tus cohortes. Entrar →" [ref=e85] [cursor=pointer]:
+          - /url: /admin/anteproyectos
+          - generic [ref=e86]: 📋
+          - heading "Ver anteproyectos" [level=2] [ref=e87]
+          - paragraph [ref=e88]: Lee los anteproyectos enviados por los equipos de tus cohortes.
+          - generic [ref=e89]: Entrar →
+        - link "📑 Sábana Vista consolidada para la reunión de asignación. Entrar →" [ref=e90] [cursor=pointer]:
+          - /url: /admin/sabana
+          - generic [ref=e91]: 📑
+          - heading "Sábana" [level=2] [ref=e92]
+          - paragraph [ref=e93]: Vista consolidada para la reunión de asignación.
+          - generic [ref=e94]: Entrar →
+        - link "📨 Solicitudes Aprueba o rechaza desarchivado de proyectos. Entrar →" [ref=e95] [cursor=pointer]:
+          - /url: /admin/solicitudes
+          - generic [ref=e96]: 📨
+          - heading "Solicitudes" [level=2] [ref=e97]
+          - paragraph [ref=e98]: Aprueba o rechaza desarchivado de proyectos.
+          - generic [ref=e99]: Entrar →

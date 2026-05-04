@@ -1,0 +1,35 @@
+- generic [ref=e2]:
+  - banner [ref=e100]:
+    - paragraph [ref=e102]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e104] [cursor=pointer]:
+      - /url: /
+      - img [ref=e105]:
+        - generic [ref=e107]: "N"
+      - generic [ref=e109]:
+        - paragraph [ref=e110]: Trabajo de grado
+        - paragraph [ref=e111]: NAVES
+  - main [ref=e112]:
+    - generic [ref=e113]:
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - paragraph [ref=e116]: Iniciar sesión
+          - heading "Bienvenido a NAVES" [level=1] [ref=e117]
+        - generic [ref=e118]:
+          - button "Participante" [ref=e119] [cursor=pointer]
+          - button "Profesor" [ref=e120] [cursor=pointer]
+        - generic [ref=e121]:
+          - generic [ref=e122]:
+            - generic [ref=e123]: Cédula
+            - textbox "1020304050" [ref=e124]: admin@naves.com
+          - generic [ref=e125]:
+            - generic [ref=e126]: Clave
+            - textbox [ref=e127]: Naves2026!
+          - button "Ingresar →" [ref=e128] [cursor=pointer]
+          - generic [ref=e129]:
+            - link "¿Olvidaste tu clave?" [ref=e130] [cursor=pointer]:
+              - /url: /recovery
+            - link "Primer ingreso →" [ref=e131] [cursor=pointer]:
+              - /url: /activar
+      - paragraph [ref=e132]:
+        - text: NAVES — New Business Adventures
+        - text: INALDE Business School · MBA

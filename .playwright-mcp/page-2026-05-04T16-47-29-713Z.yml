@@ -1,0 +1,71 @@
+- generic [ref=e2]:
+  - banner [ref=e64]:
+    - paragraph [ref=e66]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e68] [cursor=pointer]:
+      - /url: /
+      - img [ref=e69]:
+        - generic [ref=e71]: "N"
+      - generic [ref=e73]:
+        - paragraph [ref=e74]: Trabajo de grado
+        - paragraph [ref=e75]: NAVES
+  - main [ref=e76]:
+    - generic [ref=e78]:
+      - generic [ref=e79]:
+        - paragraph [ref=e80]: Panel administrativo
+        - heading "Selecciona qué quieres administrar" [level=1] [ref=e81]
+        - paragraph [ref=e82]: "Sesión: admin@naves.com"
+      - generic [ref=e83]:
+        - link "📅 6 de 8 activas Cohortes Configura las fechas del Scheduler de cada cohorte (formación de equipos, entrega del anteproyecto, Reunión 1, selección del definitivo). Entrar →" [ref=e84] [cursor=pointer]:
+          - /url: /admin/cohortes
+          - generic [ref=e85]:
+            - generic [ref=e86]: 📅
+            - generic [ref=e87]: 6 de 8 activas
+          - heading "Cohortes" [level=2] [ref=e88]
+          - paragraph [ref=e89]: Configura las fechas del Scheduler de cada cohorte (formación de equipos, entrega del anteproyecto, Reunión 1, selección del definitivo).
+          - generic [ref=e90]: Entrar →
+        - link "🎓 6 participantes totales Cargar participantes Sube el Excel con la lista de participantes inscritos en una cohorte (nombre, cédula, email). Entrar →" [ref=e91] [cursor=pointer]:
+          - /url: /admin/participantes
+          - generic [ref=e92]:
+            - generic [ref=e93]: 🎓
+            - generic [ref=e94]: 6 participantes totales
+          - heading "Cargar participantes" [level=2] [ref=e95]
+          - paragraph [ref=e96]: Sube el Excel con la lista de participantes inscritos en una cohorte (nombre, cédula, email).
+          - generic [ref=e97]: Entrar →
+        - link "👨‍🏫 1 registrados Profesores Crea, edita o desactiva profesores. Configura su URL de booking y áreas de afinidad. Entrar →" [ref=e98] [cursor=pointer]:
+          - /url: /admin/profesores
+          - generic [ref=e99]:
+            - generic [ref=e100]: 👨‍🏫
+            - generic [ref=e101]: 1 registrados
+          - heading "Profesores" [level=2] [ref=e102]
+          - paragraph [ref=e103]: Crea, edita o desactiva profesores. Configura su URL de booking y áreas de afinidad.
+          - generic [ref=e104]: Entrar →
+        - link "📋 0 enviados Anteproyectos Lista todos los anteproyectos con filtros por cohorte y estado. Entra al detalle de cada uno. Entrar →" [ref=e105] [cursor=pointer]:
+          - /url: /admin/anteproyectos
+          - generic [ref=e106]:
+            - generic [ref=e107]: 📋
+            - generic [ref=e108]: 0 enviados
+          - heading "Anteproyectos" [level=2] [ref=e109]
+          - paragraph [ref=e110]: Lista todos los anteproyectos con filtros por cohorte y estado. Entra al detalle de cada uno.
+          - generic [ref=e111]: Entrar →
+        - link "📑 Sábana de proyectos Vista consolidada por cohorte para la reunión de asignación. Genera, sugiere asignaciones y comunica a los equipos. Entrar →" [ref=e112] [cursor=pointer]:
+          - /url: /admin/sabana
+          - generic [ref=e114]: 📑
+          - heading "Sábana de proyectos" [level=2] [ref=e115]
+          - paragraph [ref=e116]: Vista consolidada por cohorte para la reunión de asignación. Genera, sugiere asignaciones y comunica a los equipos.
+          - generic [ref=e117]: Entrar →
+        - link "📨 sin pendientes Solicitudes de desarchivado Aprueba o rechaza solicitudes de los equipos para retomar proyectos archivados. Entrar →" [ref=e118] [cursor=pointer]:
+          - /url: /admin/solicitudes
+          - generic [ref=e119]:
+            - generic [ref=e120]: 📨
+            - generic [ref=e121]: sin pendientes
+          - heading "Solicitudes de desarchivado" [level=2] [ref=e122]
+          - paragraph [ref=e123]: Aprueba o rechaza solicitudes de los equipos para retomar proyectos archivados.
+          - generic [ref=e124]: Entrar →
+        - link "🔍 Auditoría Registro cronológico de eventos del sistema (cambios en equipos, anteproyectos, asignaciones). Entrar →" [ref=e125] [cursor=pointer]:
+          - /url: /admin/auditoria
+          - generic [ref=e127]: 🔍
+          - heading "Auditoría" [level=2] [ref=e128]
+          - paragraph [ref=e129]: Registro cronológico de eventos del sistema (cambios en equipos, anteproyectos, asignaciones).
+          - generic [ref=e130]: Entrar →
+      - link "← Volver al dashboard general" [ref=e132] [cursor=pointer]:
+        - /url: /

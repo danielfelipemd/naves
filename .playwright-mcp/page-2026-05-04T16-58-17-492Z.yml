@@ -1,0 +1,35 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - paragraph [ref=e5]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e7] [cursor=pointer]:
+      - /url: /
+      - img [ref=e8]:
+        - generic [ref=e10]: "N"
+      - generic [ref=e12]:
+        - paragraph [ref=e13]: Trabajo de grado
+        - paragraph [ref=e14]: NAVES
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - paragraph [ref=e18]: Sección 1
+        - heading "Información del equipo emprendedor" [level=1] [ref=e19]
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Equipo
+        - heading "Test Team" [level=2] [ref=e22]
+        - paragraph [ref=e23]: Cohorte int-26-28 · 1 de 3 miembros
+      - generic [ref=e26]:
+        - generic [ref=e27]: "1"
+        - generic [ref=e28]: Juan Pérez Mendoza
+        - generic [ref=e29]: creador
+      - generic [ref=e30]:
+        - paragraph [ref=e31]: Agregar miembro
+        - generic [ref=e32]:
+          - textbox "Busca por nombre…" [ref=e33]: María
+          - button "Buscar" [active] [ref=e34] [cursor=pointer]
+        - list [ref=e38]:
+          - listitem [ref=e39]:
+            - generic [ref=e40]: María González Ruiz
+            - button "Agregar →" [ref=e41] [cursor=pointer]
+      - generic [ref=e35]:
+        - button "← Dashboard" [ref=e36] [cursor=pointer]
+        - button "Continuar al anteproyecto →" [ref=e37] [cursor=pointer]

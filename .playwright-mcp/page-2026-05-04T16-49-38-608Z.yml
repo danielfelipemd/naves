@@ -1,0 +1,60 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - paragraph [ref=e5]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e7] [cursor=pointer]:
+      - /url: /
+      - img [ref=e8]:
+        - generic [ref=e10]: "N"
+      - generic [ref=e12]:
+        - paragraph [ref=e13]: Trabajo de grado
+        - paragraph [ref=e14]: NAVES
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - navigation [ref=e17]:
+        - link "← Panel administrativo" [ref=e18] [cursor=pointer]:
+          - /url: /admin
+        - text: /Profesores
+      - generic [ref=e19]:
+        - generic [ref=e21]:
+          - paragraph [ref=e22]: Administración
+          - heading "Profesores" [level=1] [ref=e23]
+        - group "Nuevo profesor" [ref=e41]:
+          - generic [ref=e42]: Nuevo profesor
+          - generic [ref=e43]:
+            - generic [ref=e44]:
+              - generic [ref=e45]: Nombre completo
+              - textbox [ref=e46]
+            - generic [ref=e47]:
+              - generic [ref=e48]: Email institucional
+              - textbox [ref=e49]
+            - generic [ref=e50]:
+              - generic [ref=e51]: Clave temporal
+              - textbox "Min 8 chars, mayúscula, minúscula, número" [ref=e52]
+            - generic [ref=e53]:
+              - generic [ref=e54]: Booking URL (opcional)
+              - textbox "https://calendly.com/..." [ref=e55]
+            - generic [ref=e57]:
+              - generic [ref=e58]: Áreas de afinidad (separadas por coma)
+              - textbox "Tecnología, Finanzas, Salud" [ref=e59]
+            - generic [ref=e60]:
+              - checkbox "Es super admin (puede gestionar todo el sistema)" [ref=e61]
+              - text: Es super admin (puede gestionar todo el sistema)
+          - generic [ref=e62]:
+            - button "Cancelar" [ref=e63] [cursor=pointer]
+            - button "Crear" [ref=e64] [cursor=pointer]
+        - table [ref=e25]:
+          - rowgroup [ref=e26]:
+            - row "Nombre Rol Áreas Estado" [ref=e27]:
+              - columnheader "Nombre" [ref=e28]
+              - columnheader "Rol" [ref=e29]
+              - columnheader "Áreas" [ref=e30]
+              - columnheader "Estado" [ref=e31]
+              - columnheader [ref=e32]
+          - rowgroup [ref=e33]:
+            - row "Super Admin NAVES Super Admin Tecnología, Educación Activo Editar" [ref=e34]:
+              - cell "Super Admin NAVES" [ref=e35]
+              - cell "Super Admin" [ref=e36]
+              - cell "Tecnología, Educación" [ref=e37]
+              - cell "Activo" [ref=e38]
+              - cell "Editar" [ref=e39]:
+                - button "Editar" [ref=e40] [cursor=pointer]

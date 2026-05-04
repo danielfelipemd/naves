@@ -1,0 +1,182 @@
+- generic [ref=e2]:
+  - banner [ref=e42]:
+    - paragraph [ref=e44]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e46] [cursor=pointer]:
+      - /url: /
+      - img [ref=e47]:
+        - generic [ref=e49]: "N"
+      - generic [ref=e51]:
+        - paragraph [ref=e52]: Trabajo de grado
+        - paragraph [ref=e53]: NAVES
+  - main [ref=e54]:
+    - generic [ref=e55]:
+      - generic [ref=e56]:
+        - paragraph [ref=e57]: Anteproyecto NAVES
+        - heading "Tu idea de negocio en síntesis" [level=1] [ref=e58]
+        - paragraph [ref=e59]:
+          - text: "Estado:"
+          - generic [ref=e60]: borrador
+      - generic [ref=e61]:
+        - generic [ref=e62]: "1"
+        - heading "Equipo emprendedor" [level=2] [ref=e63]
+      - group "Miembro 1 · Juan Pérez Mendoza" [ref=e64]:
+        - generic [ref=e65]: Miembro 1 · Juan Pérez Mendoza
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e68]: Celular
+            - textbox "+57 300 000 0000" [ref=e69]
+          - generic [ref=e70]:
+            - generic [ref=e71]: Perfil
+            - combobox [ref=e72]:
+              - option "Emprendedor" [selected]
+              - option "Directivo"
+              - option "Ambos"
+          - generic [ref=e73]:
+            - generic [ref=e74]: ¿Has sido emprendedor antes?
+            - combobox [ref=e75]:
+              - option "No" [selected]
+              - option "Sí"
+        - generic [ref=e76]:
+          - generic [ref=e77]: ¿Qué te emociona del emprendimiento? (selecciona uno o varios)
+          - generic [ref=e78]:
+            - button "Crear algo nuevo" [ref=e79] [cursor=pointer]
+            - button "Generar dinero / libertad financiera" [ref=e80] [cursor=pointer]
+            - button "Resolver un problema social" [ref=e81] [cursor=pointer]
+            - button "Autonomía / ser mi propio jefe" [ref=e82] [cursor=pointer]
+        - generic [ref=e83]:
+          - generic [ref=e84]: ¿Qué te preocupa?
+          - generic [ref=e85]:
+            - button "Estabilidad financiera" [ref=e86] [cursor=pointer]
+            - button "Estrés y carga de trabajo" [ref=e87] [cursor=pointer]
+            - button "No tener las habilidades suficientes" [ref=e88] [cursor=pointer]
+            - button "Tiempo con la familia" [ref=e89] [cursor=pointer]
+      - generic [ref=e90]:
+        - generic [ref=e91]:
+          - generic [ref=e92]: "2"
+          - heading "Tus proyectos" [level=2] [ref=e93]
+        - generic [ref=e94]:
+          - generic [ref=e95]: ¿Cuántos proyectos vas a presentar?
+          - generic [ref=e96]:
+            - button "1" [ref=e97] [cursor=pointer]
+            - button "2" [ref=e98] [cursor=pointer]
+            - button "3" [ref=e99] [cursor=pointer]
+        - group [ref=e100]:
+          - generic [ref=e101]:
+            - generic [ref=e102]:
+              - generic [ref=e103]: Nombre del proyecto
+              - textbox [ref=e104]
+            - generic [ref=e105]:
+              - generic [ref=e106]: Tipo
+              - combobox [ref=e107]:
+                - option "Emprendimiento" [selected]
+                - option "Intraemprendimiento"
+            - generic [ref=e108]:
+              - generic [ref=e109]: Sector
+              - textbox "Ej. Salud digital, EdTech, Logística" [ref=e110]
+            - generic [ref=e111]:
+              - generic [ref=e112]: Estado del proyecto
+              - combobox [ref=e113]:
+                - option "Idea" [selected]
+                - option "Investigación"
+                - option "Prototipo"
+                - option "Validación"
+            - generic [ref=e115]:
+              - generic [ref=e116]: Código CIIU (DANE Rev. 4 A.C. 2020)
+              - textbox "Busca por código (ej. 6201) o descripción (ej. software)" [ref=e118]
+          - heading "Canvas del negocio" [level=3] [ref=e119]
+          - generic [ref=e120]:
+            - generic [ref=e121]:
+              - generic [ref=e122]: Cliente y problema que resuelves
+              - textbox [ref=e123]
+            - generic [ref=e124]:
+              - generic [ref=e125]: Canales para llegar al cliente
+              - textbox [ref=e126]
+            - generic [ref=e127]:
+              - generic [ref=e128]: Relación con los clientes
+              - textbox [ref=e129]
+            - generic [ref=e130]:
+              - generic [ref=e131]: Modelo de ingresos
+              - textbox [ref=e132]
+            - generic [ref=e133]:
+              - generic [ref=e134]: Recursos clave
+              - textbox [ref=e135]
+            - generic [ref=e136]:
+              - generic [ref=e137]: Actividades clave
+              - textbox [ref=e138]
+            - generic [ref=e139]:
+              - generic [ref=e140]: Socios clave
+              - textbox [ref=e141]
+            - generic [ref=e142]:
+              - generic [ref=e143]: Estructura de costos
+              - textbox [ref=e144]
+          - heading "Validación del mercado" [level=3] [ref=e145]
+          - generic [ref=e146]:
+            - generic [ref=e147]:
+              - generic [ref=e148]: Fuentes primarias (entrevistas, encuestas, observación)
+              - textbox [ref=e149]
+            - generic [ref=e150]:
+              - generic [ref=e151]: Fuentes secundarias (estudios, reportes, datos públicos)
+              - textbox [ref=e152]
+          - heading "Cronograma (5–10 hitos)" [level=3] [ref=e153]
+          - generic [ref=e154]:
+            - generic [ref=e155]:
+              - generic [ref=e156]: "#1"
+              - generic [ref=e158]:
+                - generic [ref=e159]: Hito
+                - textbox [ref=e160]
+              - generic [ref=e162]:
+                - generic [ref=e163]: Inicio
+                - textbox [ref=e164]
+              - generic [ref=e166]:
+                - generic [ref=e167]: Fin
+                - textbox [ref=e168]
+            - generic [ref=e170]:
+              - generic [ref=e171]: "#2"
+              - generic [ref=e173]:
+                - generic [ref=e174]: Hito
+                - textbox [ref=e175]
+              - generic [ref=e177]:
+                - generic [ref=e178]: Inicio
+                - textbox [ref=e179]
+              - generic [ref=e181]:
+                - generic [ref=e182]: Fin
+                - textbox [ref=e183]
+            - generic [ref=e185]:
+              - generic [ref=e186]: "#3"
+              - generic [ref=e188]:
+                - generic [ref=e189]: Hito
+                - textbox [ref=e190]
+              - generic [ref=e192]:
+                - generic [ref=e193]: Inicio
+                - textbox [ref=e194]
+              - generic [ref=e196]:
+                - generic [ref=e197]: Fin
+                - textbox [ref=e198]
+            - generic [ref=e200]:
+              - generic [ref=e201]: "#4"
+              - generic [ref=e203]:
+                - generic [ref=e204]: Hito
+                - textbox [ref=e205]
+              - generic [ref=e207]:
+                - generic [ref=e208]: Inicio
+                - textbox [ref=e209]
+              - generic [ref=e211]:
+                - generic [ref=e212]: Fin
+                - textbox [ref=e213]
+            - generic [ref=e215]:
+              - generic [ref=e216]: "#5"
+              - generic [ref=e218]:
+                - generic [ref=e219]: Hito
+                - textbox [ref=e220]
+              - generic [ref=e222]:
+                - generic [ref=e223]: Inicio
+                - textbox [ref=e224]
+              - generic [ref=e226]:
+                - generic [ref=e227]: Fin
+                - textbox [ref=e228]
+            - button "+ Agregar hito" [ref=e230] [cursor=pointer]
+      - generic [ref=e231]:
+        - button "← Dashboard" [ref=e232] [cursor=pointer]
+        - generic [ref=e233]:
+          - button "Guardar borrador" [ref=e234] [cursor=pointer]
+          - button "Enviar anteproyecto →" [ref=e235] [cursor=pointer]

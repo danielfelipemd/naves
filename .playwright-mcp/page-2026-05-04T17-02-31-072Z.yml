@@ -1,0 +1,24 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - paragraph [ref=e5]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e7] [cursor=pointer]:
+      - /url: /
+      - img [ref=e8]:
+        - generic [ref=e10]: "N"
+      - generic [ref=e12]:
+        - paragraph [ref=e13]: Trabajo de grado
+        - paragraph [ref=e14]: NAVES
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - paragraph [ref=e18]: Nueva clave
+        - heading "Crear nueva contraseña" [level=1] [ref=e19]
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: Nueva clave
+          - textbox [ref=e23]
+          - paragraph [ref=e24]: Mín 8 caracteres, con mayúscula, minúscula y número.
+        - generic [ref=e25]:
+          - generic [ref=e26]: Repetir nueva clave
+          - textbox [ref=e27]
+        - button "Cambiar clave →" [ref=e28] [cursor=pointer]

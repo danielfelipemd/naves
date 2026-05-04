@@ -1,0 +1,25 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - paragraph [ref=e5]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e7] [cursor=pointer]:
+      - /url: /
+      - img [ref=e8]:
+        - generic [ref=e10]: "N"
+      - generic [ref=e12]:
+        - paragraph [ref=e13]: Trabajo de grado
+        - paragraph [ref=e14]: NAVES
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - paragraph [ref=e18]: Recuperar acceso
+        - heading "Olvidé mi clave" [level=1] [ref=e19]
+      - generic [ref=e20]:
+        - button "Participante" [ref=e21] [cursor=pointer]
+        - button "Profesor" [ref=e22] [cursor=pointer]
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Cédula
+          - textbox [ref=e26]
+        - button "Enviar enlace de recuperación" [ref=e27] [cursor=pointer]
+        - link "← Volver al login" [ref=e29] [cursor=pointer]:
+          - /url: /login
