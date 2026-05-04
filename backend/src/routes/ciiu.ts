@@ -4,28 +4,17 @@ import { supabaseAdmin } from '../db/supabase.js';
 
 const router = Router();
 
+const querySchema = z.object({
+  q: z.string().trim().min(1).max(80),
+  limit: z.coerce.number().int().positive().max(50).default(20),
+});
+
 router.get('/buscar', async (req, res) => {
-  const q = String(req.query.q ?? '').trim();
-  if (q.length < 2) return res.json([]);
+  const parsed = querySchema.safeParse({ q: req.query.q, limit: req.query.limit });
+  if (!parsed.success) return res.json([]);
 
-  // Si es código (4 dígitos) busca exacto, sino full-text
-  if (/^\d{1,4}$/.test(q)) {
-    const { data, error } = await supabaseAdmin
-      .from('codigos_ciiu')
-      .select('codigo, descripcion, seccion')
-      .ilike('codigo', `${q}%`)
-      .eq('activo', true)
-      .limit(20);
-    if (error) return res.status(500).json({ error: error.message });
-    return res.json(data ?? []);
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('codigos_ciiu')
-    .select('codigo, descripcion, seccion')
-    .textSearch('descripcion', q, { config: 'spanish', type: 'websearch' })
-    .eq('activo', true)
-    .limit(20);
+  const { q, limit } = parsed.data;
+  const { data, error } = await supabaseAdmin.rpc('buscar_ciiu', { q, lim: limit });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data ?? []);
 });
