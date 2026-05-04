@@ -111,7 +111,7 @@ function emptyProyecto(posicion: number): Proyecto {
     canvas_socios: '', canvas_costos: '',
     estado: 'idea',
     fuentes_primarias: '', fuentes_secundarias: '',
-    hitos: [1, 2, 3, 4, 5].map(emptyHito),
+    hitos: [emptyHito(1)],
   };
 }
 
@@ -204,8 +204,21 @@ export default function Anteproyecto() {
     setProyectos((p) => p.map((x, idx) => idx === i ? { ...x, ...patch } : x));
   }
   function updateHito(pi: number, hi: number, patch: Partial<Hito>) {
-    setProyectos((p) => p.map((proj, idx) =>
-      idx === pi ? { ...proj, hitos: proj.hitos.map((h, j) => j === hi ? { ...h, ...patch } : h) } : proj));
+    setProyectos((p) => p.map((proj, idx) => {
+      if (idx !== pi) return proj;
+      const updatedHitos = proj.hitos.map((h, j) => j === hi ? { ...h, ...patch } : h);
+
+      // Auto-grow: si se llenó la descripción del ÚLTIMO hito y hay margen (<10),
+      // aparece un hito vacío extra para que el usuario lo siga llenando.
+      const isLastHito = hi === proj.hitos.length - 1;
+      const tieneDescripcion = (patch.descripcion ?? proj.hitos[hi].descripcion).trim().length > 0;
+      const yaSeAutoExpandio = updatedHitos.length > proj.hitos.length;
+
+      if (isLastHito && tieneDescripcion && updatedHitos.length < 10 && !yaSeAutoExpandio) {
+        updatedHitos.push(emptyHito(updatedHitos.length + 1));
+      }
+      return { ...proj, hitos: updatedHitos };
+    }));
   }
   function addHito(pi: number) {
     setProyectos((p) => p.map((proj, idx) =>
