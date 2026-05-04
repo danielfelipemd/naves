@@ -4,9 +4,52 @@ import { Header } from '../../components/inalde/Header';
 import { CiiuPicker } from '../../components/inalde/CiiuPicker';
 import { api } from '../../lib/api';
 
+// ============== Catálogos (alineados con DOCUMENTACION_BACKEND.md) ==========
 type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia';
 type Preocupacion = 'financiera' | 'estres' | 'habilidades' | 'familia';
+type Perfil = 'emprendedor' | 'directivo' | 'ambos';
+type EstadoProyecto = 'idea' | 'investigacion' | 'prototipo' | 'validacion';
+type Quiebra = 'si' | 'no' | 'na';
 
+const EMOCIONES: Array<{ value: Emocion; label: string }> = [
+  { value: 'crear',      label: 'Crear algo nuevo desde cero' },
+  { value: 'dinero',     label: 'El potencial económico' },
+  { value: 'problema',   label: 'Resolver un problema que me apasiona' },
+  { value: 'autonomia',  label: 'La autonomía e independencia' },
+];
+
+const PREOCUPACIONES: Array<{ value: Preocupacion; label: string }> = [
+  { value: 'financiera',  label: 'La incertidumbre financiera' },
+  { value: 'estres',      label: 'El estrés y sobrecarga de trabajo' },
+  { value: 'habilidades', label: 'No sé si tengo las habilidades necesarias' },
+  { value: 'familia',     label: 'El impacto en mi familia' },
+];
+
+const PERFILES: Array<{ value: Perfil; label: string }> = [
+  { value: 'emprendedor', label: 'Emprendedor (crear desde cero)' },
+  { value: 'directivo',   label: 'Directivo (liderar estructuras existentes)' },
+  { value: 'ambos',       label: 'Ambos por igual' },
+];
+
+const ESTADOS_PROYECTO: Array<{ value: EstadoProyecto; label: string }> = [
+  { value: 'idea',          label: 'Solo idea' },
+  { value: 'investigacion', label: 'Investigación de mercado' },
+  { value: 'prototipo',     label: 'Prototipo' },
+  { value: 'validacion',    label: 'Validación con clientes' },
+];
+
+const CANVAS_FIELDS: Array<{ key: keyof Proyecto; label: string; placeholder: string; max: number }> = [
+  { key: 'canvas_cliente_problema', label: 'Cliente, problema y solución', placeholder: 'Cliente: ¿Quién es? Problema: ¿Qué le duele? Solución: ¿Cómo lo resuelves?', max: 500 },
+  { key: 'canvas_canales',          label: 'Canales',                      placeholder: '¿App, web, presencial, redes sociales, partnerships?', max: 300 },
+  { key: 'canvas_relaciones',       label: 'Relación con clientes',        placeholder: 'Soporte, comunidad, capacitación, ¿qué tipo de relación buscas?', max: 300 },
+  { key: 'canvas_ingresos',         label: 'Modelo de ingresos',           placeholder: '¿Por producto, servicio, suscripción, comisiones, licencias?', max: 300 },
+  { key: 'canvas_recursos',         label: 'Recursos clave',               placeholder: 'Tecnología, talento, dinero, partnerships, ¿qué es crítico?', max: 300 },
+  { key: 'canvas_actividades',      label: 'Actividades clave',            placeholder: '¿Cuáles son las acciones principales para hacer funcionar tu negocio?', max: 300 },
+  { key: 'canvas_socios',           label: 'Socios clave',                 placeholder: '¿Proveedores, distribuidores, complementadores, consultores?', max: 300 },
+  { key: 'canvas_costos',           label: 'Estructura de costos',         placeholder: 'Desarrollo, marketing, operaciones, salarios, ¿cuáles son los gastos?', max: 300 },
+];
+
+// =============== Tipos ====================================================
 interface Hito {
   posicion: number;
   descripcion: string;
@@ -28,7 +71,7 @@ interface Proyecto {
   canvas_actividades: string;
   canvas_socios: string;
   canvas_costos: string;
-  estado: 'idea' | 'investigacion' | 'prototipo' | 'validacion';
+  estado: EstadoProyecto;
   fuentes_primarias: string;
   fuentes_secundarias: string;
   hitos: Hito[];
@@ -40,26 +83,22 @@ interface MiembroForm {
   nombre: string;
   celular: string;
   fue_emprendedor: boolean;
-  quiebra: 'si' | 'no' | 'na';
+  quiebra: Quiebra;
   aprendizajes_quiebra: string;
-  perfil: 'emprendedor' | 'directivo' | 'ambos';
+  perfil: Perfil;
   emociones: Emocion[];
   preocupaciones: Preocupacion[];
 }
 
-const EMOCIONES: { value: Emocion; label: string }[] = [
-  { value: 'crear', label: 'Crear algo nuevo' },
-  { value: 'dinero', label: 'Generar dinero / libertad financiera' },
-  { value: 'problema', label: 'Resolver un problema social' },
-  { value: 'autonomia', label: 'Autonomía / ser mi propio jefe' },
-];
-const PREOCUPACIONES: { value: Preocupacion; label: string }[] = [
-  { value: 'financiera', label: 'Estabilidad financiera' },
-  { value: 'estres', label: 'Estrés y carga de trabajo' },
-  { value: 'habilidades', label: 'No tener las habilidades suficientes' },
-  { value: 'familia', label: 'Tiempo con la familia' },
-];
+interface Cohorte {
+  id: string;
+  etiqueta: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  fecha_limite_entrega_anteproyecto: string | null;
+}
 
+// =============== Helpers ===================================================
 function emptyHito(posicion: number): Hito {
   return { posicion, descripcion: '', fecha_inicio: '', fecha_fin: '' };
 }
@@ -72,14 +111,24 @@ function emptyProyecto(posicion: number): Proyecto {
     canvas_socios: '', canvas_costos: '',
     estado: 'idea',
     fuentes_primarias: '', fuentes_secundarias: '',
-    hitos: [1, 2, 3, 4, 5].map((i) => emptyHito(i)),
+    hitos: [1, 2, 3, 4, 5].map(emptyHito),
   };
 }
 
+function fmtFecha(iso: string): string {
+  if (!iso) return '';
+  return new Date(iso + (iso.length === 10 ? 'T12:00:00' : '')).toLocaleDateString('es-CO', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  });
+}
+
+// =============== Componente principal ======================================
 export default function Anteproyecto() {
   const navigate = useNavigate();
   const [anteId, setAnteId] = useState<string | null>(null);
   const [estado, setEstado] = useState<string>('borrador');
+  const [equipoNombre, setEquipoNombre] = useState<string>('');
+  const [cohorte, setCohorte] = useState<Cohorte | null>(null);
   const [miembros, setMiembros] = useState<MiembroForm[]>([]);
   const [proyectos, setProyectos] = useState<Proyecto[]>([emptyProyecto(1)]);
   const [activeTab, setActiveTab] = useState(0);
@@ -87,13 +136,14 @@ export default function Anteproyecto() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
+  // ----- Carga inicial -----
   useEffect(() => { (async () => {
     setLoading(true);
     try {
       const eq = await api.get('/equipos/mi-equipo');
-      if (!eq.data.equipo) {
-        navigate('/equipo'); return;
-      }
+      if (!eq.data.equipo) { navigate('/equipo'); return; }
+      setEquipoNombre(eq.data.equipo.nombre_equipo ?? '');
+
       const ms: MiembroForm[] = eq.data.equipo.miembros_equipo
         .sort((a: any, b: any) => a.posicion - b.posicion)
         .map((m: any) => ({
@@ -102,15 +152,20 @@ export default function Anteproyecto() {
           nombre: m.participantes_lista.nombre_completo,
           celular: '',
           fue_emprendedor: m.fue_emprendedor ?? false,
-          quiebra: (m.quiebra as any) ?? 'na',
+          quiebra: (m.quiebra as Quiebra) ?? 'na',
           aprendizajes_quiebra: m.aprendizajes_quiebra ?? '',
-          perfil: (m.perfil as any) ?? 'emprendedor',
+          perfil: (m.perfil as Perfil) ?? 'emprendedor',
           emociones: [],
           preocupaciones: [],
         }));
       setMiembros(ms);
 
-      const ant = await api.get('/anteproyectos/mi-anteproyecto');
+      const [ant, coh] = await Promise.all([
+        api.get('/anteproyectos/mi-anteproyecto'),
+        api.get('/cohortes/mi-cohorte'),
+      ]);
+      if (coh.data.cohorte) setCohorte(coh.data.cohorte);
+
       if (ant.data.anteproyecto) {
         setAnteId(ant.data.anteproyecto.id);
         setEstado(ant.data.anteproyecto.estado);
@@ -119,7 +174,9 @@ export default function Anteproyecto() {
           setProyectos(ps.sort((a, b) => a.posicion - b.posicion).map((p) => ({
             ...emptyProyecto(p.posicion),
             ...p,
-            hitos: (p.hitos ?? []).length ? p.hitos.sort((a: any, b: any) => a.posicion - b.posicion) : emptyProyecto(p.posicion).hitos,
+            hitos: (p.hitos ?? []).length
+              ? p.hitos.sort((a: any, b: any) => a.posicion - b.posicion)
+              : emptyProyecto(p.posicion).hitos,
           })));
         }
       }
@@ -127,6 +184,11 @@ export default function Anteproyecto() {
       setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
     } finally { setLoading(false); }
   })(); }, [navigate]);
+
+  // ----- Mutadores -----
+  function updateMiembro(i: number, patch: Partial<MiembroForm>) {
+    setMiembros((m) => m.map((x, idx) => idx === i ? { ...x, ...patch } : x));
+  }
 
   const numProyectos = proyectos.length;
   function setNumProyectos(n: number) {
@@ -138,22 +200,16 @@ export default function Anteproyecto() {
     if (activeTab >= n) setActiveTab(n - 1);
   }
 
-  function updateMiembro(i: number, patch: Partial<MiembroForm>) {
-    setMiembros((m) => m.map((x, idx) => idx === i ? { ...x, ...patch } : x));
-  }
   function updateProyecto(i: number, patch: Partial<Proyecto>) {
     setProyectos((p) => p.map((x, idx) => idx === i ? { ...x, ...patch } : x));
   }
   function updateHito(pi: number, hi: number, patch: Partial<Hito>) {
-    setProyectos((p) => p.map((proj, idx) => {
-      if (idx !== pi) return proj;
-      return { ...proj, hitos: proj.hitos.map((h, j) => j === hi ? { ...h, ...patch } : h) };
-    }));
+    setProyectos((p) => p.map((proj, idx) =>
+      idx === pi ? { ...proj, hitos: proj.hitos.map((h, j) => j === hi ? { ...h, ...patch } : h) } : proj));
   }
   function addHito(pi: number) {
-    setProyectos((p) => p.map((proj, idx) => idx === pi
-      ? { ...proj, hitos: [...proj.hitos, emptyHito(proj.hitos.length + 1)] }
-      : proj));
+    setProyectos((p) => p.map((proj, idx) =>
+      idx === pi ? { ...proj, hitos: [...proj.hitos, emptyHito(proj.hitos.length + 1)] } : proj));
   }
   function removeHito(pi: number, hi: number) {
     setProyectos((p) => p.map((proj, idx) => {
@@ -163,6 +219,36 @@ export default function Anteproyecto() {
     }));
   }
 
+  // ----- Progress (% de campos llenos) -----
+  const progress = useMemo(() => {
+    let done = 0, total = 0;
+    for (const m of miembros) {
+      total += 4; // celular, perfil, emociones, preocupaciones
+      if (m.celular.trim()) done++;
+      if (m.perfil) done++;
+      if (m.emociones.length) done++;
+      if (m.preocupaciones.length) done++;
+      if (m.fue_emprendedor) {
+        total += 1;
+        if (m.quiebra) done++;
+      }
+    }
+    for (const p of proyectos) {
+      total += 5; // nombre, sector, ciiu, estado, canvas_cliente_problema
+      if (p.nombre.trim()) done++;
+      if (p.sector.trim()) done++;
+      if (p.ciiu.trim()) done++;
+      if (p.estado) done++;
+      if (p.canvas_cliente_problema.trim()) done++;
+      // hitos validos
+      total += 5;
+      const hitosValidos = p.hitos.filter((h) => h.descripcion && h.fecha_inicio && h.fecha_fin).length;
+      done += Math.min(hitosValidos, 5);
+    }
+    return total ? Math.round((done / total) * 100) : 0;
+  }, [miembros, proyectos]);
+
+  // ----- Envío -----
   function buildPayload() {
     return {
       numero_miembros: miembros.length,
@@ -173,7 +259,7 @@ export default function Anteproyecto() {
         celular: m.celular || undefined,
         fue_emprendedor: m.fue_emprendedor,
         quiebra: m.fue_emprendedor ? m.quiebra : undefined,
-        aprendizajes_quiebra: m.fue_emprendedor ? m.aprendizajes_quiebra : undefined,
+        aprendizajes_quiebra: m.fue_emprendedor && m.quiebra === 'si' ? m.aprendizajes_quiebra : undefined,
         perfil: m.perfil,
         emociones: m.emociones,
         preocupaciones: m.preocupaciones,
@@ -211,13 +297,17 @@ export default function Anteproyecto() {
       await api.put(`/anteproyectos/${anteId}`, buildPayload());
       const r = await api.post(`/anteproyectos/${anteId}/enviar`);
       setEstado('enviado');
-      setMsg({ kind: 'ok', text: r.data.auto_definitivo ? 'Anteproyecto enviado. Único proyecto marcado como definitivo.' : 'Anteproyecto enviado. Ahora espera la Reunión 1 con tu profesor para elegir el proyecto definitivo.' });
+      setMsg({ kind: 'ok', text: r.data.auto_definitivo
+          ? 'Anteproyecto enviado. Tu único proyecto quedó marcado como definitivo.'
+          : 'Anteproyecto enviado. Después de la Reunión 1 con tu profesor, deberás elegir el proyecto definitivo.' });
     } catch (e: any) {
       setMsg({ kind: 'err', text: JSON.stringify(e?.response?.data ?? e.message).slice(0, 300) });
     } finally { setBusy(false); }
   }
 
   const readOnly = estado !== 'borrador';
+  const numMiembros = miembros.length;
+  const labelProyecto = numProyectos > 1 ? 'proyectos' : 'proyecto';
 
   if (loading) {
     return <><Header /><main className="pt-36 text-center text-inalde-gray">Cargando anteproyecto…</main></>;
@@ -226,88 +316,166 @@ export default function Anteproyecto() {
   return (
     <>
       <Header />
-      <main className="pt-36 pb-16 px-4">
+
+      {/* Progress bar fija arriba */}
+      <div className="fixed top-[140px] inset-x-0 z-40 px-4">
+        <div className="max-w-[900px] mx-auto h-1.5 bg-inalde-gray-light rounded-full overflow-hidden shadow-sm">
+          <div
+            className="h-full bg-gradient-to-r from-inalde-red to-inalde-gold transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <main className="pt-40 pb-16 px-4">
         <div className="max-w-[900px] mx-auto bg-white rounded-lg shadow-inalde-card p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
             <p className="section-subtitle mb-2">Anteproyecto NAVES</p>
             <h1 className="section-title">
-              Tu idea de negocio en síntesis
+              {numProyectos === 1 ? 'Tu idea de negocio en síntesis' : `Tus ${numProyectos} ideas de negocio en síntesis`}
             </h1>
-            <p className="text-sm text-inalde-gray mt-2">
-              Estado:{' '}
-              <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wider ${
-                estado === 'borrador' ? 'bg-inalde-gold/10 text-inalde-gold' : 'bg-inalde-red/10 text-inalde-red'
-              }`}>{estado}</span>
+            <p className="text-sm text-inalde-gray mt-2 flex items-center gap-3 flex-wrap">
+              <span>Equipo: <strong className="text-inalde-text">{equipoNombre || '(sin nombre)'}</strong></span>
+              <span>·</span>
+              <span>Estado:{' '}
+                <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wider ${
+                  estado === 'borrador' ? 'bg-inalde-gold/10 text-inalde-gold' : 'bg-inalde-blue/10 text-inalde-blue'
+                }`}>{estado}</span>
+              </span>
+              <span>·</span>
+              <span>Progreso: <strong className="text-inalde-red">{progress}%</strong></span>
             </p>
           </div>
 
           {readOnly && (
             <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-sm mb-6">
-              Este anteproyecto ya fue enviado. Sólo puede modificarse desde el panel del super admin.
+              Este anteproyecto ya fue enviado. Sólo puede modificarse desde el panel de administración.
             </div>
           )}
 
-          {/* Sección 1: Equipo */}
-          <SectionHeader n={1} title="Equipo emprendedor" />
+          {/* Datos del equipo (programa MBA + rango de fechas) */}
+          {cohorte && (
+            <div className="mb-8 grid sm:grid-cols-2 gap-4 p-4 rounded-lg bg-inalde-gray-bg/60 border-l-4 border-inalde-gold">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gray mb-0.5">Programa MBA</p>
+                <p className="font-primary font-bold text-inalde-text">{cohorte.etiqueta}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gray mb-0.5">Rango del programa</p>
+                <p className="text-sm text-inalde-text">
+                  <span className="text-inalde-red font-semibold">{fmtFecha(cohorte.fecha_inicio)}</span>
+                  <span className="text-inalde-gray mx-2">→</span>
+                  <span className="text-inalde-red font-semibold">{fmtFecha(cohorte.fecha_fin)}</span>
+                </p>
+              </div>
+              {cohorte.fecha_limite_entrega_anteproyecto && (
+                <div className="sm:col-span-2 text-xs text-inalde-gray">
+                  ⏰ Fecha límite para enviar este anteproyecto:{' '}
+                  <strong className="text-inalde-text">
+                    {new Date(cohorte.fecha_limite_entrega_anteproyecto).toLocaleString('es-CO', {
+                      dateStyle: 'long', timeStyle: 'short',
+                    })}
+                  </strong>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ============ Sección 1: Equipo emprendedor ============ */}
+          <SectionHeader n={1} title={`Información del ${numMiembros === 1 ? 'emprendedor' : 'equipo emprendedor'}`} />
+          <p className="text-sm text-inalde-gray mb-6">
+            {numMiembros === 1
+              ? 'Cuéntanos sobre ti y tu perfil emprendedor. Esto nos ayuda a entender tu motivación.'
+              : `Cuéntanos sobre cada uno de los ${numMiembros} miembros del equipo. Esto nos ayuda a entender la motivación colectiva.`}
+          </p>
+
           {miembros.map((m, i) => (
-            <fieldset key={m.participante_id} disabled={readOnly} className="border border-inalde-gray-light rounded p-5 mb-4">
-              <legend className="px-2 text-sm font-primary font-semibold text-inalde-red">
-                Miembro {m.posicion} · {m.nombre}
+            <fieldset key={m.participante_id} disabled={readOnly}
+              className="border border-inalde-gray-light border-l-[3px] border-l-inalde-blue rounded p-5 mb-4">
+              <legend className="px-2 text-xs font-primary font-bold tracking-wider uppercase text-inalde-blue">
+                Miembro {m.posicion}
               </legend>
-              <div className="grid sm:grid-cols-2 gap-4 mt-3">
+
+              {/* Datos personales (read-only, vienen de participantes_lista) */}
+              <div className="mb-5 pb-5 border-b border-inalde-gray-light">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Datos personales</p>
+                <p className="font-primary font-bold text-lg text-inalde-text">{m.nombre}</p>
+                <p className="text-xs text-inalde-gray mt-1 italic">
+                  Cargado por el administrador desde la lista de la cohorte. Si hay un error, contacta al programa.
+                </p>
+              </div>
+
+              {/* Contacto */}
+              <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Celular">
                   <input type="tel" value={m.celular} maxLength={20}
                     onChange={(e) => updateMiembro(i, { celular: e.target.value })}
-                    placeholder="+57 300 000 0000" className="input-inalde" />
+                    placeholder="Ej: +573001234567" className="input-inalde" />
                 </Field>
                 <Field label="Perfil">
                   <select value={m.perfil} className="input-inalde"
-                    onChange={(e) => updateMiembro(i, { perfil: e.target.value as any })}>
-                    <option value="emprendedor">Emprendedor</option>
-                    <option value="directivo">Directivo</option>
-                    <option value="ambos">Ambos</option>
+                    onChange={(e) => updateMiembro(i, { perfil: e.target.value as Perfil })}>
+                    {PERFILES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                   </select>
                 </Field>
-                <Field label="¿Has sido emprendedor antes?">
-                  <select value={String(m.fue_emprendedor)} className="input-inalde"
-                    onChange={(e) => updateMiembro(i, { fue_emprendedor: e.target.value === 'true' })}>
-                    <option value="false">No</option>
-                    <option value="true">Sí</option>
-                  </select>
-                </Field>
-                {m.fue_emprendedor && (
-                  <Field label="¿Tu emprendimiento quebró?">
-                    <select value={m.quiebra} className="input-inalde"
-                      onChange={(e) => updateMiembro(i, { quiebra: e.target.value as any })}>
-                      <option value="no">No</option>
-                      <option value="si">Sí</option>
-                      <option value="na">N/A</option>
-                    </select>
-                  </Field>
-                )}
               </div>
-              {m.fue_emprendedor && m.quiebra === 'si' && (
-                <Field label="¿Qué aprendiste?">
-                  <textarea value={m.aprendizajes_quiebra} maxLength={300} rows={3}
-                    onChange={(e) => updateMiembro(i, { aprendizajes_quiebra: e.target.value })}
-                    className="input-inalde" />
-                </Field>
-              )}
-              <Field label="¿Qué te emociona del emprendimiento? (selecciona uno o varios)">
-                <Multiselect options={EMOCIONES} value={m.emociones} onChange={(v) => updateMiembro(i, { emociones: v })} />
+
+              {/* Perfil emprendedor */}
+              <h4 className="mt-6 mb-3 font-primary font-bold text-sm tracking-wider uppercase text-inalde-text">
+                Perfil emprendedor
+              </h4>
+              <Field label="¿Has sido emprendedor antes?">
+                <RadioGroup value={String(m.fue_emprendedor)} onChange={(v) => updateMiembro(i, { fue_emprendedor: v === 'true' })}
+                  options={[{ value: 'no', label: 'No' }, { value: 'true', label: 'Sí' }]} />
               </Field>
-              <Field label="¿Qué te preocupa?">
-                <Multiselect options={PREOCUPACIONES} value={m.preocupaciones} onChange={(v) => updateMiembro(i, { preocupaciones: v })} />
+
+              {m.fue_emprendedor && (
+                <div className="mt-4 p-4 rounded bg-inalde-gray-bg/60 border-l-4 border-inalde-gold">
+                  <p className="text-xs uppercase tracking-wider font-bold text-inalde-red mb-3">Sobre tu emprendimiento anterior</p>
+                  <Field label="¿Tu emprendimiento quebró?">
+                    <RadioGroup value={m.quiebra} onChange={(v) => updateMiembro(i, { quiebra: v as Quiebra })}
+                      options={[
+                        { value: 'si', label: 'Sí' },
+                        { value: 'no', label: 'No' },
+                        { value: 'na', label: 'No aplica' },
+                      ]} />
+                  </Field>
+                  {m.quiebra === 'si' && (
+                    <div className="mt-3">
+                      <Field label="¿Qué aprendiste?">
+                        <TextareaWithCounter value={m.aprendizajes_quiebra} max={300} rows={3}
+                          onChange={(v) => updateMiembro(i, { aprendizajes_quiebra: v })} />
+                      </Field>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <Field label="¿Qué te emociona del emprendimiento?" hint="Selecciona uno o varios">
+                <CheckboxGroup options={EMOCIONES} value={m.emociones}
+                  onChange={(v) => updateMiembro(i, { emociones: v })} />
+              </Field>
+
+              <Field label="¿Qué te preocupa?" hint="Selecciona uno o varios">
+                <CheckboxGroup options={PREOCUPACIONES} value={m.preocupaciones}
+                  onChange={(v) => updateMiembro(i, { preocupaciones: v })} />
               </Field>
             </fieldset>
           ))}
 
-          {/* Sección 2: Proyectos */}
+          {/* ============ Sección 2: Tus proyectos ============ */}
           <div className="mt-12">
-            <SectionHeader n={2} title="Tus proyectos" />
+            <SectionHeader n={2} title={numProyectos === 1 ? 'Tu proyecto' : 'Tus proyectos'} />
+
+            <p className="text-sm text-inalde-gray mb-6">
+              {numProyectos === 1
+                ? 'Describe tu idea de emprendimiento. Será el proyecto definitivo automáticamente al enviar.'
+                : `Describe tus ${numProyectos} alternativas. Después de la Reunión 1 con tu profesor, elegirán uno como definitivo y los demás quedarán archivados.`}
+            </p>
+
             <div className="mb-6">
               <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
-                ¿Cuántos proyectos vas a presentar?
+                ¿Cuántos {labelProyecto} vas a presentar?
               </label>
               <div className="flex gap-2">
                 {[1, 2, 3].map((n) => (
@@ -336,6 +504,9 @@ export default function Anteproyecto() {
                         : 'border-transparent text-inalde-gray hover:text-inalde-text'
                     }`}>
                     Proyecto {i + 1}
+                    {proyectos[i].nombre && (
+                      <span className="ml-2 text-xs font-normal text-inalde-gray">· {proyectos[i].nombre.slice(0, 20)}{proyectos[i].nombre.length > 20 ? '…' : ''}</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -364,7 +535,8 @@ export default function Anteproyecto() {
                 ← Dashboard
               </button>
               <div className="flex gap-3">
-                <button onClick={guardar} disabled={busy} className="px-6 py-3 rounded border-2 border-inalde-gray text-inalde-text font-primary font-semibold hover:border-inalde-red hover:text-inalde-red transition">
+                <button onClick={guardar} disabled={busy}
+                  className="px-6 py-3 rounded border-2 border-inalde-gray text-inalde-text font-primary font-semibold hover:border-inalde-red hover:text-inalde-red transition">
                   Guardar borrador
                 </button>
                 <button onClick={enviar} disabled={busy} className="btn-inalde-primary">
@@ -379,9 +551,11 @@ export default function Anteproyecto() {
   );
 }
 
+// =============== Sub-componentes ===========================================
+
 function SectionHeader({ n, title }: { n: number; title: string }) {
   return (
-    <div className="flex items-center gap-3 mb-6">
+    <div className="flex items-center gap-3 mb-3">
       <span className="w-9 h-9 rounded-full bg-inalde-red text-white flex items-center justify-center font-primary font-bold">
         {n}
       </span>
@@ -390,37 +564,68 @@ function SectionHeader({ n, title }: { n: number; title: string }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
+    <div className="mt-4">
+      <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">
         {label}
       </label>
+      {hint && <p className="text-[11px] text-inalde-gray italic mb-2">{hint}</p>}
       {children}
     </div>
   );
 }
 
-function Multiselect<T extends string>({ options, value, onChange }: {
-  options: { value: T; label: string }[];
+function RadioGroup({ value, onChange, options }: {
+  value: string; onChange: (v: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div className="flex flex-wrap gap-5 mt-1">
+      {options.map((o) => (
+        <label key={o.value} className="flex items-center gap-2 cursor-pointer text-sm">
+          <input type="radio" checked={value === o.value} onChange={() => onChange(o.value)}
+            className="h-4 w-4 accent-inalde-red" />
+          <span>{o.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function CheckboxGroup<T extends string>({ options, value, onChange }: {
+  options: Array<{ value: T; label: string }>;
   value: T[];
   onChange: (v: T[]) => void;
 }) {
   return (
-    <div className="grid sm:grid-cols-2 gap-2">
+    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mt-1">
       {options.map((o) => {
         const checked = value.includes(o.value);
         return (
-          <button key={o.value} type="button"
-            onClick={() => onChange(checked ? value.filter((v) => v !== o.value) : [...value, o.value])}
-            className={`px-4 py-2 rounded border-2 text-sm text-left transition ${
-              checked ? 'border-inalde-red bg-inalde-red/5 text-inalde-red font-semibold'
-                      : 'border-inalde-gray-light text-inalde-text hover:border-inalde-gray'
-            }`}>
-            {o.label}
-          </button>
+          <label key={o.value} className="flex items-start gap-2 cursor-pointer text-sm py-1">
+            <input type="checkbox" checked={checked}
+              onChange={() => onChange(checked ? value.filter((v) => v !== o.value) : [...value, o.value])}
+              className="mt-1 h-4 w-4 accent-inalde-red" />
+            <span>{o.label}</span>
+          </label>
         );
       })}
+    </div>
+  );
+}
+
+function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder }: {
+  value: string; onChange: (v: string) => void; max: number; rows?: number; placeholder?: string;
+}) {
+  return (
+    <div className="relative">
+      <textarea value={value} maxLength={max} rows={rows} placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="input-inalde resize-none" />
+      <span className="absolute bottom-2 right-3 text-[10px] font-mono text-inalde-gray">
+        {value.length} / {max}
+      </span>
     </div>
   );
 }
@@ -432,23 +637,15 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
   onAddHito: () => void;
   onRemoveHito: (hi: number) => void;
 }) {
-  const canvas: { key: keyof Proyecto; label: string }[] = useMemo(() => [
-    { key: 'canvas_cliente_problema', label: 'Cliente y problema que resuelves' },
-    { key: 'canvas_canales', label: 'Canales para llegar al cliente' },
-    { key: 'canvas_relaciones', label: 'Relación con los clientes' },
-    { key: 'canvas_ingresos', label: 'Modelo de ingresos' },
-    { key: 'canvas_recursos', label: 'Recursos clave' },
-    { key: 'canvas_actividades', label: 'Actividades clave' },
-    { key: 'canvas_socios', label: 'Socios clave' },
-    { key: 'canvas_costos', label: 'Estructura de costos' },
-  ], []);
-
   return (
     <>
-      <div className="grid sm:grid-cols-2 gap-4 mb-6">
+      {/* Identificación */}
+      <div className="grid sm:grid-cols-2 gap-4 mb-4">
         <Field label="Nombre del proyecto">
           <input type="text" value={proyecto.nombre} maxLength={150}
-            onChange={(e) => onChange({ nombre: e.target.value })} className="input-inalde" />
+            onChange={(e) => onChange({ nombre: e.target.value })}
+            placeholder="Ej: T-Health, Oviland, Vitalia"
+            className="input-inalde" />
         </Field>
         <Field label="Tipo">
           <select value={proyecto.tipo} className="input-inalde"
@@ -460,58 +657,65 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
         <Field label="Sector">
           <input type="text" value={proyecto.sector} maxLength={100}
             onChange={(e) => onChange({ sector: e.target.value })}
-            placeholder="Ej. Salud digital, EdTech, Logística" className="input-inalde" />
-        </Field>
-        <Field label="Estado del proyecto">
-          <select value={proyecto.estado} className="input-inalde"
-            onChange={(e) => onChange({ estado: e.target.value as any })}>
-            <option value="idea">Idea</option>
-            <option value="investigacion">Investigación</option>
-            <option value="prototipo">Prototipo</option>
-            <option value="validacion">Validación</option>
-          </select>
+            placeholder="Ej: Software, Salud, Logística"
+            className="input-inalde" />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Código CIIU (DANE Rev. 4 A.C. 2020)">
+          <Field label="Código CIIU (DANE Rev. 4 A.C. 2020)" hint="Busca por código (ej: 6201) o por descripción (ej: software, restaurante)">
             <CiiuPicker value={proyecto.ciiu} onChange={(c) => onChange({ ciiu: c })} />
           </Field>
         </div>
       </div>
 
-      <h3 className="section-subtitle mb-3">Canvas del negocio</h3>
+      {/* Canvas del negocio */}
+      <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Canvas del negocio</h3>
+      <p className="text-xs text-inalde-gray mb-4">
+        Las 8 piezas del Business Model Canvas. Sé concreto pero claro.
+      </p>
       <div className="space-y-4 mb-8">
-        {canvas.map(({ key, label }) => (
-          <Field key={key} label={label}>
-            <textarea value={String(proyecto[key] ?? '')} rows={2}
-              maxLength={key === 'canvas_cliente_problema' ? 500 : 300}
-              onChange={(e) => onChange({ [key]: e.target.value } as any)}
-              className="input-inalde" />
+        {CANVAS_FIELDS.map(({ key, label, placeholder, max }) => (
+          <Field key={String(key)} label={label}>
+            <TextareaWithCounter value={String(proyecto[key] ?? '')} rows={2} max={max} placeholder={placeholder}
+              onChange={(v) => onChange({ [key]: v } as any)} />
           </Field>
         ))}
       </div>
 
-      <h3 className="section-subtitle mb-3">Validación del mercado</h3>
+      {/* Estado del proyecto (madurez) */}
+      <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Estado del proyecto</h3>
+      <p className="text-xs text-inalde-gray mb-3">¿En qué etapa está hoy?</p>
+      <RadioGroup value={proyecto.estado} onChange={(v) => onChange({ estado: v as EstadoProyecto })}
+        options={ESTADOS_PROYECTO} />
+
+      {/* Validación del mercado */}
+      <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Validación del mercado</h3>
+      <p className="text-xs text-inalde-gray mb-4">¿Cómo sabes que este proyecto resuelve un problema real?</p>
       <div className="space-y-4 mb-8">
         <Field label="Fuentes primarias (entrevistas, encuestas, observación)">
-          <textarea value={proyecto.fuentes_primarias} rows={2} maxLength={300}
-            onChange={(e) => onChange({ fuentes_primarias: e.target.value })}
-            className="input-inalde" />
+          <TextareaWithCounter value={proyecto.fuentes_primarias} rows={2} max={300}
+            placeholder="Describe tus fuentes primarias…"
+            onChange={(v) => onChange({ fuentes_primarias: v })} />
         </Field>
         <Field label="Fuentes secundarias (estudios, reportes, datos públicos)">
-          <textarea value={proyecto.fuentes_secundarias} rows={2} maxLength={300}
-            onChange={(e) => onChange({ fuentes_secundarias: e.target.value })}
-            className="input-inalde" />
+          <TextareaWithCounter value={proyecto.fuentes_secundarias} rows={2} max={300}
+            placeholder="Describe tus fuentes secundarias…"
+            onChange={(v) => onChange({ fuentes_secundarias: v })} />
         </Field>
       </div>
 
-      <h3 className="section-subtitle mb-3">Cronograma (5–10 hitos)</h3>
+      {/* Cronograma */}
+      <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Cronograma</h3>
+      <p className="text-xs text-inalde-gray mb-4">
+        Define entre <strong>5 y 10 hitos</strong> del proyecto con sus fechas estimadas.
+      </p>
       <div className="space-y-3">
         {proyecto.hitos.map((h, hi) => (
-          <div key={hi} className="grid grid-cols-12 gap-2 items-end">
-            <div className="col-span-1 text-center pt-7 text-inalde-gray font-semibold">#{h.posicion}</div>
+          <div key={hi} className="grid grid-cols-12 gap-2 items-end p-3 rounded bg-inalde-gray-bg/40 border-l-[3px] border-inalde-gold">
+            <div className="col-span-1 text-center pt-7 text-inalde-gray font-bold">#{h.posicion}</div>
             <div className="col-span-5">
               <Field label="Hito">
-                <input type="text" value={h.descripcion} maxLength={200}
+                <input type="text" value={h.descripcion} maxLength={100}
+                  placeholder="Ej: Validación de mercado, Prototipo MVP"
                   onChange={(e) => onUpdateHito(hi, { descripcion: e.target.value })}
                   className="input-inalde" />
               </Field>
@@ -525,22 +729,23 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
             </div>
             <div className="col-span-2">
               <Field label="Fin">
-                <input type="date" value={h.fecha_fin}
+                <input type="date" value={h.fecha_fin} min={h.fecha_inicio || undefined}
                   onChange={(e) => onUpdateHito(hi, { fecha_fin: e.target.value })}
                   className="input-inalde" />
               </Field>
             </div>
-            <div className="col-span-1 pt-7">
+            <div className="col-span-1 pt-7 text-center">
               {proyecto.hitos.length > 5 && (
                 <button type="button" onClick={() => onRemoveHito(hi)}
-                  className="text-sm text-inalde-gray hover:text-inalde-red">×</button>
+                  title="Eliminar hito"
+                  className="text-inalde-gray hover:text-inalde-red text-xl leading-none">×</button>
               )}
             </div>
           </div>
         ))}
         {proyecto.hitos.length < 10 && (
           <button type="button" onClick={onAddHito}
-            className="text-sm text-inalde-red hover:text-inalde-red-hover font-semibold">
+            className="text-sm text-inalde-red hover:text-inalde-red-hover font-semibold mt-2">
             + Agregar hito
           </button>
         )}

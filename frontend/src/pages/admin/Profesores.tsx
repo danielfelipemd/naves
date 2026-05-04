@@ -107,7 +107,7 @@ export default function Profesores() {
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.es_super_admin} onChange={(e) => setForm({ ...form, es_super_admin: e.target.checked })} />
-              Es super admin (puede gestionar todo el sistema)
+              Es administrador (puede gestionar todo el sistema)
             </label>
           </div>
           <div className="flex gap-2 mt-4">
@@ -151,7 +151,7 @@ export default function Profesores() {
                 <td className="px-3 py-2 font-medium">{p.nombre_completo}</td>
                 <td className="px-3 py-2">
                   {p.es_super_admin
-                    ? <span className="text-xs uppercase tracking-wider font-semibold text-inalde-red">Super Admin</span>
+                    ? <span className="text-xs uppercase tracking-wider font-semibold text-inalde-red">Administrador</span>
                     : <span className="text-xs text-inalde-gray">Profesor</span>}
                 </td>
                 <td className="px-3 py-2 text-xs text-inalde-gray">{p.areas_afinidad.join(', ') || '—'}</td>

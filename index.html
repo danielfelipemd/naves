@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAVES - Entregas de Trabajo de Grado | INALDE Business School</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --inalde-red: #e30613;
+      --inalde-red-dark: #cc292b;
+      --inalde-red-hover: #b30510;
+      --inalde-blue: #224d7c;
+      --inalde-gold: #9f885f;
+      --inalde-black: #000000;
+      --inalde-text: #1a1a1a;
+      --inalde-gray: #6b6b6b;
+      --inalde-gray-light: #e8e8e8;
+      --inalde-gray-bg: #f5f5f5;
+      --inalde-white: #ffffff;
+      --font-primary: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--inalde-gray-bg);
+      color: var(--inalde-text);
+      line-height: 1.6;
+      font-weight: 400;
+      padding-top: 140px;
+    }
+    
+    header {
+      background: var(--inalde-white);
+      border-bottom: 1px solid var(--inalde-gray-light);
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    
+    .header-top {
+      background: var(--inalde-black);
+      padding: 0.5rem 2rem;
+      text-align: right;
+    }
+    
+    .header-top span {
+      color: var(--inalde-white);
+      font-family: var(--font-primary);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    
+    .header-main {
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1400px;
+      margin: 0 auto;
+      background: var(--inalde-white);
+    }
+    
+    .logo-inalde { 
+      height: 55px; 
+      width: auto; 
+      display: block;
+    }
+    
+    .logo-separator {
+      width: 1px;
+      height: 45px;
+      background: var(--inalde-gray-light);
+      margin: 0 1.5rem;
+    }
+    
+    .logo-container {
+      display: flex;
+      align-items: center;
+    }
+    
+    .program-label {
+      font-family: var(--font-primary);
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--inalde-gray);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.15rem;
+    }
+    
+    .program-name {
+      font-family: var(--font-primary);
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--inalde-text);
+      letter-spacing: 0.02em;
+      line-height: 1;
+    }
+    
+    .program-name .red-accent {
+      color: var(--inalde-red);
+    }
+    
+    .content-wrapper {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: var(--inalde-white);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .page-header {
+      margin-bottom: 2rem;
+      border-bottom: 3px solid var(--inalde-red);
+      padding-bottom: 1.5rem;
+    }
+    
+    .page-header h1 {
+      font-family: var(--font-primary);
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--inalde-text);
+      margin-bottom: 0.5rem;
+    }
+    
+    .page-header p {
+      font-size: 0.95rem;
+      color: var(--inalde-gray);
+      font-weight: 400;
+      line-height: 1.6;
+    }
+    
+    .entregas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin: 2rem 0;
+    }
+    
+    .entrega-card {
+      background: var(--inalde-white);
+      border: 2px solid var(--inalde-gray-light);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.2s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .entrega-card:hover {
+      border-color: var(--inalde-red);
+      box-shadow: 0 4px 12px rgba(227, 6, 19, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .entrega-card.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    
+    .entrega-card.disabled:hover {
+      border-color: var(--inalde-gray-light);
+      box-shadow: none;
+      transform: none;
+    }
+    
+    .entrega-icon {
+      font-size: 3rem;
+      margin: 0;
+    }
+    
+    .entrega-card h2 {
+      color: var(--inalde-text);
+      font-family: var(--font-primary);
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    
+    .entrega-descripcion {
+      color: var(--inalde-gray);
+      font-size: 0.9rem;
+      margin: 0;
+      line-height: 1.5;
+    }
+    
+    .entrega-detalles {
+      font-size: 0.85rem;
+      color: var(--inalde-gold);
+      font-weight: 600;
+      margin: 0;
+      letter-spacing: 0.05em;
+    }
+    
+    .entrega-button {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--inalde-red) 0%, var(--inalde-red-dark) 100%);
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      font-family: var(--font-primary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      margin-top: auto;
+    }
+    
+    .entrega-button:hover {
+      background: linear-gradient(135deg, var(--inalde-red-hover) 0%, var(--inalde-red-dark) 100%);
+      transform: translateY(-2px);
+    }
+    
+    .badge-proximamente {
+      display: inline-block;
+      background: var(--inalde-gray-bg);
+      color: var(--inalde-gray);
+      padding: 0.75rem 1.5rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-top: auto;
+    }
+    
+    .page-footer {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--inalde-gray-light);
+      font-size: 0.85rem;
+      color: var(--inalde-gray);
+      line-height: 1.6;
+      text-align: center;
+    }
+    
+    @media (max-width: 600px) {
+      body {
+        padding-top: 120px;
+      }
+      
+      .content-wrapper {
+        margin: 1rem;
+        padding: 1.5rem;
+      }
+      
+      .page-header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .entregas-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-top">
+      <span>INALDE Business School</span>
+    </div>
+    
+    <div class="header-main">
+      <div class="logo-container">
+        <svg class="logo-inalde" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+          <rect width="128" height="128" fill="#e30613"/>
+          <text x="64" y="80" font-family="Montserrat" font-size="48" font-weight="700" fill="white" text-anchor="middle">N</text>
+        </svg>
+        <div class="logo-separator"></div>
+        <div>
+          <div class="program-label">Trabajo de grado</div>
+          <div class="program-name">NAVE<span class="red-accent">S</span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>Entregas NAVES</h1>
+      <p>Selecciona la entrega de trabajo de grado que deseas completar. Aquí encontrarás todos los formularios necesarios para documentar tu proyecto.</p>
+    </div>
+
+    <div class="entregas-grid">
+      
+      <!-- ENTREGA 1: ANTEPROYECTO -->
+      <a href="./anteproyecto.html" class="entrega-card">
+        <div class="entrega-icon">📋</div>
+        <h2>Anteproyecto NAVES</h2>
+        <p class="entrega-descripcion">Primera etapa - Tu idea de negocio en síntesis</p>
+        <p class="entrega-detalles">Problema • Cliente • Ingresos • Equipo • Cronograma</p>
+        <div class="entrega-button">COMENZAR →</div>
+      </a>
+
+      <!-- ENTREGA 2: BUSINESS PLAN (PRÓXIMAMENTE) -->
+      <div class="entrega-card disabled">
+        <div class="entrega-icon">📊</div>
+        <h2>Business Plan Final</h2>
+        <p class="entrega-descripcion">Segunda etapa - Tu plan de negocio completo</p>
+        <p class="entrega-detalles">Mercado • Financiero • Operaciones • Riesgos</p>
+        <div class="badge-proximamente">🔒 PRÓXIMAMENTE</div>
+      </div>
+
+    </div>
+
+    <div class="page-footer">
+      <p><strong>Nota:</strong> El formulario de Anteproyecto es el primer hito del proceso NAVES. Una vez entregado, no podrá ser modificado. Por favor, revisa cuidadosamente todos los datos antes de enviar.</p>
+    </div>
+  </div>
+</body>
+</html>

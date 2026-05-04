@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
@@ -24,6 +24,8 @@ export default function MiEquipo() {
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<Array<{ id: string; nombre_completo: string }>>([]);
+  const [searching, setSearching] = useState(false);
+  const searchSeq = useRef(0);
   const [nombreEquipo, setNombreEquipo] = useState('');
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -53,15 +55,32 @@ export default function MiEquipo() {
     } finally { setBusy(false); }
   }
 
-  async function buscar() {
-    if (!cohorteId) { setError('No se detectó tu cohorte en el JWT'); return; }
-    try {
-      const { data } = await api.get('/participantes/buscar', { params: { cohorte: cohorteId, query: search } });
-      setResults(data);
-    } catch (e: any) {
-      setError(e?.response?.data?.error ?? e.message);
-    }
-  }
+  // Búsqueda en vivo: dispara 250ms después de que el usuario deja de escribir
+  useEffect(() => {
+    if (!equipo || !cohorteId) return;
+    const q = search.trim();
+    if (q.length < 1) { setResults([]); setSearching(false); return; }
+
+    const seq = ++searchSeq.current;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await api.get('/participantes/buscar', { params: { cohorte: cohorteId, query: q } });
+        if (seq === searchSeq.current) {
+          // Excluir miembros actuales
+          const miembrosIds = new Set(equipo.miembros_equipo.map((m) => m.participantes_lista.id));
+          setResults((data ?? []).filter((p: any) => !miembrosIds.has(p.id)));
+        }
+      } catch (e: any) {
+        if (seq === searchSeq.current) {
+          setError(e?.response?.data?.error ?? e.message);
+        }
+      } finally {
+        if (seq === searchSeq.current) setSearching(false);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [search, cohorteId, equipo]);
 
   async function agregar(participante_id: string) {
     if (!equipo) return;
@@ -72,8 +91,9 @@ export default function MiEquipo() {
       const posicion = [2, 3].find((p) => !taken.has(p));
       if (!posicion) { setError('Equipo lleno (máx 3)'); return; }
       await api.post(`/equipos/${equipo.id}/agregar-miembro`, { participante_id, posicion });
+      setSearch('');
+      setResults([]);
       await load();
-      setSearch(''); setResults([]);
     } catch (e: any) {
       setError(e?.response?.data?.error ?? e.message);
     } finally { setBusy(false); }
@@ -173,21 +193,32 @@ export default function MiEquipo() {
               {equipo.miembros_equipo.length < 3 && (
                 <div className="border-t border-inalde-gray-light pt-6">
                   <p className="section-subtitle mb-3">Agregar miembro</p>
-                  <div className="flex gap-2 mb-3">
+                  <div className="relative">
                     <input
                       type="text"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && buscar()}
-                      placeholder="Busca por nombre…"
-                      className="input-inalde flex-1"
+                      placeholder="Empieza a escribir el nombre del compañero…"
+                      className="input-inalde w-full pr-10"
+                      autoFocus
                     />
-                    <button onClick={buscar} className="btn-inalde-primary">Buscar</button>
+                    {searching && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-inalde-gray">
+                        Buscando…
+                      </span>
+                    )}
                   </div>
+
+                  {search.trim().length > 0 && !searching && results.length === 0 && (
+                    <p className="mt-2 text-xs text-inalde-gray italic">
+                      Sin resultados. Verifica que sea de tu cohorte y que aún no esté en otro equipo.
+                    </p>
+                  )}
+
                   {results.length > 0 && (
-                    <ul className="border border-inalde-gray-light rounded divide-y divide-inalde-gray-light">
+                    <ul className="mt-2 border border-inalde-gray-light rounded divide-y divide-inalde-gray-light max-h-64 overflow-auto">
                       {results.map((p) => (
-                        <li key={p.id} className="flex items-center justify-between px-4 py-3">
+                        <li key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-inalde-gray-bg/40">
                           <span>{p.nombre_completo}</span>
                           <button
                             onClick={() => agregar(p.id)}

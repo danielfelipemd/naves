@@ -38,7 +38,7 @@ export default function MiProfesor() {
 
           {!data ? (
             <p className="text-inalde-gray">
-              Aún no se ha asignado profesor a tu equipo. La asignación se realiza después de que el super admin ejecuta la
+              Aún no se ha asignado profesor a tu equipo. La asignación se realiza después de que el administrador ejecuta la
               reunión de asignación de profesores con la sábana de proyectos.
             </p>
           ) : (
