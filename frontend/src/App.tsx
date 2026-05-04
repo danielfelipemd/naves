@@ -5,11 +5,30 @@ import Login from './pages/auth/Login';
 import Dashboard from './pages/Dashboard';
 import MiEquipo from './pages/participante/MiEquipo';
 import Anteproyecto from './pages/participante/Anteproyecto';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminResumen from './pages/admin/Resumen';
+import AdminCohortes from './pages/admin/Cohortes';
+import AdminParticipantes from './pages/admin/Participantes';
+import AdminProfesores from './pages/admin/Profesores';
+import AdminAnteproyectos from './pages/admin/Anteproyectos';
+import AdminAnteproyectoDetail from './pages/admin/AnteproyectoDetail';
+import AdminSabana from './pages/admin/Sabana';
+import AdminSolicitudes from './pages/admin/Solicitudes';
+import AdminAuditoria from './pages/admin/Auditoria';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-inalde-gray">Cargando…</div>;
   if (!session) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { session, user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-inalde-gray">Cargando…</div>;
+  if (!session) return <Navigate to="/login" replace />;
+  const isAdmin = (user?.app_metadata as any)?.es_super_admin === true;
+  if (!isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -21,9 +40,23 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/equipo" element={<ProtectedRoute><MiEquipo /></ProtectedRoute>} />
         <Route path="/anteproyecto" element={<ProtectedRoute><Anteproyecto /></ProtectedRoute>} />
+
+        <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+          <Route index element={<AdminResumen />} />
+          <Route path="cohortes" element={<AdminCohortes />} />
+          <Route path="participantes" element={<AdminParticipantes />} />
+          <Route path="profesores" element={<AdminProfesores />} />
+          <Route path="anteproyectos" element={<AdminAnteproyectos />} />
+          <Route path="anteproyectos/:id" element={<AdminAnteproyectoDetail />} />
+          <Route path="sabana" element={<AdminSabana />} />
+          <Route path="solicitudes" element={<AdminSolicitudes />} />
+          <Route path="auditoria" element={<AdminAuditoria />} />
+        </Route>
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
