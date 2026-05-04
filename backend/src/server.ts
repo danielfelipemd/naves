@@ -13,6 +13,7 @@ import equiposRouter from './routes/equipos.js';
 import participantesRouter from './routes/participantes.js';
 import anteproyectosRouter from './routes/anteproyectos.js';
 import seleccionRouter from './routes/seleccion.js';
+import rolesRouter from './routes/roles.js';
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/equipos', equiposRouter);
 app.use('/api/participantes', participantesRouter);
 app.use('/api/anteproyectos', anteproyectosRouter);
 app.use('/api', seleccionRouter); // monta /equipos/:id/marcar-reunion-1, /equipos/:id/seleccionar-proyecto-definitivo, /proyectos/:id/solicitar-desarchivar, /admin/solicitudes-desarchivado/:id/(aprobar|rechazar)
+app.use('/api/admin/roles', rolesRouter);
 
 // 404 + error handlers
 app.use((_req, res) => res.status(404).json({ error: 'NOT_FOUND' }));

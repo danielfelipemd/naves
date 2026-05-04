@@ -9,6 +9,7 @@ const sectionLabels: Record<string, string> = {
   sabana: 'Sábana de proyectos',
   solicitudes: 'Solicitudes de desarchivado',
   auditoria: 'Auditoría',
+  'roles-permisos': 'Roles y permisos',
 };
 
 export default function AdminLayout() {

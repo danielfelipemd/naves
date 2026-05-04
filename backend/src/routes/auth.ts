@@ -183,4 +183,21 @@ router.post('/recovery/confirm', async (req, res) => {
 // Health del módulo auth
 router.get('/', (_req, res) => res.json({ module: 'auth', status: 'ok' }));
 
+/** GET /api/auth/me — devuelve el perfil + permisos del usuario logueado */
+import { requireAuth } from './../auth/middleware.js';
+import { getUserPermisos } from './../auth/permissions.js';
+
+router.get('/me', requireAuth(), async (req: any, res) => {
+  const permisos = await getUserPermisos(req.user.sub);
+  res.json({
+    sub: req.user.sub,
+    role: req.user.role,
+    es_super_admin: req.user.isSuperAdmin,
+    profesor_id: req.user.profesorId ?? null,
+    participante_id: req.user.participanteId ?? null,
+    cohorte_id: req.user.cohorteId ?? null,
+    permisos: Array.from(permisos),
+  });
+});
+
 export default router;

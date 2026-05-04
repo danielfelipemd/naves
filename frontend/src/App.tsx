@@ -19,6 +19,7 @@ import AdminAnteproyectoDetail from './pages/admin/AnteproyectoDetail';
 import AdminSabana from './pages/admin/Sabana';
 import AdminSolicitudes from './pages/admin/Solicitudes';
 import AdminAuditoria from './pages/admin/Auditoria';
+import AdminRolesPermisos from './pages/admin/RolesPermisos';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="sabana" element={<AdminSabana />} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
           <Route path="auditoria" element={<AdminAuditoria />} />
+          <Route path="roles-permisos" element={<AdminRolesPermisos />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

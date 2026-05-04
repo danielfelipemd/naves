@@ -54,6 +54,11 @@ const SECTIONS: Section[] = [
     title: 'Auditoría',
     desc: 'Registro cronológico de eventos del sistema (cambios en equipos, anteproyectos, asignaciones).',
   },
+  {
+    to: '/admin/roles-permisos', icon: '🔐',
+    title: 'Roles y permisos',
+    desc: 'Crea roles personalizados, define qué puede hacer cada uno y asigna roles a profesores y participantes.',
+  },
 ];
 
 export default function Resumen() {
