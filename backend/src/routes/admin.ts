@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { encryptPII, sha256Hex, syntheticEmailFromCedula } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
+import { buildAnteproyectoPDF } from '../services/pdf.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -269,6 +270,29 @@ router.get('/anteproyectos/:id', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   if (!data) return res.status(404).json({ error: 'NOT_FOUND' });
   res.json(data);
+});
+
+// PDF del anteproyecto
+router.get('/anteproyectos/:id/pdf', async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('anteproyectos')
+    .select(`
+      estado, fecha_envio,
+      equipos ( nombre_equipo, cohorte_id,
+        miembros_equipo ( posicion, fue_emprendedor, perfil,
+          participantes_lista ( nombre_completo ) ) ),
+      proyectos ( *, hitos ( posicion, descripcion, fecha_inicio, fecha_fin ) )
+    `)
+    .eq('id', req.params.id)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: 'NOT_FOUND' });
+
+  const pdf = await buildAnteproyectoPDF(data as any);
+  const filename = `anteproyecto-${(data.equipos as any)?.nombre_equipo?.replace(/[^a-zA-Z0-9]/g, '_') ?? req.params.id.slice(0, 8)}.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(pdf);
 });
 
 // =====================================================================

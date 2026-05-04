@@ -15,3 +15,16 @@ api.interceptors.request.use(async (cfg) => {
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
   return cfg;
 });
+
+/** Descarga un blob desde una ruta autenticada y dispara el guardado en el navegador. */
+export async function downloadFile(path: string, filename: string) {
+  const resp = await api.get(path, { responseType: 'blob' });
+  const url = URL.createObjectURL(resp.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { api } from '../../lib/api';
+import { api, downloadFile } from '../../lib/api';
 
 export default function AnteproyectoDetail() {
   const { id } = useParams();
@@ -17,10 +17,20 @@ export default function AnteproyectoDetail() {
     <>
       <button onClick={() => navigate(-1)} className="text-sm text-inalde-gray hover:text-inalde-red mb-4">← Volver</button>
 
-      <div className="border-b-[3px] border-inalde-red pb-4 mb-6">
-        <p className="section-subtitle mb-1">Anteproyecto · {data.estado}</p>
-        <h1 className="section-title">{data.equipos.nombre_equipo ?? '(equipo sin nombre)'}</h1>
-        <p className="text-xs text-inalde-gray mt-1">Cohorte {data.equipos.cohorte_id}</p>
+      <div className="border-b-[3px] border-inalde-red pb-4 mb-6 flex items-end justify-between gap-4">
+        <div>
+          <p className="section-subtitle mb-1">Anteproyecto · {data.estado}</p>
+          <h1 className="section-title">{data.equipos.nombre_equipo ?? '(equipo sin nombre)'}</h1>
+          <p className="text-xs text-inalde-gray mt-1">Cohorte {data.equipos.cohorte_id}</p>
+        </div>
+        <button
+          onClick={() => downloadFile(
+            `/admin/anteproyectos/${data.id}/pdf`,
+            `anteproyecto-${(data.equipos.nombre_equipo ?? 'equipo').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
+          )}
+          className="btn-inalde-primary !py-2 !px-4 !text-xs whitespace-nowrap">
+          ↓ Descargar PDF
+        </button>
       </div>
 
       <h2 className="section-subtitle mb-3">Miembros</h2>

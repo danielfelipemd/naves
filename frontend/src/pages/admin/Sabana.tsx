@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../../lib/api';
+import { api, downloadFile } from '../../lib/api';
 
 interface Cohorte { id: string; etiqueta: string; }
 interface Profesor { id: string; nombre_completo: string; areas_afinidad: string[]; }
@@ -136,6 +136,7 @@ export default function Sabana() {
               <>
                 <button onClick={sugerir} disabled={busy} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover">Sugerir asignaciones</button>
                 <button onClick={guardarAsignaciones} disabled={busy} className="text-xs font-semibold text-inalde-blue hover:text-inalde-red">Guardar asignaciones</button>
+                <button onClick={() => downloadFile(`/sabana/${cohorte}/pdf`, `sabana-${cohorte}.pdf`)} disabled={busy} className="text-xs font-semibold text-inalde-text hover:text-inalde-red">↓ PDF</button>
                 <button onClick={comunicar} disabled={busy} className="text-xs font-semibold text-inalde-gold hover:text-inalde-red">Comunicar →</button>
               </>
             )}

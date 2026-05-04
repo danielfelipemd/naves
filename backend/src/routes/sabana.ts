@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
+import { buildSabanaPDF } from '../services/pdf.js';
 
 const router = Router();
 router.use(requireAuth());
@@ -120,6 +121,24 @@ router.get('/:cohorteId', requireRole('profesor', 'super_admin'), async (req, re
   if (error) return res.status(500).json({ error: error.message });
   if (!data) return res.status(404).json({ error: 'NOT_FOUND' });
   res.json(data);
+});
+
+/**
+ * GET /api/sabana/:cohorteId/pdf
+ */
+router.get('/:cohorteId/pdf', requireRole('profesor', 'super_admin'), async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('sabanas_proyectos')
+    .select('snapshot')
+    .eq('cohorte_id', req.params.cohorteId)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data?.snapshot) return res.status(404).json({ error: 'SABANA_NOT_GENERATED' });
+
+  const pdf = await buildSabanaPDF(req.params.cohorteId, data.snapshot as any);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="sabana-${req.params.cohorteId}.pdf"`);
+  res.send(pdf);
 });
 
 export default router;
