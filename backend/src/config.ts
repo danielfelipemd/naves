@@ -18,11 +18,6 @@ export const config = {
     jwtSecret: required('SUPABASE_JWT_SECRET'),
   },
 
-  python: {
-    url: process.env.PYTHON_API_URL ?? 'http://naves_python:8000',
-    token: process.env.PYTHON_API_TOKEN ?? '',
-  },
-
   pii: {
     encryptionKey: process.env.PII_ENCRYPTION_KEY ?? '',
   },

@@ -6,18 +6,18 @@ Sistema para gestionar el anteproyecto del MBA de INALDE Business School (NAVES 
 
 ```
 Frontend (React + Vite + Nginx)  ──┐
-Backend  (Node + Express + TS)    ──┼──>  Supabase (Postgres + Auth + RLS + Storage)
-Python   (FastAPI)                ──┘
+                                    │
+                                    ├──>  Supabase (Postgres + Auth + RLS + Storage)
+                                    │
+Backend  (Node + Express + TS)    ──┘
 ```
 
-Despliegue: contenedores Docker en EasyPanel server `147.79.74.179`, proyecto `naves`.
-Supabase reusado del proyecto `n8n` en el mismo servidor (red Docker interna).
+3 contenedores en EasyPanel server `147.79.74.179`, proyecto `naves`. Comunicación interna via red Docker.
 
 ## Estructura
 
 ```
-backend/    Node + Express + TS — API principal, auth con Supabase Auth, validaciones de negocio
-python/     FastAPI — operaciones complejas (Excel, sábana, PDFs, emails)
+backend/    Node + Express + TS — API completa: auth, CRUD, ingesta Excel, sábana, emails
 frontend/   React + Vite + Tailwind — UI con identidad INALDE (rojo, dorado, Montserrat)
 backend/sql/  Migraciones de schema, RLS y auditoría
 ```

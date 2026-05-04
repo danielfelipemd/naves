@@ -7,6 +7,8 @@ import { config } from './config.js';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import ciiuRouter from './routes/ciiu.js';
+import adminRouter from './routes/admin.js';
+import sabanaRouter from './routes/sabana.js';
 
 const app = express();
 
@@ -25,6 +27,8 @@ const ciiuLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 200 });
 app.use('/', healthRouter);
 app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/ciiu', ciiuLimiter, ciiuRouter);
+app.use('/api/admin', adminRouter);
+app.use('/api/sabana', sabanaRouter);
 
 // 404 + error handlers
 app.use((_req, res) => res.status(404).json({ error: 'NOT_FOUND' }));

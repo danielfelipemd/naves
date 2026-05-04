@@ -16,3 +16,4 @@ venv/
 .supabase-secrets.env
 .supabase-new-env.txt
 .supabase-source-backup.json
+.naves-app-secrets.env
