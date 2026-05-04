@@ -26,7 +26,9 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
   if (!coh) return res.status(404).json({ error: 'COHORTE_NOT_FOUND' });
 
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(req.file.buffer);
+  // multer's Buffer<ArrayBufferLike> is structurally compatible but TS strict mode
+  // disagrees on Symbol.toStringTag — convert via Uint8Array to satisfy exceljs typing
+  await wb.xlsx.load(new Uint8Array(req.file.buffer).buffer as ArrayBuffer);
   const ws = wb.worksheets[0];
   if (!ws) return res.status(400).json({ error: 'EMPTY_WORKBOOK' });
 
