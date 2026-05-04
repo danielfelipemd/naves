@@ -164,6 +164,17 @@ RETURNS TABLE(permiso_code VARCHAR) LANGUAGE SQL STABLE AS $$
     WHERE ur.auth_user_id = p_user
 $$;
 
+-- Wrapper en public para que supabase-js .rpc('permisos_del_usuario') lo encuentre
+CREATE OR REPLACE FUNCTION public.permisos_del_usuario(p_user UUID)
+RETURNS TABLE(permiso_code VARCHAR) LANGUAGE SQL STABLE SECURITY DEFINER AS $$
+    SELECT permiso_code FROM usuario_permisos WHERE auth_user_id = p_user
+    UNION
+    SELECT rp.permiso_code FROM usuario_roles ur
+    JOIN rol_permisos rp ON rp.rol_id = ur.rol_id
+    WHERE ur.auth_user_id = p_user
+$$;
+GRANT EXECUTE ON FUNCTION public.permisos_del_usuario(UUID) TO anon, authenticated, service_role;
+
 -- ===== RLS sobre las nuevas tablas ===================
 ALTER TABLE permisos          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE roles             ENABLE ROW LEVEL SECURITY;
