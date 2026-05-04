@@ -332,16 +332,16 @@ export default function Anteproyecto() {
 
       {/* Progress bar fija arriba */}
       <div className="fixed top-[140px] inset-x-0 z-40 px-4">
-        <div className="max-w-[900px] mx-auto h-1.5 bg-inalde-gray-light rounded-full overflow-hidden shadow-sm">
+        <div className="max-w-[1100px] mx-auto h-1.5 bg-inalde-gray-light/80 backdrop-blur rounded-full overflow-hidden shadow">
           <div
-            className="h-full bg-gradient-to-r from-inalde-red to-inalde-gold transition-all duration-300"
+            className="h-full bg-gradient-to-r from-inalde-red via-inalde-red-hover to-inalde-gold transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
       <main className="pt-40 pb-16 px-4">
-        <div className="max-w-[900px] mx-auto bg-white rounded-lg shadow-inalde-card p-10">
+        <div className="max-w-[1100px] mx-auto bg-white rounded-lg shadow-inalde-card p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
             <p className="section-subtitle mb-2">Anteproyecto NAVES</p>
             <h1 className="section-title">
@@ -685,13 +685,24 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
       <p className="text-xs text-inalde-gray mb-4">
         Las 8 piezas del Business Model Canvas. Sé concreto pero claro.
       </p>
+      {/* Cliente/problema en ancho completo (es el más extenso, 500 chars), el resto en 2 columnas */}
       <div className="space-y-4 mb-8">
-        {CANVAS_FIELDS.map(({ key, label, placeholder, max }) => (
+        {/* Primero el cliente/problema, ancho completo */}
+        {CANVAS_FIELDS.slice(0, 1).map(({ key, label, placeholder, max }) => (
           <Field key={String(key)} label={label}>
-            <TextareaWithCounter value={String(proyecto[key] ?? '')} rows={2} max={max} placeholder={placeholder}
+            <TextareaWithCounter value={String(proyecto[key] ?? '')} rows={3} max={max} placeholder={placeholder}
               onChange={(v) => onChange({ [key]: v } as any)} />
           </Field>
         ))}
+        {/* Los otros 7, en grid 2 columnas en md+ */}
+        <div className="grid md:grid-cols-2 gap-x-5 gap-y-4">
+          {CANVAS_FIELDS.slice(1).map(({ key, label, placeholder, max }) => (
+            <Field key={String(key)} label={label}>
+              <TextareaWithCounter value={String(proyecto[key] ?? '')} rows={3} max={max} placeholder={placeholder}
+                onChange={(v) => onChange({ [key]: v } as any)} />
+            </Field>
+          ))}
+        </div>
       </div>
 
       {/* Estado del proyecto (madurez) */}
@@ -703,15 +714,15 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
       {/* Validación del mercado */}
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Validación del mercado</h3>
       <p className="text-xs text-inalde-gray mb-4">¿Cómo sabes que este proyecto resuelve un problema real?</p>
-      <div className="space-y-4 mb-8">
+      <div className="grid md:grid-cols-2 gap-x-5 gap-y-4 mb-8">
         <Field label="Fuentes primarias (entrevistas, encuestas, observación)">
-          <TextareaWithCounter value={proyecto.fuentes_primarias} rows={2} max={300}
-            placeholder="Describe tus fuentes primarias…"
+          <TextareaWithCounter value={proyecto.fuentes_primarias} rows={3} max={300}
+            placeholder="¿Con cuántas personas hablaste? ¿Qué descubriste?"
             onChange={(v) => onChange({ fuentes_primarias: v })} />
         </Field>
         <Field label="Fuentes secundarias (estudios, reportes, datos públicos)">
-          <TextareaWithCounter value={proyecto.fuentes_secundarias} rows={2} max={300}
-            placeholder="Describe tus fuentes secundarias…"
+          <TextareaWithCounter value={proyecto.fuentes_secundarias} rows={3} max={300}
+            placeholder="¿Qué reportes, datos del DANE, estudios sectoriales consultaste?"
             onChange={(v) => onChange({ fuentes_secundarias: v })} />
         </Field>
       </div>
@@ -720,46 +731,51 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Cronograma</h3>
       <p className="text-xs text-inalde-gray mb-4">
         Define entre <strong>5 y 10 hitos</strong> del proyecto con sus fechas estimadas.
+        Los siguientes irán apareciendo a medida que llenes el actual.
       </p>
       <div className="space-y-3">
         {proyecto.hitos.map((h, hi) => (
-          <div key={hi} className="grid grid-cols-12 gap-2 items-end p-3 rounded bg-inalde-gray-bg/40 border-l-[3px] border-inalde-gold">
-            <div className="col-span-1 text-center pt-7 text-inalde-gray font-bold">#{h.posicion}</div>
-            <div className="col-span-5">
+          <div key={hi} className="flex items-end gap-3 p-4 rounded bg-inalde-gray-bg/40 border-l-[3px] border-inalde-gold">
+            <div className="w-12 shrink-0 text-center pt-7 text-inalde-gray font-bold">#{h.posicion}</div>
+
+            <div className="flex-1 min-w-0">
               <Field label="Hito">
                 <input type="text" value={h.descripcion} maxLength={100}
-                  placeholder="Ej: Validación de mercado, Prototipo MVP"
+                  placeholder="Ej: Validación de mercado, Prototipo MVP, Lanzamiento beta"
                   onChange={(e) => onUpdateHito(hi, { descripcion: e.target.value })}
                   className="input-inalde" />
               </Field>
             </div>
-            <div className="col-span-3">
+
+            <div className="w-44 shrink-0">
               <Field label="Inicio">
                 <input type="date" value={h.fecha_inicio}
                   onChange={(e) => onUpdateHito(hi, { fecha_inicio: e.target.value })}
                   className="input-inalde" />
               </Field>
             </div>
-            <div className="col-span-2">
+
+            <div className="w-44 shrink-0">
               <Field label="Fin">
                 <input type="date" value={h.fecha_fin} min={h.fecha_inicio || undefined}
                   onChange={(e) => onUpdateHito(hi, { fecha_fin: e.target.value })}
                   className="input-inalde" />
               </Field>
             </div>
-            <div className="col-span-1 pt-7 text-center">
+
+            <div className="w-10 shrink-0 pt-7 text-center">
               {proyecto.hitos.length > 5 && (
                 <button type="button" onClick={() => onRemoveHito(hi)}
                   title="Eliminar hito"
-                  className="text-inalde-gray hover:text-inalde-red text-xl leading-none">×</button>
+                  className="text-inalde-gray hover:text-inalde-red text-2xl leading-none transition">×</button>
               )}
             </div>
           </div>
         ))}
         {proyecto.hitos.length < 10 && (
           <button type="button" onClick={onAddHito}
-            className="text-sm text-inalde-red hover:text-inalde-red-hover font-semibold mt-2">
-            + Agregar hito
+            className="text-sm text-inalde-red hover:text-inalde-red-hover font-semibold mt-2 inline-flex items-center gap-1 px-3 py-2 rounded border border-inalde-red/30 hover:border-inalde-red transition">
+            + Agregar hito manualmente
           </button>
         )}
       </div>
