@@ -7,6 +7,7 @@ import ResetPassword from './pages/auth/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import MiEquipo from './pages/participante/MiEquipo';
 import Anteproyecto from './pages/participante/Anteproyecto';
+import TrabajoGrado from './pages/participante/TrabajoGrado';
 import SeleccionDefinitivo from './pages/participante/SeleccionDefinitivo';
 import MiProfesor from './pages/participante/MiProfesor';
 import AdminLayout from './pages/admin/AdminLayout';
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/equipo" element={<ProtectedRoute><MiEquipo /></ProtectedRoute>} />
         <Route path="/anteproyecto" element={<ProtectedRoute><Anteproyecto /></ProtectedRoute>} />
+        <Route path="/trabajo-grado" element={<ProtectedRoute><TrabajoGrado /></ProtectedRoute>} />
         <Route path="/seleccion" element={<ProtectedRoute><SeleccionDefinitivo /></ProtectedRoute>} />
         <Route path="/mi-profesor" element={<ProtectedRoute><MiProfesor /></ProtectedRoute>} />
 

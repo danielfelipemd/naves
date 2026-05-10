@@ -14,6 +14,7 @@ interface Equipo {
   nombre_equipo: string | null;
   cohorte_id: string;
   creador_id: string;
+  tipo_trabajo_grado: 'business_plan' | 'caso' | 'proyecto_investigacion';
   miembros_equipo: Miembro[];
 }
 
@@ -238,8 +239,15 @@ export default function MiEquipo() {
                 <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
                   ← Dashboard
                 </button>
-                <button onClick={() => navigate('/anteproyecto')} className="btn-inalde-primary">
-                  Continuar al anteproyecto →
+                <button
+                  onClick={() =>
+                    navigate(equipo.tipo_trabajo_grado === 'business_plan' ? '/anteproyecto' : '/trabajo-grado')
+                  }
+                  className="btn-inalde-primary"
+                >
+                  {equipo.tipo_trabajo_grado === 'business_plan'
+                    ? 'Continuar al anteproyecto →'
+                    : 'Continuar al trabajo de grado →'}
                 </button>
               </div>
             </>

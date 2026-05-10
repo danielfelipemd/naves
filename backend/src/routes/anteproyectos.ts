@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
+import { getSignedUrlTrabajoGrado } from '../services/storage.js';
 
 const router = Router();
 router.use(requireAuth());
@@ -23,6 +24,7 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
     .from('anteproyectos')
     .select(`
       *,
+      equipos:equipos!inner ( id, tipo_trabajo_grado ),
       proyectos (
         *,
         hitos ( id, posicion, descripcion, fecha_inicio, fecha_fin )
@@ -32,7 +34,18 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
     .maybeSingle();
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ anteproyecto: data });
+  if (!data) return res.json({ anteproyecto: null });
+
+  // Adjuntar URLs firmadas (5 min) si hay archivos
+  const ant: any = data;
+  if (ant.archivo_anteproyecto_path) {
+    try { ant.archivo_anteproyecto_url = await getSignedUrlTrabajoGrado(ant.archivo_anteproyecto_path, 300); } catch { /* ignore */ }
+  }
+  if (ant.archivo_proyecto_final_path) {
+    try { ant.archivo_proyecto_final_url = await getSignedUrlTrabajoGrado(ant.archivo_proyecto_final_path, 300); } catch { /* ignore */ }
+  }
+
+  res.json({ anteproyecto: ant });
 });
 
 // === Validaciones del payload ===============================================
@@ -192,7 +205,11 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
 
   const { data: ant } = await supabaseAdmin
     .from('anteproyectos')
-    .select('id, equipo_id, estado, proyectos(id)')
+    .select(`
+      id, equipo_id, estado,
+      archivo_anteproyecto_path, archivo_proyecto_final_path,
+      equipos:equipos!inner ( tipo_trabajo_grado )
+    `)
     .eq('id', req.params.id)
     .maybeSingle();
   if (!ant) return res.status(404).json({ error: 'NOT_FOUND' });
@@ -203,7 +220,25 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     .from('miembros_equipo').select('id').eq('equipo_id', ant.equipo_id).eq('participante_id', pid).maybeSingle();
   if (!yo) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
 
-  // Validar mínimo de hitos por proyecto (5 según doc)
+  const modalidad = (ant.equipos as any)?.tipo_trabajo_grado;
+
+  // === Modalidades 'caso' / 'proyecto_investigacion': solo se exigen los 2 archivos
+  if (modalidad === 'caso' || modalidad === 'proyecto_investigacion') {
+    const faltantes: string[] = [];
+    if (!ant.archivo_anteproyecto_path) faltantes.push('anteproyecto');
+    if (!ant.archivo_proyecto_final_path) faltantes.push('proyecto_final');
+    if (faltantes.length) return res.status(400).json({ error: 'ARCHIVOS_FALTANTES', faltantes });
+
+    await supabaseAdmin.from('anteproyectos').update({
+      estado: 'enviado',
+      fecha_envio: new Date().toISOString(),
+      ultimo_editor_id: pid,
+    }).eq('id', req.params.id);
+
+    return res.json({ ok: true, modalidad });
+  }
+
+  // === Modalidad 'business_plan' (NAVES): validar proyectos + auto-definitivo
   const { data: proyectos } = await supabaseAdmin
     .from('proyectos')
     .select('id, hitos:hitos(count)')
@@ -222,7 +257,7 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     ultimo_editor_id: pid,
   }).eq('id', req.params.id);
 
-  res.json({ ok: true, proyectos_count: proyectos.length, auto_definitivo: proyectos.length === 1 });
+  res.json({ ok: true, modalidad: 'business_plan', proyectos_count: proyectos.length, auto_definitivo: proyectos.length === 1 });
 });
 
 export default router;

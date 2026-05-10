@@ -24,7 +24,7 @@ function dentroDePlazo(deadline: string | null | undefined): boolean {
 async function meAndCohorte(participanteId: string) {
   const { data, error } = await supabaseAdmin
     .from('participantes_lista')
-    .select('id, cohorte_id, nombre_completo, estado')
+    .select('id, cohorte_id, nombre_completo, estado, tipo_trabajo_grado')
     .eq('id', participanteId)
     .maybeSingle();
   if (error || !data) throw new Error('PARTICIPANT_NOT_FOUND');
@@ -74,6 +74,9 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
 
   try {
     const me = await meAndCohorte(pid);
+    if (!me.tipo_trabajo_grado) {
+      return res.status(400).json({ error: 'MODALIDAD_NO_DEFINIDA', mensaje: 'Debes elegir tu modalidad de trabajo de grado antes de crear un equipo.' });
+    }
     const fechas = await getCohorteFechas(me.cohorte_id);
     if (!dentroDePlazo(fechas?.fecha_limite_formacion_equipos)) {
       return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA', mensaje: 'La fecha límite para formar equipos ya pasó.' });
@@ -87,7 +90,12 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
     // Crear equipo
     const { data: equipo, error: e1 } = await supabaseAdmin
       .from('equipos')
-      .insert({ cohorte_id: me.cohorte_id, creador_id: pid, nombre_equipo: parsed.data.nombre_equipo ?? null })
+      .insert({
+        cohorte_id: me.cohorte_id,
+        creador_id: pid,
+        nombre_equipo: parsed.data.nombre_equipo ?? null,
+        tipo_trabajo_grado: me.tipo_trabajo_grado,
+      })
       .select().single();
     if (e1) throw e1;
 
@@ -124,18 +132,33 @@ router.post('/:id/agregar-miembro', async (req: AuthenticatedRequest, res) => {
   if (!yo) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
 
   // Equipo y plazo
-  const { data: equipo } = await supabaseAdmin.from('equipos').select('cohorte_id').eq('id', req.params.id).maybeSingle();
+  const { data: equipo } = await supabaseAdmin
+    .from('equipos')
+    .select('cohorte_id, tipo_trabajo_grado')
+    .eq('id', req.params.id)
+    .maybeSingle();
   if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
   const fechas = await getCohorteFechas(equipo.cohorte_id);
   if (!dentroDePlazo(fechas?.fecha_limite_formacion_equipos)) {
     return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA' });
   }
 
-  // El nuevo miembro debe ser de la misma cohorte y no estar en otro equipo
+  // El nuevo miembro debe ser de la misma cohorte, no estar en otro equipo y compartir modalidad
   const { data: target } = await supabaseAdmin
-    .from('participantes_lista').select('id, cohorte_id, estado').eq('id', parsed.data.participante_id).maybeSingle();
+    .from('participantes_lista')
+    .select('id, cohorte_id, estado, tipo_trabajo_grado')
+    .eq('id', parsed.data.participante_id)
+    .maybeSingle();
   if (!target) return res.status(404).json({ error: 'PARTICIPANT_NOT_FOUND' });
   if (target.cohorte_id !== equipo.cohorte_id) return res.status(400).json({ error: 'COHORTE_MISMATCH' });
+  if (!target.tipo_trabajo_grado) return res.status(400).json({ error: 'TARGET_SIN_MODALIDAD' });
+  if (target.tipo_trabajo_grado !== equipo.tipo_trabajo_grado) {
+    return res.status(400).json({
+      error: 'MODALIDAD_MISMATCH',
+      equipo: equipo.tipo_trabajo_grado,
+      target: target.tipo_trabajo_grado,
+    });
+  }
 
   const { data: alreadyIn } = await supabaseAdmin
     .from('miembros_equipo').select('equipo_id').eq('participante_id', target.id).maybeSingle();
