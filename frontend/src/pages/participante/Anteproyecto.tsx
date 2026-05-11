@@ -9,7 +9,15 @@ type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia';
 type Preocupacion = 'financiera' | 'estres' | 'habilidades' | 'familia';
 type Perfil = 'emprendedor' | 'directivo' | 'ambos';
 type EstadoProyecto = 'idea' | 'investigacion' | 'prototipo' | 'validacion';
-type Quiebra = 'si' | 'no' | 'na';
+type Quiebra = 'nunca_despego' | 'funcionamiento' | 'vendido' | 'quebro' | 'na';
+
+const ESTADO_EMPRENDIMIENTO: Array<{ value: Quiebra; label: string }> = [
+  { value: 'nunca_despego',  label: 'Nunca despegó' },
+  { value: 'funcionamiento', label: 'Está en funcionamiento' },
+  { value: 'vendido',        label: 'Lo vendí' },
+  { value: 'quebro',         label: 'Se quebró' },
+  { value: 'na',             label: 'N/A' },
+];
 
 const EMOCIONES: Array<{ value: Emocion; label: string }> = [
   { value: 'crear',      label: 'Crear algo nuevo desde cero' },
@@ -272,7 +280,7 @@ export default function Anteproyecto() {
         celular: m.celular || undefined,
         fue_emprendedor: m.fue_emprendedor,
         quiebra: m.fue_emprendedor ? m.quiebra : undefined,
-        aprendizajes_quiebra: m.fue_emprendedor && m.quiebra === 'si' ? m.aprendizajes_quiebra : undefined,
+        aprendizajes_quiebra: m.fue_emprendedor && m.quiebra === 'quebro' ? m.aprendizajes_quiebra : undefined,
         perfil: m.perfil,
         emociones: m.emociones,
         preocupaciones: m.preocupaciones,
@@ -444,15 +452,11 @@ export default function Anteproyecto() {
               {m.fue_emprendedor && (
                 <div className="mt-4 p-4 rounded bg-inalde-gray-bg/60 border-l-4 border-inalde-gold">
                   <p className="text-xs uppercase tracking-wider font-bold text-inalde-red mb-3">Sobre tu emprendimiento anterior</p>
-                  <Field label="¿Tu emprendimiento quebró?">
+                  <Field label="¿Qué pasó con tu emprendimiento?">
                     <RadioGroup value={m.quiebra} onChange={(v) => updateMiembro(i, { quiebra: v as Quiebra })}
-                      options={[
-                        { value: 'si', label: 'Sí' },
-                        { value: 'no', label: 'No' },
-                        { value: 'na', label: 'No aplica' },
-                      ]} />
+                      options={ESTADO_EMPRENDIMIENTO} />
                   </Field>
-                  {m.quiebra === 'si' && (
+                  {m.quiebra === 'quebro' && (
                     <div className="mt-3">
                       <Field label="¿Qué aprendiste?">
                         <TextareaWithCounter value={m.aprendizajes_quiebra} max={300} rows={3}

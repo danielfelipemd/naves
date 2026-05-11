@@ -54,7 +54,7 @@ const miembroSchema = z.object({
   posicion: z.number().int().min(1).max(3),
   celular: z.string().max(20).optional(),
   fue_emprendedor: z.boolean(),
-  quiebra: z.enum(['si', 'no', 'na']).optional(),
+  quiebra: z.enum(['nunca_despego', 'funcionamiento', 'vendido', 'quebro', 'na']).optional(),
   aprendizajes_quiebra: z.string().max(300).optional(),
   perfil: z.enum(['emprendedor', 'directivo', 'ambos']),
   emociones: z.array(z.enum(['crear', 'dinero', 'problema', 'autonomia'])).min(1),
