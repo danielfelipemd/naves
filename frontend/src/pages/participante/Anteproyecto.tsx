@@ -320,7 +320,6 @@ export default function Anteproyecto() {
 
   const readOnly = estado !== 'borrador';
   const numMiembros = miembros.length;
-  const labelProyecto = numProyectos > 1 ? 'proyectos' : 'proyecto';
 
   if (loading) {
     return <><Header /><main className="pt-36 text-center text-inalde-gray">Cargando anteproyecto…</main></>;
@@ -370,11 +369,11 @@ export default function Anteproyecto() {
           {cohorte && (
             <div className="mb-8 grid sm:grid-cols-2 gap-4 p-4 rounded-lg bg-inalde-gray-bg/60 border-l-4 border-inalde-gold">
               <div>
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gray mb-0.5">Programa MBA</p>
+                <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-0.5">Programa MBA</p>
                 <p className="font-primary font-bold text-inalde-text">{cohorte.etiqueta}</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gray mb-0.5">Rango del programa</p>
+                <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-0.5">Rango del programa</p>
                 <p className="text-sm text-inalde-text">
                   <span className="text-inalde-red font-semibold">{fmtFecha(cohorte.fecha_inicio)}</span>
                   <span className="text-inalde-gray mx-2">→</span>
@@ -411,7 +410,7 @@ export default function Anteproyecto() {
 
               {/* Datos personales (read-only, vienen de participantes_lista) */}
               <div className="mb-5 pb-5 border-b border-inalde-gray-light">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Datos personales</p>
+                <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">Datos personales</p>
                 <p className="font-primary font-bold text-lg text-inalde-text">{m.nombre}</p>
                 <p className="text-xs text-inalde-gray mt-1 italic">
                   Cargado por el administrador desde la lista de la cohorte. Si hay un error, contacta al programa.
@@ -487,8 +486,8 @@ export default function Anteproyecto() {
             </p>
 
             <div className="mb-6">
-              <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-red mb-2">
-                ¿Cuántos {labelProyecto} vas a presentar?
+              <label className="block font-primary font-semibold text-sm text-inalde-red mb-2">
+                ¿Cuántos proyectos vas a presentar?
               </label>
               <div className="flex gap-2">
                 {[1, 2, 3].map((n) => (
@@ -581,10 +580,14 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   const esPregunta = /^¿/.test(label.trim()) || /\?$/.test(label.trim());
   return (
     <div className="mt-4">
-      <label className={`block font-primary font-semibold text-xs tracking-wider uppercase mb-1 ${esPregunta ? 'text-inalde-red' : 'text-inalde-gray'}`}>
+      <label className={`block font-primary font-semibold mb-1 ${
+        esPregunta
+          ? 'text-sm text-inalde-red'
+          : 'text-xs tracking-wider uppercase text-inalde-gray'
+      }`}>
         {label}
       </label>
-      {hint && <p className="text-[11px] text-inalde-gray italic mb-2">{hint}</p>}
+      {hint && <p className="text-xs text-inalde-gray italic mb-2">{hint}</p>}
       {children}
     </div>
   );
@@ -708,13 +711,13 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
 
       {/* Estado del proyecto (madurez) */}
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Estado del proyecto</h3>
-      <p className="text-xs text-inalde-red mb-3 font-semibold">¿En qué etapa está hoy?</p>
+      <p className="text-sm text-inalde-red mb-3 font-primary font-semibold">¿En qué etapa está hoy?</p>
       <RadioGroup value={proyecto.estado} onChange={(v) => onChange({ estado: v as EstadoProyecto })}
         options={ESTADOS_PROYECTO} />
 
       {/* Validación del mercado */}
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Validación del mercado</h3>
-      <p className="text-xs text-inalde-red mb-4 font-semibold">¿Cómo sabes que este proyecto resuelve un problema real?</p>
+      <p className="text-sm text-inalde-red mb-4 font-primary font-semibold">¿Cómo sabes que este proyecto resuelve un problema real?</p>
       <div className="grid md:grid-cols-2 gap-x-5 gap-y-4 mb-8">
         <Field label="Fuentes primarias (entrevistas, encuestas, observación)">
           <TextareaWithCounter value={proyecto.fuentes_primarias} rows={3} max={300}
