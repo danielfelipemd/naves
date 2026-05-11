@@ -640,7 +640,7 @@ function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder }: {
       <textarea value={value} maxLength={max} rows={rows} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className="input-inalde resize-none" />
-      <span className="absolute bottom-2 right-3 text-[10px] font-mono text-inalde-gray">
+      <span className="absolute bottom-2 right-3 text-xs font-mono text-inalde-gray">
         {value.length} / {max}
       </span>
     </div>
