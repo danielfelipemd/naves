@@ -69,7 +69,7 @@ const hitoSchema = z.object({
 });
 
 const proyectoSchema = z.object({
-  posicion: z.number().int().min(1).max(3),
+  posicion: z.number().int().min(1).max(2),
   nombre: z.string().min(1).max(150),
   tipo: z.enum(['emprendimiento', 'intraemprendimiento']),
   sector: z.string().max(100).optional(),
@@ -90,9 +90,9 @@ const proyectoSchema = z.object({
 
 const updateSchema = z.object({
   numero_miembros: z.number().int().min(1).max(3),
-  numero_proyectos: z.number().int().min(1).max(3),
+  numero_proyectos: z.number().int().min(1).max(2),
   miembros: z.array(miembroSchema),
-  proyectos: z.array(proyectoSchema).min(1).max(3),
+  proyectos: z.array(proyectoSchema).min(1).max(2),
 }).refine((d) => d.miembros.length === d.numero_miembros, {
   message: 'numero_miembros debe coincidir con miembros.length',
 }).refine((d) => d.proyectos.length === d.numero_proyectos, {

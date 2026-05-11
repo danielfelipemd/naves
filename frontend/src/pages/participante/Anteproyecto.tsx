@@ -494,7 +494,7 @@ export default function Anteproyecto() {
                 ¿Cuántos proyectos vas a presentar?
               </label>
               <div className="flex gap-2">
-                {[1, 2, 3].map((n) => (
+                {[1, 2].map((n) => (
                   <button key={n} type="button" disabled={readOnly}
                     onClick={() => setNumProyectos(n)}
                     className={`px-6 py-2 rounded font-primary font-semibold transition ${
