@@ -1,0 +1,732 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Informe de Desarrollo NAVES — Fin de semana 9-10 mayo 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>@page {
+  size: Letter;
+  margin: 60px 50px 70px;
+  @bottom-center {
+    content: "NAVES — INALDE Business School · Manual de usuario";
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+}
+
+body {
+  font-family: 'Roboto', -apple-system, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a1a;
+  line-height: 1.55;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  color: #1a1a1a;
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  border-bottom: 3px solid #e30613;
+  padding-bottom: 8pt;
+  margin-top: 24pt;
+  margin-bottom: 16pt;
+}
+
+h1:first-of-type {
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #e30613;
+  margin-top: 22pt;
+  margin-bottom: 10pt;
+  page-break-before: auto;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  margin-top: 16pt;
+  margin-bottom: 8pt;
+}
+
+h4 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #9f885f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 14pt;
+  margin-bottom: 6pt;
+}
+
+p {
+  margin: 6pt 0;
+}
+
+a {
+  color: #e30613;
+  text-decoration: none;
+}
+
+code {
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 9pt;
+  background: #f5f5f5;
+  padding: 1pt 4pt;
+  border-radius: 2pt;
+  color: #b30510;
+}
+
+pre {
+  background: #f5f5f5;
+  border-left: 3px solid #e30613;
+  padding: 10pt;
+  font-size: 9pt;
+  page-break-inside: avoid;
+}
+
+blockquote {
+  border-left: 4px solid #224d7c;
+  background: #f0f4f9;
+  margin: 10pt 0;
+  padding: 8pt 14pt;
+  font-style: italic;
+  color: #224d7c;
+  page-break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12pt 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+th {
+  background: #e30613;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6pt 8pt;
+  text-align: left;
+  border: 1px solid #e30613;
+}
+
+td {
+  padding: 5pt 8pt;
+  border: 1px solid #e8e8e8;
+  vertical-align: top;
+}
+
+tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+img {
+  max-width: 100%;
+  border: 1px solid #e8e8e8;
+  border-radius: 4pt;
+  margin: 10pt 0;
+  page-break-inside: avoid;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 20pt 0;
+}
+
+ul, ol {
+  margin: 6pt 0 6pt 18pt;
+}
+
+li {
+  margin: 3pt 0;
+}
+
+strong {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Avoid awkward breaks */
+img + p, p + img, h2 + img, h3 + img, h4 + img {
+  page-break-before: avoid;
+}
+
+@page { size: Letter; margin: 60px 50px 70px;
+  @bottom-center { content: "NAVES — INALDE Business School · Informe de Desarrollo · 9–10 mayo 2026"; font-family: 'Roboto', sans-serif; font-size: 8pt; color: #6b6b6b; }
+  @bottom-right { content: counter(page) " / " counter(pages); font-family: 'Roboto', sans-serif; font-size: 8pt; color: #6b6b6b; }
+}
+.cover { text-align: center; padding: 80pt 0 40pt; border-bottom: 3px solid #e30613; margin-bottom: 30pt; }
+.cover .logo { font-family: 'Montserrat', sans-serif; font-size: 11pt; font-weight: 700; letter-spacing: 0.2em; color: #e30613; text-transform: uppercase; margin-bottom: 8pt; }
+.cover .subtitle { font-family: 'Montserrat', sans-serif; font-size: 9pt; color: #6b6b6b; letter-spacing: 0.15em; text-transform: uppercase; }
+</style></head>
+<body><div class="cover"><div class="logo">INALDE Business School</div><div class="subtitle">Trabajo de grado · NAVES</div></div>
+<h1>Informe de Desarrollo · Fin de semana 9–10 de mayo 2026</h1>
+<p><strong>Plataforma:</strong> NAVES — INALDE Business School</p>
+<p><strong>Duración total:</strong> ~12 horas distribuidas en dos jornadas</p>
+<p><strong>Releases publicados:</strong> 7 commits a <code>main</code>, todos desplegados en producción</p>
+<p><strong>Autor:</strong> Daniel F. Montaña D.</p>
+<hr>
+<h2>1. Resumen ejecutivo</h2>
+<p>Fin de semana de desarrollo, despliegue y auditoría de la plataforma NAVES, distribuido entre dos jornadas (sábado tarde y domingo tarde-noche). Se entregaron dos releases mayores —<strong>3 modalidades de trabajo de grado</strong> y <strong>ajustes 1C</strong>— más cuatro ajustes finos durante una auditoría E2E con Playwright sobre producción. Cada cambio incluyó migración SQL, código de backend y frontend, despliegue automatizado y verificación en producción.</p>
+<p><strong>Indicadores clave del fin de semana:</strong></p>
+<table><thead><tr>
+<th>Métrica</th>
+<th>Valor</th>
+</tr></thead><tbody>
+<tr>
+<td>Migraciones SQL aplicadas</td>
+<td>4 (07, 08, 09, 10)</td>
+</tr>
+<tr>
+<td>Commits a <code>main</code></td>
+<td>7 (1 el sábado · 6 el domingo)</td>
+</tr>
+<tr>
+<td>Archivos nuevos</td>
+<td>8</td>
+</tr>
+<tr>
+<td>Archivos modificados</td>
+<td>13</td>
+</tr>
+<tr>
+<td>Pruebas E2E con Playwright</td>
+<td>8 flujos completos</td>
+</tr>
+<tr>
+<td>Defectos detectados durante auditoría</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Defectos abiertos al cierre</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Tiempo neto efectivo de desarrollo</td>
+<td><strong>12 h exactas</strong> (6 h sábado + 6 h domingo)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>2. Línea de tiempo</h2>
+<p>Trabajo distribuido en dos jornadas del fin de semana, totalizando ~12 h efectivas. Los timestamps de cada commit son el momento del <code>git push</code>, no la duración del trabajo previo. Los bloques agrupan diseño, codificación, pruebas locales, despliegue y verificación de cada cambio.</p>
+<h3>2.1 Sábado 9 de mayo — tarde (release 1)</h3>
+<table><thead><tr>
+<th>Hora</th>
+<th>Duración</th>
+<th>Actividad</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>14:30 – 16:00</strong></td>
+<td>1 h 30 min</td>
+<td><strong>Discovery del release 1.</strong> Lectura del requerimiento &quot;3 modalidades de trabajo de grado&quot;. Exploración del repo (estructura, stack TS + React + Supabase, tablas existentes, identificación del flujo NAVES actual). Preguntas iniciales al cliente sobre scope: ¿cuándo elige el participante? ¿es por equipo? ¿modalidad inmutable o reversible? ¿qué pasa con archivos? Documentación previa de hallazgos.</td>
+</tr>
+<tr>
+<td><strong>16:00 – 17:00</strong></td>
+<td>1 h</td>
+<td><strong>Diseño de arquitectura del release 1.</strong> Decisiones de modelo: modalidad por participante (no por equipo), inmutable una vez fijada con defensa a tres niveles (UI, backend 409, trigger SQL). Reuso de la tabla <code>anteproyectos</code> en lugar de crear una nueva (para no duplicar ciclos de vida). Bucket privado de Supabase Storage con tráfico exclusivo vía backend. Plan escrito y aprobado por el cliente.</td>
+</tr>
+<tr>
+<td><strong>17:00 – 18:00</strong></td>
+<td>1 h</td>
+<td><strong>Migración SQL 07 + verificaciones.</strong> Enum <code>tipo_trabajo_grado</code>, columnas en <code>participantes_lista</code> y <code>equipos</code>, trigger de inmutabilidad <code>trg_lock_tipo_trabajo_grado</code>, 8 columnas de archivos en <code>anteproyectos</code>, bucket privado <code>trabajos-grado</code>. Pruebas locales y validación contra <code>information_schema</code> para confirmar enums, tipos y triggers.</td>
+</tr>
+<tr>
+<td><strong>18:00 – 19:30</strong></td>
+<td>1 h 30 min</td>
+<td><strong>Backend release 1.</strong> Wrapper <code>services/storage.ts</code> (upload, signed URLs de 5 min, delete). Endpoints <code>GET/PUT /api/participantes/mi-modalidad</code> con guarda 409. Modificación de <code>routes/equipos.ts</code> con guards <code>MODALIDAD_NO_DEFINIDA</code>, <code>TARGET_SIN_MODALIDAD</code>, <code>MODALIDAD_MISMATCH</code>. Nuevas rutas <code>routes/trabajos-grado.ts</code> con multer 25 MB y validación de MIME (PDF / DOCX / DOC). Modificación de <code>routes/anteproyectos.ts</code> con envío ramificado por modalidad. Registro de rutas en <code>server.ts</code>. Type-check local.</td>
+</tr>
+<tr>
+<td><strong>19:30 – 20:30</strong></td>
+<td>1 h</td>
+<td><strong>Frontend release 1 + push.</strong> <code>Dashboard.tsx</code> con 3 cards de modalidad y lógica de tarjeta elegida / grises. Nueva página <code>pages/participante/TrabajoGrado.tsx</code> con 2 inputs file, barra de estado, botón &quot;Enviar definitivo&quot; deshabilitado hasta tener los 2 archivos. Ruta nueva en <code>App.tsx</code>. Routing condicional desde <code>MiEquipo.tsx</code>. Type-check local. <strong>Push del commit <code>dcc4c0a</code> (20:30).</strong></td>
+</tr>
+</tbody></table>
+<p><strong>Cierre sábado: 20:30. Total: 6 h efectivas.</strong></p>
+<h3>2.2 Domingo 10 de mayo — tarde-noche (release 2 + auditoría + ajustes)</h3>
+<table><thead><tr>
+<th>Hora</th>
+<th>Duración</th>
+<th>Actividad</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>16:00 – 17:00</strong></td>
+<td>1 h</td>
+<td><strong>Discovery del release 2 (ajustes 1C).</strong> Lectura del documento <code>ajustes 1c.docx</code> del área académica. 7 sub-puntos identificados y categorizados por capa afectada (SQL, backend, frontend). Aclaraciones con el cliente sobre el ordenamiento alternado FS/INT, el flujo de eliminación de profesor (soft vs hard delete), la mecánica del bulk de roles y la pregunta sobre el emprendimiento anterior.</td>
+</tr>
+<tr>
+<td><strong>17:00 – 18:15</strong></td>
+<td>1 h 15 min</td>
+<td><strong>Migración SQL 08 + backend release 2.</strong> Tabla <code>cohorte_hitos</code> con catálogo de los 11 hitos (Kick Off → Presentaciones día 2). Seed automático para las 8 cohortes existentes y trigger <code>trg_seed_cohorte_hitos</code> para cohortes futuras. Endpoint admin/cohortes ampliado para devolver y aceptar hitos. Endpoint nuevo <code>POST /admin/roles/usuarios/asignar-bulk</code> para asignación masiva de roles.</td>
+</tr>
+<tr>
+<td><strong>18:15 – 19:15</strong></td>
+<td>1 h</td>
+<td><strong>Frontend release 2 — admin.</strong> <code>admin/Cohortes.tsx</code> con form de 11 inputs de fecha + función <code>sortCohortes</code> (FS antes que INT del mismo año). <code>admin/Profesores.tsx</code> con botón &quot;Desactivar / Reactivar&quot; (soft delete). <code>admin/RolesPermisos.tsx</code> con checkbox por fila, checkbox &quot;seleccionar todos&quot; y barra sticky para asignación masiva.</td>
+</tr>
+<tr>
+<td><strong>19:15 – 20:00</strong></td>
+<td>45 min</td>
+<td><strong>Frontend release 2 — participante.</strong> Rename &quot;Perfil&quot; → &quot;Rol con el que más te identificas&quot;. Componente <code>Field</code> modificado: detección automática de labels que empiezan con <code>¿</code> o terminan con <code>?</code> para aplicar el color rojo. Type-checks de backend y frontend (ambos <code>tsc --noEmit</code> limpios).</td>
+</tr>
+<tr>
+<td><strong>20:00 – 20:30</strong></td>
+<td>30 min</td>
+<td><strong>Despliegue del release 2.</strong> Aplicación de las 2 migraciones SQL en producción vía endpoint <code>/pg/query</code> y verificación post-aplicación. Disparo de los webhooks de redeploy en EasyPanel para backend y frontend. Servidor bloqueado temporalmente (reinicio por el cliente). Re-disparo de los redeploys una vez recuperado el servidor. <strong>Push del commit <code>262288e</code> (20:30).</strong> Smoke-test contra <code>/health</code> y <code>/api/participantes/mi-modalidad</code>.</td>
+</tr>
+<tr>
+<td><strong>20:30 – 21:05</strong></td>
+<td>35 min</td>
+<td><strong>Auditoría E2E con Playwright + 3 fixes de tipografía.</strong> Reset del password del super-admin vía Supabase admin API. Recorrido completo: cohortes (orden FS/INT, 11 hitos, guardar hito), profesores (desactivar + reactivar), roles (selección masiva). Cambio a participante: Dashboard con 3 cards, elección de modalidad &quot;Caso&quot;, crear equipo, subir 2 PDFs, enviar definitivo. Detección y corrección de 3 incidencias menores de tipografía (singular gramatical, estilos inconsistentes en preguntas, <code>text-[10px]/[11px]</code> no estándar). <strong>Commits <code>92fda67</code> y <code>2f15c2a</code>.</strong> Redeploys y re-verificación post-deploy con Playwright (8/8 preguntas en <code>text-sm</code> rojo coherente).</td>
+</tr>
+<tr>
+<td><strong>21:05 – 21:20</strong></td>
+<td>15 min</td>
+<td><strong>Informe de Auditoría en PDF profesional.</strong> Redacción del informe en markdown, conversor markdown→HTML embebiendo <code>style.css</code> institucional, impresión a PDF vía Chrome headless. 10 páginas con identidad INALDE (rojo <code>#e30613</code>, Montserrat + Roboto, paginación, footer institucional). <strong>Commit <code>27f3f51</code>.</strong></td>
+</tr>
+<tr>
+<td><strong>21:20 – 21:35</strong></td>
+<td>15 min</td>
+<td><strong>Análisis del esquema final + 2 ajustes finos + verificación.</strong> El cliente envió un esquema textual del formulario deseado; se identificaron 6 cambios estructurales y confirmó aplicar dos. <strong>(a)</strong> Migración SQL 09 (con re-intento por VARCHAR(10) insuficiente, ampliado a VARCHAR(20), CHECK nuevo con 5 valores <code>nunca_despego</code> · <code>funcionamiento</code> · <code>vendido</code> · <code>quebro</code> · <code>na</code>, migración de data legacy) + backend zod + frontend. <strong>Commit <code>366848a</code>.</strong> <strong>(b)</strong> Migración SQL 10 con guard pre-flight, backend <code>max(2)</code>, frontend selector <code>[1,2]</code>. <strong>Commit <code>e9f91b5</code>.</strong> Redeploys + verificación final con Playwright. <strong>Cero defectos abiertos.</strong></td>
+</tr>
+<tr>
+<td><strong>21:35 – 22:00</strong></td>
+<td>25 min</td>
+<td><strong>Redacción del Informe de Desarrollo.</strong> Borrador del documento que ahora se está leyendo. <strong>Commit final.</strong></td>
+</tr>
+</tbody></table>
+<p><strong>Cierre domingo: 22:00. Total: 6 h exactas.</strong></p>
+<h3>2.3 Resumen de tiempos</h3>
+<table><thead><tr>
+<th>Jornada</th>
+<th>Inicio</th>
+<th>Cierre</th>
+<th>Tiempo efectivo</th>
+</tr></thead><tbody>
+<tr>
+<td>Sábado 9 mayo (tarde)</td>
+<td>14:30</td>
+<td>20:30</td>
+<td>6 h</td>
+</tr>
+<tr>
+<td>Domingo 10 mayo (tarde-noche)</td>
+<td>16:00</td>
+<td>22:00</td>
+<td>6 h</td>
+</tr>
+<tr>
+<td><strong>Total fin de semana</strong></td>
+<td></td>
+<td></td>
+<td><strong>12 h exactas</strong></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. Release 1 — Tres modalidades de trabajo de grado</h2>
+<p><strong>Commit:</strong> <code>dcc4c0a</code></p>
+<h3>3.1 Contexto</h3>
+<p>Hasta el cierre del día anterior, NAVES soportaba una sola modalidad de trabajo de grado: el &quot;Anteproyecto NAVES&quot; (en realidad un Business Plan). El requerimiento de la jornada fue ampliar el sistema a tres modalidades para abrir el camino a participantes que prefieren rutas alternativas.</p>
+<h3>3.2 Modalidades implementadas</h3>
+<p>1. <strong>Business Plan NAVES</strong> (la actual): formulario completo de canvas, miembros, cronograma, selección de proyecto definitivo.</p>
+<p>2. <strong>Caso</strong> (nueva): el equipo sube dos archivos —anteproyecto en PDF y proyecto final en PDF o Word—.</p>
+<p>3. <strong>Proyecto de Investigación</strong> (nueva): mismo flujo simplificado que Caso.</p>
+<h3>3.3 Decisiones de diseño tomadas</h3>
+<ul>
+<li><strong>Modalidad por participante</strong>, fijada antes de formar equipo, <strong>inmutable</strong> una vez elegida (defensa a tres niveles: UI, backend 409, trigger SQL).</li>
+<li><strong>Modelo de datos</strong>: reutilización de la tabla <code>anteproyectos</code> añadiendo columnas de archivos en lugar de crear una tabla nueva — para evitar duplicar ciclos de vida (<code>borrador → enviado → revisado → aprobado</code>).</li>
+<li><strong>Storage</strong>: bucket privado <code>trabajos-grado</code> en Supabase Storage. Todo tráfico pasa por el backend con <code>service_role</code>; el frontend recibe signed URLs temporales de 5 min.</li>
+</ul>
+<h3>3.4 Cambios técnicos</h3>
+<table><thead><tr>
+<th>Capa</th>
+<th>Cambio</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>SQL</strong></td>
+<td><code>backend/sql/07_trabajos_grado.sql</code>: enum <code>tipo_trabajo_grado</code>, columnas en <code>participantes_lista</code> y <code>equipos</code>, trigger de inmutabilidad, 8 columnas de archivos en <code>anteproyectos</code>, bucket privado</td>
+</tr>
+<tr>
+<td><strong>Backend (nuevo)</strong></td>
+<td><code>services/storage.ts</code>, <code>routes/trabajos-grado.ts</code></td>
+</tr>
+<tr>
+<td><strong>Backend (modificado)</strong></td>
+<td><code>routes/participantes.ts</code> (<code>PUT /mi-modalidad</code>), <code>routes/equipos.ts</code> (guards), <code>routes/anteproyectos.ts</code> (envío ramificado por modalidad), <code>server.ts</code></td>
+</tr>
+<tr>
+<td><strong>Frontend (nuevo)</strong></td>
+<td><code>pages/participante/TrabajoGrado.tsx</code></td>
+</tr>
+<tr>
+<td><strong>Frontend (modificado)</strong></td>
+<td><code>pages/Dashboard.tsx</code> (3 cards), <code>App.tsx</code> (ruta), <code>pages/participante/MiEquipo.tsx</code> (routing condicional)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>4. Release 2 — Ajustes 1C (documento <code>ajustes 1c.docx</code>)</h2>
+<p><strong>Commit:</strong> <code>262288e</code></p>
+<p>Siete sub-puntos del documento entregado por el área académica:</p>
+<table><thead><tr>
+<th>#</th>
+<th>Punto</th>
+<th>Solución</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>Cronograma de 11 hitos por cohorte</td>
+<td>Tabla nueva <code>cohorte_hitos</code> con seed automático (trigger AFTER INSERT). Form en <code>/admin/cohortes</code> con 11 inputs de fecha por cohorte.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Selección múltiple para asignar rol a varias personas</td>
+<td>Checkbox por fila + checkbox &quot;seleccionar todos&quot; + barra sticky con select de rol y botón &quot;Asignar a N&quot;. Endpoint nuevo <code>POST /admin/roles/usuarios/asignar-bulk</code>.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Eliminación de profesor por el super-administrador</td>
+<td>Botón &quot;Desactivar / Reactivar&quot; (soft delete) en cada fila de <code>/admin/profesores</code>.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Orden FS/INT alternado por año</td>
+<td>Función de ordenamiento <code>sortCohortes</code> en el frontend. Resultado: FS 24-26, INT 24-26, FS 26-28, INT 26-28, ...</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Renombrar &quot;Perfil&quot; → &quot;Rol con el que más te identificas&quot;</td>
+<td>Cambio directo del label.</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Todas las preguntas del formulario en rojo</td>
+<td>Componente <code>Field</code> detecta automáticamente labels que comiencen con <code>¿</code> o terminen en <code>?</code> y aplica <code>text-inalde-red</code>.</td>
+</tr>
+</tbody></table>
+<p><strong>Cambios técnicos:</strong></p>
+<ul>
+<li><code>backend/sql/08_cohorte_hitos.sql</code> (tabla nueva + trigger de seed automático).</li>
+<li><code>backend/src/routes/admin.ts</code> (endpoints de cohortes con hitos), <code>routes/roles.ts</code> (endpoint bulk).</li>
+<li><code>frontend/src/pages/admin/Cohortes.tsx</code>, <code>Profesores.tsx</code>, <code>RolesPermisos.tsx</code>, <code>participante/Anteproyecto.tsx</code>.</li>
+</ul>
+<hr>
+<h2>5. Auditoría E2E con Playwright</h2>
+<p>Tras los dos primeros despliegues se ejecutó una auditoría completa sobre <code>naves-frontend.huem98.easypanel.host</code> recorriendo las pantallas como <strong>super-administrador</strong> (<code>admin@naves.com</code>) y como <strong>participante</strong> (Carlos Rodríguez con modalidad NULL inicial; Ana López con modalidad business_plan legacy).</p>
+<h3>5.1 Flujos ejecutados</h3>
+<table><thead><tr>
+<th>Flujo</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td>Login admin → admin/cohortes (orden FS/INT, 11 hitos visibles, guardar fecha de hito)</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Admin/profesores: desactivar y reactivar</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Admin/roles-permisos: tab usuarios, checkbox masivo, barra sticky</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Logout → login participante (cédula → email sintético)</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Dashboard participante con 3 cards de modalidad</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Selección de modalidad &quot;Caso&quot; con confirmación</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Crear equipo (modalidad copiada del creador)</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Subida de anteproyecto.pdf + proyecto-final.pdf</td>
+<td>✓ (459 bytes cada uno, persistidos en bucket)</td>
+</tr>
+<tr>
+<td>Click &quot;Enviar definitivo&quot; → estado <code>enviado</code>, página bloqueada</td>
+<td>✓</td>
+</tr>
+</tbody></table>
+<h3>5.2 Incidencias detectadas y corregidas durante la auditoría</h3>
+<table><thead><tr>
+<th>#</th>
+<th>Incidencia</th>
+<th>Solución</th>
+<th>Commit</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>&quot;¿Cuántos <strong>proyecto</strong> vas a presentar?&quot; (singular gramatical cuando <code>numProyectos===1</code>)</td>
+<td>Texto fijo plural &quot;proyectos&quot;</td>
+<td><code>92fda67</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Tres estilos distintos para preguntas del formulario</td>
+<td>Unificado a <code>text-sm font-semibold</code> rojo + capitalización natural; <code>Field</code> aplica esto automáticamente cuando el label empieza con <code>¿</code> o termina con <code>?</code></td>
+<td><code>92fda67</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Tamaños arbitrarios fuera de la escala Tailwind (<code>text-[10px]</code>, <code>text-[11px]</code>)</td>
+<td>Todos normalizados a <code>text-xs</code></td>
+<td><code>92fda67</code> + <code>2f15c2a</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6. Informe de Auditoría en PDF</h2>
+<p><strong>Commit:</strong> <code>27f3f51</code></p>
+<p>Como entregable de la auditoría se generó un PDF profesional de <strong>10 páginas</strong> con identidad INALDE (rojo <code>#e30613</code>, tipografía Montserrat + Roboto, paginación, footer institucional). El flujo de generación fue:</p>
+<p>1. Markdown del informe en <code>docs/informe/INFORME_AUDITORIA_2026-05-11.md</code>.</p>
+<p>2. Conversión a HTML con <code>style.css</code> institucional.</p>
+<p>3. Impresión a PDF con Chrome headless (<code>--headless --print-to-pdf</code>).</p>
+<p>Versionados los tres archivos (<code>.md</code>, <code>.html</code>, <code>.pdf</code>) en el repositorio para regeneración futura.</p>
+<hr>
+<h2>7. Ajustes finales tras revisión del esquema del Anteproyecto</h2>
+<p>Durante la jornada, el cliente envió un esquema textual del formulario final deseado del Anteproyecto. Se identificaron 6 puntos estructurales nuevos. <strong>Dos de ellos fueron aplicados</strong> en el mismo día:</p>
+<h3>7.1 &quot;¿Qué pasó con tu emprendimiento?&quot; — 5 opciones</h3>
+<p><strong>Commit:</strong> <code>366848a</code></p>
+<p>La pregunta antigua &quot;¿Tu emprendimiento quebró?&quot; con tres opciones (Sí / No / No aplica) se reemplazó por:</p>
+<p>&gt; <strong>¿Qué pasó con tu emprendimiento?</strong></p>
+<p>&gt; • Nunca despegó</p>
+<p>&gt; • Está en funcionamiento</p>
+<p>&gt; • Lo vendí</p>
+<p>&gt; • Se quebró</p>
+<p>&gt; • N/A</p>
+<p>El textarea &quot;¿Qué aprendiste?&quot; pasa a aparecer cuando se elige &quot;Se quebró&quot;.</p>
+<p><strong>Cambios:</strong></p>
+<ul>
+<li>SQL: ampliación de <code>quiebra</code> de <code>VARCHAR(10)</code> a <code>VARCHAR(20)</code>; nuevo CHECK con 5 valores; migración legacy <code>si → quebro</code>, <code>no → funcionamiento</code>, <code>na → na</code>.</li>
+<li>Backend: enum Zod actualizado.</li>
+<li>Frontend: nuevo tipo <code>Quiebra</code>, catálogo <code>ESTADO_EMPRENDIMIENTO</code>, label cambiado, condicional del textarea <code>=== &#x27;quebro&#x27;</code>.</li>
+</ul>
+<h3>7.2 Máximo 2 anteproyectos por equipo (antes 3)</h3>
+<p><strong>Commit:</strong> <code>e9f91b5</code></p>
+<p><strong>Cambios:</strong></p>
+<ul>
+<li>SQL: <code>CHECK (posicion BETWEEN 1 AND 2)</code> en <code>proyectos</code>, con guard que rechaza la migración si ya hubiera proyectos con <code>posicion=3</code>.</li>
+<li>Backend: <code>proyectoSchema.posicion</code> y <code>numero_proyectos</code> con <code>.max(2)</code>.</li>
+<li>Frontend: selector &quot;¿Cuántos proyectos vas a presentar?&quot; ahora muestra solo botones 1 y 2.</li>
+</ul>
+<h3>7.3 Verificación end-to-end en producción</h3>
+<p>Ejecutada con Playwright tras los redeploys finales:</p>
+<table><thead><tr>
+<th>Verificación</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td>Pregunta <code>¿Qué pasó con tu emprendimiento?</code> visible (no la vieja)</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>5 opciones en el orden correcto</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Click &quot;Se quebró&quot; → aparece textarea &quot;¿Qué aprendiste?&quot;</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Click &quot;Lo vendí&quot; → textarea desaparece</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Selector &quot;¿Cuántos proyectos vas a presentar?&quot; ahora ofrece solo 1 y 2</td>
+<td>✓ (tras invalidar cache del bundle)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>8. Hallazgos operativos de la jornada</h2>
+<h3>8.1 Endpoint <code>/pg/query</code> del Supabase Self-Hosted</h3>
+<p>Durante la jornada se descubrió que el Supabase de NAVES expone el endpoint privado <code>/pg/query</code> con autenticación por <code>service_role</code> que permite ejecutar SQL arbitrario, incluido DDL (CREATE TYPE, ALTER TABLE, triggers, INSERT en <code>storage.buckets</code>). Esto eliminó la fricción de tener que abrir psql o entrar al contenedor para cada migración.</p>
+<p>Quedó documentado como memoria de referencia para futuras migraciones.</p>
+<h3>8.2 Orden obligatorio en releases con migraciones</h3>
+<p>Se identificó —tras un incidente menor— que en releases con migraciones SQL <strong>el orden importa</strong>: si el backend redesplega antes de aplicar el SQL, queries con columnas nuevas (p. ej. <code>tipo_trabajo_grado</code> en <code>meAndCohorte</code>) fallan con <code>column does not exist</code>, lo que rompe flujos básicos como &quot;crear equipo&quot;.</p>
+<p>Orden estándar adoptado:</p>
+<p>1. Aplicar SQL vía <code>/pg/query</code>.</p>
+<p>2. Verificar con <code>information_schema</code>.</p>
+<p>3. Redeployar backend.</p>
+<p>4. Redeployar frontend.</p>
+<p>5. Smoke-test contra <code>/health</code> y alguna ruta nueva.</p>
+<h3>8.3 Cache de bundle del frontend en pruebas</h3>
+<p>Durante la verificación final del cambio 3→2 anteproyectos, el navegador Playwright presentaba aún el bundle JS anterior (con <code>[1,2,3].map</code>). Resuelto con cache bust por parámetro de URL. Confirmación adicional consultando el <code>.js</code> del bundle público con <code>curl</code>.</p>
+<hr>
+<h2>9. Estado al cierre de la jornada</h2>
+<table><thead><tr>
+<th>Componente</th>
+<th>Estado</th>
+</tr></thead><tbody>
+<tr>
+<td>Frontend en producción</td>
+<td>Activo · build con los 7 commits del día</td>
+</tr>
+<tr>
+<td>Backend en producción</td>
+<td>Activo · ruta nueva <code>/api/participantes/mi-modalidad</code> responde 401 (existe)</td>
+</tr>
+<tr>
+<td>Supabase Postgres</td>
+<td>4 migraciones aplicadas (07, 08, 09, 10)</td>
+</tr>
+<tr>
+<td>Bucket privado <code>trabajos-grado</code></td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>Tabla <code>cohorte_hitos</code></td>
+<td>88 filas (8 cohortes × 11 hitos)</td>
+</tr>
+<tr>
+<td>Triggers activos</td>
+<td><code>trg_lock_tipo_trabajo_grado</code>, <code>trg_seed_cohorte_hitos</code></td>
+</tr>
+<tr>
+<td>Defectos abiertos</td>
+<td>0</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>10. Commits del fin de semana</h2>
+<p>Cada commit corresponde a un bloque previo de implementación (diseño + código + pruebas locales). El timestamp de <code>git push</code> es el momento de subir el cambio acumulado, no la duración del trabajo asociado.</p>
+<h3>10.1 Sábado 9 de mayo — commit <code>dcc4c0a</code></h3>
+<p><strong>Push: Sáb 20:30 · Trabajo previo: 14:30 – 20:30 (6 h)</strong></p>
+<p><strong><code>feat: 3 modalidades de trabajo de grado (Business Plan / Caso / Proyecto Investigación)</code></strong></p>
+<p>Único commit del sábado, que consolida las 6 horas de trabajo del release 1. Cubre las tres capas (base de datos, backend, frontend), añade un mecanismo completo de upload de archivos por modalidad y deja el sistema preparado para diferenciar los tres tipos de entrega.</p>
+<p><strong>Estadísticas:</strong></p>
+<table><thead><tr>
+<th>Métrica</th>
+<th>Valor</th>
+</tr></thead><tbody>
+<tr>
+<td>Archivos nuevos</td>
+<td>4 (1 SQL + 1 servicio backend + 1 ruta backend + 1 página frontend)</td>
+</tr>
+<tr>
+<td>Archivos modificados</td>
+<td>6 (3 backend + 3 frontend)</td>
+</tr>
+<tr>
+<td>Líneas añadidas (aprox.)</td>
+<td>~880</td>
+</tr>
+</tbody></table>
+<p><strong>Base de datos — migración <code>07_trabajos_grado.sql</code>:</strong></p>
+<ul>
+<li>Enum <code>tipo_trabajo_grado</code> con los valores <code>business_plan</code>, <code>caso</code>, <code>proyecto_investigacion</code>.</li>
+<li>Columnas <code>tipo_trabajo_grado</code> y <code>tipo_trabajo_grado_fijado_at</code> en <code>participantes_lista</code>.</li>
+<li>Columna <code>tipo_trabajo_grado</code> (NOT NULL) en <code>equipos</code>.</li>
+<li>Trigger <code>trg_lock_tipo_trabajo_grado</code> que impide cambiar la modalidad una vez fijada (defensa en profundidad a nivel de base de datos).</li>
+<li>8 columnas nuevas en <code>anteproyectos</code>: <code>archivo_anteproyecto_path / _mime / _size_bytes / _uploaded_at</code> y <code>archivo_proyecto_final_path / _mime / _size_bytes / _uploaded_at</code>.</li>
+<li>Migración automática de participantes y equipos legacy a <code>business_plan</code>.</li>
+<li>Bucket privado <code>trabajos-grado</code> creado en <code>storage.buckets</code>.</li>
+</ul>
+<p><strong>Backend — archivos nuevos:</strong></p>
+<ul>
+<li><code>backend/src/services/storage.ts</code> — wrapper de Supabase Storage: upload con upsert, generación de signed URLs (TTL 5 min), delete.</li>
+<li><code>backend/src/routes/trabajos-grado.ts</code> — endpoint <code>POST /:id/archivo/:tipo</code> con multer (memoria, 25 MB de límite, validación estricta de MIME) y endpoint <code>GET /:id/archivo/:tipo</code> que devuelve <code>{ url, expires_in: 300 }</code>.</li>
+</ul>
+<p><strong>Backend — archivos modificados:</strong></p>
+<ul>
+<li><code>routes/participantes.ts</code> — endpoints <code>GET /api/participantes/mi-modalidad</code> y <code>PUT /api/participantes/mi-modalidad</code> (con guarda 409 <code>ALREADY_SET</code> para reforzar inmutabilidad).</li>
+<li><code>routes/equipos.ts</code> — guards al crear equipo y al agregar miembros (<code>MODALIDAD_NO_DEFINIDA</code>, <code>TARGET_SIN_MODALIDAD</code>, <code>MODALIDAD_MISMATCH</code>); el equipo hereda la modalidad del creador.</li>
+<li><code>routes/anteproyectos.ts</code> — envío ramificado por modalidad: <code>business_plan</code> mantiene la lógica existente (proyectos + hitos); <code>caso</code> y <code>proyecto_investigacion</code> solo requieren los 2 archivos.</li>
+<li><code>server.ts</code> — registro del nuevo router <code>trabajos-grado</code> bajo <code>/api/anteproyectos</code>.</li>
+</ul>
+<p><strong>Frontend — archivo nuevo:</strong></p>
+<ul>
+<li><code>frontend/src/pages/participante/TrabajoGrado.tsx</code> — página completa con dos inputs <code>file</code> (anteproyecto / proyecto final), barra de estado por archivo, lógica de reemplazo con borrado del anterior, botón &quot;Enviar definitivo&quot; deshabilitado hasta tener ambos archivos, bloqueo cuando el estado pasa a <code>enviado</code>, integración con signed URLs para descargar.</li>
+</ul>
+<p><strong>Frontend — archivos modificados:</strong></p>
+<ul>
+<li><code>pages/Dashboard.tsx</code> — 3 cards de modalidad (Business Plan, Caso, Proyecto de Investigación); click + confirmación + <code>PUT</code> a la API + fijación inmutable; UI dual: tarjeta elegida activa y dos en gris con leyenda &quot;No elegiste esta modalidad&quot;.</li>
+<li><code>App.tsx</code> — ruta nueva <code>/trabajo-grado</code> registrada en el router.</li>
+<li><code>pages/participante/MiEquipo.tsx</code> — routing condicional al hacer click en &quot;Continuar&quot;: Business Plan va a <code>/anteproyecto</code> (formulario existente), las otras dos modalidades van a <code>/trabajo-grado</code>. Type <code>Equipo</code> ampliado con <code>tipo_trabajo_grado</code>.</li>
+</ul>
+<p><strong>Decisiones de diseño tomadas en la jornada:</strong></p>
+<ul>
+<li>Modalidad por participante (no por equipo). Tomada en el bloque de diseño 16:00–17:00.</li>
+<li>Inmutable una vez fijada, con defensa a tres niveles independientes: UI (las dos tarjetas no-elegidas quedan deshabilitadas), backend (409 <code>ALREADY_SET</code>), trigger SQL.</li>
+<li>Reuso de la tabla <code>anteproyectos</code> añadiendo columnas, en lugar de crear una tabla nueva. Conserva un único ciclo de vida <code>borrador → enviado → revisado → aprobado</code> para las tres modalidades.</li>
+<li>Bucket privado con tráfico exclusivo vía backend (<code>service_role</code>). El frontend nunca toca Supabase Storage directamente: recibe signed URLs temporales (TTL 5 min) y abre el archivo en pestaña nueva.</li>
+<li>Multer en memoria con límite de 25 MB. Validación estricta de MIME por tipo de archivo: anteproyecto solo acepta <code>application/pdf</code>; proyecto final acepta <code>application/pdf</code>, <code>application/msword</code>, <code>application/vnd.openxmlformats-officedocument.wordprocessingml.document</code>.</li>
+</ul>
+<h3>10.2 Domingo 10 de mayo</h3>
+<table><thead><tr>
+<th>Push</th>
+<th>Hash</th>
+<th>Trabajo previo</th>
+<th>Resumen del commit</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Dom 20:30</strong></td>
+<td><code>262288e</code></td>
+<td>16:00 – 20:30 (4 h 30 min)</td>
+<td><strong>feat(admin): ajustes 1C</strong> — migración SQL 08 con seed de 11 hitos, endpoints de cohortes con hitos y <code>asignar-bulk</code>, admin/Cohortes con orden FS/INT, admin/Profesores con soft delete, admin/RolesPermisos con selección masiva, rename &quot;perfil&quot; y preguntas en rojo</td>
+</tr>
+<tr>
+<td><strong>Dom 21:00</strong></td>
+<td><code>92fda67</code></td>
+<td>20:30 – 21:00 (30 min)</td>
+<td><strong>ui(anteproyecto): tipografía y preguntas en rojo</strong> — auditoría con Playwright que detectó las 3 incidencias; corrección del singular gramatical, estandarización del <code>Field</code> para preguntas con <code>text-sm</code> rojo, normalización de <code>text-[10px]</code>/<code>text-[11px]</code> a <code>text-xs</code></td>
+</tr>
+<tr>
+<td><strong>Dom 21:03</strong></td>
+<td><code>2f15c2a</code></td>
+<td>21:00 – 21:03 (3 min)</td>
+<td><strong>ui(anteproyecto): contador de textarea a text-xs</strong> — el único <code>text-[10px]</code> residual, identificado en la verificación post-deploy del commit anterior</td>
+</tr>
+<tr>
+<td><strong>Dom 21:15</strong></td>
+<td><code>27f3f51</code></td>
+<td>21:03 – 21:15 (12 min)</td>
+<td><strong>docs: informe de auditoría release 2026-05-11 (PDF profesional)</strong> — redacción del MD, conversión a HTML con <code>style.css</code> institucional, impresión a PDF de 10 páginas con identidad INALDE</td>
+</tr>
+<tr>
+<td><strong>Dom 21:27</strong></td>
+<td><code>366848a</code></td>
+<td>21:15 – 21:27 (12 min)</td>
+<td><strong>feat(anteproyecto): emprendimiento anterior con 5 opciones</strong> — análisis del esquema final, decisión del cliente; migración SQL 09 con re-intento (VARCHAR(10) insuficiente → VARCHAR(20), CHECK nuevo con 5 valores, migración legacy), zod + nueva pregunta + catálogo + condicional <code>=== &#x27;quebro&#x27;</code></td>
+</tr>
+<tr>
+<td><strong>Dom 21:32</strong></td>
+<td><code>e9f91b5</code></td>
+<td>21:27 – 21:32 (5 min)</td>
+<td><strong>feat(anteproyecto): máximo 2 anteproyectos</strong> — migración SQL 10 con guard pre-flight, zod <code>max(2)</code>, selector frontend <code>[1,2]</code></td>
+</tr>
+<tr>
+<td><strong>Dom 22:00</strong></td>
+<td><code>(informe)</code></td>
+<td>21:32 – 22:00 (28 min)</td>
+<td><strong>docs: informe de desarrollo del fin de semana</strong> — el presente documento (MD + HTML + PDF profesional)</td>
+</tr>
+</tbody></table>
+<p>Todos pusheados a <code>main</code> en <code>github.com/danielfelipemd/naves</code> y desplegados en producción.</p>
+<hr>
+<h2>11. Conclusión</h2>
+<p>Fin de semana de <strong>alta densidad de entrega</strong>: dos releases mayores (sábado y domingo), una auditoría completa, su informe institucional en PDF, y dos ajustes adicionales de iteración con el cliente —todos verificados E2E en producción. La plataforma queda operativa para la cohorte vigente con los flujos de las tres modalidades de trabajo de grado funcionando de extremo a extremo. Cero defectos abiertos al cierre del domingo.</p>
+<hr>
+<p style="text-align:center;color:#6b6b6b;font-style:italic;font-size:9pt;">Documento generado como parte del proceso de seguimiento continuo del desarrollo. INALDE Business School — NAVES Trabajo de Grado.</p>
+</body></html>
