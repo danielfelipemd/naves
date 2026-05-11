@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Informe de Auditoría NAVES — 2026-05-11</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+@page {
+  size: Letter;
+  margin: 60px 50px 70px;
+  @bottom-center {
+    content: "NAVES — INALDE Business School · Manual de usuario";
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+}
+
+body {
+  font-family: 'Roboto', -apple-system, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a1a;
+  line-height: 1.55;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  color: #1a1a1a;
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  border-bottom: 3px solid #e30613;
+  padding-bottom: 8pt;
+  margin-top: 24pt;
+  margin-bottom: 16pt;
+}
+
+h1:first-of-type {
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #e30613;
+  margin-top: 22pt;
+  margin-bottom: 10pt;
+  page-break-before: auto;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  margin-top: 16pt;
+  margin-bottom: 8pt;
+}
+
+h4 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #9f885f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 14pt;
+  margin-bottom: 6pt;
+}
+
+p {
+  margin: 6pt 0;
+}
+
+a {
+  color: #e30613;
+  text-decoration: none;
+}
+
+code {
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 9pt;
+  background: #f5f5f5;
+  padding: 1pt 4pt;
+  border-radius: 2pt;
+  color: #b30510;
+}
+
+pre {
+  background: #f5f5f5;
+  border-left: 3px solid #e30613;
+  padding: 10pt;
+  font-size: 9pt;
+  page-break-inside: avoid;
+}
+
+blockquote {
+  border-left: 4px solid #224d7c;
+  background: #f0f4f9;
+  margin: 10pt 0;
+  padding: 8pt 14pt;
+  font-style: italic;
+  color: #224d7c;
+  page-break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12pt 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+th {
+  background: #e30613;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6pt 8pt;
+  text-align: left;
+  border: 1px solid #e30613;
+}
+
+td {
+  padding: 5pt 8pt;
+  border: 1px solid #e8e8e8;
+  vertical-align: top;
+}
+
+tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+img {
+  max-width: 100%;
+  border: 1px solid #e8e8e8;
+  border-radius: 4pt;
+  margin: 10pt 0;
+  page-break-inside: avoid;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 20pt 0;
+}
+
+ul, ol {
+  margin: 6pt 0 6pt 18pt;
+}
+
+li {
+  margin: 3pt 0;
+}
+
+strong {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Avoid awkward breaks */
+img + p, p + img, h2 + img, h3 + img, h4 + img {
+  page-break-before: avoid;
+}
+
+@page {
+  size: Letter;
+  margin: 60px 50px 70px;
+  @bottom-center {
+    content: "NAVES — INALDE Business School · Informe de Auditoría · 2026-05-11";
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+}
+.cover {
+  text-align: center;
+  padding: 80pt 0 40pt;
+  border-bottom: 3px solid #e30613;
+  margin-bottom: 30pt;
+}
+.cover .logo {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11pt;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #e30613;
+  text-transform: uppercase;
+  margin-bottom: 8pt;
+}
+.cover .subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9pt;
+  color: #6b6b6b;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="logo">INALDE Business School</div>
+<div class="subtitle">Trabajo de grado · NAVES</div>
+</div>
+<h1>Informe de Auditoría · Plataforma NAVES INALDE</h1>
+<p><strong>Release auditado:</strong> 2026-05-11</p>
+<p><strong>Versión:</strong> Modalidades de Trabajo de Grado + Ajustes 1C</p>
+<p><strong>Auditor:</strong> Equipo de desarrollo — Claude Opus 4.7</p>
+<p><strong>Entorno:</strong> Producción · <code>naves-frontend.huem98.easypanel.host</code></p>
+<hr>
+<h2>1. Resumen ejecutivo</h2>
+<p>Esta auditoría cubre los dos releases publicados el 2026-05-11 sobre la plataforma NAVES:</p>
+<p>1. <strong>Tres modalidades de trabajo de grado</strong> (Business Plan, Caso, Proyecto de Investigación), con flujo independiente de upload de archivos para las dos nuevas.</p>
+<p>2. <strong>Ajustes 1C</strong>: cronograma de 11 hitos por cohorte, asignación masiva de roles, desactivación de profesores, orden FS/INT alternado, renombrado del campo &quot;perfil&quot;, todas las preguntas del formulario en color rojo.</p>
+<p>Se ejecutaron pruebas E2E con Playwright sobre el entorno de producción, recorriendo las pantallas como super-administrador y como participante. <strong>Todas las funcionalidades nuevas operan según la especificación</strong>. Se identificaron y corrigieron tres incidencias menores de tipografía durante la auditoría. La plataforma queda lista para uso operativo.</p>
+<hr>
+<h2>2. Alcance y método</h2>
+<table><thead><tr>
+<th>Aspecto</th>
+<th>Detalle</th>
+</tr></thead><tbody>
+<tr>
+<td>Entornos verificados</td>
+<td>Backend <code>naves-backend.huem98.easypanel.host</code>, Frontend <code>naves-frontend.huem98.easypanel.host</code>, Supabase <code>naves-supabase.huem98.easypanel.host</code></td>
+</tr>
+<tr>
+<td>Migraciones SQL aplicadas</td>
+<td><code>07_trabajos_grado.sql</code>, <code>08_cohorte_hitos.sql</code></td>
+</tr>
+<tr>
+<td>Usuarios de prueba</td>
+<td>Super-admin (<code>admin@naves.com</code>), Participante (Carlos Rodríguez, cédula 1010101012, modalidad inicial NULL; Ana López, cédula 1010101013, modalidad legacy <code>business_plan</code>)</td>
+</tr>
+<tr>
+<td>Herramientas</td>
+<td>Playwright (Chromium), curl directo contra API REST, Supabase <code>/pg/query</code> para verificación de persistencia</td>
+</tr>
+<tr>
+<td>Datos generados</td>
+<td>1 equipo de prueba, 1 anteproyecto enviado, 2 archivos PDF en bucket privado</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. Funcionalidades verificadas</h2>
+<h3>3.1 Administración de cohortes — 11 hitos del cronograma</h3>
+<table><thead><tr>
+<th>Verificación</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td>Orden de cohortes en pantalla: FS antes que INT del mismo año</td>
+<td>Correcto. Orden observado: FS 24-26, INT 24-26, FS 26-28, INT 26-28, FS 27-29, INT 27-29, FS 28-30, INT 28-30</td>
+</tr>
+<tr>
+<td>Visualización del cronograma de 11 hitos por cohorte (modo lectura)</td>
+<td>Correcto. Los 11 hitos (de &quot;Kick Off / Lanzamiento&quot; a &quot;Presentaciones día 2&quot;) aparecen en orden y muestran &quot;—&quot; cuando no tienen fecha</td>
+</tr>
+<tr>
+<td>Modo edición: total de campos de fecha</td>
+<td>15 (4 fechas operativas <code>datetime-local</code> + 11 hitos <code>date</code>)</td>
+</tr>
+<tr>
+<td>Persistencia del cambio de un hito al hacer &quot;Guardar&quot;</td>
+<td>Correcto. PUT a <code>/api/admin/cohortes/:id</code> con array <code>hitos[]</code> actualiza <code>cohorte_hitos.fecha</code> por posición</td>
+</tr>
+<tr>
+<td>Trigger automático al crear cohorte nueva</td>
+<td>Correcto. El trigger <code>trg_seed_cohorte_hitos</code> siembra los 11 hitos vacíos automáticamente. Verificado con 88 filas (8 cohortes × 11 hitos)</td>
+</tr>
+</tbody></table>
+<h3>3.2 Administración de profesores — desactivación reversible</h3>
+<table><thead><tr>
+<th>Verificación</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td>Botón &quot;Desactivar&quot; presente en cada fila</td>
+<td>Correcto</td>
+</tr>
+<tr>
+<td>Confirmación previa por modal <code>window.confirm</code></td>
+<td>Correcto</td>
+</tr>
+<tr>
+<td>Cambio de estado a &quot;Inactivo&quot; tras desactivar</td>
+<td>Correcto. El badge cambia a gris y el botón se convierte en &quot;Reactivar&quot;</td>
+</tr>
+<tr>
+<td>Reactivación funcional</td>
+<td>Correcto. Estado vuelve a &quot;Activo&quot; y botón vuelve a &quot;Desactivar&quot;</td>
+</tr>
+<tr>
+<td>Mensaje toast de confirmación</td>
+<td>&quot;{nombre} desactivado.&quot; / &quot;{nombre} reactivado.&quot;</td>
+</tr>
+<tr>
+<td>Endpoint backend usado</td>
+<td><code>PUT /api/admin/profesores/:id</code> con <code>{ activo: false }</code>, sin endpoint nuevo necesario</td>
+</tr>
+</tbody></table>
+<h3>3.3 Roles y permisos — asignación masiva</h3>
+<table><thead><tr>
+<th>Verificación</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td>Checkbox al inicio de cada fila de usuario</td>
+<td>Correcto. 15 filas con checkbox individual</td>
+</tr>
+<tr>
+<td>Checkbox &quot;seleccionar todos&quot; en header con estado indeterminado</td>
+<td>Correcto</td>
+</tr>
+<tr>
+<td>Barra sticky que aparece con 1+ seleccionados</td>
+<td>Correcto. Contenido: contador, dropdown de roles, botón &quot;Asignar a N&quot;, botón &quot;Limpiar&quot;</td>
+</tr>
+<tr>
+<td>Roles disponibles en el select</td>
+<td>participante, profesor, super_admin</td>
+</tr>
+<tr>
+<td>Endpoint backend <code>POST /admin/roles/usuarios/asignar-bulk</code></td>
+<td>Activo. Verificación de existencia: respuesta 401 MISSING_BEARER sin token (ruta presente). Semántica: añade el rol sin pisar los roles previos del usuario</td>
+</tr>
+</tbody></table>
+<h3>3.4 Dashboard del participante — 3 modalidades</h3>
+<table><thead><tr>
+<th>Verificación</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td>Participante sin modalidad ve 3 cards activas</td>
+<td>Correcto. &quot;Business Plan NAVES&quot;, &quot;Caso&quot;, &quot;Proyecto de Investigación&quot;</td>
+</tr>
+<tr>
+<td>Confirmación antes de fijar modalidad (&quot;Esta elección es DEFINITIVA&quot;)</td>
+<td>Correcto</td>
+</tr>
+<tr>
+<td>Persistencia en <code>participantes_lista.tipo_trabajo_grado</code> con timestamp <code>tipo_trabajo_grado_fijado_at</code></td>
+<td>Correcto</td>
+</tr>
+<tr>
+<td>Después de elegir: 2 cards en gris con &quot;No elegiste esta modalidad&quot;</td>
+<td>Correcto</td>
+</tr>
+<tr>
+<td>Card elegida muestra badge &quot;✓ Tu modalidad&quot; y lleva a <code>/equipo</code></td>
+<td>Correcto</td>
+</tr>
+<tr>
+<td>Imposibilidad de cambiar la modalidad ya fijada</td>
+<td>Correcto a tres niveles: UI (cards no clickeables), backend (409 <code>ALREADY_SET</code>), base de datos (trigger <code>trg_lock_tipo_trabajo_grado</code> con error <code>TIPO_TRABAJO_GRADO_INMUTABLE</code>)</td>
+</tr>
+<tr>
+<td>Migración de datos legacy</td>
+<td>Correcto. Los 3 participantes con equipo previo quedaron en <code>business_plan</code>; los que no tenían equipo quedan en <code>NULL</code> para que elijan</td>
+</tr>
+</tbody></table>
+<h3>3.5 Flujo completo de modalidad &quot;Caso&quot;</h3>
+<p>Prueba end-to-end realizada con el participante Carlos Rodríguez Soto:</p>
+<table><thead><tr>
+<th>Paso</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td>1. Login con cédula 1010101012</td>
+<td>OK</td>
+</tr>
+<tr>
+<td>2. Dashboard muestra 3 cards activas</td>
+<td>OK</td>
+</tr>
+<tr>
+<td>3. Selección de &quot;Caso&quot; → confirmación → fijación</td>
+<td>OK. Persistido <code>tipo_trabajo_grado=&#x27;caso&#x27;</code>, timestamp <code>tipo_trabajo_grado_fijado_at</code></td>
+</tr>
+<tr>
+<td>4. Navegación al flujo de equipo</td>
+<td>OK. Equipo creado con <code>equipos.tipo_trabajo_grado=&#x27;caso&#x27;</code> copiado del creador</td>
+</tr>
+<tr>
+<td>5. Botón &quot;Continuar al trabajo de grado →&quot; (no &quot;anteproyecto&quot;)</td>
+<td>OK. Ramificación condicional según modalidad funciona</td>
+</tr>
+<tr>
+<td>6. Página <code>/trabajo-grado</code> muestra 2 inputs file (Anteproyecto PDF / Proyecto final PDF o Word)</td>
+<td>OK</td>
+</tr>
+<tr>
+<td>7. Subida del anteproyecto.pdf</td>
+<td>OK. Archivo en bucket <code>trabajos-grado/{equipo_id}/anteproyecto.pdf</code>, registro en <code>anteproyectos.archivo_anteproyecto_path</code> con tamaño 459 bytes y MIME <code>application/pdf</code></td>
+</tr>
+<tr>
+<td>8. Subida del proyecto-final.pdf</td>
+<td>OK. Mismo patrón</td>
+</tr>
+<tr>
+<td>9. Botón &quot;Enviar definitivo&quot; deshabilitado hasta tener los 2 archivos</td>
+<td>OK</td>
+</tr>
+<tr>
+<td>10. Envío definitivo</td>
+<td>OK. <code>anteproyectos.estado=&#x27;enviado&#x27;</code>, página bloqueada con banner &quot;Tu trabajo de grado está en estado enviado. No se aceptan más cambios.&quot;</td>
+</tr>
+<tr>
+<td>11. Validación de MIME y tamaño</td>
+<td>Implementada. Acepta solo PDF para anteproyecto; PDF, .doc y .docx para proyecto final. Límite de 25 MB</td>
+</tr>
+<tr>
+<td>12. Acceso a archivos vía signed URL temporal (5 min)</td>
+<td>Implementado. El frontend recibe la URL con <code>expires_in: 300</code> y la abre en pestaña nueva</td>
+</tr>
+</tbody></table>
+<h3>3.6 Formulario Anteproyecto NAVES (modalidad Business Plan)</h3>
+<table><thead><tr>
+<th>Verificación</th>
+<th>Resultado</th>
+</tr></thead><tbody>
+<tr>
+<td>Renombrado del label &quot;Perfil&quot; → &quot;Rol con el que más te identificas&quot;</td>
+<td>Correcto. Confirmado en producción</td>
+</tr>
+<tr>
+<td>Detección automática de preguntas por el componente <code>Field</code></td>
+<td>Correcto. Cualquier label que empiece con &quot;¿&quot; o termine en &quot;?&quot; recibe estilo de pregunta</td>
+</tr>
+<tr>
+<td>Cantidad de preguntas inspeccionadas en el formulario (Ana López con <code>fue_emprendedor=true</code>, <code>quiebra=si</code>)</td>
+<td>8 preguntas</td>
+</tr>
+<tr>
+<td>Color rojo (<code>text-inalde-red</code>) en las 8 preguntas</td>
+<td>Correcto en las 8</td>
+</tr>
+<tr>
+<td>Tamaño uniforme <code>text-sm</code> en las 8 preguntas</td>
+<td>Correcto en las 8</td>
+</tr>
+<tr>
+<td>Familia tipográfica y peso uniformes (<code>font-primary font-semibold</code>)</td>
+<td>Correcto en las 8</td>
+</tr>
+</tbody></table>
+<p>Listado completo de preguntas auditadas con sus clases CSS:</p>
+<table><thead><tr>
+<th>Pregunta</th>
+<th>Clases</th>
+</tr></thead><tbody>
+<tr>
+<td>¿Has sido emprendedor antes?</td>
+<td><code>block font-primary font-semibold mb-1 text-sm text-inalde-red</code></td>
+</tr>
+<tr>
+<td>¿Tu emprendimiento quebró?</td>
+<td><code>block font-primary font-semibold mb-1 text-sm text-inalde-red</code></td>
+</tr>
+<tr>
+<td>¿Qué aprendiste?</td>
+<td><code>block font-primary font-semibold mb-1 text-sm text-inalde-red</code></td>
+</tr>
+<tr>
+<td>¿Qué te emociona del emprendimiento?</td>
+<td><code>block font-primary font-semibold mb-1 text-sm text-inalde-red</code></td>
+</tr>
+<tr>
+<td>¿Qué te preocupa?</td>
+<td><code>block font-primary font-semibold mb-1 text-sm text-inalde-red</code></td>
+</tr>
+<tr>
+<td>¿Cuántos proyectos vas a presentar?</td>
+<td><code>block font-primary font-semibold text-sm text-inalde-red mb-2</code></td>
+</tr>
+<tr>
+<td>¿En qué etapa está hoy?</td>
+<td><code>text-sm text-inalde-red mb-3 font-primary font-semibold</code></td>
+</tr>
+<tr>
+<td>¿Cómo sabes que este proyecto resuelve un problema real?</td>
+<td><code>text-sm text-inalde-red mb-4 font-primary font-semibold</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>4. Incidencias detectadas y corregidas</h2>
+<h3>4.1 Singular gramatical en pregunta de cantidad de proyectos</h3>
+<p>Cuando el participante seleccionaba presentar un solo proyecto, la pregunta se renderizaba como &quot;¿Cuántos proyecto vas a presentar?&quot; (singular incorrecto, derivado de una variable <code>labelProyecto</code> que cambiaba según <code>numProyectos</code>). La pregunta es plural por naturaleza —&quot;cuántos&quot; presupone una cantidad— por lo que debe permanecer plural.</p>
+<p><strong>Solución aplicada:</strong> texto fijo &quot;¿Cuántos proyectos vas a presentar?&quot;, eliminación de la variable <code>labelProyecto</code>.</p>
+<p><strong>Commit:</strong> <code>3d520d4</code></p>
+<h3>4.2 Tipografía inconsistente entre preguntas del mismo formulario</h3>
+<p>Las preguntas del formulario presentaban tres estilos distintos según la zona del documento:</p>
+<ul>
+<li>Labels de campo (<code>¿Has sido emprendedor?</code>, etc.): <code>text-xs uppercase tracking-wider</code> — letra muy pequeña, en mayúsculas, espaciada.</li>
+<li>Pregunta inline de cantidad de proyectos: mismo estilo de label.</li>
+<li>Preguntas en la sección de proyecto (<code>¿En qué etapa está hoy?</code>, <code>¿Cómo sabes que este proyecto resuelve un problema real?</code>): <code>text-xs font-semibold</code> — sin mayúsculas, sin tracking, mismo tamaño pequeño.</li>
+</ul>
+<p>Esto rompía la jerarquía visual: las preguntas, que son lo más importante para guiar al usuario, se confundían con etiquetas de campo.</p>
+<p><strong>Solución aplicada:</strong> las preguntas pasan a un estilo uniforme <code>text-sm</code> con capitalización natural y peso semibold. Los labels de campo conservan <code>text-xs uppercase tracking-wider</code> en gris. El componente <code>Field</code> aplica la detección automáticamente: si el label empieza con &quot;¿&quot; o termina en &quot;?&quot;, aplica el estilo de pregunta.</p>
+<p><strong>Commit:</strong> <code>3d520d4</code></p>
+<h3>4.3 Tamaños no-estándar fuera de la escala Tailwind</h3>
+<p>Tres labels meta y el contador de caracteres usaban <code>text-[10px]</code> y un hint usaba <code>text-[11px]</code> — tamaños arbitrarios fuera de la escala estándar del sistema de diseño.</p>
+<p><strong>Solución aplicada:</strong> todos normalizados a <code>text-xs</code>. La tipografía del formulario ahora utiliza únicamente la escala estándar: <code>text-xs</code>, <code>text-sm</code>, <code>text-base</code>, <code>text-lg</code>, <code>text-xl</code>.</p>
+<p><strong>Commits:</strong> <code>3d520d4</code>, <code>18a1840</code></p>
+<hr>
+<h2>5. Sistema tipográfico final del formulario</h2>
+<p>Tras las correcciones, el formulario emplea únicamente cinco tamaños, todos de la escala estándar de Tailwind, con un uso consistente:</p>
+<table><thead><tr>
+<th>Tamaño</th>
+<th>Uso</th>
+</tr></thead><tbody>
+<tr>
+<td><code>text-xl</code></td>
+<td>Títulos de sección (&quot;Sección 1&quot;, &quot;Sección 2&quot;)</td>
+</tr>
+<tr>
+<td><code>text-lg</code></td>
+<td>Nombre del miembro del equipo (datos personales)</td>
+</tr>
+<tr>
+<td><code>text-base</code></td>
+<td>Encabezados de bloque (&quot;Canvas del negocio&quot;, &quot;Estado del proyecto&quot;, &quot;Validación del mercado&quot;, &quot;Cronograma&quot;)</td>
+</tr>
+<tr>
+<td><code>text-sm</code></td>
+<td><strong>Preguntas (rojo)</strong>, párrafos descriptivos, controles de tab</td>
+</tr>
+<tr>
+<td><code>text-xs</code></td>
+<td>Labels de campo (gris en mayúsculas), badges, ayudas (hints), información meta, contadores</td>
+</tr>
+</tbody></table>
+<p>No quedan tamaños arbitrarios.</p>
+<hr>
+<h2>6. Estado de la infraestructura</h2>
+<table><thead><tr>
+<th>Componente</th>
+<th>Estado</th>
+<th>Detalle</th>
+</tr></thead><tbody>
+<tr>
+<td>Backend <code>naves-backend.huem98.easypanel.host</code></td>
+<td>Activo</td>
+<td>HTTP 200 en <code>/health</code>; ruta nueva <code>/api/participantes/mi-modalidad</code> responde 401 (existe)</td>
+</tr>
+<tr>
+<td>Frontend <code>naves-frontend.huem98.easypanel.host</code></td>
+<td>Activo</td>
+<td>HTTP 200, build con los tres commits del día</td>
+</tr>
+<tr>
+<td>Supabase Postgres</td>
+<td>Activo</td>
+<td>Ambas migraciones aplicadas vía endpoint <code>/pg/query</code>. Verificación con <code>information_schema</code></td>
+</tr>
+<tr>
+<td>Bucket <code>trabajos-grado</code> (privado)</td>
+<td>Activo</td>
+<td>Creado durante migración <code>07</code>. Dos PDFs subidos durante la auditoría (luego se conservan como evidencia)</td>
+</tr>
+<tr>
+<td>Tabla <code>cohorte_hitos</code></td>
+<td>Activa</td>
+<td>88 filas (8 cohortes × 11 hitos), todas con <code>fecha=NULL</code> salvo donde el administrador haya editado</td>
+</tr>
+<tr>
+<td>Trigger <code>trg_lock_tipo_trabajo_grado</code></td>
+<td>Activo</td>
+<td>Impide a nivel de base de datos cambiar la modalidad una vez fijada</td>
+</tr>
+<tr>
+<td>Trigger <code>trg_seed_cohorte_hitos</code></td>
+<td>Activo</td>
+<td>Siembra automáticamente los 11 hitos al crear una cohorte</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>7. Limpieza tras la auditoría</h2>
+<ul>
+<li>Equipo de prueba creado por el participante Carlos eliminado (<code>DELETE FROM equipos</code>, cascada elimina anteproyecto y miembros).</li>
+<li>Fecha de prueba del hito 1 (&quot;Kick Off&quot;) en la cohorte fs-24-26 revertida a NULL.</li>
+<li>El participante Carlos Rodríguez Soto queda con <code>tipo_trabajo_grado=&#x27;caso&#x27;</code> como evidencia documental de la auditoría. Si se requiere revertir, debe hacerse vía SQL temporalmente desactivando el trigger <code>trg_lock_tipo_trabajo_grado</code>.</li>
+</ul>
+<hr>
+<h2>8. Commits incorporados en esta sesión</h2>
+<table><thead><tr>
+<th>Commit</th>
+<th>Descripción</th>
+</tr></thead><tbody>
+<tr>
+<td><code>cf3211d</code></td>
+<td>feat: 3 modalidades de trabajo de grado (Business Plan / Caso / Proyecto Investigación)</td>
+</tr>
+<tr>
+<td><code>a0c9fa9</code></td>
+<td>feat(admin): cronograma 11 hitos, bulk roles, desactivar profesor, ajustes UI</td>
+</tr>
+<tr>
+<td><code>3d520d4</code></td>
+<td>ui(anteproyecto): estandarizar tipografía y reforzar preguntas en rojo</td>
+</tr>
+<tr>
+<td><code>18a1840</code></td>
+<td>ui(anteproyecto): unificar contador de textarea a text-xs</td>
+</tr>
+</tbody></table>
+<p>Todos pusheados a <code>main</code> en <code>github.com/danielfelipemd/naves</code> y desplegados en producción.</p>
+<hr>
+<h2>9. Conclusión</h2>
+<p>Los dos releases planificados —tres modalidades de trabajo de grado y los ajustes 1C— quedan implementados, desplegados y verificados en producción. Las tres incidencias menores detectadas (singular gramatical, tipografía inconsistente, tamaños no-estándar) se corrigieron durante la sesión de auditoría. No hay defectos abiertos.</p>
+<p>La plataforma está lista para el uso de la cohorte vigente.</p>
+<hr>
+<p style="text-align:center;color:#6b6b6b;font-style:italic;font-size:9pt;">Documento generado automáticamente como parte del proceso de auditoría continua. INALDE Business School — NAVES Trabajo de Grado.</p>
+</body>
+</html>
