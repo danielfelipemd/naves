@@ -122,15 +122,26 @@ router.get('/cohortes', async (_req, res) => {
     .order('id');
   if (error) return res.status(500).json({ error: error.message });
 
-  // Contar participantes por cohorte
+  // Contar participantes por cohorte y traer hitos
   const enriched = await Promise.all((data ?? []).map(async (c) => {
-    const { count: pc } = await supabaseAdmin
-      .from('participantes_lista').select('*', { count: 'exact', head: true }).eq('cohorte_id', c.id);
-    const { count: ec } = await supabaseAdmin
-      .from('equipos').select('*', { count: 'exact', head: true }).eq('cohorte_id', c.id);
-    return { ...c, participantes_count: pc ?? 0, equipos_count: ec ?? 0 };
+    const [{ count: pc }, { count: ec }, { data: hitos }] = await Promise.all([
+      supabaseAdmin.from('participantes_lista').select('*', { count: 'exact', head: true }).eq('cohorte_id', c.id),
+      supabaseAdmin.from('equipos').select('*', { count: 'exact', head: true }).eq('cohorte_id', c.id),
+      supabaseAdmin.from('cohorte_hitos').select('posicion, nombre, fecha').eq('cohorte_id', c.id).order('posicion'),
+    ]);
+    return {
+      ...c,
+      participantes_count: pc ?? 0,
+      equipos_count: ec ?? 0,
+      hitos: hitos ?? [],
+    };
   }));
   res.json(enriched);
+});
+
+const hitoSchema = z.object({
+  posicion: z.number().int().min(1).max(11),
+  fecha: z.string().date().nullable(),
 });
 
 const fechasSchema = z.object({
@@ -139,12 +150,30 @@ const fechasSchema = z.object({
   fecha_reunion_1: z.string().datetime().optional().nullable(),
   fecha_limite_seleccion_definitivo: z.string().datetime().optional().nullable(),
   activa: z.boolean().optional(),
+  hitos: z.array(hitoSchema).max(11).optional(),
 });
 router.put('/cohortes/:id', async (req, res) => {
   const parsed = fechasSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
-  const { error } = await supabaseAdmin.from('cohortes').update(parsed.data).eq('id', req.params.id);
-  if (error) return res.status(500).json({ error: error.message });
+
+  const { hitos, ...cohorteFields } = parsed.data;
+
+  if (Object.keys(cohorteFields).length > 0) {
+    const { error } = await supabaseAdmin.from('cohortes').update(cohorteFields).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+  }
+
+  if (hitos && hitos.length) {
+    for (const h of hitos) {
+      const { error } = await supabaseAdmin
+        .from('cohorte_hitos')
+        .update({ fecha: h.fecha })
+        .eq('cohorte_id', req.params.id)
+        .eq('posicion', h.posicion);
+      if (error) return res.status(500).json({ error: error.message, paso: 'update hito', posicion: h.posicion });
+    }
+  }
+
   res.json({ ok: true });
 });
 

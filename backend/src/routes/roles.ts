@@ -182,6 +182,29 @@ router.post('/usuarios/asignar', async (req: any, res) => {
   res.json({ ok: true });
 });
 
+const bulkAssignSchema = z.object({
+  auth_user_ids: z.array(z.string().uuid()).min(1).max(500),
+  rol_id: z.string().uuid(),
+});
+
+router.post('/usuarios/asignar-bulk', async (req: any, res) => {
+  const parsed = bulkAssignSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const rows = parsed.data.auth_user_ids.map((auth_user_id) => ({
+    auth_user_id,
+    rol_id: parsed.data.rol_id,
+    asignado_por: req.user?.sub ?? null,
+  }));
+  const { error } = await supabaseAdmin
+    .from('usuario_roles')
+    .upsert(rows, { onConflict: 'auth_user_id,rol_id', ignoreDuplicates: true });
+  if (error) return res.status(500).json({ error: error.message });
+
+  for (const id of parsed.data.auth_user_ids) invalidateUserPermisos(id);
+  res.json({ ok: true, asignados: parsed.data.auth_user_ids.length });
+});
+
 const grantPermisoSchema = z.object({
   auth_user_id: z.string().uuid(),
   permiso_code: z.string(),

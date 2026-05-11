@@ -40,6 +40,38 @@ export default function RolesPermisos() {
   const [rolModal, setRolModal] = useState<{ mode: 'view' | 'edit' | 'new'; rol?: Rol } | null>(null);
   const [userModal, setUserModal] = useState<UserRow | null>(null);
 
+  // Selección masiva
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkRolId, setBulkRolId] = useState<string>('');
+
+  function toggleSel(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function clearSel() { setSelected(new Set()); }
+
+  async function asignarBulk() {
+    if (!bulkRolId || selected.size === 0) return;
+    const rol = roles.find((r) => r.id === bulkRolId);
+    if (!confirm(`Asignar el rol "${rol?.nombre}" a ${selected.size} usuario(s)? No se quitan los roles que ya tengan.`)) return;
+    setBusy(true);
+    try {
+      await api.post('/admin/roles/usuarios/asignar-bulk', {
+        auth_user_ids: Array.from(selected),
+        rol_id: bulkRolId,
+      });
+      setMsg({ kind: 'ok', text: `Rol "${rol?.nombre}" asignado a ${selected.size} usuario(s).` });
+      clearSel();
+      setBulkRolId('');
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+    } finally { setBusy(false); }
+  }
+
   const permisosByCategoria = useMemo(() => {
     const groups: Record<string, Permiso[]> = {};
     for (const p of permisos) (groups[p.categoria] ||= []).push(p);
@@ -152,11 +184,51 @@ export default function RolesPermisos() {
       {/* === TABLA DE USUARIOS === */}
       {tab === 'usuarios' && (
         <>
+          {selected.size > 0 && (
+            <div className="sticky top-0 z-10 mb-4 flex items-center justify-between gap-3 rounded border-2 border-inalde-red bg-red-50 px-4 py-3 shadow">
+              <span className="text-sm">
+                <strong className="text-inalde-red">{selected.size}</strong> usuario(s) seleccionados
+              </span>
+              <div className="flex items-center gap-2">
+                <select
+                  value={bulkRolId}
+                  onChange={(e) => setBulkRolId(e.target.value)}
+                  className="input-inalde !py-1.5 !text-sm"
+                >
+                  <option value="">Elegir rol…</option>
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>{r.nombre}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={asignarBulk}
+                  disabled={!bulkRolId || busy}
+                  className="btn-inalde-primary !py-1.5 !px-3 !text-xs"
+                >
+                  Asignar a {selected.size}
+                </button>
+                <button onClick={clearSel} className="text-xs text-inalde-gray hover:text-inalde-text">
+                  Limpiar
+                </button>
+              </div>
+            </div>
+          )}
+
           <h2 className="section-subtitle mb-3">Profesores ({usuarios.profesores.length})</h2>
-          <UsersTable users={usuarios.profesores} onEdit={(u) => setUserModal(u)} />
+          <UsersTable
+            users={usuarios.profesores}
+            selected={selected}
+            onToggleSel={toggleSel}
+            onEdit={(u) => setUserModal(u)}
+          />
 
           <h2 className="section-subtitle mt-8 mb-3">Participantes ({usuarios.participantes.length})</h2>
-          <UsersTable users={usuarios.participantes} onEdit={(u) => setUserModal(u)} />
+          <UsersTable
+            users={usuarios.participantes}
+            selected={selected}
+            onToggleSel={toggleSel}
+            onEdit={(u) => setUserModal(u)}
+          />
         </>
       )}
 
@@ -188,12 +260,34 @@ export default function RolesPermisos() {
 
 // ============================ Sub-componentes ============================
 
-function UsersTable({ users, onEdit }: { users: UserRow[]; onEdit: (u: UserRow) => void }) {
+function UsersTable({ users, selected, onToggleSel, onEdit }: {
+  users: UserRow[];
+  selected: Set<string>;
+  onToggleSel: (id: string) => void;
+  onEdit: (u: UserRow) => void;
+}) {
   if (users.length === 0) return <p className="text-inalde-gray text-sm">Sin usuarios.</p>;
+  const allSelected = users.length > 0 && users.every((u) => selected.has(u.auth_user_id));
+  const someSelected = users.some((u) => selected.has(u.auth_user_id));
+
+  function toggleAll() {
+    if (allSelected) users.forEach((u) => selected.has(u.auth_user_id) && onToggleSel(u.auth_user_id));
+    else users.forEach((u) => !selected.has(u.auth_user_id) && onToggleSel(u.auth_user_id));
+  }
+
   return (
     <table className="w-full text-sm border border-inalde-gray-light rounded overflow-hidden">
       <thead className="bg-inalde-gray-bg text-left">
         <tr>
+          <th className="px-3 py-2 w-8">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(el) => el && (el.indeterminate = someSelected && !allSelected)}
+              onChange={toggleAll}
+              className="h-4 w-4 accent-inalde-red"
+            />
+          </th>
           <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Nombre</th>
           <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Roles asignados</th>
           <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Estado</th>
@@ -203,6 +297,14 @@ function UsersTable({ users, onEdit }: { users: UserRow[]; onEdit: (u: UserRow) 
       <tbody>
         {users.map((u) => (
           <tr key={u.auth_user_id} className="border-t border-inalde-gray-light hover:bg-inalde-gray-bg/40">
+            <td className="px-3 py-3">
+              <input
+                type="checkbox"
+                checked={selected.has(u.auth_user_id)}
+                onChange={() => onToggleSel(u.auth_user_id)}
+                className="h-4 w-4 accent-inalde-red"
+              />
+            </td>
             <td className="px-3 py-3">
               <div className="font-medium">{u.nombre_completo}</div>
               {u.cohorte_id && <span className="text-xs text-inalde-gray">{u.cohorte_id}</span>}

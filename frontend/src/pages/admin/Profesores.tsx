@@ -66,6 +66,19 @@ export default function Profesores() {
     } finally { setBusy(false); }
   }
 
+  async function toggleActivo(p: Profesor) {
+    const accion = p.activo ? 'desactivar' : 'reactivar';
+    if (!confirm(`¿${accion[0].toUpperCase() + accion.slice(1)} a ${p.nombre_completo}?`)) return;
+    setBusy(true); setMsg(null);
+    try {
+      await api.put(`/admin/profesores/${p.id}`, { activo: !p.activo });
+      setMsg({ kind: 'ok', text: `${p.nombre_completo} ${p.activo ? 'desactivado' : 'reactivado'}.` });
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+    } finally { setBusy(false); }
+  }
+
   return (
     <>
       <div className="border-b-[3px] border-inalde-red pb-4 mb-6 flex items-end justify-between">
@@ -160,8 +173,15 @@ export default function Profesores() {
                     {p.activo ? 'Activo' : 'Inactivo'}
                   </span>
                 </td>
-                <td className="px-3 py-2">
-                  <button onClick={() => { setEditing(p.id); setEditDraft(p); }} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover">Editar</button>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <button onClick={() => { setEditing(p.id); setEditDraft(p); }} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover mr-3">Editar</button>
+                  <button
+                    onClick={() => toggleActivo(p)}
+                    disabled={busy}
+                    className={`text-xs font-semibold ${p.activo ? 'text-inalde-gray hover:text-inalde-red' : 'text-inalde-blue hover:text-inalde-blue/80'}`}
+                  >
+                    {p.activo ? 'Desactivar' : 'Reactivar'}
+                  </button>
                 </td>
               </tr>
             )

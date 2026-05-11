@@ -425,7 +425,7 @@ export default function Anteproyecto() {
                     onChange={(e) => updateMiembro(i, { celular: e.target.value })}
                     placeholder="Ej: +573001234567" className="input-inalde" />
                 </Field>
-                <Field label="Perfil">
+                <Field label="Rol con el que más te identificas">
                   <select value={m.perfil} className="input-inalde"
                     onChange={(e) => updateMiembro(i, { perfil: e.target.value as Perfil })}>
                     {PERFILES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -487,7 +487,7 @@ export default function Anteproyecto() {
             </p>
 
             <div className="mb-6">
-              <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
+              <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-red mb-2">
                 ¿Cuántos {labelProyecto} vas a presentar?
               </label>
               <div className="flex gap-2">
@@ -578,9 +578,10 @@ function SectionHeader({ n, title }: { n: number; title: string }) {
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  const esPregunta = /^¿/.test(label.trim()) || /\?$/.test(label.trim());
   return (
     <div className="mt-4">
-      <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">
+      <label className={`block font-primary font-semibold text-xs tracking-wider uppercase mb-1 ${esPregunta ? 'text-inalde-red' : 'text-inalde-gray'}`}>
         {label}
       </label>
       {hint && <p className="text-[11px] text-inalde-gray italic mb-2">{hint}</p>}
@@ -707,13 +708,13 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
 
       {/* Estado del proyecto (madurez) */}
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Estado del proyecto</h3>
-      <p className="text-xs text-inalde-gray mb-3">¿En qué etapa está hoy?</p>
+      <p className="text-xs text-inalde-red mb-3 font-semibold">¿En qué etapa está hoy?</p>
       <RadioGroup value={proyecto.estado} onChange={(v) => onChange({ estado: v as EstadoProyecto })}
         options={ESTADOS_PROYECTO} />
 
       {/* Validación del mercado */}
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Validación del mercado</h3>
-      <p className="text-xs text-inalde-gray mb-4">¿Cómo sabes que este proyecto resuelve un problema real?</p>
+      <p className="text-xs text-inalde-red mb-4 font-semibold">¿Cómo sabes que este proyecto resuelve un problema real?</p>
       <div className="grid md:grid-cols-2 gap-x-5 gap-y-4 mb-8">
         <Field label="Fuentes primarias (entrevistas, encuestas, observación)">
           <TextareaWithCounter value={proyecto.fuentes_primarias} rows={3} max={300}

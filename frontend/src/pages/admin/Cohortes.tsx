@@ -1,5 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api';
+
+interface Hito {
+  posicion: number;
+  nombre: string;
+  fecha: string | null;
+}
 
 interface Cohorte {
   id: string;
@@ -13,6 +19,7 @@ interface Cohorte {
   activa: boolean;
   participantes_count: number;
   equipos_count: number;
+  hitos: Hito[];
 }
 
 const fechaFields = [
@@ -31,12 +38,36 @@ function toIso(local: string) {
   return local ? new Date(local).toISOString() : null;
 }
 
+/**
+ * Orden FS/INT alternado por año.
+ * Primero todas las del año más antiguo: FS antes que INT. Luego siguiente año, etc.
+ * IDs con formato: "{tipo}-{aa}-{aa}" donde tipo ∈ {fs, int}.
+ */
+function sortCohortes(arr: Cohorte[]): Cohorte[] {
+  return [...arr].sort((a, b) => {
+    const parseId = (id: string) => {
+      const m = id.toLowerCase().match(/^(fs|int|mba_fs|mba_int)-(\d{2})-(\d{2})/);
+      if (!m) return { tipo: 'zzz', anio: 9999, original: id };
+      const tipoNorm = m[1].endsWith('fs') ? 'fs' : 'int';
+      return { tipo: tipoNorm, anio: parseInt(m[2], 10), original: id };
+    };
+    const pa = parseId(a.id);
+    const pb = parseId(b.id);
+    if (pa.anio !== pb.anio) return pa.anio - pb.anio;
+    if (pa.tipo !== pb.tipo) return pa.tipo === 'fs' ? -1 : 1;
+    return pa.original.localeCompare(pb.original);
+  });
+}
+
 export default function Cohortes() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<Cohorte>>({});
+  const [hitosDraft, setHitosDraft] = useState<Hito[]>([]);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const ordenadas = useMemo(() => sortCohortes(cohortes), [cohortes]);
 
   async function load() {
     setLoading(true);
@@ -48,7 +79,12 @@ export default function Cohortes() {
   function startEdit(c: Cohorte) {
     setEditing(c.id);
     setDraft({ ...c });
+    setHitosDraft(c.hitos ?? []);
     setMsg(null);
+  }
+
+  function updateHito(posicion: number, fecha: string) {
+    setHitosDraft((prev) => prev.map((h) => h.posicion === posicion ? { ...h, fecha: fecha || null } : h));
   }
 
   async function save() {
@@ -59,6 +95,7 @@ export default function Cohortes() {
         const v = (draft as any)[k];
         payload[k] = v ? new Date(v).toISOString() : null;
       }
+      payload.hitos = hitosDraft.map((h) => ({ posicion: h.posicion, fecha: h.fecha || null }));
       await api.put(`/admin/cohortes/${editing}`, payload);
       setMsg({ kind: 'ok', text: `Cohorte ${editing} actualizada.` });
       setEditing(null);
@@ -73,7 +110,9 @@ export default function Cohortes() {
       <div className="border-b-[3px] border-inalde-red pb-4 mb-6">
         <p className="section-subtitle mb-1">Administración</p>
         <h1 className="section-title">Cohortes y fechas del Scheduler</h1>
-        <p className="text-sm text-inalde-gray mt-2">Configura las fechas límite de cada cohorte. El frontend bloquea acciones cuando vencen.</p>
+        <p className="text-sm text-inalde-gray mt-2">
+          Configura las fechas límite operativas y el cronograma de 11 hitos por cohorte.
+        </p>
       </div>
 
       {msg && (
@@ -84,7 +123,7 @@ export default function Cohortes() {
 
       {loading ? <p className="text-inalde-gray">Cargando…</p> : (
         <div className="space-y-4">
-          {cohortes.map((c) => (
+          {ordenadas.map((c) => (
             <div key={c.id} className="border border-inalde-gray-light rounded">
               <div className="flex items-center justify-between p-4 bg-inalde-gray-bg">
                 <div>
@@ -105,34 +144,81 @@ export default function Cohortes() {
               </div>
 
               {editing === c.id && (
-                <div className="p-4 space-y-3 border-t border-inalde-gray-light">
+                <div className="p-4 space-y-5 border-t border-inalde-gray-light">
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={!!draft.activa} onChange={(e) => setDraft({ ...draft, activa: e.target.checked })} />
                     Cohorte activa
                   </label>
-                  {fechaFields.map(([k, label]) => (
-                    <div key={k}>
-                      <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">{label}</label>
-                      <input type="datetime-local"
-                        value={toLocal((draft as any)[k] ?? null)}
-                        onChange={(e) => setDraft({ ...draft, [k]: toIso(e.target.value) } as any)}
-                        className="input-inalde !py-2" />
+
+                  <div>
+                    <h3 className="font-primary font-bold text-xs tracking-wider uppercase text-inalde-text mb-3">
+                      Fechas operativas (Business Plan)
+                    </h3>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {fechaFields.map(([k, label]) => (
+                        <div key={k}>
+                          <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-1">{label}</label>
+                          <input type="datetime-local"
+                            value={toLocal((draft as any)[k] ?? null)}
+                            onChange={(e) => setDraft({ ...draft, [k]: toIso(e.target.value) } as any)}
+                            className="input-inalde !py-2" />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+
+                  <div>
+                    <h3 className="font-primary font-bold text-xs tracking-wider uppercase text-inalde-text mb-3">
+                      Cronograma — 11 hitos
+                    </h3>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {hitosDraft.map((h) => (
+                        <div key={h.posicion}>
+                          <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-1">
+                            {h.posicion}. {h.nombre}
+                          </label>
+                          <input type="date"
+                            value={h.fecha ?? ''}
+                            onChange={(e) => updateHito(h.posicion, e.target.value)}
+                            className="input-inalde !py-2" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
               {editing !== c.id && (
-                <div className="grid sm:grid-cols-2 gap-2 p-4 text-xs">
-                  {fechaFields.map(([k, label]) => {
-                    const v = (c as any)[k];
-                    return (
-                      <div key={k} className="flex justify-between border-b border-inalde-gray-light/50 py-1">
-                        <span className="text-inalde-gray">{label}</span>
-                        <span className="text-inalde-text">{v ? new Date(v).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : <span className="text-inalde-gray italic">no definida</span>}</span>
+                <div className="p-4 space-y-4 text-xs">
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {fechaFields.map(([k, label]) => {
+                      const v = (c as any)[k];
+                      return (
+                        <div key={k} className="flex justify-between border-b border-inalde-gray-light/50 py-1">
+                          <span className="text-inalde-gray">{label}</span>
+                          <span className="text-inalde-text">{v ? new Date(v).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : <span className="text-inalde-gray italic">no definida</span>}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {c.hitos && c.hitos.length > 0 && (
+                    <div>
+                      <p className="font-primary font-bold text-[11px] tracking-wider uppercase text-inalde-text mb-2">Cronograma</p>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {c.hitos.map((h) => (
+                          <div key={h.posicion} className="flex justify-between border-b border-inalde-gray-light/50 py-1">
+                            <span className="text-inalde-gray">{h.posicion}. {h.nombre}</span>
+                            <span className="text-inalde-text">
+                              {h.fecha
+                                ? new Date(h.fecha + 'T00:00:00').toLocaleDateString('es-CO', { dateStyle: 'medium' })
+                                : <span className="text-inalde-gray italic">—</span>}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
