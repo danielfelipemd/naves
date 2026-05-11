@@ -353,7 +353,22 @@ Posterior a la entrega del proyecto, el cliente contrata un paquete mensual de h
 - Tiempo de respuesta estándar: **72 horas hábiles** desde el reporte.
 - Tiempo de respuesta para **incidencias críticas de producción** (plataforma caída, login bloqueado, pérdida de datos): **dentro de las primeras 24 horas**.
 
-### 9.3 Infraestructura de servidor (Universidad de La Sabana)
+### 9.3 Infraestructura de servidor
+
+#### 9.3.1 Servidor actual · transición durante la migración
+
+Mientras se completa la migración a la Universidad de La Sabana, la plataforma sigue operando en el **VPS actual** donde está hoy en producción. Esto evita cualquier interrupción del servicio a los participantes activos durante el periodo de migración.
+
+| Concepto | Valor |
+|---|---|
+| Proveedor | Hosting VPS (EasyPanel) actual de NAVES |
+| Suscripción mensual | **COP 70.000** |
+| Duración estimada | 1 a 2 meses máximo (hasta cerrar Sprints 7 y 8) |
+| Costo total estimado | **COP 70.000 – COP 140.000** |
+| Quién lo asume | Cliente, directamente con el proveedor de hosting actual |
+| Baja del servicio | Una vez verificada la operación estable en el servidor de La Sabana, el VPS actual se da de baja |
+
+#### 9.3.2 Servidor destino · Universidad de La Sabana
 
 | Recurso | Mínimo | Recomendado |
 |---|---|---|
