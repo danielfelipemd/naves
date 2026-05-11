@@ -1,0 +1,983 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Plan de Desarrollo NAVES — Fases Pendientes</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>@page {
+  size: Letter;
+  margin: 60px 50px 70px;
+  @bottom-center {
+    content: "NAVES — INALDE Business School · Plan de desarrollo · Fases pendientes";
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+}
+
+body {
+  font-family: 'Roboto', -apple-system, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a1a;
+  line-height: 1.55;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  color: #1a1a1a;
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  border-bottom: 3px solid #e30613;
+  padding-bottom: 8pt;
+  margin-top: 24pt;
+  margin-bottom: 16pt;
+}
+
+h1:first-of-type {
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #e30613;
+  margin-top: 22pt;
+  margin-bottom: 10pt;
+  page-break-before: auto;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  margin-top: 16pt;
+  margin-bottom: 8pt;
+}
+
+h4 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #9f885f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 14pt;
+  margin-bottom: 6pt;
+}
+
+p { margin: 6pt 0; }
+
+a {
+  color: #e30613;
+  text-decoration: none;
+}
+
+code {
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 9pt;
+  background: #f5f5f5;
+  padding: 1pt 4pt;
+  border-radius: 2pt;
+  color: #b30510;
+}
+
+pre {
+  background: #f5f5f5;
+  border-left: 3px solid #e30613;
+  padding: 10pt;
+  font-size: 9pt;
+  page-break-inside: avoid;
+}
+
+blockquote {
+  border-left: 4px solid #224d7c;
+  background: #f0f4f9;
+  margin: 10pt 0;
+  padding: 8pt 14pt;
+  font-style: italic;
+  color: #224d7c;
+  page-break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12pt 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+th {
+  background: #e30613;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6pt 8pt;
+  text-align: left;
+  border: 1px solid #e30613;
+}
+
+td {
+  padding: 5pt 8pt;
+  border: 1px solid #e8e8e8;
+  vertical-align: top;
+}
+
+tr:nth-child(even) td { background: #fafafa; }
+
+img {
+  max-width: 100%;
+  border: 1px solid #e8e8e8;
+  border-radius: 4pt;
+  margin: 10pt 0;
+  page-break-inside: avoid;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 20pt 0;
+}
+
+ul, ol { margin: 6pt 0 6pt 18pt; }
+li { margin: 3pt 0; }
+
+strong {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+@page { size: Letter; margin: 60px 50px 70px;
+  @bottom-center { content: "NAVES — INALDE Business School · Plan de Desarrollo · v1.3"; font-family: 'Roboto', sans-serif; font-size: 8pt; color: #6b6b6b; }
+  @bottom-right { content: counter(page) " / " counter(pages); font-family: 'Roboto', sans-serif; font-size: 8pt; color: #6b6b6b; }
+}
+.cover { text-align: center; padding: 80pt 0 40pt; border-bottom: 3px solid #e30613; margin-bottom: 30pt; }
+.cover .logo { font-family: 'Montserrat', sans-serif; font-size: 11pt; font-weight: 700; letter-spacing: 0.2em; color: #e30613; text-transform: uppercase; margin-bottom: 8pt; }
+.cover .subtitle { font-family: 'Montserrat', sans-serif; font-size: 9pt; color: #6b6b6b; letter-spacing: 0.15em; text-transform: uppercase; }
+</style></head>
+<body><div class="cover"><div class="logo">INALDE Business School</div><div class="subtitle">Trabajo de grado · NAVES · Plan de Desarrollo</div></div>
+<h1>Plan de Desarrollo · Fases pendientes — Plataforma de Trabajos de Grado MBA INALDE</h1>
+<p><strong>Cliente:</strong> INALDE Business School — Programa MBA</p>
+<p><strong>Plataforma:</strong> NAVES — Sistema de Gestión de Trabajos de Grado</p>
+<p><strong>Documento:</strong> Plan de desarrollo de las fases pendientes del brief institucional</p>
+<p><strong>Fecha:</strong> 11 de mayo de 2026</p>
+<p><strong>Versión:</strong> 1.3</p>
+<hr>
+<h2>1. Resumen ejecutivo</h2>
+<p>La plataforma NAVES está en producción y cubre los flujos del <strong>anteproyecto</strong> para las tres modalidades de trabajo de grado (Business Plan / NAVES, Redacción de Caso, Proyecto de Investigación), el <strong>cronograma de hitos</strong> por cohorte, la <strong>sábana consolidada</strong> y la <strong>asignación de profesores</strong> por el super administrador. Todo lo verificado en la auditoría del <strong>2026-05-11</strong>.</p>
+<p>Este documento define el plan para construir las <strong>fases pendientes</strong> descritas en el brief institucional (Versión 1.0, mayo 2026), <strong>migrar la plataforma a la infraestructura tecnológica de la Universidad de La Sabana</strong>, <strong>publicarla bajo el dominio institucional definido por el cliente</strong> y <strong>dejar el modelo de IA configurado con la cuenta y los créditos del cliente</strong>.</p>
+<p><strong>Estimación total:</strong> <strong>66 horas</strong>, distribuidas en 9 sprints de construcción, un sprint dedicado a pruebas E2E con Playwright y corrección de bugs, y la entrega de los manuales de Usuario y de Administración.</p>
+<p><strong>Cronograma propuesto:</strong> 4 semanas calendario, del <strong>mié 13 de mayo de 2026</strong> al <strong>mar 9 de junio de 2026</strong>, con una carga promedio de 16-17 horas por semana.</p>
+<hr>
+<h2>2. Estado actual</h2>
+<p>Lo que ya está construido y operativo:</p>
+<table><thead><tr>
+<th>Módulo</th>
+<th>Estado</th>
+</tr></thead><tbody>
+<tr>
+<td>Cohortes con cronograma de 11 hitos por cohorte</td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>Selector de modalidad de trabajo de grado</td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>Anteproyecto NAVES (Canvas + Mercado + Hitos · hasta 2 alternativas)</td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>Upload de PDF anteproyecto Caso y Proyecto de Investigación</td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>PDF profesional del anteproyecto y de la sábana</td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>Sábana de proyectos con sugerencia de profesor por afinidad</td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>Asignación profesor↔equipo registrada por super admin</td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>Selección del proyecto definitivo · solicitudes de desarchivado</td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>RBAC granular y auditoría automática</td>
+<td>Operativo</td>
+</tr>
+<tr>
+<td>Manual de Usuario v1.1 (34 páginas)</td>
+<td>Entregado</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. Alcance del nuevo desarrollo</h2>
+<p>Se listan únicamente las acciones que el brief institucional pide explícitamente y que aún no están construidas.</p>
+<p><strong>Fase 1 — Planeación</strong></p>
+<ul>
+<li>Ajustar el cronograma a las ~14 fechas hito según la fórmula institucional.</li>
+<li>Generar el sitio público con el cronograma y enviarlo automáticamente a los participantes.</li>
+</ul>
+<p><strong>Fase 2 — Anteproyecto (Caso e Investigación)</strong></p>
+<ul>
+<li>Email automático al director del caso o tutor cuando el participante sube el PDF.</li>
+<li>Carta formal del director al Comité MBA con plantilla institucional y campos variables, generada y firmada electrónicamente con un solo clic.</li>
+<li>Aprobación del Comité MBA con un clic.</li>
+<li>Notificación automática al participante y al director al aprobar.</li>
+<li>Informe automático al Comité MBA al cerrar la ventana, con la lista por modalidad.</li>
+</ul>
+<p><strong>Fase 3 — Asignación de profesores (NAVES)</strong></p>
+<ul>
+<li>Email al participante con el profesor asignado y el link para agendar la primera reunión por Microsoft Bookings (link configurado en el perfil de cada profesor).</li>
+</ul>
+<p><strong>Fase 4 — Seguimiento</strong></p>
+<ul>
+<li>NAVES: notificación automática al abrir cada ventana de reunión (R1 y R2) y registro de si fue agendada y realizada.</li>
+<li>Caso e Investigación: upload del documento de avance, email automático al director y registro de fecha.</li>
+</ul>
+<p><strong>Fase 5 — Entrega del trabajo final</strong></p>
+<ul>
+<li>NAVES: campos del Business Plan completo + uploads obligatorios del Business Plan PDF, el One Pager PDF y el logo en alta resolución.</li>
+<li>Caso e Investigación: upload del PDF del trabajo final.</li>
+<li>Informe automático al Comité MBA al cerrar la ventana.</li>
+</ul>
+<p><strong>Fase 6 — Cierre académico</strong></p>
+<ul>
+<li>Demo Day (NAVES): programación automática por sector económico en bloques de 5 presentaciones (2-4 días × 2-4 bloques), aprobación del super admin, distribución por email a Publicaciones, Coordinación Académica, Marketing (con borradores de post de LinkedIn por proyecto) y Coordinación del Programa.</li>
+<li>Actas de grado (3 modalidades): generación del acta, firma electrónica multi-firmante, link único masivo del director del programa para firmar todas con un clic, distribución por email.</li>
+<li>Calificación AOL (NAVES): IA propone calificación por criterio de la rúbrica leyendo el Business Plan; el profesor acepta, modifica o rechaza; genera Excel + Word y los guarda en OneDrive.</li>
+</ul>
+<hr>
+<h2>4. Plan por sprints</h2>
+<h3>Sprint 1 — Publicación del cronograma (Fase 1) · 2 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Ajuste a 14 hitos según fórmula institucional + página pública por cohorte</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Envío automático del cronograma a los participantes</td>
+<td>1</td>
+</tr>
+</tbody></table>
+<h3>Sprint 2 — Flujo Caso / Investigación con carta firmada (Fase 2) · 5 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Email automático al director al subir PDF del anteproyecto</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Plantilla parametrizable de la carta del Comité + generación PDF</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Firma electrónica de la carta y envío con un clic</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>Bandeja del Comité MBA con aprobación de un clic</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Notificaciones a participante y director al aprobar</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Informe automático al Comité MBA al cerrar la ventana</td>
+<td>0.5</td>
+</tr>
+</tbody></table>
+<h3>Sprint 3 — Asignación de profesores (Fase 3) · 1 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Campo &quot;Link Microsoft Bookings&quot; en perfil del profesor</td>
+<td>0.25</td>
+</tr>
+<tr>
+<td>Email al participante con profesor asignado + link de Bookings</td>
+<td>0.75</td>
+</tr>
+</tbody></table>
+<h3>Sprint 4 — Seguimiento intermedio (Fase 4) · 2 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Notificación a participantes al abrir cada ventana (R1 y R2)</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Pantalla del profesor para registrar agendada/realizada</td>
+<td>0.75</td>
+</tr>
+<tr>
+<td>Upload del documento de avance Caso/Investigación + email al director</td>
+<td>0.75</td>
+</tr>
+</tbody></table>
+<h3>Sprint 5 — Entrega del trabajo final (Fase 5) · 3 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Extensión del formulario NAVES a Business Plan completo (modo entrega final)</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Uploads obligatorios: Business Plan PDF, One Pager PDF, Logo HD (NAVES)</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Upload PDF trabajo final Caso/Investigación + informe al Comité MBA</td>
+<td>1</td>
+</tr>
+</tbody></table>
+<h3>Sprint 6A — Demo Day NAVES (Fase 6) · 4 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Algoritmo de programación por sector económico (bloques de 5; 2-4 días × 2-4 bloques)</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>Pantalla de revisión + aprobación del super admin</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Emails a Publicaciones, Coordinación Académica y Coordinación del Programa</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Borradores de post de LinkedIn por proyecto (uso del prompt entrenado) + email a Marketing con logos</td>
+<td>1</td>
+</tr>
+</tbody></table>
+<h3>Sprint 6B — Actas de grado con firma electrónica (Fase 6) · 6 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Generación PDF del acta (una por equipo NAVES, una individual Caso/Investigación)</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>Integración de la herramienta de firma electrónica (a definir con el cliente)</td>
+<td>2.5</td>
+</tr>
+<tr>
+<td>Flujo multi-firmante (participantes + director + director del programa)</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Link único masivo del director del programa</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Distribución por email de actas firmadas</td>
+<td>0.5</td>
+</tr>
+</tbody></table>
+<h3>Sprint 6C — Calificación AOL con IA (Fase 6) · 6 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Lectura del Business Plan PDF + ejecución de calificación con el prompt entrenado</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Pantalla del profesor: aceptar / modificar / rechazar cada sugerencia</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>Generación del Excel consolidado y del documento Word por proyecto</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>Guardado automático en OneDrive</td>
+<td>1</td>
+</tr>
+</tbody></table>
+<h3>Sprint 7 — Migración al servidor de la Universidad de La Sabana · 6 h</h3>
+<p>Despliegue de la plataforma desde el VPS actual al servidor institucional de la <strong>Universidad de La Sabana</strong>, manteniendo el mismo modelo operativo basado en <strong>EasyPanel</strong> que ya está en producción.</p>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Coordinación con TI de La Sabana (accesos, puertos, ventana de despliegue)</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Instalación de <strong>EasyPanel</strong> en el servidor institucional</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Despliegue del stack Supabase self-hosted desde EasyPanel</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>Despliegue del backend y frontend con auto-deploy desde GitHub preservado</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Migración del volumen de PostgreSQL (datos productivos)</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Validación de HTTPS y conectividad institucional</td>
+<td>0.5</td>
+</tr>
+</tbody></table>
+<p>&gt; El sprint puede cerrarse entre <strong>4 y 6 horas</strong> según la disponibilidad del servidor de la Universidad. La estimación conservadora es 6 horas.</p>
+<h3>Sprint 8 — Puesta en producción · 8 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Coordinación con el cliente para definir el dominio institucional y registros DNS solicitados</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Configuración de los registros DNS del dominio (A / CNAME)</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>Configuración del dominio en el servidor (vhost · reverse proxy)</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>Emisión y configuración de los certificados SSL para el dominio institucional</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Comunicación de URLs y credenciales a los usuarios + soporte de los primeros días</td>
+<td>2</td>
+</tr>
+</tbody></table>
+<h3>Sprint 9 — Configuración y entrenamiento de la IA · 9 h</h3>
+<p>La plataforma incorpora tres usos de IA: <strong>resúmenes ejecutivos</strong> en la sábana de proyectos (Fase 3), <strong>borradores de post de LinkedIn</strong> por proyecto (Fase 6 — Demo Day) y <strong>propuesta de calificación AOL</strong> sobre cada Business Plan (Fase 6 — AOL). El entrenamiento es <strong>iterativo</strong>: cada uso requiere un ciclo de prompt → ejecución sobre datos reales → validación con el área responsable → ajuste → repetir hasta alcanzar la calidad de salida esperada.</p>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Apertura y configuración de la cuenta de IA del cliente: claves, límites de gasto, alertas de consumo y dashboard de monitoreo</td>
+<td>1</td>
+</tr>
+<tr>
+<td><strong>Resúmenes ejecutivos de la sábana</strong> — prompt inicial + 2-3 iteraciones con la Coordinación del Programa sobre un dataset real de anteproyectos</td>
+<td>2</td>
+</tr>
+<tr>
+<td><strong>Borradores de post de LinkedIn</strong> — prompt inicial + 3-4 iteraciones con Marketing &amp; Comunicaciones para fijar la voz institucional INALDE</td>
+<td>2</td>
+</tr>
+<tr>
+<td><strong>Calificación AOL</strong> — prompt inicial sobre Business Plans históricos + 4-5 iteraciones validadas contra calificaciones de referencia del director del programa</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Documentación de los prompts finales para que el cliente pueda re-entrenarlos en el futuro</td>
+<td>1</td>
+</tr>
+</tbody></table>
+<h3>Sprint 10 — Pruebas E2E con Playwright y corrección de bugs · 9 h</h3>
+<p>Cobertura automatizada de los flujos construidos en los 9 sprints anteriores, con recorridos por cada rol (super admin, profesor, participante, comité MBA, director del programa) y resolución de los bugs detectados antes y durante la operación temprana.</p>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Pruebas E2E con Playwright para Fases 1-5 (cronograma, anteproyecto Caso/Investigación, asignación, seguimiento, entrega final)</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Pruebas E2E con Playwright para Fase 6 (Demo Day, actas con firma electrónica, calificación AOL)</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Corrección de bugs detectados en las pruebas y en la operación temprana</td>
+<td>3</td>
+</tr>
+</tbody></table>
+<h3>Entrega de manuales · 5 h</h3>
+<table><thead><tr>
+<th>Tarea</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>Actualización del <strong>Manual de Usuario</strong> con los nuevos flujos y capturas</td>
+<td>2.5</td>
+</tr>
+<tr>
+<td>Redacción del <strong>Manual de Administración</strong> (operación, configuración, RBAC, mantenimiento)</td>
+<td>2.5</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5. Resumen de horas</h2>
+<table><thead><tr>
+<th>Sprint</th>
+<th>Alcance</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>Publicación del cronograma (Fase 1)</td>
+<td>2</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Caso/Investigación + carta firmada (Fase 2)</td>
+<td>5</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Asignación + email con link Bookings (Fase 3)</td>
+<td>1</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Seguimiento intermedio (Fase 4)</td>
+<td>2</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Entrega del trabajo final (Fase 5)</td>
+<td>3</td>
+</tr>
+<tr>
+<td>6A</td>
+<td>Demo Day NAVES (Fase 6)</td>
+<td>4</td>
+</tr>
+<tr>
+<td>6B</td>
+<td>Actas + firma electrónica (Fase 6)</td>
+<td>6</td>
+</tr>
+<tr>
+<td>6C</td>
+<td>Calificación AOL con IA (Fase 6)</td>
+<td>6</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Migración al servidor de la Universidad de La Sabana</td>
+<td>6</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Puesta en producción (DNS, dominio, SSL, soporte inicial)</td>
+<td>8</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Configuración y entrenamiento de la IA (prompts + créditos)</td>
+<td>9</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Pruebas E2E con Playwright y corrección de bugs</td>
+<td>9</td>
+</tr>
+<tr>
+<td>M</td>
+<td>Manuales de Usuario y de Administración</td>
+<td>5</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>66</strong></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6. Cronograma propuesto</h2>
+<p>Inicio sugerido: <strong>miércoles 13 de mayo de 2026</strong>. Cierre sugerido: <strong>martes 9 de junio de 2026</strong> (4 semanas calendario · 66 horas · 16-17 horas por semana).</p>
+<table><thead><tr>
+<th>Semana</th>
+<th>Fechas</th>
+<th>Foco de la semana</th>
+<th>Horas</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>13-19 may (mié-mar)</td>
+<td>Sprints 1, 2, 3, 4 y 5 (todas las Fases 1-5 del brief) + arranque Sprint 9 (apertura cuenta IA y entrenamiento del prompt de resúmenes ejecutivos)</td>
+<td>16</td>
+</tr>
+<tr>
+<td>2</td>
+<td>20-26 may (mié-mar)</td>
+<td>Sprint 6A (Demo Day NAVES) + Sprint 6B (actas + firma electrónica) + Sprint 9 (posts LinkedIn + arranque AOL) + arranque Sprint 10 (pruebas E2E de Fases 1-5)</td>
+<td>16</td>
+</tr>
+<tr>
+<td>3</td>
+<td>27 may - 2 jun (mié-mar)</td>
+<td>Sprint 6C (calificación AOL) + Sprint 9 (validación final del prompt AOL con el director del programa) + Sprint 10 (pruebas E2E de Fase 6) + arranque Sprint 7 (coordinación con TI de La Sabana)</td>
+<td>17</td>
+</tr>
+<tr>
+<td>4</td>
+<td>3-9 jun (mié-mar)</td>
+<td>Sprint 7 (cierre de la migración a La Sabana) + Sprint 8 (puesta en producción · DNS, dominio, SSL) + Sprint 10 (corrección final de bugs) + entrega de los manuales de Usuario y de Administración</td>
+<td>17</td>
+</tr>
+</tbody></table>
+<p><strong>Cruce del entrenamiento de IA con los sprints funcionales:</strong> el entrenamiento de IA se reparte a lo largo del proyecto, no se concentra en una sola semana. Cada prompt se entrena justo antes —o en paralelo— al sprint funcional que lo consume:</p>
+<ul>
+<li><strong>Resúmenes ejecutivos</strong> → entrenamiento en la semana 1, validación con la Coordinación del Programa.</li>
+<li><strong>Posts de LinkedIn</strong> → entrenamiento en la semana 2, antes de ejecutar el Sprint 6A (Demo Day).</li>
+<li><strong>Calificación AOL</strong> → entrenamiento en la semana 3, simultáneamente con el Sprint 6C, validado contra calificaciones históricas con el director del programa.</li>
+</ul>
+<p>Esta secuencia permite <strong>probar cada prompt sobre datos reales</strong> del propio sprint en construcción y validarlo con el área responsable sin retrasos.</p>
+<hr>
+<h2>7. Entregables</h2>
+<ul>
+<li>Plataforma completa en producción cubriendo las <strong>6 fases</strong> del brief.</li>
+<li>Plataforma migrada al <strong>servidor de la Universidad de La Sabana</strong>.</li>
+<li>Plataforma publicada bajo el <strong>dominio institucional</strong> definido por el cliente.</li>
+<li><strong>Modelo de IA configurado y entrenado</strong> (resúmenes, posts y AOL) · operación gestionada incluida en el servicio.</li>
+<li><strong>Manual de Usuario</strong> actualizado en PDF.</li>
+<li><strong>Manual de Administración</strong> en PDF.</li>
+</ul>
+<hr>
+<h2>8. Supuestos y dependencias del cliente</h2>
+<table><thead><tr>
+<th>Dependencia</th>
+<th>Sprint que la requiere</th>
+</tr></thead><tbody>
+<tr>
+<td>Fórmula final de las 14 fechas hito</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Plantilla institucional de la carta del Comité MBA</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Decisión de la herramienta de firma electrónica</td>
+<td>2 y 6B</td>
+</tr>
+<tr>
+<td>Lista de direcciones del Comité MBA, Publicaciones, Coordinación Académica, Marketing y Coordinación del Programa</td>
+<td>2, 5 y 6A</td>
+</tr>
+<tr>
+<td>Plantilla institucional del post de LinkedIn</td>
+<td>6A</td>
+</tr>
+<tr>
+<td>Plantilla del acta de grado (NAVES y Caso/Investigación)</td>
+<td>6B</td>
+</tr>
+<tr>
+<td>Rúbrica AOL en formato estructurado (criterios + niveles)</td>
+<td>6C</td>
+</tr>
+<tr>
+<td>Acceso a OneDrive institucional para guardar resultados AOL</td>
+<td>6C</td>
+</tr>
+<tr>
+<td>Acceso al servidor de la Universidad de La Sabana (credenciales, puertos, dominios, certificados, ventana de despliegue)</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Dominio institucional definido por el cliente para la plataforma</td>
+<td>8</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>9. Requerimientos técnicos</h2>
+<h3>9.1 Operación de IA</h3>
+<p>La plataforma usa IA en tres puntos del flujo: <strong>resúmenes ejecutivos</strong> de la sábana, <strong>borradores de post de LinkedIn</strong> del Demo Day y <strong>propuesta de calificación AOL</strong> sobre el Business Plan.</p>
+<p>El cliente puede escoger entre <strong>dos modelos de operación</strong> del servicio de IA:</p>
+<h4>Opción A · Suscripción mensual al proveedor de la plataforma (recomendada)</h4>
+<p>El proveedor de la plataforma opera la cuenta de IA y entrega el servicio como una suscripción mensual que incluye:</p>
+<ul>
+<li>Provisión y operación de la cuenta del modelo de IA institucionalizada para la plataforma.</li>
+<li>Consumo de créditos del modelo en todos los usos descritos, para volúmenes normales de operación (hasta ~30 proyectos NAVES por cohorte activa).</li>
+<li>Monitoreo de consumo y alertas operativas.</li>
+<li>Re-ajuste de prompts cuando un área responsable lo solicite (cambio de tono, criterios actualizados, etc.).</li>
+</ul>
+<p><strong>Tarifa estimada:</strong> <strong>USD 50 / mes</strong> (≈ COP 200.000 / mes), facturada como suscripción mensual al cierre del proyecto. El cliente no abre cuenta con el proveedor de IA, no gestiona claves API ni se ocupa del monitoreo del consumo.</p>
+<h4>Opción B · Cuenta de IA propia del cliente</h4>
+<p>Si el cliente prefiere asumir directamente los costos de IA, puede contratar su propia cuenta institucional con el proveedor que escoja y entregar las claves API a la plataforma.</p>
+<p>En este modelo, el cliente asume:</p>
+<ul>
+<li>El costo del consumo de créditos directamente con el proveedor de IA.</li>
+<li>La gestión de claves, límites de gasto y alertas de consumo.</li>
+<li>El monitoreo periódico del dashboard del proveedor.</li>
+</ul>
+<p>La suscripción mensual de la <strong>Opción A</strong> no aplica en este caso.</p>
+<h4>Comparativo rápido</h4>
+<table><thead><tr>
+<th>Aspecto</th>
+<th>Opción A · Suscripción</th>
+<th>Opción B · Cuenta propia</th>
+</tr></thead><tbody>
+<tr>
+<td>Quién opera la cuenta de IA</td>
+<td>Proveedor de la plataforma</td>
+<td>Cliente</td>
+</tr>
+<tr>
+<td>Costo mensual</td>
+<td>USD 50 / mes (cobertura completa)</td>
+<td>Variable según consumo + tiempo del cliente para monitoreo</td>
+</tr>
+<tr>
+<td>Gestión de claves y créditos</td>
+<td>Incluida</td>
+<td>A cargo del cliente</td>
+</tr>
+<tr>
+<td>Re-ajuste de prompts ante cambios</td>
+<td>Incluido</td>
+<td>A cargo del proveedor de la plataforma, facturado aparte</td>
+</tr>
+<tr>
+<td>Recomendado para</td>
+<td>Operación estable, sin carga administrativa del cliente</td>
+<td>Clientes que ya tienen contrato corporativo con un proveedor de IA</td>
+</tr>
+</tbody></table>
+<h3>9.2 Soporte y mantenimiento mensual</h3>
+<p>Posterior a la entrega del proyecto, el cliente contrata un paquete mensual de horas de soporte y mantenimiento para atender los ajustes que se requieran sobre la plataforma en operación.</p>
+<p><strong>Qué SÍ incluye este paquete:</strong></p>
+<ul>
+<li>Corrección de bugs reportados sobre las funcionalidades en producción.</li>
+<li>Ajustes menores de interfaz y experiencia de usuario.</li>
+<li>Soporte y atención de consultas a los usuarios (administradores, profesores, participantes).</li>
+<li>Monitoreo operativo de la plataforma y resolución de incidencias.</li>
+<li>Capacitación adicional puntual sobre el uso del sistema.</li>
+</ul>
+<p><strong>Qué NO incluye este paquete</strong> (se cotizan aparte como nuevo desarrollo):</p>
+<ul>
+<li>Desarrollo de nuevas funcionalidades fuera del alcance del proyecto.</li>
+<li>Cambios estructurales en la arquitectura de la plataforma.</li>
+<li>Integraciones con sistemas adicionales no previstos.</li>
+<li>Recuperación tras incidentes mayores de infraestructura del servidor.</li>
+</ul>
+<p><strong>Paquete contratado:</strong></p>
+<table><thead><tr>
+<th>Concepto</th>
+<th>Detalle</th>
+</tr></thead><tbody>
+<tr>
+<td>Horas de soporte incluidas por mes</td>
+<td><strong>6 horas</strong></td>
+</tr>
+<tr>
+<td>Tarifa de soporte por hora</td>
+<td><strong>COP 90.000</strong></td>
+</tr>
+<tr>
+<td>Mensualidad fija</td>
+<td><strong>COP 540.000 / mes</strong></td>
+</tr>
+</tbody></table>
+<p><strong>Tarifas de referencia:</strong></p>
+<table><thead><tr>
+<th>Concepto</th>
+<th>Tarifa por hora</th>
+</tr></thead><tbody>
+<tr>
+<td>Hora de soporte (dentro del paquete mensual de 6 h)</td>
+<td>COP 90.000</td>
+</tr>
+<tr>
+<td>Hora de desarrollo (nuevas funcionalidades fuera del paquete)</td>
+<td>COP 110.000</td>
+</tr>
+</tbody></table>
+<p><strong>Condiciones del paquete:</strong></p>
+<ul>
+<li>Las horas no utilizadas en el mes <strong>no se acumulan</strong> al mes siguiente.</li>
+<li>Las horas adicionales de soporte por encima de las 6 horas mensuales se facturan a la <strong>tarifa de soporte (COP 90.000 / hora)</strong>.</li>
+<li>Cualquier trabajo de <strong>nueva funcionalidad</strong> o desarrollo fuera del alcance del soporte se cotiza y factura a la <strong>tarifa de desarrollo vigente (COP 110.000 / hora)</strong>.</li>
+<li>Tiempo de respuesta estándar: <strong>72 horas hábiles</strong> desde el reporte.</li>
+<li>Tiempo de respuesta para <strong>incidencias críticas de producción</strong> (plataforma caída, login bloqueado, pérdida de datos): <strong>dentro de las primeras 24 horas</strong>.</li>
+</ul>
+<h3>9.3 Infraestructura de servidor (Universidad de La Sabana)</h3>
+<table><thead><tr>
+<th>Recurso</th>
+<th>Mínimo</th>
+<th>Recomendado</th>
+</tr></thead><tbody>
+<tr>
+<td>RAM</td>
+<td>4 GB</td>
+<td>8 GB</td>
+</tr>
+<tr>
+<td>CPU</td>
+<td>2 vCPU</td>
+<td>4 vCPU</td>
+</tr>
+<tr>
+<td>Disco SSD</td>
+<td>40 GB</td>
+<td>80 GB</td>
+</tr>
+<tr>
+<td>Sistema operativo</td>
+<td>Linux (Ubuntu LTS o Debian)</td>
+<td>Ubuntu 22.04 LTS</td>
+</tr>
+<tr>
+<td>Acceso</td>
+<td>SSH con permisos suficientes para <strong>instalar EasyPanel</strong> (panel de administración de contenedores Docker) + puertos 80/443 abiertos</td>
+<td>Acceso root o sudo completo</td>
+</tr>
+<tr>
+<td>Gestión de contenedores</td>
+<td><strong>EasyPanel</strong> administra Docker, Docker Compose, certificados SSL Let&#x27;s Encrypt y auto-deploy desde GitHub</td>
+<td>Mismo stack que ya opera en el VPS actual de NAVES</td>
+</tr>
+<tr>
+<td>Backup</td>
+<td>Snapshot semanal del volumen de PostgreSQL (gestionado desde EasyPanel)</td>
+<td>Política de retención definida con TI</td>
+</tr>
+</tbody></table>
+<p>&gt; <strong>Por qué EasyPanel:</strong> la plataforma NAVES ya corre hoy sobre EasyPanel en el VPS actual, con Supabase self-hosted, backend y frontend orquestados como contenedores. Migrar manteniendo EasyPanel preserva el flujo de auto-deploy desde GitHub, la renovación automática de SSL y el modelo operativo conocido, lo que reduce el tiempo y el riesgo de la migración.</p>
+<h3>9.4 Servicios externos requeridos</h3>
+<table><thead><tr>
+<th>Servicio</th>
+<th>Para qué</th>
+<th>Quién provee</th>
+</tr></thead><tbody>
+<tr>
+<td>Servidor SMTP institucional (o pasarela paga como SendGrid / Mailgun)</td>
+<td>≈ 12 plantillas de email del flujo automatizado</td>
+<td>Cliente · TI institucional</td>
+</tr>
+<tr>
+<td>Herramienta de firma electrónica</td>
+<td>Firma de la carta del Comité MBA y de las actas de grado</td>
+<td>Cliente (DocuSign, SignWell, Autentic u otra)</td>
+</tr>
+<tr>
+<td>OneDrive institucional</td>
+<td>Carpeta destino de los archivos AOL (Excel + Word) — evidencia de acreditación AACSB / EQUIS / AMBA</td>
+<td>Cliente · M365 institucional</td>
+</tr>
+<tr>
+<td>DNS del dominio institucional</td>
+<td>Apuntar el dominio al servidor de La Sabana</td>
+<td>Cliente · área que administre DNS</td>
+</tr>
+<tr>
+<td>Microsoft 365</td>
+<td>Que cada profesor cree su agenda en Bookings y entregue su link</td>
+<td>Cliente (los profesores ya tienen M365)</td>
+</tr>
+<tr>
+<td>Operación de IA</td>
+<td>Resúmenes, posts LinkedIn, calificación AOL · operación continua, créditos y monitoreo</td>
+<td>Suscripción mensual con el proveedor de la plataforma (USD 50 / mes) · Alternativa: el cliente asume con cuenta propia</td>
+</tr>
+</tbody></table>
+<h3>9.5 Software y dependencias técnicas</h3>
+<table><thead><tr>
+<th>Componente</th>
+<th>Versión</th>
+<th>Observaciones</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>EasyPanel</strong></td>
+<td>Última estable</td>
+<td>Panel de administración que orquesta Docker, certificados SSL y auto-deploy desde GitHub. Es el mismo stack que ya opera en el VPS actual de NAVES.</td>
+</tr>
+<tr>
+<td>Docker + Docker Compose</td>
+<td>Docker ≥ 24 · Compose ≥ 2</td>
+<td>Provisionado y gestionado por EasyPanel; no se administra manualmente</td>
+</tr>
+<tr>
+<td>Node.js</td>
+<td>≥ 20 LTS</td>
+<td>Backend Express + frontend Vite</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>15 (vía Supabase self-hosted)</td>
+<td>Volumen persistente gestionado desde EasyPanel</td>
+</tr>
+<tr>
+<td>Certificados SSL</td>
+<td>Let&#x27;s Encrypt vía EasyPanel</td>
+<td>Renovación automática sin intervención manual</td>
+</tr>
+</tbody></table>
+<h3>9.6 Cuentas y accesos que el cliente debe entregar</h3>
+<ul>
+<li>Cuenta administrativa del <strong>DNS</strong> del dominio institucional.</li>
+<li>Acceso <strong>SSH</strong> al servidor de La Sabana con permisos suficientes para instalar <strong>EasyPanel</strong> (panel de administración de contenedores).</li>
+<li>Cuenta del <strong>proveedor de firma electrónica</strong> con cupo mensual de firmas.</li>
+<li>Acceso de escritura a la carpeta de <strong>OneDrive institucional</strong> destino del AOL (cuenta de servicio, no cuenta personal).</li>
+<li>Lista de <strong>direcciones de correo</strong> del Comité MBA, Publicaciones, Coordinación Académica, Marketing y Coordinación del Programa.</li>
+</ul>
+<hr>
+<h2>10. Riesgos y mitigaciones</h2>
+<table><thead><tr>
+<th>Riesgo</th>
+<th>Mitigación</th>
+</tr></thead><tbody>
+<tr>
+<td>Demora del cliente en elegir la herramienta de firma electrónica</td>
+<td>Construir Sprint 6B con generación de PDF y simulación de firma; conectar la API al final.</td>
+</tr>
+<tr>
+<td>Cambios en la rúbrica AOL</td>
+<td>Modelar la rúbrica como dato editable, no hardcoded.</td>
+</tr>
+<tr>
+<td>Cambios en plantillas institucionales (acta, carta, LinkedIn)</td>
+<td>Plantillas almacenadas como datos editables, no requieren redeploy.</td>
+</tr>
+<tr>
+<td>Demora en disponibilidad del servidor de la Universidad de La Sabana</td>
+<td>Coordinar con TI desde el inicio del proyecto. Mantener el VPS actual operativo en paralelo hasta confirmar éxito de la migración.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>11. Cierre</h2>
+<p>Este plan permite cerrar el alcance completo del brief institucional, <strong>migrar la plataforma a la infraestructura de la Universidad de La Sabana</strong>, <strong>publicarla bajo el dominio institucional definido por el cliente</strong> y <strong>dejar el modelo de IA entrenado y configurado con su cuenta y créditos</strong> en <strong>66 horas</strong> de trabajo distribuidas en 4 semanas calendario. Al término del proyecto, INALDE Business School contará con una plataforma única que cubre las tres modalidades del trabajo de grado desde la publicación del cronograma hasta la entrega de las actas firmadas y la calificación AOL, acompañada por los manuales de Usuario y de Administración.</p>
+<hr>
+<p style="text-align:center;color:#6b6b6b;font-style:italic;font-size:9pt;">Documento preparado el 11 de mayo de 2026 por Daniel F. Montaña D. · Metodología de desarrollo: Vibe Code.</p>
+</body></html>
