@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
 type TipoArchivo = 'anteproyecto' | 'proyecto-final';
@@ -66,7 +67,7 @@ export default function TrabajoGrado() {
       setAnt(a);
       setTieneEquipo(!!a);
     } catch (e: any) {
-      setError(e?.response?.data?.error ?? e.message);
+      setError(formatBackendError(e));
       setTieneEquipo(null);
     } finally {
       setCargando(false);
@@ -86,8 +87,7 @@ export default function TrabajoGrado() {
       });
       await cargar();
     } catch (e: any) {
-      const data = e?.response?.data;
-      setError(data?.error ?? e.message);
+      setError(formatBackendError(e));
     } finally {
       setSubiendo(null);
       if (tipo === 'anteproyecto' && inputAntRef.current) inputAntRef.current.value = '';
@@ -101,7 +101,7 @@ export default function TrabajoGrado() {
       const { data } = await api.get(`/anteproyectos/${ant.id}/archivo/${tipo}`);
       if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
     } catch (e: any) {
-      setError(e?.response?.data?.error ?? e.message);
+      setError(formatBackendError(e));
     }
   }
 
@@ -113,12 +113,7 @@ export default function TrabajoGrado() {
       await api.post(`/anteproyectos/${ant.id}/enviar`);
       await cargar();
     } catch (e: any) {
-      const data = e?.response?.data;
-      setError(
-        data?.error === 'ARCHIVOS_FALTANTES'
-          ? `Faltan archivos: ${(data.faltantes ?? []).join(', ')}`
-          : data?.error ?? e.message,
-      );
+      setError(formatBackendError(e));
     } finally {
       setEnviando(false);
     }
@@ -167,7 +162,7 @@ export default function TrabajoGrado() {
           </div>
 
           {error && (
-            <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm mb-6">
+            <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm mb-6 whitespace-pre-line">
               {error}
             </div>
           )}

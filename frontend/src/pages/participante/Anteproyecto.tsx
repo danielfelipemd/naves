@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { CiiuPicker } from '../../components/inalde/CiiuPicker';
 import { api } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 
 // ============== Catálogos (alineados con DOCUMENTACION_BACKEND.md) ==========
 type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia';
@@ -306,7 +307,7 @@ export default function Anteproyecto() {
       await api.put(`/anteproyectos/${anteId}`, buildPayload());
       setMsg({ kind: 'ok', text: 'Borrador guardado.' });
     } catch (e: any) {
-      setMsg({ kind: 'err', text: JSON.stringify(e?.response?.data ?? e.message).slice(0, 300) });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -322,7 +323,7 @@ export default function Anteproyecto() {
           ? 'Anteproyecto enviado. Tu único proyecto quedó marcado como definitivo.'
           : 'Anteproyecto enviado. Después de la Reunión 1 con tu profesor, deberás elegir el proyecto definitivo.' });
     } catch (e: any) {
-      setMsg({ kind: 'err', text: JSON.stringify(e?.response?.data ?? e.message).slice(0, 300) });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -540,7 +541,7 @@ export default function Anteproyecto() {
           </div>
 
           {msg && (
-            <div className={`mt-8 rounded border-l-4 px-4 py-3 text-sm ${
+            <div className={`mt-8 rounded border-l-4 px-4 py-3 text-sm whitespace-pre-line ${
               msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'
             }`}>{msg.text}</div>
           )}
