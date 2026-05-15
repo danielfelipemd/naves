@@ -180,13 +180,21 @@ export default function Anteproyecto() {
         setEstado(ant.data.anteproyecto.estado);
         const ps: any[] = ant.data.anteproyecto.proyectos ?? [];
         if (ps.length) {
-          setProyectos(ps.sort((a, b) => a.posicion - b.posicion).map((p) => ({
-            ...emptyProyecto(p.posicion),
-            ...p,
-            hitos: (p.hitos ?? []).length
+          // Normalizar NULLs de la BD a strings vacíos para evitar `.trim()` sobre null
+          const cleanProj = (p: any): Proyecto => {
+            const base = emptyProyecto(p.posicion);
+            const result: any = { ...base };
+            for (const key of Object.keys(base)) {
+              if (key === 'hitos') continue;
+              const v = p[key];
+              result[key] = (v === null || v === undefined) ? (base as any)[key] : v;
+            }
+            result.hitos = (p.hitos ?? []).length
               ? p.hitos.sort((a: any, b: any) => a.posicion - b.posicion)
-              : emptyProyecto(p.posicion).hitos,
-          })));
+              : base.hitos;
+            return result as Proyecto;
+          };
+          setProyectos(ps.sort((a, b) => a.posicion - b.posicion).map(cleanProj));
         }
       }
     } catch (e: any) {
@@ -220,7 +228,7 @@ export default function Anteproyecto() {
       // Auto-grow: si se llenó la descripción del ÚLTIMO hito y hay margen (<10),
       // aparece un hito vacío extra para que el usuario lo siga llenando.
       const isLastHito = hi === proj.hitos.length - 1;
-      const tieneDescripcion = (patch.descripcion ?? proj.hitos[hi].descripcion).trim().length > 0;
+      const tieneDescripcion = ((patch.descripcion ?? proj.hitos[hi].descripcion) ?? '').trim().length > 0;
       const yaSeAutoExpandio = updatedHitos.length > proj.hitos.length;
 
       if (isLastHito && tieneDescripcion && updatedHitos.length < 10 && !yaSeAutoExpandio) {
@@ -243,13 +251,14 @@ export default function Anteproyecto() {
 
   // ----- Progress (% de campos llenos) -----
   const progress = useMemo(() => {
+    const s = (v: unknown) => (typeof v === 'string' ? v : '').trim();
     let done = 0, total = 0;
     for (const m of miembros) {
       total += 4; // celular, perfil, emociones, preocupaciones
-      if (m.celular.trim()) done++;
+      if (s(m.celular)) done++;
       if (m.perfil) done++;
-      if (m.emociones.length) done++;
-      if (m.preocupaciones.length) done++;
+      if (m.emociones?.length) done++;
+      if (m.preocupaciones?.length) done++;
       if (m.fue_emprendedor) {
         total += 1;
         if (m.quiebra) done++;
@@ -257,14 +266,14 @@ export default function Anteproyecto() {
     }
     for (const p of proyectos) {
       total += 5; // nombre, sector, ciiu, estado, canvas_cliente_problema
-      if (p.nombre.trim()) done++;
-      if (p.sector.trim()) done++;
-      if (p.ciiu.trim()) done++;
+      if (s(p.nombre)) done++;
+      if (s(p.sector)) done++;
+      if (s(p.ciiu)) done++;
       if (p.estado) done++;
-      if (p.canvas_cliente_problema.trim()) done++;
+      if (s(p.canvas_cliente_problema)) done++;
       // hitos validos
       total += 5;
-      const hitosValidos = p.hitos.filter((h) => h.descripcion && h.fecha_inicio && h.fecha_fin).length;
+      const hitosValidos = (p.hitos ?? []).filter((h) => h.descripcion && h.fecha_inicio && h.fecha_fin).length;
       done += Math.min(hitosValidos, 5);
     }
     return total ? Math.round((done / total) * 100) : 0;
@@ -582,7 +591,8 @@ function SectionHeader({ n, title }: { n: number; title: string }) {
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  const esPregunta = /^¿/.test(label.trim()) || /\?$/.test(label.trim());
+  const safeLabel = (label ?? '').trim();
+  const esPregunta = /^¿/.test(safeLabel) || /\?$/.test(safeLabel);
   return (
     <div className="mt-4">
       <label className={`block font-primary font-semibold mb-1 ${
