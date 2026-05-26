@@ -189,9 +189,29 @@ import { getUserPermisos } from './../auth/permissions.js';
 
 router.get('/me', requireAuth(), async (req: any, res) => {
   const permisos = await getUserPermisos(req.user.sub);
+
+  // Resolver nombre_completo a partir del participante/profesor de la BD
+  let nombre_completo: string | null = null;
+  if (req.user.participanteId) {
+    const { data } = await supabaseAdmin
+      .from('participantes_lista')
+      .select('nombre_completo')
+      .eq('id', req.user.participanteId)
+      .maybeSingle();
+    nombre_completo = data?.nombre_completo ?? null;
+  } else if (req.user.profesorId) {
+    const { data } = await supabaseAdmin
+      .from('profesores')
+      .select('nombre_completo')
+      .eq('id', req.user.profesorId)
+      .maybeSingle();
+    nombre_completo = data?.nombre_completo ?? null;
+  }
+
   res.json({
     sub: req.user.sub,
     role: req.user.role,
+    nombre_completo,
     es_super_admin: req.user.isSuperAdmin,
     profesor_id: req.user.profesorId ?? null,
     participante_id: req.user.participanteId ?? null,

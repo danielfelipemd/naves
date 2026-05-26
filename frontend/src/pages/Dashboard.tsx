@@ -45,6 +45,19 @@ export default function Dashboard() {
   const [cargando, setCargando] = useState(true);
   const [fijando, setFijando] = useState<Modalidad | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nombre, setNombre] = useState<string | null>(null);
+
+  // Cargar el nombre real del usuario (no el email sintético hasheado)
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const { data } = await api.get('/auth/me');
+        if (!cancel) setNombre(data?.nombre_completo ?? null);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancel = true; };
+  }, []);
 
   useEffect(() => {
     if (role !== 'participante') {
@@ -90,23 +103,24 @@ export default function Dashboard() {
         <div className="max-w-[900px] mx-auto bg-white rounded-lg shadow-inalde-card p-10">
           <div className="border-b-[3px] border-inalde-red pb-6 mb-8 flex items-start justify-between gap-4">
             <div>
-              <h1 className="section-title mb-2">Bienvenido a NAVES</h1>
+              <h1 className="section-title mb-2">
+                Bienvenid{role === 'participante' ? 'o' : 'o'}{nombre ? `, ${nombre}` : ''}
+              </h1>
               <p className="text-inalde-gray text-sm leading-relaxed">
-                {role === 'participante'
-                  ? modalidad
-                    ? 'Tu modalidad de trabajo de grado ya está elegida.'
-                    : 'Elige tu modalidad de trabajo de grado. Esta decisión es definitiva.'
-                  : 'Acceso al sistema de gestión del trabajo de grado del MBA.'}
+                Rol: <span className="text-inalde-red font-semibold uppercase tracking-wider">{role}</span>
+                {role === 'participante' && (
+                  <>
+                    {' · '}
+                    {modalidad
+                      ? 'Tu modalidad de trabajo de grado ya está elegida.'
+                      : 'Elige tu modalidad de trabajo de grado.'}
+                  </>
+                )}
               </p>
             </div>
             <button onClick={signOut} className="text-sm text-inalde-gray hover:text-inalde-red whitespace-nowrap">
               Salir
             </button>
-          </div>
-
-          <div className="text-xs text-inalde-gray mb-8">
-            Sesión: <span className="text-inalde-text">{user?.email}</span> · Rol:{' '}
-            <span className="text-inalde-red font-semibold uppercase tracking-wider">{role}</span>
           </div>
 
           {/* Vista participante */}
