@@ -92,7 +92,7 @@ router.get('/buscar', async (req: AuthenticatedRequest, res) => {
     q = q.ilike('nombre_completo', `%${parsed.data.query}%`);
   }
 
-  const { data, error } = await q.limit(30);
+  const { data, error } = await q.order('nombre_completo').limit(200);
   if (error) return res.status(500).json({ error: error.message });
 
   const disponibles = (data ?? []).filter((p) => !idsOcupados.has(p.id));

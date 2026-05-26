@@ -56,32 +56,25 @@ export default function MiEquipo() {
     } finally { setBusy(false); }
   }
 
-  // Búsqueda en vivo: dispara 250ms después de que el usuario deja de escribir
+  // Carga TODOS los disponibles de la cohorte al montar/actualizar equipo
   useEffect(() => {
     if (!equipo || !cohorteId) return;
-    const q = search.trim();
-    if (q.length < 1) { setResults([]); setSearching(false); return; }
-
     const seq = ++searchSeq.current;
     setSearching(true);
-    const t = setTimeout(async () => {
+    (async () => {
       try {
-        const { data } = await api.get('/participantes/buscar', { params: { cohorte: cohorteId, query: q } });
+        const { data } = await api.get('/participantes/buscar', { params: { cohorte: cohorteId } });
         if (seq === searchSeq.current) {
-          // Excluir miembros actuales
           const miembrosIds = new Set(equipo.miembros_equipo.map((m) => m.participantes_lista.id));
           setResults((data ?? []).filter((p: any) => !miembrosIds.has(p.id)));
         }
       } catch (e: any) {
-        if (seq === searchSeq.current) {
-          setError(e?.response?.data?.error ?? e.message);
-        }
+        if (seq === searchSeq.current) setError(e?.response?.data?.error ?? e.message);
       } finally {
         if (seq === searchSeq.current) setSearching(false);
       }
-    }, 250);
-    return () => clearTimeout(t);
-  }, [search, cohorteId, equipo]);
+    })();
+  }, [cohorteId, equipo]);
 
   async function agregar(participante_id: string) {
     if (!equipo) return;
@@ -194,43 +187,32 @@ export default function MiEquipo() {
               {equipo.miembros_equipo.length < 3 && (
                 <div className="border-t border-inalde-gray-light pt-6">
                   <p className="section-subtitle mb-3">Agregar miembro</p>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Empieza a escribir el nombre del compañero…"
-                      className="input-inalde w-full pr-10"
-                      autoFocus
-                    />
-                    {searching && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-inalde-gray">
-                        Buscando…
-                      </span>
-                    )}
-                  </div>
-
-                  {search.trim().length > 0 && !searching && results.length === 0 && (
-                    <p className="mt-2 text-xs text-inalde-gray italic">
-                      Sin resultados. Verifica que sea de tu cohorte y que aún no esté en otro equipo.
+                  {searching ? (
+                    <p className="text-sm text-inalde-gray italic">Cargando compañeros disponibles…</p>
+                  ) : results.length === 0 ? (
+                    <p className="text-sm text-inalde-gray italic">
+                      No hay compañeros disponibles en tu cohorte. Todos ya están en equipos o aún no han activado su cuenta.
                     </p>
-                  )}
-
-                  {results.length > 0 && (
-                    <ul className="mt-2 border border-inalde-gray-light rounded divide-y divide-inalde-gray-light max-h-64 overflow-auto">
-                      {results.map((p) => (
-                        <li key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-inalde-gray-bg/40">
-                          <span>{p.nombre_completo}</span>
-                          <button
-                            onClick={() => agregar(p.id)}
-                            disabled={busy}
-                            className="text-sm font-semibold text-inalde-red hover:text-inalde-red-hover"
-                          >
-                            Agregar →
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                  ) : (
+                    <>
+                      <select
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="input-inalde w-full"
+                      >
+                        <option value="">Selecciona un compañero…</option>
+                        {results.map((p) => (
+                          <option key={p.id} value={p.id}>{p.nombre_completo}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => { if (search) { agregar(search); setSearch(''); } }}
+                        disabled={busy || !search}
+                        className="btn-inalde-primary mt-3 !py-2 !text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {busy ? 'Agregando…' : 'Agregar miembro →'}
+                      </button>
+                    </>
                   )}
                 </div>
               )}

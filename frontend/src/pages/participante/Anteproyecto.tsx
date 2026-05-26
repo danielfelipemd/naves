@@ -549,7 +549,7 @@ export default function Anteproyecto() {
               <h4 className="mt-6 mb-3 font-primary font-bold text-sm tracking-wider uppercase text-inalde-text">
                 Perfil emprendedor
               </h4>
-              <Field label="¿Has sido emprendedor antes?">
+              <Field label="¿Has hecho algún emprendimiento?">
                 <RadioGroup value={String(m.fue_emprendedor)} onChange={(v) => updateMiembro(i, { fue_emprendedor: v === 'true' })}
                   options={[{ value: 'no', label: 'No' }, { value: 'true', label: 'Sí' }]} />
               </Field>
