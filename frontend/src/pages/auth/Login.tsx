@@ -64,7 +64,7 @@ export default function Login() {
             <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
               <p className="section-subtitle mb-2">Iniciar sesión</p>
               <h1 className="section-title">
-                Bienvenid{mode === 'participante' ? 'o' : 'a'} a NAVE<span className="text-inalde-red">S</span>
+                Bienvenid{mode === 'participante' ? 'o' : 'a'} a la plataforma de trabajos de grado del MBA
               </h1>
             </div>
 
