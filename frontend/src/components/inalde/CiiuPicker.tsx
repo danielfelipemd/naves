@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 
 interface Props {
@@ -8,53 +8,75 @@ interface Props {
 
 interface Option { codigo: string; descripcion: string; seccion: string; }
 
+let cache: Option[] | null = null;
+
 export function CiiuPicker({ value, onChange }: Props) {
-  const [query, setQuery] = useState(value);
-  const [options, setOptions] = useState<Option[]>([]);
+  const [query, setQuery] = useState('');
+  const [all, setAll] = useState<Option[]>(cache ?? []);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!cache);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setQuery(value); }, [value]);
+  useEffect(() => {
+    if (cache) return;
+    (async () => {
+      try {
+        const { data } = await api.get<Option[]>('/ciiu/listar');
+        cache = data;
+        setAll(data);
+      } finally { setLoading(false); }
+    })();
+  }, []);
+
+  // Etiqueta del valor seleccionado
+  const selectedLabel = useMemo(() => {
+    if (!value) return '';
+    const found = all.find((o) => o.codigo === value);
+    return found ? `${found.codigo} — ${found.descripcion}` : value;
+  }, [value, all]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
     }
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!query.trim() || query.length < 2) { setOptions([]); return; }
-    const t = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const { data } = await api.get('/ciiu/buscar', { params: { q: query, limit: 8 } });
-        setOptions(data);
-      } finally { setLoading(false); }
-    }, 250);
-    return () => clearTimeout(t);
-  }, [query]);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter((o) =>
+      o.codigo.startsWith(q) ||
+      o.descripcion.toLowerCase().includes(q) ||
+      (o.seccion ?? '').toLowerCase().includes(q),
+    );
+  }, [query, all]);
 
   return (
     <div ref={wrapRef} className="relative">
       <input
         type="text"
-        value={query}
+        value={open ? query : selectedLabel}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        placeholder="Busca por código (ej. 6201) o descripción (ej. software)"
+        onFocus={() => { setOpen(true); setQuery(''); }}
+        placeholder={loading ? 'Cargando códigos…' : 'Haz click y elige de la lista, o busca por código o descripción'}
         className="input-inalde"
+        disabled={loading}
       />
-      {open && (options.length > 0 || loading) && (
-        <ul className="absolute z-20 w-full mt-1 bg-white border border-inalde-gray-light rounded shadow-inalde-card max-h-72 overflow-auto">
-          {loading && <li className="px-4 py-3 text-sm text-inalde-gray">Buscando…</li>}
-          {options.map((o) => (
+      {open && (
+        <ul className="absolute z-20 w-full mt-1 bg-white border border-inalde-gray-light rounded shadow-inalde-card max-h-80 overflow-auto">
+          {filtered.length === 0 && (
+            <li className="px-4 py-3 text-sm text-inalde-gray italic">Sin resultados para "{query}"</li>
+          )}
+          {filtered.map((o) => (
             <li
               key={o.codigo}
-              onClick={() => { onChange(o.codigo); setQuery(`${o.codigo} — ${o.descripcion}`); setOpen(false); }}
-              className="px-4 py-2 cursor-pointer hover:bg-inalde-gray-bg border-b border-inalde-gray-light last:border-b-0"
+              onClick={() => { onChange(o.codigo); setOpen(false); setQuery(''); }}
+              className={`px-4 py-2 cursor-pointer hover:bg-inalde-gray-bg border-b border-inalde-gray-light last:border-b-0 ${value === o.codigo ? 'bg-inalde-red/5' : ''}`}
             >
               <div className="flex items-baseline gap-2">
                 <span className="font-mono font-semibold text-inalde-red text-sm">{o.codigo}</span>
@@ -64,6 +86,11 @@ export function CiiuPicker({ value, onChange }: Props) {
             </li>
           ))}
         </ul>
+      )}
+      {!open && (
+        <p className="text-xs text-inalde-gray mt-1">
+          {value ? 'Haz click para cambiar' : `${all.length} códigos disponibles · haz click para ver la lista`}
+        </p>
       )}
     </div>
   );

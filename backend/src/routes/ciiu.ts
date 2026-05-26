@@ -19,6 +19,15 @@ router.get('/buscar', async (req, res) => {
   res.json(data ?? []);
 });
 
+router.get('/listar', async (_req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('codigos_ciiu')
+    .select('codigo, descripcion, seccion')
+    .order('codigo');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data ?? []);
+});
+
 router.get('/:codigo', async (req, res) => {
   const codigoSchema = z.string().regex(/^\d{4}$/);
   const codigo = codigoSchema.safeParse(req.params.codigo);

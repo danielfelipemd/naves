@@ -693,7 +693,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
             className="input-inalde" />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Código CIIU (DANE Rev. 4 A.C. 2020)" hint="Busca por código (ej: 6201) o por descripción (ej: software, restaurante)">
+          <Field label="Código CIIU (DANE Rev. 4 A.C. 2020)" hint="Haz click en el campo para ver todos los códigos. También puedes escribir para filtrar (ej: software, restaurante).">
             <CiiuPicker value={proyecto.ciiu} onChange={(c) => onChange({ ciiu: c })} />
           </Field>
         </div>
