@@ -16,7 +16,7 @@ import { formatBackendError } from '../../lib/errors';
 import { AREAS_AFINIDAD } from '../../lib/areas';
 
 // ============== Catálogos (alineados con DOCUMENTACION_BACKEND.md) ==========
-type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia';
+type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia' | 'ninguna';
 type Preocupacion = 'financiera' | 'estres' | 'habilidades' | 'familia';
 type Perfil = 'emprendedor' | 'directivo' | 'ambos';
 type EstadoProyecto = 'idea' | 'investigacion' | 'prototipo' | 'validacion' | 'funcionamiento';
@@ -35,6 +35,7 @@ const EMOCIONES: Array<{ value: Emocion; label: string }> = [
   { value: 'dinero',     label: 'El potencial económico' },
   { value: 'problema',   label: 'Resolver un problema que me apasiona' },
   { value: 'autonomia',  label: 'La autonomía e independencia' },
+  { value: 'ninguna',    label: 'Aún no siento emoción' },
 ];
 
 const PREOCUPACIONES: Array<{ value: Preocupacion; label: string }> = [

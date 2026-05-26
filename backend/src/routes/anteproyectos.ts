@@ -127,7 +127,7 @@ const miembroSchema = z.object({
   quiebra: z.enum(['nunca_despego', 'funcionamiento', 'vendido', 'quebro', 'na']).optional(),
   aprendizajes_quiebra: z.string().max(300).optional(),
   perfil: z.enum(['emprendedor', 'directivo', 'ambos']),
-  emociones: z.array(z.enum(['crear', 'dinero', 'problema', 'autonomia'])).min(1),
+  emociones: z.array(z.enum(['crear', 'dinero', 'problema', 'autonomia', 'ninguna'])).min(1),
   preocupaciones: z.array(z.enum(['financiera', 'estres', 'habilidades', 'familia'])).min(1),
 });
 
