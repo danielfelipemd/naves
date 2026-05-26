@@ -685,13 +685,15 @@ function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder }: {
   value: string; onChange: (v: string) => void; max: number; rows?: number; placeholder?: string;
 }) {
   return (
-    <div className="relative">
+    <div>
       <textarea value={value} maxLength={max} rows={rows} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className="input-inalde resize-none" />
-      <span className="absolute bottom-2 right-3 text-xs font-mono text-inalde-gray">
-        {value.length} / {max}
-      </span>
+      <div className="flex justify-end mt-1">
+        <span className="text-xs font-mono text-inalde-gray">
+          {value.length} / {max}
+        </span>
+      </div>
     </div>
   );
 }
