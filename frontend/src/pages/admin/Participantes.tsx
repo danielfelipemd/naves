@@ -38,6 +38,32 @@ export default function Participantes() {
 
   useEffect(() => { loadParticipantes(cohorte); }, [cohorte]);
 
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{ nombre_completo: string; cedula: string; email: string }>({ nombre_completo: '', cedula: '', email: '' });
+
+  function startEdit(p: Participante) {
+    setEditId(p.id);
+    setEditDraft({ nombre_completo: p.nombre_completo, cedula: p.cedula, email: p.email });
+    setErr(null);
+  }
+  async function saveEdit() {
+    if (!editId) return;
+    const original = participantes.find((p) => p.id === editId);
+    const payload: any = {};
+    if (original?.nombre_completo !== editDraft.nombre_completo) payload.nombre_completo = editDraft.nombre_completo;
+    if (original?.cedula !== editDraft.cedula) payload.cedula = editDraft.cedula;
+    if (original?.email !== editDraft.email) payload.email = editDraft.email;
+    if (Object.keys(payload).length === 0) { setEditId(null); return; }
+    setErr(null);
+    try {
+      await api.put(`/admin/participantes/${editId}`, payload);
+      setEditId(null);
+      await loadParticipantes(cohorte);
+    } catch (e: any) {
+      setErr(formatBackendError(e));
+    }
+  }
+
   async function borrarParticipante(p: Participante) {
     if (p.en_equipo) {
       setErr(`No se puede borrar a ${p.nombre_completo}: ya está en un equipo. Quítalo del equipo primero.`);
@@ -152,7 +178,30 @@ export default function Participantes() {
               </tr>
             </thead>
             <tbody>
-              {participantes.map((p) => (
+              {participantes.map((p) => editId === p.id ? (
+                <tr key={p.id} className="border-t border-inalde-gray-light bg-inalde-red/5">
+                  <td className="px-3 py-2">
+                    <input type="text" value={editDraft.nombre_completo}
+                      onChange={(e) => setEditDraft({ ...editDraft, nombre_completo: e.target.value })}
+                      className="input-inalde !py-1 !text-sm" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input type="text" value={editDraft.cedula}
+                      onChange={(e) => setEditDraft({ ...editDraft, cedula: e.target.value.replace(/\D/g, '') })}
+                      className="input-inalde !py-1 !text-xs font-mono" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input type="email" value={editDraft.email}
+                      onChange={(e) => setEditDraft({ ...editDraft, email: e.target.value })}
+                      className="input-inalde !py-1 !text-xs" />
+                  </td>
+                  <td className="px-3 py-2 text-xs text-inalde-gray italic">editando…</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <button onClick={saveEdit} className="text-xs font-semibold text-inalde-red mr-3">Guardar</button>
+                    <button onClick={() => setEditId(null)} className="text-xs text-inalde-gray">×</button>
+                  </td>
+                </tr>
+              ) : (
                 <tr key={p.id} className="border-t border-inalde-gray-light">
                   <td className="px-3 py-2 font-medium">{p.nombre_completo}</td>
                   <td className="px-3 py-2 text-inalde-gray font-mono text-xs">{p.cedula}</td>
@@ -163,7 +212,8 @@ export default function Participantes() {
                     </span>
                     {p.en_equipo && <span className="text-[10px] ml-2 text-inalde-gold uppercase tracking-wider">· en equipo</span>}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <button onClick={() => startEdit(p)} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover mr-3">Editar</button>
                     <button
                       onClick={() => borrarParticipante(p)}
                       disabled={p.en_equipo}

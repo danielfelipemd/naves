@@ -285,6 +285,70 @@ router.get('/cohortes/:id/participantes', async (req, res) => {
 
 // DELETE /api/admin/participantes/:id — borra participante + auth user
 // Solo si NO está en ningún equipo y no es creador de ningún equipo
+const updateParticipanteSchema = z.object({
+  nombre_completo: z.string().min(2).max(150).optional(),
+  cedula: z.string().min(6).max(20).regex(/^\d+$/).optional(),
+  email: z.string().email().optional(),
+});
+
+router.put('/participantes/:id', async (req, res) => {
+  const parsed = updateParticipanteSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const { data: cur } = await supabaseAdmin
+    .from('participantes_lista')
+    .select('id, cohorte_id, auth_user_id, cedula_hash')
+    .eq('id', req.params.id)
+    .maybeSingle();
+  if (!cur) return res.status(404).json({ error: 'NOT_FOUND' });
+
+  const patch: any = {};
+  if (parsed.data.nombre_completo) patch.nombre_completo = parsed.data.nombre_completo;
+  if (parsed.data.email) {
+    patch.email_encriptado = encryptPII(parsed.data.email.toLowerCase());
+    patch.email_hash = sha256Hex(parsed.data.email.toLowerCase());
+  }
+  let nuevoSyntheticEmail: string | null = null;
+  if (parsed.data.cedula) {
+    const cedulaLimpia = parsed.data.cedula.replace(/[\s.\-]/g, '');
+    const nuevoHash = sha256Hex(cedulaLimpia);
+    if (nuevoHash !== cur.cedula_hash) {
+      // Verificar que no exista otro participante con esa cédula en la misma cohorte
+      const { data: dup } = await supabaseAdmin
+        .from('participantes_lista')
+        .select('id')
+        .eq('cohorte_id', cur.cohorte_id)
+        .eq('cedula_hash', nuevoHash)
+        .neq('id', cur.id)
+        .maybeSingle();
+      if (dup) return res.status(409).json({ error: 'CEDULA_DUPLICADA' });
+      patch.cedula_encriptada = encryptPII(cedulaLimpia);
+      patch.cedula_hash = nuevoHash;
+      nuevoSyntheticEmail = await syntheticEmailFromCedula(cedulaLimpia);
+    }
+  }
+
+  if (Object.keys(patch).length === 0) return res.json({ ok: true, sin_cambios: true });
+
+  const { error } = await supabaseAdmin
+    .from('participantes_lista').update(patch).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Si cambió la cédula, actualizar el email sintético en auth.users (es por lo que el participante loguea)
+  if (nuevoSyntheticEmail && cur.auth_user_id) {
+    const supabaseUrl = process.env.SUPABASE_URL!;
+    const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    try {
+      await fetch(`${supabaseUrl}/auth/v1/admin/users/${cur.auth_user_id}`, {
+        method: 'PUT',
+        headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: nuevoSyntheticEmail, email_confirm: true }),
+      });
+    } catch { /* best effort */ }
+  }
+  res.json({ ok: true });
+});
+
 router.delete('/participantes/:id', async (req, res) => {
   const id = req.params.id;
   const [{ count: enEquipo }, { count: esCreador }] = await Promise.all([
