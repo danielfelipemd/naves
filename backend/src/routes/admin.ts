@@ -413,6 +413,38 @@ router.put('/participantes/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /api/admin/participantes/bulk-delete — borra varios en una sola operacion
+router.post('/participantes/bulk-delete', async (req, res) => {
+  const idsParsed = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) }).safeParse(req.body);
+  if (!idsParsed.success) return res.status(400).json({ error: 'INVALID', details: idsParsed.error.issues });
+  const supabaseUrl = process.env.SUPABASE_URL!;
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  let borrados = 0; const fallos: any[] = [];
+  for (const id of idsParsed.data.ids) {
+    const [{ count: enEq }, { count: esCre }] = await Promise.all([
+      supabaseAdmin.from('miembros_equipo').select('id', { count: 'exact', head: true }).eq('participante_id', id),
+      supabaseAdmin.from('equipos').select('id', { count: 'exact', head: true }).eq('creador_id', id),
+    ]);
+    if ((enEq ?? 0) > 0 || (esCre ?? 0) > 0) {
+      fallos.push({ id, error: 'EN_EQUIPO' });
+      continue;
+    }
+    const { data: p } = await supabaseAdmin.from('participantes_lista').select('auth_user_id').eq('id', id).maybeSingle();
+    const { error } = await supabaseAdmin.from('participantes_lista').delete().eq('id', id);
+    if (error) { fallos.push({ id, error: error.message }); continue; }
+    if (p?.auth_user_id) {
+      try {
+        await fetch(`${supabaseUrl}/auth/v1/admin/users/${p.auth_user_id}`, {
+          method: 'DELETE',
+          headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` },
+        });
+      } catch { /* best effort */ }
+    }
+    borrados++;
+  }
+  res.json({ borrados, fallos });
+});
+
 router.delete('/participantes/:id', async (req, res) => {
   const id = req.params.id;
   const [{ count: enEquipo }, { count: esCreador }] = await Promise.all([

@@ -48,6 +48,8 @@ export default function Participantes() {
   })(); }, []);
 
   const cohortesActivas = useMemo(() => cohortes.filter((c) => c.activa), [cohortes]);
+  const activasIds = useMemo(() => new Set(cohortesActivas.map((c) => c.id)), [cohortesActivas]);
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
 
   const cohorteEtiquetas = useMemo(() => {
     const m = new Map<string, string>();
@@ -58,13 +60,54 @@ export default function Participantes() {
   const filtrados = useMemo(() => {
     const q = filtroNombre.trim().toLowerCase();
     return participantes.filter((p) => {
+      // Solo cohortes activas (las inactivas se ocultan completamente)
+      if (!activasIds.has(p.cohorte_id)) return false;
       if (filtroCohorte !== 'todas' && p.cohorte_id !== filtroCohorte) return false;
       if (!q) return true;
       return p.nombre_completo.toLowerCase().includes(q)
         || p.cedula.toLowerCase().includes(q)
         || p.email.toLowerCase().includes(q);
     });
-  }, [participantes, filtroNombre, filtroCohorte]);
+  }, [participantes, filtroNombre, filtroCohorte, activasIds]);
+
+  const seleccionadosVisibles = useMemo(
+    () => filtrados.filter((p) => seleccionados.has(p.id) && !p.en_equipo),
+    [filtrados, seleccionados],
+  );
+
+  function toggleSeleccion(id: string) {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function seleccionarTodosVisibles(on: boolean) {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      filtrados.forEach((p) => {
+        if (p.en_equipo) return; // no se pueden borrar
+        if (on) next.add(p.id); else next.delete(p.id);
+      });
+      return next;
+    });
+  }
+
+  async function borrarSeleccionados() {
+    const ids = filtrados.filter((p) => seleccionados.has(p.id) && !p.en_equipo).map((p) => p.id);
+    if (ids.length === 0) return;
+    if (!confirm(`¿Borrar ${ids.length} participante(s)? También se eliminará su acceso al sistema.`)) return;
+    setErr(null); setMsg(null);
+    try {
+      const { data } = await api.post('/admin/participantes/bulk-delete', { ids });
+      setMsg(`${data.borrados} participante(s) eliminados${data.fallos?.length ? `, ${data.fallos.length} fallaron` : ''}.`);
+      setSeleccionados(new Set());
+      await loadParticipantes();
+      await loadCohortes();
+    } catch (e: any) {
+      setErr(formatBackendError(e));
+    }
+  }
 
   async function upload() {
     setErr(null); setResult(null); setMsg(null);
@@ -218,10 +261,35 @@ export default function Participantes() {
         </div>
       </div>
 
+      {seleccionadosVisibles.length > 0 && (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3">
+          <p className="text-sm text-inalde-text">
+            <strong>{seleccionadosVisibles.length}</strong> participante(s) seleccionado(s).
+          </p>
+          <div className="flex gap-3">
+            <button onClick={() => setSeleccionados(new Set())} className="text-xs text-inalde-gray hover:text-inalde-text">
+              Limpiar selección
+            </button>
+            <button onClick={borrarSeleccionados} className="btn-inalde-primary !py-1.5 !px-3 !text-xs">
+              Borrar {seleccionadosVisibles.length} seleccionado(s)
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded border border-inalde-gray-light overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-inalde-gray-bg text-left">
             <tr>
+              <th className="px-3 py-2 w-8">
+                <input
+                  type="checkbox"
+                  className="accent-inalde-red"
+                  title="Seleccionar todos los visibles"
+                  checked={filtrados.length > 0 && filtrados.filter((p) => !p.en_equipo).every((p) => seleccionados.has(p.id))}
+                  onChange={(e) => seleccionarTodosVisibles(e.target.checked)}
+                />
+              </th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Cohorte</th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Nombre</th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Cédula</th>
@@ -232,10 +300,11 @@ export default function Participantes() {
           </thead>
           <tbody>
             {filtrados.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-inalde-gray italic">Sin participantes que coincidan.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-inalde-gray italic">Sin participantes que coincidan.</td></tr>
             )}
             {filtrados.map((p) => editId === p.id ? (
               <tr key={p.id} className="border-t border-inalde-gray-light bg-inalde-red/5">
+                <td className="px-3 py-2"></td>
                 <td className="px-3 py-2 text-xs text-inalde-gray">{cohorteEtiquetas.get(p.cohorte_id) ?? p.cohorte_id}</td>
                 <td className="px-3 py-2">
                   <input type="text" value={editDraft.nombre_completo}
@@ -259,7 +328,17 @@ export default function Participantes() {
                 </td>
               </tr>
             ) : (
-              <tr key={p.id} className="border-t border-inalde-gray-light">
+              <tr key={p.id} className={`border-t border-inalde-gray-light ${seleccionados.has(p.id) ? 'bg-inalde-red/5' : ''}`}>
+                <td className="px-3 py-2">
+                  <input
+                    type="checkbox"
+                    className="accent-inalde-red"
+                    checked={seleccionados.has(p.id)}
+                    disabled={p.en_equipo}
+                    title={p.en_equipo ? 'Está en un equipo; no se puede borrar' : 'Seleccionar'}
+                    onChange={() => toggleSeleccion(p.id)}
+                  />
+                </td>
                 <td className="px-3 py-2 text-xs">
                   <span className="bg-inalde-gold/15 text-inalde-text px-2 py-0.5 rounded font-semibold">
                     {cohorteEtiquetas.get(p.cohorte_id) ?? p.cohorte_id}
