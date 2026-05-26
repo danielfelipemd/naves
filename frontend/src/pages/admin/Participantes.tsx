@@ -210,11 +210,10 @@ export default function Participantes() {
         <div>
           <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-1">Cohorte</label>
           <select value={filtroCohorte} onChange={(e) => setFiltroCohorte(e.target.value)} className="input-inalde !py-2">
-            <option value="todas">Todas ({participantes.length})</option>
-            {cohortesActivas.map((c) => {
-              const n = participantes.filter((p) => p.cohorte_id === c.id).length;
-              return <option key={c.id} value={c.id}>{c.etiqueta} ({n})</option>;
-            })}
+            <option value="todas">Todas</option>
+            {cohortesActivas.map((c) => (
+              <option key={c.id} value={c.id}>{c.etiqueta}</option>
+            ))}
           </select>
         </div>
       </div>
