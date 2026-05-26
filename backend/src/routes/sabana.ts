@@ -25,7 +25,7 @@ router.post('/:cohorteId/generar', requireRole('super_admin'), async (req: Authe
       ),
       anteproyectos (
         id, estado,
-        proyectos ( id, nombre, sector, ciiu, tipo, estado_seleccion, canvas_cliente_problema )
+        proyectos ( id, nombre, sector, ciiu, tipo, estado_seleccion, canvas_cliente, canvas_problema, canvas_solucion )
       )
     `)
     .eq('cohorte_id', cohorteId);
@@ -58,7 +58,11 @@ router.post('/:cohorteId/generar', requireRole('super_admin'), async (req: Authe
         ciiu: p.ciiu,
         tipo: p.tipo,
         estado_seleccion: p.estado_seleccion,
-        resumen: (p.canvas_cliente_problema ?? '').slice(0, 300),
+        resumen: [
+          p.canvas_cliente && `Cliente: ${p.canvas_cliente}`,
+          p.canvas_problema && `Problema: ${p.canvas_problema}`,
+          p.canvas_solucion && `Solución: ${p.canvas_solucion}`,
+        ].filter(Boolean).join(' · ').slice(0, 500),
         miembros: ((eq.miembros_equipo as any[]) ?? []).map((m) => ({
           nombre: m.participantes_lista?.nombre_completo ?? '',
           posicion: m.posicion,

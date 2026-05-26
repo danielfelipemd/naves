@@ -49,7 +49,9 @@ const ESTADOS_PROYECTO: Array<{ value: EstadoProyecto; label: string }> = [
 ];
 
 const CANVAS_FIELDS: Array<{ key: keyof Proyecto; label: string; placeholder: string; max: number }> = [
-  { key: 'canvas_cliente_problema', label: 'Cliente, problema y solución', placeholder: 'Cliente: ¿Quién es? Problema: ¿Qué le duele? Solución: ¿Cómo lo resuelves?', max: 500 },
+  { key: 'canvas_cliente',  label: 'Cliente',  placeholder: '¿Quién es tu cliente? Edad, sector, comportamiento, dónde está…', max: 1000 },
+  { key: 'canvas_problema', label: 'Problema', placeholder: '¿Qué dolor o necesidad le resuelves? ¿Cómo lo soluciona hoy?', max: 1000 },
+  { key: 'canvas_solucion', label: 'Solución', placeholder: '¿Qué ofreces? ¿Cómo lo resuelves de manera distinta o mejor?', max: 1000 },
   { key: 'canvas_canales',          label: 'Canales',                      placeholder: '¿App, web, presencial, redes sociales, partnerships?', max: 300 },
   { key: 'canvas_relaciones',       label: 'Relación con clientes',        placeholder: 'Soporte, comunidad, capacitación, ¿qué tipo de relación buscas?', max: 300 },
   { key: 'canvas_ingresos',         label: 'Modelo de ingresos',           placeholder: '¿Por producto, servicio, suscripción, comisiones, licencias?', max: 300 },
@@ -73,7 +75,9 @@ interface Proyecto {
   tipo: 'emprendimiento' | 'intraemprendimiento';
   sector: string;
   ciiu: string;
-  canvas_cliente_problema: string;
+  canvas_cliente: string;
+  canvas_problema: string;
+  canvas_solucion: string;
   canvas_canales: string;
   canvas_relaciones: string;
   canvas_ingresos: string;
@@ -116,7 +120,8 @@ function emptyHito(posicion: number): Hito {
 function emptyProyecto(posicion: number): Proyecto {
   return {
     posicion, nombre: '', tipo: 'emprendimiento', sector: '', ciiu: '',
-    canvas_cliente_problema: '', canvas_canales: '', canvas_relaciones: '',
+    canvas_cliente: '', canvas_problema: '', canvas_solucion: '',
+    canvas_canales: '', canvas_relaciones: '',
     canvas_ingresos: '', canvas_recursos: '', canvas_actividades: '',
     canvas_socios: '', canvas_costos: '',
     estado: 'idea',
@@ -266,12 +271,14 @@ export default function Anteproyecto() {
       }
     }
     for (const p of proyectos) {
-      total += 5; // nombre, sector, ciiu, estado, canvas_cliente_problema
+      total += 7; // nombre, sector, ciiu, estado, canvas_cliente, canvas_problema, canvas_solucion
       if (s(p.nombre)) done++;
       if (s(p.sector)) done++;
       if (s(p.ciiu)) done++;
       if (p.estado) done++;
-      if (s(p.canvas_cliente_problema)) done++;
+      if (s(p.canvas_cliente)) done++;
+      if (s(p.canvas_problema)) done++;
+      if (s(p.canvas_solucion)) done++;
       // hitos validos
       total += 5;
       const hitosValidos = (p.hitos ?? []).filter((h) => h.descripcion && h.fecha_inicio && h.fecha_fin).length;
@@ -299,7 +306,8 @@ export default function Anteproyecto() {
       proyectos: proyectos.map((p) => ({
         posicion: p.posicion, nombre: p.nombre, tipo: p.tipo,
         sector: p.sector || undefined, ciiu: p.ciiu || undefined,
-        canvas_cliente_problema: p.canvas_cliente_problema, canvas_canales: p.canvas_canales,
+        canvas_cliente: p.canvas_cliente, canvas_problema: p.canvas_problema, canvas_solucion: p.canvas_solucion,
+        canvas_canales: p.canvas_canales,
         canvas_relaciones: p.canvas_relaciones, canvas_ingresos: p.canvas_ingresos,
         canvas_recursos: p.canvas_recursos, canvas_actividades: p.canvas_actividades,
         canvas_socios: p.canvas_socios, canvas_costos: p.canvas_costos,

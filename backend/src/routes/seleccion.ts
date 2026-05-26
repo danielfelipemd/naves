@@ -145,7 +145,7 @@ router.get('/profesor/mis-equipos-pendientes', requireRole('profesor', 'super_ad
         miembros_equipo ( participantes_lista ( nombre_completo ) ),
         anteproyectos:anteproyectos!inner (
           id, estado,
-          proyectos ( id, nombre, tipo, sector, ciiu, estado_seleccion, canvas_cliente_problema, canvas_ingresos, canvas_recursos, canvas_actividades, fuentes_primarias, fuentes_secundarias, estado )
+          proyectos ( id, nombre, tipo, sector, ciiu, estado_seleccion, canvas_cliente, canvas_problema, canvas_solucion, canvas_ingresos, canvas_recursos, canvas_actividades, fuentes_primarias, fuentes_secundarias, estado )
         )
       )
     `)

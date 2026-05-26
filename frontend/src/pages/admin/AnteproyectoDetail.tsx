@@ -81,7 +81,9 @@ export default function AnteproyectoDetail() {
 
 function CanvasList({ p }: { p: any }) {
   const fields: [string, string][] = [
-    ['canvas_cliente_problema', 'Cliente / problema'],
+    ['canvas_cliente',  'Cliente'],
+    ['canvas_problema', 'Problema'],
+    ['canvas_solucion', 'Solución'],
     ['canvas_canales',          'Canales'],
     ['canvas_relaciones',       'Relación con clientes'],
     ['canvas_ingresos',         'Ingresos'],

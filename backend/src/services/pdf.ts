@@ -20,7 +20,9 @@ interface ProyectoData {
   ciiu: string | null;
   estado_seleccion: string;
   estado: string | null;
-  canvas_cliente_problema: string | null;
+  canvas_cliente: string | null;
+  canvas_problema: string | null;
+  canvas_solucion: string | null;
   canvas_canales: string | null;
   canvas_relaciones: string | null;
   canvas_ingresos: string | null;
@@ -127,7 +129,9 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
       doc.moveDown(0.4);
 
       section(doc, null, 'Canvas del negocio');
-      field(doc, 'Cliente / problema', p.canvas_cliente_problema);
+      field(doc, 'Cliente',            p.canvas_cliente);
+      field(doc, 'Problema',           p.canvas_problema);
+      field(doc, 'Solución',           p.canvas_solucion);
       field(doc, 'Canales',            p.canvas_canales);
       field(doc, 'Relaciones',         p.canvas_relaciones);
       field(doc, 'Ingresos',           p.canvas_ingresos);

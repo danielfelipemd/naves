@@ -12,7 +12,9 @@ interface Proyecto {
   ciiu: string | null;
   estado_seleccion: string;
   estado: string | null;
-  canvas_cliente_problema: string | null;
+  canvas_cliente: string | null;
+  canvas_problema: string | null;
+  canvas_solucion: string | null;
   canvas_ingresos: string | null;
   canvas_recursos: string | null;
   canvas_actividades: string | null;
@@ -128,10 +130,14 @@ export default function SeleccionarProyectos() {
                           <p className="text-xs text-inalde-gray">
                             {p.tipo} {p.sector ? `· ${p.sector}` : ''} {p.ciiu ? `· CIIU ${p.ciiu}` : ''}
                           </p>
-                          {p.canvas_cliente_problema && (
-                            <p className="text-xs text-inalde-text mt-2 line-clamp-4">
-                              <strong>Cliente / problema:</strong> {p.canvas_cliente_problema}
-                            </p>
+                          {p.canvas_cliente && (
+                            <p className="text-xs text-inalde-text mt-2"><strong>Cliente:</strong> {p.canvas_cliente}</p>
+                          )}
+                          {p.canvas_problema && (
+                            <p className="text-xs text-inalde-text mt-1"><strong>Problema:</strong> {p.canvas_problema}</p>
+                          )}
+                          {p.canvas_solucion && (
+                            <p className="text-xs text-inalde-text mt-1"><strong>Solución:</strong> {p.canvas_solucion}</p>
                           )}
                           {p.estado && (
                             <p className="text-[11px] text-inalde-gray italic">Estado del proyecto: {p.estado}</p>

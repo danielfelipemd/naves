@@ -6,7 +6,10 @@ import { formatBackendError } from '../../lib/errors';
 
 interface Proyecto {
   id: string; nombre: string; sector: string | null; ciiu: string | null;
-  estado_seleccion: string; canvas_cliente_problema: string | null;
+  estado_seleccion: string;
+  canvas_cliente: string | null;
+  canvas_problema: string | null;
+  canvas_solucion: string | null;
 }
 interface Equipo {
   id: string;
@@ -102,8 +105,14 @@ export default function SeleccionDefinitivo() {
                       {p.sector && <span>{p.sector}</span>}
                       {p.ciiu && <span className="font-mono ml-2 text-inalde-gold">CIIU {p.ciiu}</span>}
                     </p>
-                    {p.canvas_cliente_problema && (
-                      <p className="text-sm text-inalde-text mt-2">{p.canvas_cliente_problema}</p>
+                    {p.canvas_cliente && (
+                      <p className="text-sm text-inalde-text mt-2"><strong>Cliente:</strong> {p.canvas_cliente}</p>
+                    )}
+                    {p.canvas_problema && (
+                      <p className="text-sm text-inalde-text mt-1"><strong>Problema:</strong> {p.canvas_problema}</p>
+                    )}
+                    {p.canvas_solucion && (
+                      <p className="text-sm text-inalde-text mt-1"><strong>Solución:</strong> {p.canvas_solucion}</p>
                     )}
                   </li>
                 ))}
