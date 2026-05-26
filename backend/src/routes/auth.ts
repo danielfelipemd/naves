@@ -190,15 +190,17 @@ import { getUserPermisos } from './../auth/permissions.js';
 router.get('/me', requireAuth(), async (req: any, res) => {
   const permisos = await getUserPermisos(req.user.sub);
 
-  // Resolver nombre_completo a partir del participante/profesor de la BD
+  // Resolver nombre_completo + estado (para forzar cambio de clave inicial en participantes)
   let nombre_completo: string | null = null;
+  let estado: string | null = null;
   if (req.user.participanteId) {
     const { data } = await supabaseAdmin
       .from('participantes_lista')
-      .select('nombre_completo')
+      .select('nombre_completo, estado')
       .eq('id', req.user.participanteId)
       .maybeSingle();
     nombre_completo = data?.nombre_completo ?? null;
+    estado = data?.estado ?? null;
   } else if (req.user.profesorId) {
     const { data } = await supabaseAdmin
       .from('profesores')
@@ -212,12 +214,54 @@ router.get('/me', requireAuth(), async (req: any, res) => {
     sub: req.user.sub,
     role: req.user.role,
     nombre_completo,
+    estado,
+    requiere_cambio_clave: estado === 'pendiente_activacion',
     es_super_admin: req.user.isSuperAdmin,
     profesor_id: req.user.profesorId ?? null,
     participante_id: req.user.participanteId ?? null,
     cohorte_id: req.user.cohorteId ?? null,
     permisos: Array.from(permisos),
   });
+});
+
+/**
+ * POST /api/auth/cambiar-clave-inicial
+ * Body: { password }
+ * - El participante usa esto en el primer ingreso para reemplazar su clave temporal (= cédula).
+ * - Marca estado='activo' y fecha_activacion=now().
+ */
+const cambiarClaveInicialSchema = z.object({
+  password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/\d/),
+});
+
+router.post('/cambiar-clave-inicial', requireAuth(), async (req: any, res) => {
+  const parsed = cambiarClaveInicialSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const participanteId = req.user?.participanteId as string | undefined;
+  const authUserId = req.user?.sub as string | undefined;
+  if (!participanteId || !authUserId) {
+    return res.status(403).json({ error: 'SOLO_PARTICIPANTES' });
+  }
+
+  // Cambiar clave en auth via service role
+  const r = await fetch(`${config.supabase.internalUrl}/auth/v1/admin/users/${authUserId}`, {
+    method: 'PUT',
+    headers: {
+      apikey: config.supabase.serviceRoleKey,
+      Authorization: `Bearer ${config.supabase.serviceRoleKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ password: parsed.data.password }),
+  });
+  if (!r.ok) return res.status(500).json({ error: 'AUTH_UPDATE_FAILED', detail: await r.text() });
+
+  // Activar al participante
+  await supabaseAdmin.from('participantes_lista')
+    .update({ estado: 'activo', fecha_activacion: new Date().toISOString() })
+    .eq('id', participanteId);
+
+  res.json({ ok: true });
 });
 
 export default router;

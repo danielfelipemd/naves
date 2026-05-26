@@ -114,9 +114,14 @@ export default function Login() {
                   value={clave}
                   onChange={(e) => setClave(e.target.value)}
                   required
-                  minLength={8}
+                  minLength={6}
                   className="input-inalde"
                 />
+                {mode === 'participante' && (
+                  <p className="text-[11px] text-inalde-gray mt-1.5">
+                    Si es tu primer ingreso, tu clave es tu <strong>número de cédula</strong>.
+                  </p>
+                )}
               </div>
 
               {error && (

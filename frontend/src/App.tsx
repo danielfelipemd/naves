@@ -4,6 +4,7 @@ import { useAuth } from './auth/store';
 import Login from './pages/auth/Login';
 import Recovery from './pages/auth/Recovery';
 import ResetPassword from './pages/auth/ResetPassword';
+import CambiarClaveInicial from './pages/auth/CambiarClaveInicial';
 import Dashboard from './pages/Dashboard';
 import MiEquipo from './pages/participante/MiEquipo';
 import Anteproyecto from './pages/participante/Anteproyecto';
@@ -24,10 +25,19 @@ import AdminAuditoria from './pages/admin/Auditoria';
 import AdminRolesPermisos from './pages/admin/RolesPermisos';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
+  const { session, loading, requiereCambioClave } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-inalde-gray">Cargando…</div>;
   if (!session) return <Navigate to="/login" replace />;
+  if (requiereCambioClave) return <Navigate to="/cambiar-clave-inicial" replace />;
   return <>{children}</>;
+}
+
+function CambiarClaveRoute() {
+  const { session, loading, requiereCambioClave } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-inalde-gray">Cargando…</div>;
+  if (!session) return <Navigate to="/login" replace />;
+  if (!requiereCambioClave) return <Navigate to="/" replace />;
+  return <CambiarClaveInicial />;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -49,6 +59,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/recovery" element={<Recovery />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/cambiar-clave-inicial" element={<CambiarClaveRoute />} />
 
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/equipo" element={<ProtectedRoute><MiEquipo /></ProtectedRoute>} />

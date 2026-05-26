@@ -130,6 +130,7 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
       const synth = syntheticEmailFromCedula(cedula);
 
       // 1) crear auth user via REST admin API
+      //    Clave inicial = la cédula (el participante sera forzado a cambiarla al primer login)
       let userId: string | null = null;
       const createResp = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
         method: 'POST',
@@ -137,7 +138,7 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
           apikey: svcKey, Authorization: `Bearer ${svcKey}`, 'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: synth, password: 'TempCambiar2026!', email_confirm: true,
+          email: synth, password: cedula, email_confirm: true,
           app_metadata: { app_role: 'participante', cohorte_id: cohorteId },
         }),
       });
@@ -182,7 +183,39 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
     }
   }
 
-  res.json({ inserted, errors: errors.slice(0, 50), nota: 'Clave temporal: TempCambiar2026! — los participantes deben usar "primer ingreso" para definir su clave real.' });
+  res.json({ inserted, errors: errors.slice(0, 50), nota: 'Clave inicial = número de cédula. El participante deberá crear su clave personal en el primer ingreso.' });
+});
+
+/**
+ * POST /api/admin/participantes/reset-pendientes-a-cedula
+ * Para todas las cuentas con estado='pendiente_activacion', resetea la clave a la cédula
+ * y se asegura del estado pendiente. Útil para corregir cuentas legacy con clave distinta.
+ */
+router.post('/participantes/reset-pendientes-a-cedula', async (_req, res) => {
+  const supabaseUrl = process.env.SUPABASE_URL!;
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const { data } = await supabaseAdmin
+    .from('participantes_lista')
+    .select('id, auth_user_id, cedula_encriptada')
+    .eq('estado', 'pendiente_activacion');
+  let actualizados = 0; const fallos: any[] = [];
+  for (const p of data ?? []) {
+    if (!p.auth_user_id) continue;
+    let cedula = '';
+    try { cedula = decryptPII(p.cedula_encriptada); } catch { fallos.push({ id: p.id, error: 'DECRYPT_FAILED' }); continue; }
+    try {
+      const r = await fetch(`${supabaseUrl}/auth/v1/admin/users/${p.auth_user_id}`, {
+        method: 'PUT',
+        headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: cedula, email_confirm: true }),
+      });
+      if (r.ok) actualizados++;
+      else fallos.push({ id: p.id, error: `AUTH_API_${r.status}`, detail: (await r.text()).slice(0, 100) });
+    } catch (e: any) {
+      fallos.push({ id: p.id, error: 'NETWORK', detail: e.message });
+    }
+  }
+  res.json({ actualizados, total: data?.length ?? 0, fallos });
 });
 
 // =====================================================================
