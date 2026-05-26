@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { AreasPicker } from '../../components/inalde/AreasPicker';
+import { AREAS_AFINIDAD } from '../../lib/areas';
+
+const AREAS_SET = new Set<string>(AREAS_AFINIDAD);
+function sanitizeAreas(input: string[] | undefined | null): string[] {
+  return (input ?? []).filter((a) => AREAS_SET.has(a));
+}
 
 interface Profesor {
   id: string;
@@ -178,7 +184,7 @@ export default function Profesores() {
                   </span>
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
-                  <button onClick={() => { setEditing(p.id); setEditDraft(p); }} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover mr-3">Editar</button>
+                  <button onClick={() => { setEditing(p.id); setEditDraft({ ...p, areas_afinidad: sanitizeAreas(p.areas_afinidad) }); }} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover mr-3">Editar</button>
                   <button
                     onClick={() => toggleActivo(p)}
                     disabled={busy}
