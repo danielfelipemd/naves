@@ -17,7 +17,7 @@ import { AREAS_AFINIDAD } from '../../lib/areas';
 
 // ============== Catálogos (alineados con DOCUMENTACION_BACKEND.md) ==========
 type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia' | 'ninguna';
-type Preocupacion = 'financiera' | 'estres' | 'habilidades' | 'familia';
+type Preocupacion = 'financiera' | 'estres' | 'habilidades' | 'familia' | 'ninguna';
 type Perfil = 'emprendedor' | 'directivo' | 'ambos';
 type EstadoProyecto = 'idea' | 'investigacion' | 'prototipo' | 'validacion' | 'funcionamiento';
 type Quiebra = 'nunca_despego' | 'funcionamiento' | 'vendido' | 'quebro' | 'na';
@@ -43,6 +43,7 @@ const PREOCUPACIONES: Array<{ value: Preocupacion; label: string }> = [
   { value: 'estres',      label: 'El estrés y sobrecarga de trabajo' },
   { value: 'habilidades', label: 'No sé si tengo las habilidades necesarias' },
   { value: 'familia',     label: 'El impacto en mi familia' },
+  { value: 'ninguna',     label: 'Aún no me preocupa nada' },
 ];
 
 const PERFILES: Array<{ value: Perfil; label: string }> = [
@@ -122,7 +123,6 @@ interface MiembroForm {
   participante_id: string;
   posicion: number;
   nombre: string;
-  celular: string;
   fue_emprendedor: boolean;
   quiebra: Quiebra;
   aprendizajes_quiebra: string;
@@ -193,7 +193,6 @@ export default function Anteproyecto() {
           participante_id: m.participantes_lista.id,
           posicion: m.posicion,
           nombre: m.participantes_lista.nombre_completo,
-          celular: '',
           fue_emprendedor: m.fue_emprendedor ?? false,
           quiebra: (m.quiebra as Quiebra) ?? 'na',
           aprendizajes_quiebra: m.aprendizajes_quiebra ?? '',
@@ -288,8 +287,7 @@ export default function Anteproyecto() {
     const s = (v: unknown) => (typeof v === 'string' ? v : '').trim();
     let done = 0, total = 0;
     for (const m of miembros) {
-      total += 4; // celular, perfil, emociones, preocupaciones
-      if (s(m.celular)) done++;
+      total += 3; // perfil, emociones, preocupaciones
       if (m.perfil) done++;
       if (m.emociones?.length) done++;
       if (m.preocupaciones?.length) done++;
@@ -323,7 +321,6 @@ export default function Anteproyecto() {
       miembros: miembros.map((m) => ({
         participante_id: m.participante_id,
         posicion: m.posicion,
-        celular: m.celular || undefined,
         fue_emprendedor: m.fue_emprendedor,
         quiebra: m.fue_emprendedor ? m.quiebra : undefined,
         aprendizajes_quiebra: m.fue_emprendedor && m.quiebra === 'quebro' ? m.aprendizajes_quiebra : undefined,
@@ -540,20 +537,13 @@ export default function Anteproyecto() {
                 </p>
               </div>
 
-              {/* Contacto */}
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Celular">
-                  <input type="tel" value={m.celular} maxLength={20}
-                    onChange={(e) => updateMiembro(i, { celular: e.target.value })}
-                    placeholder="Ej: +573001234567" className="input-inalde" />
-                </Field>
-                <Field label="Rol con el que más te identificas">
-                  <select value={m.perfil} className="input-inalde"
-                    onChange={(e) => updateMiembro(i, { perfil: e.target.value as Perfil })}>
-                    {PERFILES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                  </select>
-                </Field>
-              </div>
+              {/* Perfil */}
+              <Field label="Rol con el que más te identificas">
+                <select value={m.perfil} className="input-inalde"
+                  onChange={(e) => updateMiembro(i, { perfil: e.target.value as Perfil })}>
+                  {PERFILES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </Field>
 
               {/* Perfil emprendedor */}
               <h4 className="mt-6 mb-3 font-primary font-bold text-sm tracking-wider uppercase text-inalde-text">

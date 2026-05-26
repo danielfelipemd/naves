@@ -122,13 +122,12 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
 const miembroSchema = z.object({
   participante_id: z.string().uuid(),
   posicion: z.number().int().min(1).max(3),
-  celular: z.string().max(20).optional(),
   fue_emprendedor: z.boolean(),
   quiebra: z.enum(['nunca_despego', 'funcionamiento', 'vendido', 'quebro', 'na']).optional(),
   aprendizajes_quiebra: z.string().max(300).optional(),
   perfil: z.enum(['emprendedor', 'directivo', 'ambos']),
   emociones: z.array(z.enum(['crear', 'dinero', 'problema', 'autonomia', 'ninguna'])).min(1),
-  preocupaciones: z.array(z.enum(['financiera', 'estres', 'habilidades', 'familia'])).min(1),
+  preocupaciones: z.array(z.enum(['financiera', 'estres', 'habilidades', 'familia', 'ninguna'])).min(1),
 });
 
 const hitoSchema = z.object({

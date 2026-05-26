@@ -10,6 +10,7 @@ export default function Login() {
   const [mode, setMode] = useState<Mode>('participante');
   const [identifier, setIdentifier] = useState('');
   const [clave, setClave] = useState('');
+  const [verClave, setVerClave] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -108,15 +109,34 @@ export default function Login() {
                 <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
                   Clave
                 </label>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={clave}
-                  onChange={(e) => setClave(e.target.value)}
-                  required
-                  minLength={6}
-                  className="input-inalde"
-                />
+                <div className="relative">
+                  <input
+                    type={verClave ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={clave}
+                    onChange={(e) => setClave(e.target.value)}
+                    required
+                    minLength={6}
+                    className="input-inalde pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setVerClave((v) => !v)}
+                    aria-label={verClave ? 'Ocultar clave' : 'Mostrar clave'}
+                    className="absolute inset-y-0 right-3 flex items-center text-inalde-gray hover:text-inalde-red transition">
+                    {verClave ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 {mode === 'participante' && (
                   <p className="text-sm text-inalde-text mt-2">
                     Si es tu primer ingreso, tu clave es tu <strong>número de cédula</strong>.

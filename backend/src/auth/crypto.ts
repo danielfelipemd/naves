@@ -12,7 +12,7 @@ export function syntheticEmailFromCedula(cedula: string): string {
   return `${sha256Hex(clean)}@naves.local`;
 }
 
-// AES-256-GCM para PII (cédula, email institucional real, celular)
+// AES-256-GCM para PII (cédula, email institucional real)
 function getKey(): Buffer {
   const k = config.pii.encryptionKey;
   if (!k) throw new Error('PII_ENCRYPTION_KEY not set');
