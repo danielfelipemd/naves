@@ -176,6 +176,7 @@ export default function Anteproyecto() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [envioConfirmacion, setEnvioConfirmacion] = useState<{ fechaEnvio: string; autoDefinitivo: boolean } | null>(null);
 
   // ----- Carga inicial -----
   useEffect(() => { (async () => {
@@ -371,9 +372,10 @@ export default function Anteproyecto() {
       await api.put(`/anteproyectos/${anteId}`, buildPayload());
       const r = await api.post(`/anteproyectos/${anteId}/enviar`);
       setEstado('enviado');
-      setMsg({ kind: 'ok', text: r.data.auto_definitivo
-          ? 'Anteproyecto enviado. Tu único proyecto quedó marcado como definitivo.'
-          : 'Anteproyecto enviado. Después de la Reunión 1 con tu profesor, deberás elegir el proyecto definitivo.' });
+      setEnvioConfirmacion({
+        fechaEnvio: r.data?.fecha_envio ?? new Date().toISOString(),
+        autoDefinitivo: !!r.data?.auto_definitivo,
+      });
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
@@ -389,6 +391,51 @@ export default function Anteproyecto() {
   return (
     <>
       <Header />
+
+      {/* Modal de confirmación de envío */}
+      {envioConfirmacion && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="border-b-[3px] border-inalde-blue px-6 py-5 text-center">
+              <div className="text-4xl mb-2">✅</div>
+              <p className="section-subtitle mb-1">Envío confirmado</p>
+              <h2 className="font-primary font-bold text-2xl text-inalde-text">¡Anteproyecto enviado!</h2>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-inalde-text mb-4">
+                Tu anteproyecto quedó registrado correctamente. Esta es la constancia del envío:
+              </p>
+              <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 mb-4">
+                <p className="text-xs uppercase tracking-wider text-inalde-gray font-semibold mb-1">Fecha y hora de envío</p>
+                <p className="text-lg font-bold text-inalde-text">
+                  {new Date(envioConfirmacion.fechaEnvio).toLocaleString('es-CO', {
+                    timeZone: 'America/Bogota',
+                    day: 'numeric', month: 'long', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: false,
+                  })}
+                </p>
+              </div>
+              <p className="text-xs text-inalde-gray">
+                Se envió un correo de confirmación a todos los miembros del equipo. El anteproyecto queda bloqueado para edición.
+              </p>
+              {envioConfirmacion.autoDefinitivo ? (
+                <p className="text-sm text-inalde-text mt-3">
+                  Como tu equipo presentó un único proyecto, quedó marcado como <strong>definitivo</strong> automáticamente.
+                </p>
+              ) : (
+                <p className="text-sm text-inalde-text mt-3">
+                  Después de la Reunión 1 con tu profesor, deberás elegir el proyecto definitivo.
+                </p>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-inalde-gray-light flex justify-end">
+              <button onClick={() => setEnvioConfirmacion(null)} className="btn-inalde-primary !py-2 !px-5 !text-sm">
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Progress bar fija arriba */}
       <div className="fixed top-[140px] inset-x-0 z-40 px-4">

@@ -3,9 +3,79 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
 import { getSignedUrlTrabajoGrado } from '../services/storage.js';
+import { sendEmail } from '../services/email.js';
+import { decryptPII } from '../auth/crypto.js';
 
 const router = Router();
 router.use(requireAuth());
+
+/**
+ * Envia un correo de confirmacion de envio del anteproyecto a TODOS los miembros del equipo.
+ * Falla silenciosamente: nunca bloquea la respuesta al cliente.
+ */
+async function notificarEnvioAnteproyecto(equipoId: string, fechaEnvio: string, modalidad: string | null) {
+  try {
+    const { data: equipo } = await supabaseAdmin
+      .from('equipos')
+      .select(`
+        id, nombre_equipo, cohorte_id,
+        miembros_equipo (
+          participantes_lista ( nombre_completo, email_encriptado )
+        )
+      `)
+      .eq('id', equipoId)
+      .maybeSingle();
+    if (!equipo) return;
+
+    const fechaStr = new Date(fechaEnvio).toLocaleString('es-CO', {
+      timeZone: 'America/Bogota',
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+    const modalidadLabel = modalidad === 'caso' ? 'Caso'
+      : modalidad === 'proyecto_investigacion' ? 'Proyecto de investigación'
+      : 'Business Plan';
+    const equipoNombre = (equipo as any).nombre_equipo || '(sin nombre)';
+    const cohorte = (equipo as any).cohorte_id ?? '';
+
+    const miembros = (((equipo as any).miembros_equipo ?? []) as any[])
+      .map((m) => m.participantes_lista)
+      .filter(Boolean);
+
+    for (const m of miembros) {
+      let email = '';
+      try { email = decryptPII(m.email_encriptado); } catch { continue; }
+      if (!email) continue;
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="border-bottom: 3px solid #e30613; padding-bottom: 12px; margin-bottom: 18px;">
+            <p style="color: #888; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; margin: 0;">Confirmación de envío</p>
+            <h2 style="color: #1a1a1a; margin: 4px 0 0 0;">Tu anteproyecto fue enviado</h2>
+          </div>
+          <p>Hola <strong>${m.nombre_completo}</strong>,</p>
+          <p>Te confirmamos que el anteproyecto de tu equipo fue enviado correctamente al programa MBA INALDE.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;">
+            <tr><td style="padding: 6px 0; color:#888;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Fecha y hora de envío</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
+          </table>
+          <p style="font-size: 13px; color:#555;">A partir de ahora el anteproyecto queda bloqueado para edición. Si necesitas algún ajuste, contacta a la asistente del programa.</p>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;"/>
+          <p style="font-size: 11px; color: #888;">
+            NAVES — INALDE Business School · MBA<br/>
+            Este es un mensaje automático, no responder.
+          </p>
+        </div>`;
+      try {
+        await sendEmail(email, 'Anteproyecto enviado — NAVES INALDE', html);
+      } catch { /* best effort */ }
+    }
+  } catch (e) {
+    console.warn('[anteproyectos.enviar] notificacion email fallo:', (e as Error).message);
+  }
+}
 
 // === GET /api/anteproyectos/mi-anteproyecto =================================
 router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
@@ -231,13 +301,15 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     if (!ant.archivo_proyecto_final_path) faltantes.push('proyecto_final');
     if (faltantes.length) return res.status(400).json({ error: 'ARCHIVOS_FALTANTES', faltantes });
 
+    const fechaEnvio = new Date().toISOString();
     await supabaseAdmin.from('anteproyectos').update({
       estado: 'enviado',
-      fecha_envio: new Date().toISOString(),
+      fecha_envio: fechaEnvio,
       ultimo_editor_id: pid,
     }).eq('id', req.params.id);
 
-    return res.json({ ok: true, modalidad });
+    void notificarEnvioAnteproyecto(ant.equipo_id, fechaEnvio, modalidad);
+    return res.json({ ok: true, modalidad, fecha_envio: fechaEnvio });
   }
 
   // === Modalidad 'business_plan' (NAVES): validar proyectos + hitos + auto-definitivo
@@ -266,13 +338,21 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     await supabaseAdmin.from('equipos').update({ proyecto_definitivo_id: proyectos[0].id }).eq('id', ant.equipo_id);
   }
 
+  const fechaEnvio = new Date().toISOString();
   await supabaseAdmin.from('anteproyectos').update({
     estado: 'enviado',
-    fecha_envio: new Date().toISOString(),
+    fecha_envio: fechaEnvio,
     ultimo_editor_id: pid,
   }).eq('id', req.params.id);
 
-  res.json({ ok: true, modalidad: 'business_plan', proyectos_count: proyectos.length, auto_definitivo: proyectos.length === 1 });
+  void notificarEnvioAnteproyecto(ant.equipo_id, fechaEnvio, 'business_plan');
+  res.json({
+    ok: true,
+    modalidad: 'business_plan',
+    proyectos_count: proyectos.length,
+    auto_definitivo: proyectos.length === 1,
+    fecha_envio: fechaEnvio,
+  });
 });
 
 export default router;
