@@ -138,7 +138,7 @@ export default function Login() {
           </div>
 
           <p className="text-center text-xs text-inalde-gray mt-6 leading-relaxed">
-            NAVES — New Business Adventures
+            NAVES — Nuevas Aventuras Empresariales
             <br />
             INALDE Business School · MBA
           </p>
