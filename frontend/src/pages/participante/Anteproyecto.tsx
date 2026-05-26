@@ -465,7 +465,7 @@ export default function Anteproyecto() {
                 <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">Datos personales</p>
                 <p className="font-primary font-bold text-lg text-inalde-text">{m.nombre}</p>
                 <p className="text-xs text-inalde-gray mt-1 italic">
-                  Cargado por el administrador desde la lista de la cohorte. Si hay un error, contacta al programa.
+                  Cargado por el administrador desde la lista de la cohorte. Si hay un error, contacta a la asistente del programa.
                 </p>
               </div>
 
@@ -525,7 +525,7 @@ export default function Anteproyecto() {
 
           {/* ============ Sección 2: Tus proyectos ============ */}
           <div className="mt-12">
-            <SectionHeader n={2} title={numProyectos === 1 ? 'Tu proyecto' : 'Tus proyectos'} />
+            <SectionHeader n={2} title={numProyectos === 1 ? 'Tu Anteproyecto' : 'Tus Anteproyectos'} />
 
             <p className="text-sm text-inalde-gray mb-6">
               {numProyectos === 1

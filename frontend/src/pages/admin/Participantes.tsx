@@ -3,6 +3,8 @@ import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 
 interface Cohorte { id: string; etiqueta: string; participantes_count: number; activa: boolean; }
+type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
+
 interface Participante {
   id: string;
   cohorte_id: string;
@@ -10,6 +12,7 @@ interface Participante {
   cedula: string;
   email: string;
   estado: string;
+  tipo_trabajo_grado: Modalidad | null;
   en_equipo: boolean;
 }
 
@@ -26,7 +29,7 @@ export default function Participantes() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [editId, setEditId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<{ nombre_completo: string; cedula: string; email: string; cohorte_id: string }>({ nombre_completo: '', cedula: '', email: '', cohorte_id: '' });
+  const [editDraft, setEditDraft] = useState<{ nombre_completo: string; cedula: string; email: string; cohorte_id: string; modalidad: Modalidad | '' }>({ nombre_completo: '', cedula: '', email: '', cohorte_id: '', modalidad: '' });
 
   async function loadCohortes() {
     const { data } = await api.get('/admin/cohortes');
@@ -141,7 +144,13 @@ export default function Participantes() {
 
   function startEdit(p: Participante) {
     setEditId(p.id);
-    setEditDraft({ nombre_completo: p.nombre_completo, cedula: p.cedula, email: p.email, cohorte_id: p.cohorte_id });
+    setEditDraft({
+      nombre_completo: p.nombre_completo,
+      cedula: p.cedula,
+      email: p.email,
+      cohorte_id: p.cohorte_id,
+      modalidad: (p.tipo_trabajo_grado ?? '') as Modalidad | '',
+    });
     setErr(null); setMsg(null);
   }
   async function saveEdit() {
@@ -151,10 +160,16 @@ export default function Participantes() {
     if (original?.nombre_completo !== editDraft.nombre_completo) payload.nombre_completo = editDraft.nombre_completo;
     if (original?.cedula !== editDraft.cedula) payload.cedula = editDraft.cedula;
     if (original?.email !== editDraft.email) payload.email = editDraft.email;
-    if (Object.keys(payload).length === 0) { setEditId(null); return; }
+    const modalidadCambio = editDraft.modalidad !== '' && editDraft.modalidad !== (original?.tipo_trabajo_grado ?? '');
+    if (Object.keys(payload).length === 0 && !modalidadCambio) { setEditId(null); return; }
     setErr(null);
     try {
-      await api.put(`/admin/participantes/${editId}`, payload);
+      if (Object.keys(payload).length > 0) {
+        await api.put(`/admin/participantes/${editId}`, payload);
+      }
+      if (modalidadCambio) {
+        await api.put(`/admin/participantes/${editId}/modalidad`, { modalidad: editDraft.modalidad });
+      }
       setMsg(`Participante actualizado.`);
       setEditId(null);
       await loadParticipantes();
@@ -396,7 +411,16 @@ export default function Participantes() {
                     onChange={(e) => setEditDraft({ ...editDraft, email: e.target.value })}
                     className="input-inalde !py-1 !text-xs" />
                 </td>
-                <td className="px-3 py-2 text-xs text-inalde-gray italic">editando…</td>
+                <td className="px-3 py-2">
+                  <select value={editDraft.modalidad}
+                    onChange={(e) => setEditDraft({ ...editDraft, modalidad: e.target.value as Modalidad | '' })}
+                    className="input-inalde !py-1 !text-xs">
+                    <option value="">Sin modalidad</option>
+                    <option value="business_plan">Business Plan</option>
+                    <option value="caso">Caso</option>
+                    <option value="proyecto_investigacion">Proy. investigación</option>
+                  </select>
+                </td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   <button onClick={saveEdit} className="text-xs font-semibold text-inalde-red mr-3">Guardar</button>
                   <button onClick={() => setEditId(null)} className="text-xs text-inalde-gray">×</button>

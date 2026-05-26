@@ -445,6 +445,21 @@ router.post('/participantes/bulk-delete', async (req, res) => {
   res.json({ borrados, fallos });
 });
 
+// PUT /api/admin/participantes/:id/modalidad
+// Cambia la modalidad de trabajo de grado de un participante (bypassa el trigger de inmutabilidad)
+const cambiarModalidadSchema = z.object({
+  modalidad: z.enum(['business_plan', 'caso', 'proyecto_investigacion']),
+});
+router.put('/participantes/:id/modalidad', async (req, res) => {
+  const parsed = cambiarModalidadSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  const { error } = await supabaseAdmin.rpc('admin_set_modalidad', {
+    p_id: req.params.id, p_modalidad: parsed.data.modalidad,
+  });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 router.delete('/participantes/:id', async (req, res) => {
   const id = req.params.id;
   const [{ count: enEquipo }, { count: esCreador }] = await Promise.all([
