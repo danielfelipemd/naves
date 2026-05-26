@@ -99,7 +99,6 @@ export default function Login() {
                   autoComplete={mode === 'participante' ? 'username' : 'email'}
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={mode === 'participante' ? '1020304050' : 'tu.email@inalde.edu.co'}
                   required
                   className="input-inalde"
                 />
