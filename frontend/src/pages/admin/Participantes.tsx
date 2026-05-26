@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 
 interface Cohorte { id: string; etiqueta: string; participantes_count: number; }
 
@@ -35,7 +36,7 @@ export default function Participantes() {
       const fresh = await api.get('/admin/cohortes');
       setCohortes(fresh.data);
     } catch (e: any) {
-      setErr(JSON.stringify(e?.response?.data ?? e.message).slice(0, 500));
+      setErr(formatBackendError(e));
     } finally { setBusy(false); }
   }
 
@@ -44,11 +45,19 @@ export default function Participantes() {
       <div className="border-b-[3px] border-inalde-red pb-4 mb-6">
         <p className="section-subtitle mb-1">Administración</p>
         <h1 className="section-title">Cargar lista de participantes</h1>
-        <p className="text-sm text-inalde-gray mt-2">
-          Sube un Excel con las columnas <code className="bg-inalde-gray-bg px-1 rounded">nombre_completo</code>,{' '}
-          <code className="bg-inalde-gray-bg px-1 rounded">cedula</code>,{' '}
-          <code className="bg-inalde-gray-bg px-1 rounded">email</code>. Los participantes quedarán en estado{' '}
-          <em>pendiente_activacion</em> con clave temporal <code>TempCambiar2026!</code>.
+        <p className="text-sm text-inalde-text mt-2">
+          Sube un Excel con las siguientes columnas (flexible — no importan mayúsculas ni acentos):
+        </p>
+        <ul className="text-sm text-inalde-text mt-2 list-disc pl-5 space-y-1">
+          <li>
+            <strong>Nombre</strong>: puede ser <code className="bg-inalde-gray-bg px-1 rounded">Nombre completo</code> en una sola columna,
+            <strong> o bien</strong> <code className="bg-inalde-gray-bg px-1 rounded">Nombre</code> y <code className="bg-inalde-gray-bg px-1 rounded">Apellido</code> en dos columnas separadas (se combinan automáticamente).
+          </li>
+          <li><strong>Cédula</strong>: acepta <code className="bg-inalde-gray-bg px-1 rounded">Cedula</code>, <code className="bg-inalde-gray-bg px-1 rounded">CC</code>, <code className="bg-inalde-gray-bg px-1 rounded">Documento</code>, <code className="bg-inalde-gray-bg px-1 rounded">DNI</code> o <code className="bg-inalde-gray-bg px-1 rounded">Identificación</code>.</li>
+          <li><strong>Email</strong>: acepta <code className="bg-inalde-gray-bg px-1 rounded">Email</code>, <code className="bg-inalde-gray-bg px-1 rounded">Correo</code> o <code className="bg-inalde-gray-bg px-1 rounded">Correo electrónico</code>.</li>
+        </ul>
+        <p className="text-xs text-inalde-gray mt-3">
+          Los participantes quedarán en estado <em>pendiente_activacion</em> con clave temporal <code>TempCambiar2026!</code>.
         </p>
       </div>
 

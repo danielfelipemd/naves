@@ -8,6 +8,10 @@ export function formatBackendError(e: any): string {
   const codeMessages: Record<string, string> = {
     NO_PROYECTOS: 'Debes crear al menos un proyecto antes de enviar.',
     HITOS_INSUFICIENTES: 'Cada proyecto necesita al menos 5 hitos con descripción y fechas.',
+    MISSING_COHORTE: 'Selecciona una cohorte antes de cargar el archivo.',
+    MISSING_FILE: 'Selecciona el archivo Excel a cargar.',
+    EMPTY_WORKBOOK: 'El archivo Excel está vacío o no tiene hojas.',
+    COHORTE_NOT_FOUND: 'La cohorte seleccionada no existe.',
     NOT_TEAM_MEMBER: 'No formas parte de este equipo.',
     ALREADY_SUBMITTED: 'Este anteproyecto ya fue enviado y no se puede modificar.',
     FECHA_LIMITE_EXPIRADA: 'La fecha límite para esta acción ya pasó.',
@@ -36,6 +40,15 @@ export function formatBackendError(e: any): string {
       return `El proyecto "${data.proyecto ?? ''}" tiene ${data.hitos_validos ?? 0} hito(s) completos. Necesitas al menos ${data.minimo ?? 5} hitos con descripción, fecha de inicio y fecha de fin.`;
     }
     return codeMessages[data.error];
+  }
+
+  // MISSING_COLUMN del Excel — el backend manda detail + header_recibido
+  if (data?.error === 'MISSING_COLUMN') {
+    const detail = data.detail ?? `Falta la columna "${data.column ?? ''}".`;
+    const recibido = Array.isArray(data.header_recibido) && data.header_recibido.length
+      ? `\n\nColumnas encontradas en el archivo: ${data.header_recibido.filter(Boolean).join(', ')}.`
+      : '';
+    return detail + recibido;
   }
 
   // Error específico de crear profesor: AUTH_USER_CREATE_FAILED + detail

@@ -21,9 +21,38 @@ router.use(requireAuth(), requireRole('super_admin'));
 // =====================================================================
 /**
  * POST /api/admin/participantes/cargar-excel
- * Multipart: cohorte_id (form), file (xlsx). Columnas: nombre_completo, cedula, email
- * Crea (si no existe) auth.users con email sintético + entry en participantes_lista.
+ * Multipart: cohorte_id (form), file (xlsx).
+ * Columnas aceptadas (flexible, sin importar mayúsculas/acentos):
+ *   - Nombre completo: "nombre_completo", "nombre completo", "full name"
+ *     O bien la combinación "nombre" + "apellido" (se concatenan)
+ *   - Cédula: "cedula", "cédula", "cc", "documento", "identificacion", "dni"
+ *   - Email: "email", "correo", "correo electronico", "mail"
  */
+function normalizeHeaderKey(s: string): string {
+  return String(s ?? '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // sin acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+const FULL_NAME_KEYS = new Set([
+  'nombre_completo', 'nombres_completos', 'nombre_y_apellido', 'nombre_y_apellidos',
+  'nombres_y_apellidos', 'full_name', 'fullname',
+]);
+const FIRST_NAME_KEYS = new Set(['nombre', 'nombres', 'first_name', 'firstname', 'primer_nombre']);
+const LAST_NAME_KEYS = new Set(['apellido', 'apellidos', 'last_name', 'lastname', 'surname']);
+const CEDULA_KEYS = new Set([
+  'cedula', 'cc', 'documento', 'numero_documento', 'no_documento',
+  'numero_de_documento', 'identificacion', 'id', 'dni', 'nuip', 'cedula_ciudadania',
+]);
+const EMAIL_KEYS = new Set(['email', 'correo', 'correo_electronico', 'e_mail', 'mail']);
+function findCol(header: string[], keys: Set<string>): number {
+  for (let i = 0; i < header.length; i++) {
+    if (keys.has(header[i])) return i + 1;
+  }
+  return -1;
+}
+
 router.post('/participantes/cargar-excel', upload.single('file'), async (req: AuthenticatedRequest, res) => {
   const cohorteId = String(req.body?.cohorte_id ?? '').trim();
   if (!cohorteId) return res.status(400).json({ error: 'MISSING_COHORTE' });
@@ -38,11 +67,35 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
   if (!ws) return res.status(400).json({ error: 'EMPTY_WORKBOOK' });
 
   const header: string[] = [];
-  ws.getRow(1).eachCell((c) => header.push(String(c.value ?? '').trim().toLowerCase()));
-  for (const col of ['nombre_completo', 'cedula', 'email']) {
-    if (!header.includes(col)) return res.status(400).json({ error: 'MISSING_COLUMN', column: col });
+  ws.getRow(1).eachCell((c) => header.push(normalizeHeaderKey(c.value)));
+
+  const fullCol  = findCol(header, FULL_NAME_KEYS);
+  const firstCol = findCol(header, FIRST_NAME_KEYS);
+  const lastCol  = findCol(header, LAST_NAME_KEYS);
+  const cedulaCol = findCol(header, CEDULA_KEYS);
+  const emailCol  = findCol(header, EMAIL_KEYS);
+
+  if (fullCol < 0 && firstCol < 0 && lastCol < 0) {
+    return res.status(400).json({
+      error: 'MISSING_COLUMN', column: 'nombre',
+      detail: 'No encontré una columna de nombre. Acepto "Nombre completo" o las dos columnas "Nombre" y "Apellido".',
+      header_recibido: header,
+    });
   }
-  const idx = (k: string) => header.indexOf(k) + 1;
+  if (cedulaCol < 0) {
+    return res.status(400).json({
+      error: 'MISSING_COLUMN', column: 'cedula',
+      detail: 'No encontré una columna de cédula. Acepto "Cedula", "CC", "Documento", "DNI", "Identificación".',
+      header_recibido: header,
+    });
+  }
+  if (emailCol < 0) {
+    return res.status(400).json({
+      error: 'MISSING_COLUMN', column: 'email',
+      detail: 'No encontré una columna de email. Acepto "Email", "Correo", "Correo electrónico".',
+      header_recibido: header,
+    });
+  }
 
   const supabaseUrl = process.env.SUPABASE_URL!;
   const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -50,12 +103,28 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
   let inserted = 0;
   const errors: Array<{ row: number; error: string }> = [];
 
+  function cellStr(row: ExcelJS.Row, col: number): string {
+    if (col < 0) return '';
+    const v: any = row.getCell(col).value;
+    if (v == null) return '';
+    if (typeof v === 'object' && 'text' in v) return String(v.text ?? '').trim();
+    if (typeof v === 'object' && 'result' in v) return String(v.result ?? '').trim();
+    return String(v).trim();
+  }
+
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
     try {
-      const nombre = String(row.getCell(idx('nombre_completo')).value ?? '').trim();
-      const cedula = String(row.getCell(idx('cedula')).value ?? '').trim().replace(/[\s.\-]/g, '');
-      const email = String(row.getCell(idx('email')).value ?? '').trim().toLowerCase();
+      let nombre: string;
+      if (fullCol > 0) {
+        nombre = cellStr(row, fullCol);
+      } else {
+        const first = cellStr(row, firstCol);
+        const last  = cellStr(row, lastCol);
+        nombre = [first, last].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+      }
+      const cedula = cellStr(row, cedulaCol).replace(/[\s.\-]/g, '');
+      const email = cellStr(row, emailCol).toLowerCase();
       if (!nombre || !cedula || !email) continue;
 
       const synth = syntheticEmailFromCedula(cedula);
