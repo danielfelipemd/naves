@@ -758,7 +758,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
 
       {/* Cronograma */}
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Cronograma</h3>
-      <p className="text-xs text-inalde-gray mb-4">
+      <p className="text-sm text-inalde-text mb-4">
         Define entre <strong>5 y 10 hitos</strong> del proyecto con sus fechas estimadas.
         Los siguientes irán apareciendo a medida que llenes el actual.
       </p>
