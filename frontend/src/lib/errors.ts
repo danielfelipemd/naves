@@ -7,6 +7,7 @@ export function formatBackendError(e: any): string {
 
   const codeMessages: Record<string, string> = {
     NO_PROYECTOS: 'Debes crear al menos un proyecto antes de enviar.',
+    HITOS_INSUFICIENTES: 'Cada proyecto necesita al menos 5 hitos con descripción y fechas.',
     NOT_TEAM_MEMBER: 'No formas parte de este equipo.',
     ALREADY_SUBMITTED: 'Este anteproyecto ya fue enviado y no se puede modificar.',
     FECHA_LIMITE_EXPIRADA: 'La fecha límite para esta acción ya pasó.',
@@ -30,6 +31,9 @@ export function formatBackendError(e: any): string {
   if (data?.error && codeMessages[data.error]) {
     if (data.error === 'ARCHIVOS_FALTANTES' && Array.isArray(data.faltantes)) {
       return `Faltan archivos: ${data.faltantes.join(', ')}.`;
+    }
+    if (data.error === 'HITOS_INSUFICIENTES') {
+      return `El proyecto "${data.proyecto ?? ''}" tiene ${data.hitos_validos ?? 0} hito(s) completos. Necesitas al menos ${data.minimo ?? 5} hitos con descripción, fecha de inicio y fecha de fin.`;
     }
     return codeMessages[data.error];
   }

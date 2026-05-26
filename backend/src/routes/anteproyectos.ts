@@ -240,12 +240,25 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     return res.json({ ok: true, modalidad });
   }
 
-  // === Modalidad 'business_plan' (NAVES): validar proyectos + auto-definitivo
+  // === Modalidad 'business_plan' (NAVES): validar proyectos + hitos + auto-definitivo
   const { data: proyectos } = await supabaseAdmin
     .from('proyectos')
-    .select('id, hitos:hitos(count)')
+    .select('id, nombre, hitos ( descripcion, fecha_inicio, fecha_fin )')
     .eq('anteproyecto_id', req.params.id);
   if (!proyectos || proyectos.length === 0) return res.status(400).json({ error: 'NO_PROYECTOS' });
+
+  // Mínimo 5 hitos completos (descripcion + ambas fechas) por proyecto
+  for (const p of proyectos as any[]) {
+    const validos = (p.hitos ?? []).filter((h: any) => h?.descripcion && h?.fecha_inicio && h?.fecha_fin).length;
+    if (validos < 5) {
+      return res.status(400).json({
+        error: 'HITOS_INSUFICIENTES',
+        proyecto: p.nombre,
+        hitos_validos: validos,
+        minimo: 5,
+      });
+    }
+  }
 
   // Si solo hay 1 proyecto, marcarlo automáticamente como definitivo
   if (proyectos.length === 1) {

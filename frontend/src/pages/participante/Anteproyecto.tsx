@@ -62,6 +62,22 @@ const CANVAS_FIELDS: Array<{ key: keyof Proyecto; label: string; placeholder: st
   { key: 'canvas_costos',           label: 'Estructura de costos',         placeholder: 'Desarrollo, marketing, operaciones, salarios, ¿cuáles son los gastos?', max: 300 },
 ];
 
+// Hitos pre-definidos del plan de trabajo NAVES (cronograma del programa)
+const PRESET_HITOS: Array<{ descripcion: string; fecha_fin: string }> = [
+  { descripcion: 'Entrega Anteproyecto',                  fecha_fin: '2026-01-20' },
+  { descripcion: 'Primera Reunión Obligatoria',           fecha_fin: '2026-02-13' },
+  { descripcion: 'Diseño de Modelo Financiero',           fecha_fin: '2026-02-21' },
+  { descripcion: 'Recolección de Información de Mercado', fecha_fin: '2026-03-14' },
+  { descripcion: 'Cuantificación de la Oportunidad',      fecha_fin: '2026-03-21' },
+  { descripcion: 'Definición de Modelo de Negocio',       fecha_fin: '2026-03-28' },
+  { descripcion: 'Diseño de Plan de Marketing',           fecha_fin: '2026-04-11' },
+  { descripcion: 'Segunda Reunión Obligatoria',           fecha_fin: '2026-04-17' },
+  { descripcion: 'Cierre de Modelo Financiero',           fecha_fin: '2026-05-01' },
+  { descripcion: 'Consolidación Documento Final',         fecha_fin: '2026-05-15' },
+];
+const PRESET_HITO_NAMES = new Set(PRESET_HITOS.map((h) => h.descripcion));
+const MIN_HITOS = 5;
+
 // =============== Tipos ====================================================
 interface Hito {
   posicion: number;
@@ -332,6 +348,14 @@ export default function Anteproyecto() {
 
   async function enviar() {
     if (!anteId) return;
+    // Validar mínimo de hitos válidos por proyecto antes de enviar
+    for (const p of proyectos) {
+      const validos = (p.hitos ?? []).filter((h) => h.descripcion && h.fecha_inicio && h.fecha_fin).length;
+      if (validos < MIN_HITOS) {
+        setMsg({ kind: 'err', text: `El proyecto "${p.nombre || `#${p.posicion}`}" tiene ${validos} hito(s) completo(s). Necesitas al menos ${MIN_HITOS} hitos con descripción, fecha de inicio y fecha de fin.` });
+        return;
+      }
+    }
     if (!confirm('Una vez enviado el anteproyecto NO podrá modificarse. ¿Continuar?')) return;
     setBusy(true); setMsg(null);
     try {
@@ -679,6 +703,21 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
   onAddHito: () => void;
   onRemoveHito: (hi: number) => void;
 }) {
+  // Hitos con descripcion fuera de los presets arrancan en modo manual
+  const [manualHitos, setManualHitos] = useState<Set<number>>(() => {
+    const s = new Set<number>();
+    proyecto.hitos.forEach((h, i) => {
+      if (h.descripcion && !PRESET_HITO_NAMES.has(h.descripcion)) s.add(i);
+    });
+    return s;
+  });
+  function setManual(hi: number, on: boolean) {
+    setManualHitos((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(hi); else next.delete(hi);
+      return next;
+    });
+  }
   return (
     <>
       {/* Identificación */}
@@ -759,20 +798,57 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
       {/* Cronograma */}
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Cronograma</h3>
       <p className="text-sm text-inalde-text mb-4">
-        Define entre <strong>5 y 10 hitos</strong> del proyecto con sus fechas estimadas.
-        Los siguientes irán apareciendo a medida que llenes el actual.
+        Define entre <strong>{MIN_HITOS} y 10 hitos</strong> del proyecto con sus fechas estimadas.
+        Puedes elegirlos del cronograma NAVES o agregar tus propios hitos manualmente.
       </p>
       <div className="space-y-3">
-        {proyecto.hitos.map((h, hi) => (
+        {proyecto.hitos.map((h, hi) => {
+          const matchesPreset = PRESET_HITO_NAMES.has(h.descripcion);
+          const isManual = manualHitos.has(hi) || (h.descripcion !== '' && !matchesPreset);
+          const dropdownValue = isManual ? '__custom__' : (matchesPreset ? h.descripcion : '');
+          const otherDescs = new Set(proyecto.hitos.filter((_, oi) => oi !== hi).map((o) => o.descripcion));
+          return (
           <div key={hi} className="flex items-end gap-3 p-4 rounded bg-inalde-gray-bg/40 border-l-[3px] border-inalde-gold">
             <div className="w-12 shrink-0 text-center pt-7 text-inalde-gray font-bold">#{h.posicion}</div>
 
             <div className="flex-1 min-w-0">
               <Field label="Hito">
-                <input type="text" value={h.descripcion} maxLength={100}
-                  placeholder="Ej: Validación de mercado, Prototipo MVP, Lanzamiento beta"
-                  onChange={(e) => onUpdateHito(hi, { descripcion: e.target.value })}
-                  className="input-inalde" />
+                {isManual ? (
+                  <div className="flex gap-2 items-stretch">
+                    <input type="text" value={h.descripcion} maxLength={100}
+                      placeholder="Describe tu hito (ej. Validación con 20 clientes)"
+                      autoFocus={!h.descripcion}
+                      onChange={(e) => onUpdateHito(hi, { descripcion: e.target.value })}
+                      className="input-inalde flex-1" />
+                    <button type="button"
+                      onClick={() => { setManual(hi, false); onUpdateHito(hi, { descripcion: '', fecha_fin: '' }); }}
+                      title="Elegir del cronograma NAVES"
+                      className="text-xs text-inalde-gray hover:text-inalde-red px-3 border border-inalde-gray-light rounded">↩</button>
+                  </div>
+                ) : (
+                  <select value={dropdownValue}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === '__custom__') {
+                        setManual(hi, true);
+                        onUpdateHito(hi, { descripcion: '', fecha_fin: '' });
+                      } else if (v === '') {
+                        onUpdateHito(hi, { descripcion: '', fecha_fin: '' });
+                      } else {
+                        const preset = PRESET_HITOS.find((p) => p.descripcion === v);
+                        if (preset) onUpdateHito(hi, { descripcion: preset.descripcion, fecha_fin: preset.fecha_fin });
+                      }
+                    }}
+                    className="input-inalde">
+                    <option value="">Selecciona un hito…</option>
+                    {PRESET_HITOS.map((p) => (
+                      <option key={p.descripcion} value={p.descripcion} disabled={p.descripcion !== h.descripcion && otherDescs.has(p.descripcion)}>
+                        {p.descripcion} · {new Date(p.fecha_fin + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                      </option>
+                    ))}
+                    <option value="__custom__">+ Otro (manual)…</option>
+                  </select>
+                )}
               </Field>
             </div>
 
@@ -793,14 +869,15 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
             </div>
 
             <div className="w-10 shrink-0 pt-7 text-center">
-              {proyecto.hitos.length > 5 && (
-                <button type="button" onClick={() => onRemoveHito(hi)}
+              {proyecto.hitos.length > MIN_HITOS && (
+                <button type="button" onClick={() => { onRemoveHito(hi); setManual(hi, false); }}
                   title="Eliminar hito"
                   className="text-inalde-gray hover:text-inalde-red text-2xl leading-none transition">×</button>
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
         {proyecto.hitos.length < 10 && (
           <button type="button" onClick={onAddHito}
             className="text-sm text-inalde-red hover:text-inalde-red-hover font-semibold mt-2 inline-flex items-center gap-1 px-3 py-2 rounded border border-inalde-red/30 hover:border-inalde-red transition">
