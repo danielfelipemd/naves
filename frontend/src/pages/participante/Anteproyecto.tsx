@@ -10,7 +10,7 @@ import { AREAS_AFINIDAD } from '../../lib/areas';
 type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia';
 type Preocupacion = 'financiera' | 'estres' | 'habilidades' | 'familia';
 type Perfil = 'emprendedor' | 'directivo' | 'ambos';
-type EstadoProyecto = 'idea' | 'investigacion' | 'prototipo' | 'validacion';
+type EstadoProyecto = 'idea' | 'investigacion' | 'prototipo' | 'validacion' | 'funcionamiento';
 type Quiebra = 'nunca_despego' | 'funcionamiento' | 'vendido' | 'quebro' | 'na';
 
 const ESTADO_EMPRENDIMIENTO: Array<{ value: Quiebra; label: string }> = [
@@ -42,10 +42,11 @@ const PERFILES: Array<{ value: Perfil; label: string }> = [
 ];
 
 const ESTADOS_PROYECTO: Array<{ value: EstadoProyecto; label: string }> = [
-  { value: 'idea',          label: 'Solo idea' },
-  { value: 'investigacion', label: 'Investigación de mercado' },
-  { value: 'prototipo',     label: 'Prototipo' },
-  { value: 'validacion',    label: 'Validación con clientes' },
+  { value: 'idea',           label: 'Solo idea' },
+  { value: 'investigacion',  label: 'Investigación de mercado' },
+  { value: 'prototipo',      label: 'Prototipo' },
+  { value: 'validacion',     label: 'Validación con clientes' },
+  { value: 'funcionamiento', label: 'Empresa en funcionamiento (Intraemprendimiento)' },
 ];
 
 const CANVAS_FIELDS: Array<{ key: keyof Proyecto; label: string; placeholder: string; max: number }> = [

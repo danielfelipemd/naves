@@ -84,7 +84,7 @@ const proyectoSchema = z.object({
   canvas_actividades: z.string().max(300).optional(),
   canvas_socios: z.string().max(300).optional(),
   canvas_costos: z.string().max(300).optional(),
-  estado: z.enum(['idea', 'investigacion', 'prototipo', 'validacion']).optional(),
+  estado: z.enum(['idea', 'investigacion', 'prototipo', 'validacion', 'funcionamiento']).optional(),
   fuentes_primarias: z.string().max(300).optional(),
   fuentes_secundarias: z.string().max(300).optional(),
   hitos: z.array(hitoSchema).max(10),
