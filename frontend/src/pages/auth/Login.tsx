@@ -118,7 +118,7 @@ export default function Login() {
                   className="input-inalde"
                 />
                 {mode === 'participante' && (
-                  <p className="text-[11px] text-inalde-gray mt-1.5">
+                  <p className="text-sm text-inalde-text mt-2">
                     Si es tu primer ingreso, tu clave es tu <strong>número de cédula</strong>.
                   </p>
                 )}
