@@ -3,9 +3,10 @@ import multer from 'multer';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
-import { encryptPII, sha256Hex, syntheticEmailFromCedula } from '../auth/crypto.js';
+import { encryptPII, decryptPII, sha256Hex, syntheticEmailFromCedula } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { buildAnteproyectoPDF } from '../services/pdf.js';
+import { sendEmail } from '../services/email.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -399,17 +400,92 @@ router.post('/sabanas/:cohorteId/asignar', async (req: AuthenticatedRequest, res
 });
 
 router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
-  // Marca la sábana como comunicada (envío real de emails es próxima iteración)
+  const { cohorteId } = req.params;
   const ahora = new Date().toISOString();
+
+  // 1. Traer todas las asignaciones de la cohorte con datos del profesor y los miembros del equipo
+  const { data: asignaciones, error: errAsign } = await supabaseAdmin
+    .from('asignaciones_profesor')
+    .select(`
+      id, equipo_id, profesor_id,
+      profesores:profesores!inner ( nombre_completo, email_encriptado, booking_url, areas_afinidad ),
+      equipos:equipos!inner (
+        id, nombre_equipo, cohorte_id,
+        miembros_equipo (
+          participantes_lista ( id, nombre_completo, email_encriptado )
+        )
+      )
+    `)
+    .eq('cohorte_id', cohorteId);
+  if (errAsign) return res.status(500).json({ error: errAsign.message });
+
+  // 2. Por cada asignación, enviar correo a cada participante del equipo
+  let emailsEnviados = 0;
+  let emailsFallados = 0;
+  const fallos: Array<{ destinatario: string; razon: string }> = [];
+
+  for (const a of asignaciones ?? []) {
+    const prof: any = a.profesores;
+    const equipo: any = a.equipos;
+    const profesorNombre = prof?.nombre_completo ?? 'tu profesor';
+    const bookingLine = prof?.booking_url
+      ? `<p style="margin:12pt 0">Agenda de tutoría del profesor: <a href="${prof.booking_url}">${prof.booking_url}</a></p>`
+      : '';
+    const areasLine = (prof?.areas_afinidad?.length ?? 0) > 0
+      ? `<p style="margin:6pt 0;color:#6b6b6b;font-size:11pt"><strong>Áreas de afinidad:</strong> ${(prof.areas_afinidad as string[]).join(', ')}</p>`
+      : '';
+
+    const miembros = (equipo?.miembros_equipo ?? []) as Array<{ participantes_lista: any }>;
+    for (const m of miembros) {
+      const p = m.participantes_lista;
+      if (!p?.email_encriptado) continue;
+      let realEmail: string;
+      try { realEmail = decryptPII(p.email_encriptado); }
+      catch { emailsFallados++; fallos.push({ destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }); continue; }
+
+      const html = `
+        <div style="font-family:Roboto,Arial,sans-serif;color:#1a1a1a;max-width:540px;margin:0 auto">
+          <h2 style="color:#e30613;border-bottom:3px solid #e30613;padding-bottom:8pt;margin-bottom:14pt">
+            Te asignaron profesor de trabajo de grado
+          </h2>
+          <p>Hola <strong>${p.nombre_completo}</strong>,</p>
+          <p>El equipo <strong>${equipo?.nombre_equipo ?? '(sin nombre)'}</strong>
+             tiene asignado el profesor <strong>${profesorNombre}</strong> para acompañar el trabajo de grado.</p>
+          ${areasLine}
+          ${bookingLine}
+          <p style="margin-top:18pt">Próximos pasos:</p>
+          <ul>
+            <li>Coordinar la <strong>Reunión 1</strong> con tu profesor según el cronograma de la cohorte.</li>
+            <li>Entrar a la plataforma para revisar el detalle: <a href="${process.env.FRONTEND_URL ?? 'https://naves-frontend.huem98.easypanel.host'}">NAVES</a></li>
+          </ul>
+          <p style="font-size:9pt;color:#6b6b6b;margin-top:24pt">
+            NAVES — INALDE Business School · MBA<br>
+            Este es un mensaje automático del sistema; por favor no respondas a este correo.
+          </p>
+        </div>`;
+
+      const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
+      if (r.ok) emailsEnviados++;
+      else { emailsFallados++; fallos.push({ destinatario: p.nombre_completo, razon: r.reason ?? 'UNKNOWN' }); }
+    }
+  }
+
+  // 3. Marcar como comunicada en BD (independiente del resultado de emails)
   await supabaseAdmin
     .from('sabanas_proyectos')
     .update({ estado: 'comunicada', fecha_comunicacion: ahora })
-    .eq('cohorte_id', req.params.cohorteId);
+    .eq('cohorte_id', cohorteId);
   await supabaseAdmin
     .from('asignaciones_profesor')
     .update({ notificacion_enviada: true, fecha_notificacion: ahora })
-    .eq('cohorte_id', req.params.cohorteId);
-  res.json({ ok: true, nota: 'Marcada como comunicada. Envío SMTP real pendiente de configuración.' });
+    .eq('cohorte_id', cohorteId);
+
+  res.json({
+    ok: true,
+    emails_enviados: emailsEnviados,
+    emails_fallados: emailsFallados,
+    fallos: fallos.slice(0, 20),
+  });
 });
 
 export default router;
