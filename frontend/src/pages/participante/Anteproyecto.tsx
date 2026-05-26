@@ -1,4 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+// Bloquea pegar y arrastrar texto en cualquier input. Por integridad académica.
+const noPasteProps = {
+  onPaste: (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    alert('Por integridad académica, no se permite pegar texto. Escribe tu propia respuesta.');
+  },
+  onDrop: (e: React.DragEvent) => e.preventDefault(),
+};
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { CiiuPicker } from '../../components/inalde/CiiuPicker';
@@ -684,12 +693,72 @@ function CheckboxGroup<T extends string>({ options, value, onChange }: {
 function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder }: {
   value: string; onChange: (v: string) => void; max: number; rows?: number; placeholder?: string;
 }) {
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  function insertBullet() {
+    const ta = taRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const before = value.slice(0, start);
+    const after = value.slice(end);
+    const prefix = before.length === 0 || before.endsWith('\n') ? '' : '\n';
+    const inserted = `${prefix}• `;
+    const next = (before + inserted + after).slice(0, max);
+    onChange(next);
+    requestAnimationFrame(() => {
+      const pos = before.length + inserted.length;
+      ta.focus();
+      ta.setSelectionRange(pos, pos);
+    });
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== 'Enter') return;
+    const ta = e.currentTarget;
+    const pos = ta.selectionStart;
+    const before = value.slice(0, pos);
+    const lineStart = before.lastIndexOf('\n') + 1;
+    const currentLine = before.slice(lineStart);
+    const bulletMatch = currentLine.match(/^(\s*)(•\s|-\s)/);
+    if (!bulletMatch) return;
+    if (currentLine.trim() === bulletMatch[2].trim()) {
+      e.preventDefault();
+      const after = value.slice(pos);
+      const next = value.slice(0, lineStart) + after;
+      onChange(next);
+      requestAnimationFrame(() => {
+        ta.focus();
+        ta.setSelectionRange(lineStart, lineStart);
+      });
+      return;
+    }
+    e.preventDefault();
+    const after = value.slice(pos);
+    const indent = bulletMatch[1] ?? '';
+    const insert = `\n${indent}• `;
+    const next = (before + insert + after).slice(0, max);
+    onChange(next);
+    requestAnimationFrame(() => {
+      const newPos = before.length + insert.length;
+      ta.focus();
+      ta.setSelectionRange(newPos, newPos);
+    });
+  }
+
   return (
     <div>
-      <textarea value={value} maxLength={max} rows={rows} placeholder={placeholder}
+      <textarea ref={taRef} value={value} maxLength={max} rows={rows} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        onPaste={(e) => { e.preventDefault(); alert('Por integridad académica, no se permite pegar texto. Escribe tu propia respuesta.'); }}
+        onDrop={(e) => e.preventDefault()}
         className="input-inalde resize-none" />
-      <div className="flex justify-end mt-1">
+      <div className="flex justify-between items-center mt-1 gap-3">
+        <button type="button" onClick={insertBullet}
+          className="text-xs text-inalde-gray hover:text-inalde-red transition">
+          • Agregar viñeta
+        </button>
         <span className="text-xs font-mono text-inalde-gray">
           {value.length} / {max}
         </span>
@@ -728,7 +797,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
           <input type="text" value={proyecto.nombre} maxLength={150}
             onChange={(e) => onChange({ nombre: e.target.value })}
             placeholder="Ej: T-Health, Oviland, Vitalia"
-            className="input-inalde" />
+            className="input-inalde" {...noPasteProps} />
         </Field>
         <Field label="Tipo">
           <select value={proyecto.tipo} className="input-inalde"
@@ -821,7 +890,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
                       placeholder="Describe tu hito (ej. Validación con 20 clientes)"
                       autoFocus={!h.descripcion}
                       onChange={(e) => onUpdateHito(hi, { descripcion: e.target.value })}
-                      className="input-inalde flex-1" />
+                      className="input-inalde flex-1" {...noPasteProps} />
                     <button type="button"
                       onClick={() => { setManual(hi, false); onUpdateHito(hi, { descripcion: '', fecha_fin: '' }); }}
                       title="Elegir del cronograma NAVES"
