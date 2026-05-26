@@ -226,6 +226,12 @@ export default function Dashboard() {
           {/* Vista profesor (no super_admin) */}
           {isProfesor && !isSuperAdmin && (
             <div className="grid sm:grid-cols-2 gap-6">
+              <Link to="/profesor/seleccionar-proyectos" className="card-inalde-interactive flex flex-col gap-3">
+                <div className="text-3xl">🎯</div>
+                <h2 className="font-primary font-bold text-lg">Elegir proyecto definitivo</h2>
+                <p className="text-inalde-gray text-sm">Para cada uno de tus equipos asignados con más de un proyecto, marca cuál queda como definitivo después del Comité.</p>
+                <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+              </Link>
               <Link to="/admin/anteproyectos" className="card-inalde-interactive flex flex-col gap-3">
                 <div className="text-3xl">📋</div>
                 <h2 className="font-primary font-bold text-lg">Ver anteproyectos</h2>

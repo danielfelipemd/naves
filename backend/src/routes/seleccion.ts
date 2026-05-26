@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
+import { decryptPII } from '../auth/crypto.js';
+import { sendEmail } from '../services/email.js';
 
 const router = Router();
 router.use(requireAuth());
@@ -64,33 +66,50 @@ router.post('/equipos/:id/marcar-reunion-1', requireRole('participante'), async 
 });
 
 // === POST /api/equipos/:id/seleccionar-proyecto-definitivo =============
+// Lo ejecuta el PROFESOR asignado al equipo (o super_admin). El participante
+// solo ve el resultado en su Dashboard.
 const seleccionarSchema = z.object({ proyecto_id: z.string().uuid() });
-router.post('/equipos/:id/seleccionar-proyecto-definitivo', requireRole('participante'), async (req: AuthenticatedRequest, res) => {
+router.post('/equipos/:id/seleccionar-proyecto-definitivo', requireRole('profesor', 'super_admin'), async (req: AuthenticatedRequest, res) => {
   const parsed = seleccionarSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID' });
 
-  const pid = req.user!.participanteId;
-  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+  const profesorId = req.user!.profesorId;
+  const isSuperAdmin = !!req.user!.isSuperAdmin;
+  if (!profesorId && !isSuperAdmin) return res.status(403).json({ error: 'NO_PROFESOR_ID' });
 
-  // Member?
-  const { data: yo } = await supabaseAdmin
-    .from('miembros_equipo').select('id').eq('equipo_id', req.params.id).eq('participante_id', pid).maybeSingle();
-  if (!yo) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
+  // Validar asignación: el profesor debe tener este equipo asignado (excepto super_admin).
+  if (!isSuperAdmin) {
+    const { data: asign } = await supabaseAdmin
+      .from('asignaciones_profesor')
+      .select('id')
+      .eq('equipo_id', req.params.id)
+      .eq('profesor_id', profesorId)
+      .maybeSingle();
+    if (!asign) return res.status(403).json({ error: 'NOT_ASSIGNED_TO_TEAM' });
+  }
 
   const equipo = await fetchEquipoConCohorte(req.params.id);
   if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
-  if (!equipo.reunion_1_marcada_por) return res.status(412).json({ error: 'REUNION_1_NOT_MARKED' });
   if (equipo.proyecto_definitivo_id) return res.status(409).json({ error: 'ALREADY_SELECTED', proyecto_definitivo_id: equipo.proyecto_definitivo_id });
 
   const fechas = equipo.cohortes as any;
-  if (fechas?.fecha_limite_seleccion_definitivo && new Date() > new Date(fechas.fecha_limite_seleccion_definitivo)) {
+  const ahoraD = new Date();
+  // Reunión 1 marca el momento desde el que el profesor puede elegir el definitivo.
+  if (fechas?.fecha_reunion_1 && ahoraD < new Date(fechas.fecha_reunion_1)) {
+    return res.status(403).json({ error: 'TOO_EARLY', fecha_reunion_1: fechas.fecha_reunion_1 });
+  }
+  if (fechas?.fecha_limite_seleccion_definitivo && ahoraD > new Date(fechas.fecha_limite_seleccion_definitivo)) {
     return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA' });
   }
 
-  // El proyecto debe pertenecer al anteproyecto del equipo
+  // El anteproyecto debe haber sido enviado (no se puede elegir definitivo sobre un borrador)
   const { data: ant } = await supabaseAdmin
-    .from('anteproyectos').select('id, proyectos(id)').eq('equipo_id', req.params.id).maybeSingle();
+    .from('anteproyectos')
+    .select('id, estado, proyectos(id)')
+    .eq('equipo_id', req.params.id)
+    .maybeSingle();
   if (!ant) return res.status(409).json({ error: 'NO_ANTEPROYECTO' });
+  if (ant.estado === 'borrador') return res.status(409).json({ error: 'ANTEPROYECTO_NO_ENVIADO' });
   const ids = ((ant.proyectos as any[]) ?? []).map((p) => p.id);
   if (!ids.includes(parsed.data.proyecto_id)) return res.status(400).json({ error: 'PROJECT_NOT_IN_TEAM' });
 
@@ -108,6 +127,49 @@ router.post('/equipos/:id/seleccionar-proyecto-definitivo', requireRole('partici
     .eq('id', req.params.id);
 
   res.json({ ok: true, proyecto_definitivo_id: parsed.data.proyecto_id, archivados_count: ids.length - 1 });
+});
+
+// === GET /api/profesor/mis-equipos-pendientes =============
+// Lista los equipos asignados al profesor con anteproyecto enviado y proyecto definitivo
+// aún sin elegir (es decir, equipos con >1 proyecto).
+router.get('/profesor/mis-equipos-pendientes', requireRole('profesor', 'super_admin'), async (req: AuthenticatedRequest, res) => {
+  const profesorId = req.user!.profesorId;
+  if (!profesorId) return res.status(403).json({ error: 'NO_PROFESOR_ID' });
+
+  const { data: asignaciones, error } = await supabaseAdmin
+    .from('asignaciones_profesor')
+    .select(`
+      equipo_id,
+      equipos:equipos!inner (
+        id, nombre_equipo, cohorte_id, proyecto_definitivo_id, fecha_seleccion_definitivo,
+        miembros_equipo ( participantes_lista ( nombre_completo ) ),
+        anteproyectos:anteproyectos!inner (
+          id, estado,
+          proyectos ( id, nombre, tipo, sector, ciiu, estado_seleccion, canvas_cliente_problema, canvas_ingresos, canvas_recursos, canvas_actividades, fuentes_primarias, fuentes_secundarias, estado )
+        )
+      )
+    `)
+    .eq('profesor_id', profesorId);
+  if (error) return res.status(500).json({ error: error.message });
+
+  const equipos = (asignaciones ?? []).map((a: any) => {
+    const e = a.equipos;
+    const ant = e.anteproyectos;
+    const proyectos = (ant?.proyectos ?? []).filter((p: any) => p.estado_seleccion !== 'archivado');
+    return {
+      equipo_id: e.id,
+      nombre_equipo: e.nombre_equipo,
+      cohorte_id: e.cohorte_id,
+      anteproyecto_estado: ant?.estado,
+      proyecto_definitivo_id: e.proyecto_definitivo_id,
+      fecha_seleccion_definitivo: e.fecha_seleccion_definitivo,
+      miembros: (e.miembros_equipo ?? []).map((m: any) => m.participantes_lista?.nombre_completo).filter(Boolean),
+      proyectos,
+      requiere_seleccion: !e.proyecto_definitivo_id && ant?.estado === 'enviado' && proyectos.length > 1,
+    };
+  });
+
+  res.json({ equipos });
 });
 
 // === POST /api/proyectos/:id/solicitar-desarchivar ====================
@@ -187,6 +249,105 @@ router.post('/admin/solicitudes-desarchivado/:id/rechazar', requireRole('profeso
   }).eq('id', req.params.id);
 
   res.json({ ok: true });
+});
+
+// === POST /api/admin/notificar-seleccion-pendiente =============
+// Recorre todos los profesores con equipos asignados que ya pasaron la fecha
+// de Reunión 1 y tienen >1 proyecto sin proyecto_definitivo_id. Envía un email
+// al profesor con la lista de equipos que necesita resolver.
+router.post('/admin/notificar-seleccion-pendiente', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
+  const cohorteId = (req.body as any)?.cohorte_id as string | undefined;
+
+  // Traer asignaciones (opcionalmente filtradas por cohorte)
+  let q = supabaseAdmin
+    .from('asignaciones_profesor')
+    .select(`
+      profesor_id, equipo_id,
+      profesores:profesores!inner ( id, nombre_completo, email_encriptado ),
+      equipos:equipos!inner (
+        id, nombre_equipo, cohorte_id, proyecto_definitivo_id,
+        cohortes:cohortes ( fecha_reunion_1, fecha_limite_seleccion_definitivo ),
+        anteproyectos:anteproyectos!inner ( id, estado, proyectos ( id, estado_seleccion ) )
+      )
+    `);
+  if (cohorteId) q = q.eq('cohorte_id', cohorteId);
+
+  const { data: rows, error } = await q;
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Agrupar por profesor: equipos pendientes
+  const ahora = new Date();
+  const porProfesor = new Map<string, { profesor: any; equipos: any[] }>();
+
+  for (const a of rows ?? []) {
+    const p: any = a.profesores;
+    const e: any = a.equipos;
+    const cohortes: any = e?.cohortes;
+    const ant: any = e?.anteproyectos;
+    const proyectos = (ant?.proyectos ?? []) as any[];
+
+    const yaTieneDefinitivo = !!e?.proyecto_definitivo_id;
+    const tieneVariosProyectos = proyectos.length > 1;
+    const fechaR1 = cohortes?.fecha_reunion_1 ? new Date(cohortes.fecha_reunion_1) : null;
+    const yaPasoR1 = !fechaR1 || ahora >= fechaR1;
+    const enviado = ant?.estado === 'enviado';
+
+    if (!yaTieneDefinitivo && tieneVariosProyectos && enviado && yaPasoR1) {
+      const key = p.id;
+      if (!porProfesor.has(key)) porProfesor.set(key, { profesor: p, equipos: [] });
+      porProfesor.get(key)!.equipos.push({
+        equipo_id: e.id,
+        nombre_equipo: e.nombre_equipo,
+        cohorte_id: e.cohorte_id,
+        cantidad_proyectos: proyectos.length,
+      });
+    }
+  }
+
+  let emailsEnviados = 0;
+  let emailsFallados = 0;
+  const fallos: Array<{ profesor: string; razon: string }> = [];
+
+  for (const { profesor, equipos } of porProfesor.values()) {
+    if (!profesor.email_encriptado) { emailsFallados++; fallos.push({ profesor: profesor.nombre_completo, razon: 'NO_EMAIL' }); continue; }
+    let realEmail: string;
+    try { realEmail = decryptPII(profesor.email_encriptado); }
+    catch { emailsFallados++; fallos.push({ profesor: profesor.nombre_completo, razon: 'PII_DECRYPT_FAILED' }); continue; }
+
+    const filas = equipos
+      .map((eq) => `<li><strong>${eq.nombre_equipo || '(sin nombre)'}</strong> · cohorte ${eq.cohorte_id} · ${eq.cantidad_proyectos} proyectos</li>`)
+      .join('');
+    const html = `
+      <div style="font-family:Roboto,Arial,sans-serif;color:#1a1a1a;max-width:560px;margin:0 auto">
+        <h2 style="color:#e30613;border-bottom:3px solid #e30613;padding-bottom:8pt;margin-bottom:14pt">
+          Tienes equipos pendientes de selección de proyecto definitivo
+        </h2>
+        <p>Hola <strong>${profesor.nombre_completo}</strong>,</p>
+        <p>Después de la Reunión 1 y del Comité de Profesores, te corresponde marcar el proyecto definitivo
+           para los siguientes equipos asignados que presentaron <strong>más de un proyecto</strong>:</p>
+        <ul>${filas}</ul>
+        <p style="margin-top:18pt">Entra a la plataforma para resolverlo:</p>
+        <p><a href="${process.env.FRONTEND_URL ?? 'https://naves-frontend.huem98.easypanel.host'}/profesor/seleccionar-proyectos"
+              style="display:inline-block;background:#e30613;color:#fff;text-decoration:none;padding:10px 18px;border-radius:4px;font-weight:600">
+           Elegir proyecto definitivo →
+        </a></p>
+        <p style="font-size:9pt;color:#6b6b6b;margin-top:24pt">
+          NAVES — INALDE Business School · MBA<br>
+          Mensaje automático; no respondas a este correo.
+        </p>
+      </div>`;
+
+    const r = await sendEmail(realEmail, 'Pendiente: elegir proyecto definitivo de tus equipos', html);
+    if (r.ok) emailsEnviados++;
+    else { emailsFallados++; fallos.push({ profesor: profesor.nombre_completo, razon: r.reason ?? 'UNKNOWN' }); }
+  }
+
+  res.json({
+    profesores_notificados: emailsEnviados,
+    profesores_fallados: emailsFallados,
+    fallos: fallos.slice(0, 20),
+    sin_pendientes: porProfesor.size === 0,
+  });
 });
 
 export default router;
