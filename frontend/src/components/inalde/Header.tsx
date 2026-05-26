@@ -24,7 +24,7 @@ export function Header() {
               Trabajo de grado
             </p>
             <p className="font-primary font-extrabold text-xl tracking-tight leading-none text-inalde-text">
-              NAVE<span className="text-inalde-red">S</span>
+              MBA
             </p>
           </div>
         </a>
