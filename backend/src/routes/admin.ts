@@ -250,6 +250,97 @@ router.put('/cohortes/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/admin/cohortes/:id/participantes — listar para gestión
+router.get('/cohortes/:id/participantes', async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('participantes_lista')
+    .select(`
+      id, auth_user_id, nombre_completo, cedula_encriptada, email_encriptado,
+      estado, fecha_creacion, tipo_trabajo_grado,
+      miembros_equipo ( equipo_id )
+    `)
+    .eq('cohorte_id', req.params.id)
+    .order('nombre_completo');
+  if (error) return res.status(500).json({ error: error.message });
+  // Descifrar para mostrar al admin + flag "en_equipo"
+  const out = (data ?? []).map((p: any) => {
+    let cedula = '', email = '';
+    try { cedula = decryptPII(p.cedula_encriptada); } catch { /* ignore */ }
+    try { email = decryptPII(p.email_encriptado); } catch { /* ignore */ }
+    const en_equipo = Array.isArray(p.miembros_equipo) && p.miembros_equipo.length > 0;
+    return {
+      id: p.id,
+      auth_user_id: p.auth_user_id,
+      nombre_completo: p.nombre_completo,
+      cedula,
+      email,
+      estado: p.estado,
+      tipo_trabajo_grado: p.tipo_trabajo_grado,
+      fecha_creacion: p.fecha_creacion,
+      en_equipo,
+    };
+  });
+  res.json(out);
+});
+
+// DELETE /api/admin/participantes/:id — borra participante + auth user
+// Solo si NO está en ningún equipo y no es creador de ningún equipo
+router.delete('/participantes/:id', async (req, res) => {
+  const id = req.params.id;
+  const [{ count: enEquipo }, { count: esCreador }] = await Promise.all([
+    supabaseAdmin.from('miembros_equipo').select('id', { count: 'exact', head: true }).eq('participante_id', id),
+    supabaseAdmin.from('equipos').select('id', { count: 'exact', head: true }).eq('creador_id', id),
+  ]);
+  if ((enEquipo ?? 0) > 0 || (esCreador ?? 0) > 0) {
+    return res.status(409).json({
+      error: 'PARTICIPANTE_EN_EQUIPO',
+      en_equipo: enEquipo ?? 0,
+      es_creador: esCreador ?? 0,
+    });
+  }
+  // Auth user id
+  const { data: p } = await supabaseAdmin
+    .from('participantes_lista').select('auth_user_id').eq('id', id).maybeSingle();
+  // Borrar participante (recovery_tokens cascadea solo)
+  const { error } = await supabaseAdmin.from('participantes_lista').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  // Borrar auth user (best effort)
+  if (p?.auth_user_id) {
+    const supabaseUrl = process.env.SUPABASE_URL!;
+    const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    try {
+      await fetch(`${supabaseUrl}/auth/v1/admin/users/${p.auth_user_id}`, {
+        method: 'DELETE',
+        headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` },
+      });
+    } catch { /* ignore */ }
+  }
+  res.json({ ok: true });
+});
+
+// DELETE /api/admin/cohortes/:id — solo si no tiene participantes ni equipos
+router.delete('/cohortes/:id', async (req, res) => {
+  const id = req.params.id;
+  const [p, e] = await Promise.all([
+    supabaseAdmin.from('participantes_lista').select('id', { count: 'exact', head: true }).eq('cohorte_id', id),
+    supabaseAdmin.from('equipos').select('id', { count: 'exact', head: true }).eq('cohorte_id', id),
+  ]);
+  if ((p.count ?? 0) > 0 || (e.count ?? 0) > 0) {
+    return res.status(409).json({
+      error: 'COHORTE_TIENE_DATOS',
+      participantes: p.count ?? 0,
+      equipos: e.count ?? 0,
+    });
+  }
+  // Limpiar dependencias sin CASCADE (sabanas, asignaciones)
+  await supabaseAdmin.from('asignaciones_profesor').delete().eq('cohorte_id', id);
+  await supabaseAdmin.from('sabanas').delete().eq('cohorte_id', id);
+  // cohorte_hitos tiene ON DELETE CASCADE
+  const { error } = await supabaseAdmin.from('cohortes').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 // =====================================================================
 // PROFESORES — CRUD
 // =====================================================================

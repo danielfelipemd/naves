@@ -2,21 +2,57 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 
-interface Cohorte { id: string; etiqueta: string; participantes_count: number; }
+interface Cohorte { id: string; etiqueta: string; participantes_count: number; activa: boolean; }
+interface Participante {
+  id: string; nombre_completo: string; cedula: string; email: string;
+  estado: string; en_equipo: boolean;
+}
 
 export default function Participantes() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorte, setCohorte] = useState('');
+  const [participantes, setParticipantes] = useState<Participante[]>([]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { (async () => {
+  async function loadCohortes() {
     const { data } = await api.get('/admin/cohortes');
     setCohortes(data);
-    setCohorte(data.find((c: Cohorte) => c.participantes_count === 0)?.id ?? data[0]?.id ?? '');
+    return data as Cohorte[];
+  }
+  async function loadParticipantes(cohorteId: string) {
+    if (!cohorteId) { setParticipantes([]); return; }
+    try {
+      const { data } = await api.get(`/admin/cohortes/${cohorteId}/participantes`);
+      setParticipantes(data);
+    } catch { setParticipantes([]); }
+  }
+
+  useEffect(() => { (async () => {
+    const data = await loadCohortes();
+    const sel = data.find((c) => c.participantes_count === 0)?.id ?? data[0]?.id ?? '';
+    setCohorte(sel);
   })(); }, []);
+
+  useEffect(() => { loadParticipantes(cohorte); }, [cohorte]);
+
+  async function borrarParticipante(p: Participante) {
+    if (p.en_equipo) {
+      setErr(`No se puede borrar a ${p.nombre_completo}: ya está en un equipo. Quítalo del equipo primero.`);
+      return;
+    }
+    if (!confirm(`¿Borrar a "${p.nombre_completo}" de la cohorte? También se eliminará su acceso al sistema.`)) return;
+    setErr(null);
+    try {
+      await api.delete(`/admin/participantes/${p.id}`);
+      await loadParticipantes(cohorte);
+      await loadCohortes();
+    } catch (e: any) {
+      setErr(formatBackendError(e));
+    }
+  }
 
   async function upload() {
     setErr(null); setResult(null);
@@ -32,9 +68,9 @@ export default function Participantes() {
     try {
       const { data } = await api.post('/admin/participantes/cargar-excel', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setResult(data);
-      // refresh cohortes counts
-      const fresh = await api.get('/admin/cohortes');
-      setCohortes(fresh.data);
+      // refresh cohortes + lista de esta cohorte
+      await loadCohortes();
+      await loadParticipantes(cohorte);
     } catch (e: any) {
       setErr(formatBackendError(e));
     } finally { setBusy(false); }
@@ -97,6 +133,49 @@ export default function Participantes() {
             </details>
           )}
           {result.nota && <p className="text-xs text-inalde-gray mt-2">{result.nota}</p>}
+        </div>
+      )}
+
+      {cohorte && participantes.length > 0 && (
+        <div className="mt-10">
+          <h2 className="font-primary font-bold text-base text-inalde-text mb-3">
+            Participantes en {cohorte} <span className="text-inalde-gray font-normal text-sm">({participantes.length})</span>
+          </h2>
+          <table className="w-full text-sm border border-inalde-gray-light rounded overflow-hidden">
+            <thead className="bg-inalde-gray-bg text-left">
+              <tr>
+                <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Nombre</th>
+                <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Cédula</th>
+                <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Email</th>
+                <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Estado</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {participantes.map((p) => (
+                <tr key={p.id} className="border-t border-inalde-gray-light">
+                  <td className="px-3 py-2 font-medium">{p.nombre_completo}</td>
+                  <td className="px-3 py-2 text-inalde-gray font-mono text-xs">{p.cedula}</td>
+                  <td className="px-3 py-2 text-inalde-gray text-xs">{p.email}</td>
+                  <td className="px-3 py-2">
+                    <span className={`text-xs uppercase tracking-wider font-semibold ${p.estado === 'activo' ? 'text-inalde-blue' : 'text-inalde-gray'}`}>
+                      {p.estado}
+                    </span>
+                    {p.en_equipo && <span className="text-[10px] ml-2 text-inalde-gold uppercase tracking-wider">· en equipo</span>}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <button
+                      onClick={() => borrarParticipante(p)}
+                      disabled={p.en_equipo}
+                      title={p.en_equipo ? 'Está en un equipo; primero quítalo del equipo' : 'Borrar participante'}
+                      className="text-xs font-semibold text-inalde-gray hover:text-inalde-red disabled:opacity-40 disabled:cursor-not-allowed">
+                      Borrar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </>

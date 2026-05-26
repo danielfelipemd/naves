@@ -12,6 +12,8 @@ export function formatBackendError(e: any): string {
     MISSING_FILE: 'Selecciona el archivo Excel a cargar.',
     EMPTY_WORKBOOK: 'El archivo Excel está vacío o no tiene hojas.',
     COHORTE_NOT_FOUND: 'La cohorte seleccionada no existe.',
+    PARTICIPANTE_EN_EQUIPO: 'No se puede borrar: el participante ya pertenece a un equipo o es creador de uno. Quítalo del equipo primero.',
+    COHORTE_TIENE_DATOS: 'No se puede borrar: la cohorte tiene participantes o equipos. Bórralos primero.',
     NOT_TEAM_MEMBER: 'No formas parte de este equipo.',
     ALREADY_SUBMITTED: 'Este anteproyecto ya fue enviado y no se puede modificar.',
     FECHA_LIMITE_EXPIRADA: 'La fecha límite para esta acción ya pasó.',

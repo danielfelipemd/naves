@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 
 interface Hito {
   posicion: number;
@@ -101,7 +102,34 @@ export default function Cohortes() {
       setEditing(null);
       await load();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    }
+  }
+
+  async function toggleActiva(c: Cohorte) {
+    setMsg(null);
+    try {
+      await api.put(`/admin/cohortes/${c.id}`, { activa: !c.activa });
+      setMsg({ kind: 'ok', text: `Cohorte ${c.id} ${!c.activa ? 'activada' : 'desactivada'}.` });
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    }
+  }
+
+  async function eliminar(c: Cohorte) {
+    if (c.participantes_count > 0 || c.equipos_count > 0) {
+      setMsg({ kind: 'err', text: `No se puede borrar "${c.etiqueta}": tiene ${c.participantes_count} participante(s) y ${c.equipos_count} equipo(s). Bórralos primero.` });
+      return;
+    }
+    if (!confirm(`¿Borrar la cohorte "${c.etiqueta}" (${c.id})? Esta acción es irreversible.`)) return;
+    setMsg(null);
+    try {
+      await api.delete(`/admin/cohortes/${c.id}`);
+      setMsg({ kind: 'ok', text: `Cohorte ${c.id} eliminada.` });
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     }
   }
 
@@ -139,7 +167,23 @@ export default function Cohortes() {
                     <button onClick={save} className="btn-inalde-primary !py-2 !px-4 !text-xs">Guardar</button>
                   </div>
                 ) : (
-                  <button onClick={() => startEdit(c)} className="text-sm font-semibold text-inalde-red hover:text-inalde-red-hover">Editar →</button>
+                  <div className="flex gap-3 items-center">
+                    <button onClick={() => toggleActiva(c)}
+                      title={c.activa ? 'Desactivar cohorte (no recibe más participantes)' : 'Reactivar cohorte'}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded border transition ${c.activa
+                        ? 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'
+                        : 'border-inalde-blue text-inalde-blue hover:bg-inalde-blue/10'}`}>
+                      {c.activa ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button onClick={() => startEdit(c)} className="text-sm font-semibold text-inalde-red hover:text-inalde-red-hover">Editar →</button>
+                    {c.participantes_count === 0 && c.equipos_count === 0 && (
+                      <button onClick={() => eliminar(c)}
+                        title="Borrar cohorte (solo si está vacía)"
+                        className="text-xs font-semibold text-inalde-gray hover:text-inalde-red transition">
+                        Borrar
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
