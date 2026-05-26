@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 
 interface Profesor {
   id: string;
@@ -43,7 +44,7 @@ export default function Profesores() {
       setForm({ nombre_completo: '', email: '', password: '', es_super_admin: false, booking_url: '', areas_afinidad: '' });
       await load();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.detail ?? e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -62,7 +63,7 @@ export default function Profesores() {
       setEditing(null);
       await load();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -75,7 +76,7 @@ export default function Profesores() {
       setMsg({ kind: 'ok', text: `${p.nombre_completo} ${p.activo ? 'desactivado' : 'reactivado'}.` });
       await load();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -92,7 +93,7 @@ export default function Profesores() {
       </div>
 
       {msg && (
-        <div className={`rounded border-l-4 px-4 py-3 text-sm mb-6 ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>
+        <div className={`rounded border-l-4 px-4 py-3 text-sm mb-6 whitespace-pre-line ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>
           {msg.text}
         </div>
       )}
