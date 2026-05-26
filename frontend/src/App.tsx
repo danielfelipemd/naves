@@ -7,6 +7,7 @@ import ResetPassword from './pages/auth/ResetPassword';
 import CambiarClaveInicial from './pages/auth/CambiarClaveInicial';
 import Dashboard from './pages/Dashboard';
 import MiEquipo from './pages/participante/MiEquipo';
+import MiPerfil from './pages/participante/MiPerfil';
 import Anteproyecto from './pages/participante/Anteproyecto';
 import TrabajoGrado from './pages/participante/TrabajoGrado';
 import SeleccionDefinitivo from './pages/participante/SeleccionDefinitivo';
@@ -24,11 +25,12 @@ import AdminSolicitudes from './pages/admin/Solicitudes';
 import AdminAuditoria from './pages/admin/Auditoria';
 import AdminRolesPermisos from './pages/admin/RolesPermisos';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading, requiereCambioClave } = useAuth();
+function ProtectedRoute({ children, requierePerfilOk = false }: { children: React.ReactNode; requierePerfilOk?: boolean }) {
+  const { session, loading, requiereCambioClave, requierePerfil } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-inalde-gray">Cargando…</div>;
   if (!session) return <Navigate to="/login" replace />;
   if (requiereCambioClave) return <Navigate to="/cambiar-clave-inicial" replace />;
+  if (requierePerfilOk && requierePerfil) return <Navigate to="/mi-perfil" replace />;
   return <>{children}</>;
 }
 
@@ -62,10 +64,11 @@ export default function App() {
         <Route path="/cambiar-clave-inicial" element={<CambiarClaveRoute />} />
 
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/equipo" element={<ProtectedRoute><MiEquipo /></ProtectedRoute>} />
-        <Route path="/anteproyecto" element={<ProtectedRoute><Anteproyecto /></ProtectedRoute>} />
+        <Route path="/mi-perfil" element={<ProtectedRoute><MiPerfil /></ProtectedRoute>} />
+        <Route path="/equipo" element={<ProtectedRoute requierePerfilOk><MiEquipo /></ProtectedRoute>} />
+        <Route path="/anteproyecto" element={<ProtectedRoute requierePerfilOk><Anteproyecto /></ProtectedRoute>} />
         <Route path="/trabajo-grado" element={<ProtectedRoute><TrabajoGrado /></ProtectedRoute>} />
-        <Route path="/seleccion" element={<ProtectedRoute><SeleccionDefinitivo /></ProtectedRoute>} />
+        <Route path="/seleccion" element={<ProtectedRoute requierePerfilOk><SeleccionDefinitivo /></ProtectedRoute>} />
         <Route path="/mi-profesor" element={<ProtectedRoute><MiProfesor /></ProtectedRoute>} />
         <Route path="/profesor/seleccionar-proyectos" element={<ProtectedRoute><ProfesorSeleccionarProyectos /></ProtectedRoute>} />
 

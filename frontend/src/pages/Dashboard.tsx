@@ -189,6 +189,14 @@ export default function Dashboard() {
                   {modalidad && (
                     <div className="grid sm:grid-cols-2 gap-6">
                       {modalidad === 'business_plan' && (
+                        <Link to="/mi-perfil" className="card-inalde-interactive flex flex-col gap-3">
+                          <div className="text-3xl">🧭</div>
+                          <h2 className="font-primary font-bold text-lg">Mi perfil emprendedor</h2>
+                          <p className="text-inalde-gray text-sm">Llena tu perfil <strong>antes de formar equipo</strong></p>
+                          <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                        </Link>
+                      )}
+                      {modalidad === 'business_plan' && (
                         <Link to="/seleccion" className="card-inalde-interactive flex flex-col gap-3">
                           <div className="text-3xl">✅</div>
                           <h2 className="font-primary font-bold text-lg">Selección del proyecto definitivo</h2>

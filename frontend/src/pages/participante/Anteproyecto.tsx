@@ -22,36 +22,6 @@ type Perfil = 'emprendedor' | 'directivo' | 'ambos';
 type EstadoProyecto = 'idea' | 'investigacion' | 'prototipo' | 'validacion' | 'funcionamiento';
 type Quiebra = 'nunca_despego' | 'funcionamiento' | 'vendido' | 'quebro' | 'na';
 
-const ESTADO_EMPRENDIMIENTO: Array<{ value: Quiebra; label: string }> = [
-  { value: 'nunca_despego',  label: 'Nunca despegó' },
-  { value: 'funcionamiento', label: 'Está en funcionamiento' },
-  { value: 'vendido',        label: 'Lo vendí' },
-  { value: 'quebro',         label: 'Se quebró' },
-  { value: 'na',             label: 'N/A' },
-];
-
-const EMOCIONES: Array<{ value: Emocion; label: string }> = [
-  { value: 'crear',      label: 'Crear algo nuevo desde cero' },
-  { value: 'dinero',     label: 'El potencial económico' },
-  { value: 'problema',   label: 'Resolver un problema que me apasiona' },
-  { value: 'autonomia',  label: 'La autonomía e independencia' },
-  { value: 'ninguna',    label: 'Aún no siento emoción' },
-];
-
-const PREOCUPACIONES: Array<{ value: Preocupacion; label: string }> = [
-  { value: 'financiera',  label: 'La incertidumbre financiera' },
-  { value: 'estres',      label: 'El estrés y sobrecarga de trabajo' },
-  { value: 'habilidades', label: 'No sé si tengo las habilidades necesarias' },
-  { value: 'familia',     label: 'El impacto en mi familia' },
-  { value: 'ninguna',     label: 'Aún no me preocupa nada' },
-];
-
-const PERFILES: Array<{ value: Perfil; label: string }> = [
-  { value: 'emprendedor', label: 'Emprendedor (crear desde cero)' },
-  { value: 'directivo',   label: 'Directivo (liderar estructuras existentes)' },
-  { value: 'ambos',       label: 'Ambos por igual' },
-];
-
 const ESTADOS_PROYECTO: Array<{ value: EstadoProyecto; label: string }> = [
   { value: 'idea',           label: 'Solo idea' },
   { value: 'investigacion',  label: 'Investigación de mercado' },
@@ -236,10 +206,6 @@ export default function Anteproyecto() {
   })(); }, [navigate]);
 
   // ----- Mutadores -----
-  function updateMiembro(i: number, patch: Partial<MiembroForm>) {
-    setMiembros((m) => m.map((x, idx) => idx === i ? { ...x, ...patch } : x));
-  }
-
   const numProyectos = proyectos.length;
   function setNumProyectos(n: number) {
     if (n === numProyectos) return;
@@ -521,67 +487,18 @@ export default function Anteproyecto() {
               : `Cuéntanos sobre cada uno de los ${numMiembros} miembros del equipo. Esto nos ayuda a entender la motivación colectiva.`}
           </p>
 
-          {miembros.map((m, i) => (
-            <fieldset key={m.participante_id} disabled={readOnly}
+          {miembros.map((m) => (
+            <div key={m.participante_id}
               className="border border-inalde-gray-light border-l-[3px] border-l-inalde-blue rounded p-5 mb-4">
-              <legend className="px-2 text-xs font-primary font-bold tracking-wider uppercase text-inalde-blue">
+              <p className="text-xs font-primary font-bold tracking-wider uppercase text-inalde-blue mb-2">
                 Miembro {m.posicion}
-              </legend>
-
-              {/* Datos personales (read-only, vienen de participantes_lista) */}
-              <div className="mb-5 pb-5 border-b border-inalde-gray-light">
-                <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">Datos personales</p>
-                <p className="font-primary font-bold text-lg text-inalde-text">{m.nombre}</p>
-                <p className="text-xs text-inalde-gray mt-1 italic">
-                  Cargado por el administrador desde la lista de la cohorte. Si hay un error, contacta a la asistente del programa.
-                </p>
-              </div>
-
-              {/* Perfil */}
-              <Field label="Rol con el que más te identificas">
-                <select value={m.perfil} className="input-inalde"
-                  onChange={(e) => updateMiembro(i, { perfil: e.target.value as Perfil })}>
-                  {PERFILES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </Field>
-
-              {/* Perfil emprendedor */}
-              <h4 className="mt-6 mb-3 font-primary font-bold text-sm tracking-wider uppercase text-inalde-text">
-                Perfil emprendedor
-              </h4>
-              <Field label="¿Has hecho algún emprendimiento?">
-                <RadioGroup value={String(m.fue_emprendedor)} onChange={(v) => updateMiembro(i, { fue_emprendedor: v === 'true' })}
-                  options={[{ value: 'no', label: 'No' }, { value: 'true', label: 'Sí' }]} />
-              </Field>
-
-              {m.fue_emprendedor && (
-                <div className="mt-4 p-4 rounded bg-inalde-gray-bg/60 border-l-4 border-inalde-gold">
-                  <p className="text-xs uppercase tracking-wider font-bold text-inalde-red mb-3">Sobre tu emprendimiento anterior</p>
-                  <Field label="¿Qué pasó con tu emprendimiento?">
-                    <RadioGroup value={m.quiebra} onChange={(v) => updateMiembro(i, { quiebra: v as Quiebra })}
-                      options={ESTADO_EMPRENDIMIENTO} />
-                  </Field>
-                  {m.quiebra === 'quebro' && (
-                    <div className="mt-3">
-                      <Field label="¿Qué aprendiste?">
-                        <TextareaWithCounter value={m.aprendizajes_quiebra} max={300} rows={3}
-                          onChange={(v) => updateMiembro(i, { aprendizajes_quiebra: v })} />
-                      </Field>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <Field label="¿Qué te emociona del emprendimiento?" hint="Selecciona uno o varios">
-                <CheckboxGroup options={EMOCIONES} value={m.emociones}
-                  onChange={(v) => updateMiembro(i, { emociones: v })} />
-              </Field>
-
-              <Field label="¿Qué te preocupa?" hint="Selecciona uno o varios">
-                <CheckboxGroup options={PREOCUPACIONES} value={m.preocupaciones}
-                  onChange={(v) => updateMiembro(i, { preocupaciones: v })} />
-              </Field>
-            </fieldset>
+              </p>
+              <p className="font-primary font-bold text-lg text-inalde-text">{m.nombre}</p>
+              <p className="text-xs text-inalde-gray mt-2 italic">
+                El perfil emprendedor (rol, emprendimiento previo, emociones, preocupaciones) lo llena cada miembro
+                desde <strong>Mi perfil</strong>. Aquí solo aparece su nombre como integrante.
+              </p>
+            </div>
           ))}
 
           {/* ============ Sección 2: Tus proyectos ============ */}
@@ -716,28 +633,6 @@ function RadioGroup({ value, onChange, options }: {
           <span>{o.label}</span>
         </label>
       ))}
-    </div>
-  );
-}
-
-function CheckboxGroup<T extends string>({ options, value, onChange }: {
-  options: Array<{ value: T; label: string }>;
-  value: T[];
-  onChange: (v: T[]) => void;
-}) {
-  return (
-    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 mt-1">
-      {options.map((o) => {
-        const checked = value.includes(o.value);
-        return (
-          <label key={o.value} className="flex items-start gap-2 cursor-pointer text-sm py-1">
-            <input type="checkbox" checked={checked}
-              onChange={() => onChange(checked ? value.filter((v) => v !== o.value) : [...value, o.value])}
-              className="mt-1 h-4 w-4 accent-inalde-red" />
-            <span>{o.label}</span>
-          </label>
-        );
-      })}
     </div>
   );
 }

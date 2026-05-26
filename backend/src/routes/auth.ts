@@ -193,14 +193,18 @@ router.get('/me', requireAuth(), async (req: any, res) => {
   // Resolver nombre_completo + estado (para forzar cambio de clave inicial en participantes)
   let nombre_completo: string | null = null;
   let estado: string | null = null;
+  let perfil_completo = false;
+  let tipo_trabajo_grado: string | null = null;
   if (req.user.participanteId) {
     const { data } = await supabaseAdmin
       .from('participantes_lista')
-      .select('nombre_completo, estado')
+      .select('nombre_completo, estado, perfil_completo_at, tipo_trabajo_grado')
       .eq('id', req.user.participanteId)
       .maybeSingle();
     nombre_completo = data?.nombre_completo ?? null;
     estado = data?.estado ?? null;
+    perfil_completo = !!data?.perfil_completo_at;
+    tipo_trabajo_grado = data?.tipo_trabajo_grado ?? null;
   } else if (req.user.profesorId) {
     const { data } = await supabaseAdmin
       .from('profesores')
@@ -215,7 +219,10 @@ router.get('/me', requireAuth(), async (req: any, res) => {
     role: req.user.role,
     nombre_completo,
     estado,
+    tipo_trabajo_grado,
+    perfil_completo,
     requiere_cambio_clave: estado === 'pendiente_activacion',
+    requiere_perfil: tipo_trabajo_grado === 'business_plan' && !perfil_completo && estado === 'activo',
     es_super_admin: req.user.isSuperAdmin,
     profesor_id: req.user.profesorId ?? null,
     participante_id: req.user.participanteId ?? null,
