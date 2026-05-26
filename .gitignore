@@ -19,3 +19,5 @@ venv/
 .supabase-new-env.txt
 .supabase-source-backup.json
 .naves-app-secrets.env
+DELETED
+.claude/scheduled_tasks.lock
