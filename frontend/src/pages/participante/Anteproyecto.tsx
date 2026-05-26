@@ -742,7 +742,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
 
       {/* Validación del mercado */}
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Validación del mercado</h3>
-      <p className="text-sm text-inalde-red mb-4 font-primary font-semibold">¿Cómo sabes que este proyecto resuelve un problema real?</p>
+      <p className="text-sm text-inalde-red mb-4 font-primary font-semibold">¿Cómo planeas averiguar que este proyecto resuelve un problema real?</p>
       <div className="grid md:grid-cols-2 gap-x-5 gap-y-4 mb-8">
         <Field label="Fuentes primarias (entrevistas, encuestas, observación)">
           <TextareaWithCounter value={proyecto.fuentes_primarias} rows={3} max={300}
