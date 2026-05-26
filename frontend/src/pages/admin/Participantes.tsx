@@ -42,9 +42,12 @@ export default function Participantes() {
 
   useEffect(() => { (async () => {
     const cs = await loadCohortes();
-    setCohorteUpload(cs.find((c) => c.participantes_count === 0)?.id ?? cs[0]?.id ?? '');
+    const activas = cs.filter((c) => c.activa);
+    setCohorteUpload(activas.find((c) => c.participantes_count === 0)?.id ?? activas[0]?.id ?? '');
     await loadParticipantes();
   })(); }, []);
+
+  const cohortesActivas = useMemo(() => cohortes.filter((c) => c.activa), [cohortes]);
 
   const cohorteEtiquetas = useMemo(() => {
     const m = new Map<string, string>();
@@ -152,12 +155,18 @@ export default function Participantes() {
             <div>
               <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-2">Cohorte destino</label>
               <select value={cohorteUpload} onChange={(e) => setCohorteUpload(e.target.value)} className="input-inalde">
-                {cohortes.map((c) => (
+                {cohortesActivas.length === 0 && <option value="">(no hay cohortes activas)</option>}
+                {cohortesActivas.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.etiqueta} {c.participantes_count > 0 && `· ${c.participantes_count} ya cargados`}
                   </option>
                 ))}
               </select>
+              {cohortesActivas.length === 0 && (
+                <p className="text-[11px] text-inalde-gray mt-1.5">
+                  No hay cohortes activas. Activa una desde la pestaña <em>Cohortes</em>.
+                </p>
+              )}
             </div>
             <div>
               <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-2">Archivo Excel (.xlsx)</label>
