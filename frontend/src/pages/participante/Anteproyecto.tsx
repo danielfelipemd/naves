@@ -751,7 +751,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
       {/* Canvas del negocio */}
       <h3 className="mt-8 mb-2 font-primary font-bold text-base text-inalde-text">Canvas del negocio</h3>
       <p className="text-xs text-inalde-gray mb-4">
-        Las 8 piezas del Business Model Canvas. Sé concreto pero claro.
+        Las piezas del Business Model Canvas. Sé lo más claro posible.
       </p>
       {/* Cliente/problema en ancho completo (es el más extenso, 500 chars), el resto en 2 columnas */}
       <div className="space-y-4 mb-8">
