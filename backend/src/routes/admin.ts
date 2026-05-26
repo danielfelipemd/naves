@@ -250,7 +250,38 @@ router.put('/cohortes/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-// GET /api/admin/cohortes/:id/participantes — listar para gestión
+// GET /api/admin/participantes — TODOS los participantes con su cohorte
+router.get('/participantes', async (_req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('participantes_lista')
+    .select(`
+      id, auth_user_id, cohorte_id, nombre_completo, cedula_encriptada, email_encriptado,
+      estado, fecha_creacion, tipo_trabajo_grado,
+      miembros_equipo ( equipo_id )
+    `)
+    .order('nombre_completo');
+  if (error) return res.status(500).json({ error: error.message });
+  const out = (data ?? []).map((p: any) => {
+    let cedula = '', email = '';
+    try { cedula = decryptPII(p.cedula_encriptada); } catch { /* ignore */ }
+    try { email = decryptPII(p.email_encriptado); } catch { /* ignore */ }
+    const en_equipo = Array.isArray(p.miembros_equipo) && p.miembros_equipo.length > 0;
+    return {
+      id: p.id,
+      auth_user_id: p.auth_user_id,
+      cohorte_id: p.cohorte_id,
+      nombre_completo: p.nombre_completo,
+      cedula,
+      email,
+      estado: p.estado,
+      tipo_trabajo_grado: p.tipo_trabajo_grado,
+      en_equipo,
+    };
+  });
+  res.json(out);
+});
+
+// GET /api/admin/cohortes/:id/participantes — listar para gestión (legacy, usado en flujo de carga)
 router.get('/cohortes/:id/participantes', async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from('participantes_lista')
