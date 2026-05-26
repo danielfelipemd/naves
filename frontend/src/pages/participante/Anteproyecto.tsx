@@ -4,6 +4,7 @@ import { Header } from '../../components/inalde/Header';
 import { CiiuPicker } from '../../components/inalde/CiiuPicker';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { AREAS_AFINIDAD } from '../../lib/areas';
 
 // ============== Catálogos (alineados con DOCUMENTACION_BACKEND.md) ==========
 type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia';
@@ -687,10 +688,10 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
           </select>
         </Field>
         <Field label="Sector">
-          <input type="text" value={proyecto.sector} maxLength={100}
-            onChange={(e) => onChange({ sector: e.target.value })}
-            placeholder="Ej: Software, Salud, Logística"
-            className="input-inalde" />
+          <select value={proyecto.sector} onChange={(e) => onChange({ sector: e.target.value })} className="input-inalde">
+            <option value="">Selecciona un sector…</option>
+            {AREAS_AFINIDAD.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
         </Field>
         <div className="sm:col-span-2">
           <Field label="Código CIIU (DANE Rev. 4 A.C. 2020)" hint="Haz click en el campo para ver todos los códigos. También puedes escribir para filtrar (ej: software, restaurante).">
