@@ -746,12 +746,12 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
       <div className="grid md:grid-cols-2 gap-x-5 gap-y-4 mb-8">
         <Field label="Fuentes primarias (entrevistas, encuestas, observación)">
           <TextareaWithCounter value={proyecto.fuentes_primarias} rows={3} max={300}
-            placeholder="¿Con cuántas personas hablaste? ¿Qué descubriste?"
+            placeholder=""
             onChange={(v) => onChange({ fuentes_primarias: v })} />
         </Field>
         <Field label="Fuentes secundarias (estudios, reportes, datos públicos)">
           <TextareaWithCounter value={proyecto.fuentes_secundarias} rows={3} max={300}
-            placeholder="¿Qué reportes, datos del DANE, estudios sectoriales consultaste?"
+            placeholder=""
             onChange={(v) => onChange({ fuentes_secundarias: v })} />
         </Field>
       </div>
