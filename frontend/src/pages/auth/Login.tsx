@@ -129,15 +129,10 @@ export default function Login() {
                 {loading ? 'Ingresando...' : 'Ingresar →'}
               </button>
 
-              <div className="flex justify-between text-sm pt-2">
+              <div className="text-sm pt-2">
                 <Link to="/recovery" className="text-inalde-gray hover:text-inalde-red transition">
                   ¿Olvidaste tu clave?
                 </Link>
-                {mode === 'participante' && (
-                  <Link to="/activar" className="text-inalde-gray hover:text-inalde-red transition">
-                    Primer ingreso →
-                  </Link>
-                )}
               </div>
             </form>
           </div>
