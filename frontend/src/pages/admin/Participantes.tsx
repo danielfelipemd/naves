@@ -93,20 +93,31 @@ export default function Participantes() {
     });
   }
 
-  async function borrarSeleccionados() {
-    const ids = filtrados.filter((p) => seleccionados.has(p.id) && !p.en_equipo).map((p) => p.id);
+  const [confirmandoBulk, setConfirmandoBulk] = useState(false);
+  const [textoConfirmacion, setTextoConfirmacion] = useState('');
+  const [borrandoBulk, setBorrandoBulk] = useState(false);
+
+  function abrirConfirmacionBulk() {
+    if (seleccionadosVisibles.length === 0) return;
+    setTextoConfirmacion('');
+    setConfirmandoBulk(true);
+  }
+
+  async function ejecutarBorradoBulk() {
+    const ids = seleccionadosVisibles.map((p) => p.id);
     if (ids.length === 0) return;
-    if (!confirm(`¿Borrar ${ids.length} participante(s)? También se eliminará su acceso al sistema.`)) return;
     setErr(null); setMsg(null);
+    setBorrandoBulk(true);
     try {
       const { data } = await api.post('/admin/participantes/bulk-delete', { ids });
       setMsg(`${data.borrados} participante(s) eliminados${data.fallos?.length ? `, ${data.fallos.length} fallaron` : ''}.`);
       setSeleccionados(new Set());
+      setConfirmandoBulk(false);
       await loadParticipantes();
       await loadCohortes();
     } catch (e: any) {
       setErr(formatBackendError(e));
-    }
+    } finally { setBorrandoBulk(false); }
   }
 
   async function upload() {
@@ -270,9 +281,73 @@ export default function Participantes() {
             <button onClick={() => setSeleccionados(new Set())} className="text-xs text-inalde-gray hover:text-inalde-text">
               Limpiar selección
             </button>
-            <button onClick={borrarSeleccionados} className="btn-inalde-primary !py-1.5 !px-3 !text-xs">
+            <button onClick={abrirConfirmacionBulk} className="btn-inalde-primary !py-1.5 !px-3 !text-xs">
               Borrar {seleccionadosVisibles.length} seleccionado(s)
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación de borrado masivo */}
+      {confirmandoBulk && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !borrandoBulk && setConfirmandoBulk(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="border-b-[3px] border-inalde-red px-6 py-4">
+              <p className="section-subtitle mb-1">Confirmar eliminación</p>
+              <h2 className="font-primary font-bold text-xl text-inalde-text">
+                ¿Borrar {seleccionadosVisibles.length} participante(s)?
+              </h2>
+            </div>
+
+            <div className="px-6 py-4 overflow-auto flex-1">
+              <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm text-inalde-text mb-4">
+                <strong>Esta acción es irreversible.</strong> Se eliminarán de la cohorte y se borrará
+                su acceso al sistema (auth user). Si los necesitas otra vez, deberás re-cargarlos.
+              </div>
+
+              <p className="text-xs font-primary font-semibold uppercase tracking-wider text-inalde-gray mb-2">
+                Participantes a eliminar:
+              </p>
+              <ul className="text-sm text-inalde-text divide-y divide-inalde-gray-light/60 border border-inalde-gray-light rounded max-h-60 overflow-auto">
+                {seleccionadosVisibles.map((p) => (
+                  <li key={p.id} className="px-3 py-2 flex justify-between gap-3">
+                    <span className="font-medium truncate">{p.nombre_completo}</span>
+                    <span className="text-xs text-inalde-gray whitespace-nowrap">
+                      {cohorteEtiquetas.get(p.cohorte_id) ?? p.cohorte_id} · {p.cedula}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-5">
+                <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
+                  Para confirmar, escribe <code className="bg-inalde-gray-bg px-1 rounded">BORRAR</code>
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={textoConfirmacion}
+                  onChange={(e) => setTextoConfirmacion(e.target.value)}
+                  placeholder="BORRAR"
+                  className="input-inalde"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-inalde-gray-light flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmandoBulk(false)}
+                disabled={borrandoBulk}
+                className="text-sm text-inalde-gray hover:text-inalde-text px-4 py-2 disabled:opacity-40">
+                Cancelar
+              </button>
+              <button
+                onClick={ejecutarBorradoBulk}
+                disabled={borrandoBulk || textoConfirmacion !== 'BORRAR'}
+                className="btn-inalde-primary !py-2 !px-5 !text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                {borrandoBulk ? 'Borrando…' : `Borrar ${seleccionadosVisibles.length}`}
+              </button>
+            </div>
           </div>
         </div>
       )}
