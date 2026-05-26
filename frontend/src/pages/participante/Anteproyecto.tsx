@@ -365,6 +365,20 @@ export default function Anteproyecto() {
         setMsg({ kind: 'err', text: `El proyecto "${p.nombre || `#${p.posicion}`}" tiene ${validos} hito(s) completo(s). Necesitas al menos ${MIN_HITOS} hitos con descripción, fecha de inicio y fecha de fin.` });
         return;
       }
+      // Validar cronología: cada hito debe iniciar >= que el inicio del anterior y terminar >= que el fin del anterior
+      const ordered = (p.hitos ?? []).filter((h) => h.descripcion && h.fecha_inicio && h.fecha_fin);
+      for (let i = 1; i < ordered.length; i++) {
+        const prev = ordered[i - 1];
+        const cur = ordered[i];
+        if (cur.fecha_inicio < prev.fecha_inicio) {
+          setMsg({ kind: 'err', text: `El hito "${cur.descripcion}" no puede iniciar antes que el hito "${prev.descripcion}". Revisa el orden cronológico.` });
+          return;
+        }
+        if (cur.fecha_fin < prev.fecha_fin) {
+          setMsg({ kind: 'err', text: `El hito "${cur.descripcion}" no puede terminar antes que el hito "${prev.descripcion}". Revisa el orden cronológico.` });
+          return;
+        }
+      }
     }
     if (!confirm('Una vez enviado el anteproyecto NO podrá modificarse. ¿Continuar?')) return;
     setBusy(true); setMsg(null);
@@ -970,21 +984,44 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
               </Field>
             </div>
 
-            <div className="w-full sm:w-44 shrink-0">
-              <Field label="Inicio">
-                <input type="date" value={h.fecha_inicio}
-                  onChange={(e) => onUpdateHito(hi, { fecha_inicio: e.target.value })}
-                  className="input-inalde" />
-              </Field>
-            </div>
-
-            <div className="w-full sm:w-44 shrink-0">
-              <Field label="Fin">
-                <input type="date" value={h.fecha_fin} min={h.fecha_inicio || undefined}
-                  onChange={(e) => onUpdateHito(hi, { fecha_fin: e.target.value })}
-                  className="input-inalde" />
-              </Field>
-            </div>
+            {(() => {
+              const prev = hi > 0 ? proyecto.hitos[hi - 1] : null;
+              const minInicio = prev ? (prev.fecha_inicio || prev.fecha_fin || undefined) : undefined;
+              const prevFin = prev?.fecha_fin || undefined;
+              const minFin = [h.fecha_inicio, prevFin].filter(Boolean).sort().at(-1) || undefined;
+              return (
+                <>
+                  <div className="w-full sm:w-44 shrink-0">
+                    <Field label="Inicio">
+                      <input type="date" value={h.fecha_inicio} min={minInicio}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (minInicio && v && v < minInicio) {
+                            alert(`El hito #${h.posicion} no puede iniciar antes del hito #${h.posicion - 1} (${minInicio}).`);
+                            return;
+                          }
+                          onUpdateHito(hi, { fecha_inicio: v });
+                        }}
+                        className="input-inalde" />
+                    </Field>
+                  </div>
+                  <div className="w-full sm:w-44 shrink-0">
+                    <Field label="Fin">
+                      <input type="date" value={h.fecha_fin} min={minFin}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (minFin && v && v < minFin) {
+                            alert(`La fecha fin del hito #${h.posicion} no puede ser anterior al hito previo ni a su propio inicio.`);
+                            return;
+                          }
+                          onUpdateHito(hi, { fecha_fin: v });
+                        }}
+                        className="input-inalde" />
+                    </Field>
+                  </div>
+                </>
+              );
+            })()}
 
             <div className="w-10 shrink-0 pt-7 text-center">
               {proyecto.hitos.length > MIN_HITOS && (
