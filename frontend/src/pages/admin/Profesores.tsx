@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { AreasPicker } from '../../components/inalde/AreasPicker';
 
 interface Profesor {
   id: string;
@@ -15,9 +16,12 @@ interface Profesor {
 export default function Profesores() {
   const [profesores, setProfesores] = useState<Profesor[]>([]);
   const [showNew, setShowNew] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    nombre_completo: string; email: string; password: string;
+    es_super_admin: boolean; booking_url: string; areas_afinidad: string[];
+  }>({
     nombre_completo: '', email: '', password: '',
-    es_super_admin: false, booking_url: '', areas_afinidad: '',
+    es_super_admin: false, booking_url: '', areas_afinidad: [],
   });
   const [editing, setEditing] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Profesor>>({});
@@ -36,12 +40,11 @@ export default function Profesores() {
       const payload = {
         ...form,
         booking_url: form.booking_url || null,
-        areas_afinidad: form.areas_afinidad.split(',').map((s) => s.trim()).filter(Boolean),
       };
       await api.post('/admin/profesores', payload);
       setMsg({ kind: 'ok', text: `Profesor ${form.nombre_completo} creado.` });
       setShowNew(false);
-      setForm({ nombre_completo: '', email: '', password: '', es_super_admin: false, booking_url: '', areas_afinidad: '' });
+      setForm({ nombre_completo: '', email: '', password: '', es_super_admin: false, booking_url: '', areas_afinidad: [] });
       await load();
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
@@ -115,8 +118,8 @@ export default function Profesores() {
               <input type="url" value={form.booking_url} onChange={(e) => setForm({ ...form, booking_url: e.target.value })} className="input-inalde" placeholder="https://calendly.com/..." />
             </Field>
             <div className="sm:col-span-2">
-              <Field label="Áreas de afinidad (separadas por coma)">
-                <input type="text" value={form.areas_afinidad} onChange={(e) => setForm({ ...form, areas_afinidad: e.target.value })} className="input-inalde" placeholder="Tecnología, Finanzas, Salud" />
+              <Field label="Áreas de afinidad">
+                <AreasPicker value={form.areas_afinidad} onChange={(next) => setForm({ ...form, areas_afinidad: next })} />
               </Field>
             </div>
             <label className="flex items-center gap-2 text-sm">
@@ -151,7 +154,7 @@ export default function Profesores() {
                 <td className="px-3 py-2">
                   <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!editDraft.es_super_admin} onChange={(e) => setEditDraft({ ...editDraft, es_super_admin: e.target.checked })} /> super admin</label>
                 </td>
-                <td className="px-3 py-2"><input type="text" value={(editDraft.areas_afinidad ?? []).join(', ')} onChange={(e) => setEditDraft({ ...editDraft, areas_afinidad: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })} className="input-inalde !py-1 !text-sm" /></td>
+                <td className="px-3 py-2"><AreasPicker size="compact" value={editDraft.areas_afinidad ?? []} onChange={(next) => setEditDraft({ ...editDraft, areas_afinidad: next })} /></td>
                 <td className="px-3 py-2">
                   <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!editDraft.activo} onChange={(e) => setEditDraft({ ...editDraft, activo: e.target.checked })} /> activo</label>
                 </td>

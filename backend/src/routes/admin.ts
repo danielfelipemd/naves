@@ -7,6 +7,9 @@ import { encryptPII, decryptPII, sha256Hex, syntheticEmailFromCedula } from '../
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { buildAnteproyectoPDF } from '../services/pdf.js';
 import { sendEmail } from '../services/email.js';
+import { AREAS_AFINIDAD } from '../lib/areas.js';
+
+const areaEnum = z.enum(AREAS_AFINIDAD);
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -196,7 +199,7 @@ const createProfSchema = z.object({
   password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/\d/),
   es_super_admin: z.boolean().default(false),
   booking_url: z.string().url().optional().nullable(),
-  areas_afinidad: z.array(z.string().max(100)).default([]),
+  areas_afinidad: z.array(areaEnum).default([]),
 });
 router.post('/profesores', async (req, res) => {
   const parsed = createProfSchema.safeParse(req.body);
@@ -244,7 +247,7 @@ const updateProfSchema = z.object({
   es_super_admin: z.boolean().optional(),
   activo: z.boolean().optional(),
   booking_url: z.string().url().nullable().optional(),
-  areas_afinidad: z.array(z.string()).optional(),
+  areas_afinidad: z.array(areaEnum).optional(),
 });
 router.put('/profesores/:id', async (req, res) => {
   const parsed = updateProfSchema.safeParse(req.body);
