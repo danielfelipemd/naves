@@ -80,8 +80,8 @@ export default function SeleccionarProyectos() {
               <p className="section-subtitle mb-2">Mis equipos asignados</p>
               <h1 className="section-title">Seleccionar proyecto definitivo</h1>
               <p className="text-inalde-gray text-sm mt-2">
-                Tras la Reunión 1 con cada equipo y el Comité de Profesores, elige cuál de los proyectos del equipo
-                queda como definitivo. Los demás se archivan automáticamente.
+                Tras la Reunión 1 con cada equipo, elige cuál de los proyectos del equipo queda como
+                definitivo. Los demás se archivan automáticamente.
               </p>
             </div>
             <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text whitespace-nowrap">

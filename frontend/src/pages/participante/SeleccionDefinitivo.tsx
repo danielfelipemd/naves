@@ -87,7 +87,7 @@ export default function SeleccionDefinitivo() {
               <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 mb-6">
                 <p className="font-primary font-bold text-sm text-inalde-text mb-1">Esperando decisión del profesor</p>
                 <p className="text-sm text-inalde-gray">
-                  Tu equipo presentó <strong>{proyectos.length} proyectos</strong>. Después del Comité de Profesores,
+                  Tu equipo presentó <strong>{proyectos.length} proyectos</strong>. Después de la Reunión 1,
                   tu profesor asignado entrará al sistema y marcará cuál queda como definitivo.
                   Los otros quedarán archivados.
                 </p>

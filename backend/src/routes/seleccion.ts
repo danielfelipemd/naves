@@ -323,7 +323,7 @@ router.post('/admin/notificar-seleccion-pendiente', requireRole('super_admin'), 
           Tienes equipos pendientes de selección de proyecto definitivo
         </h2>
         <p>Hola <strong>${profesor.nombre_completo}</strong>,</p>
-        <p>Después de la Reunión 1 y del Comité de Profesores, te corresponde marcar el proyecto definitivo
+        <p>Después de la Reunión 1, te corresponde marcar el proyecto definitivo
            para los siguientes equipos asignados que presentaron <strong>más de un proyecto</strong>:</p>
         <ul>${filas}</ul>
         <p style="margin-top:18pt">Entra a la plataforma para resolverlo:</p>
