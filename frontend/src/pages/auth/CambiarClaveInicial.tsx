@@ -37,7 +37,7 @@ export default function CambiarClaveInicial() {
       <Header />
       <main className="pt-36 pb-16 px-4">
         <div className="max-w-[520px] mx-auto">
-          <div className="bg-white rounded-lg shadow-inalde-card p-10">
+          <div className="bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
             <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
               <p className="section-subtitle mb-2">Primer ingreso</p>
               <h1 className="section-title">Crea tu clave personal</h1>

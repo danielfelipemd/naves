@@ -40,7 +40,7 @@ export default function ResetPassword() {
       <>
         <Header />
         <main className="pt-36 px-4">
-          <div className="max-w-[420px] mx-auto bg-white rounded-lg shadow-inalde-card p-10 text-center">
+          <div className="max-w-[420px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10 text-center">
             <p className="text-inalde-gray mb-4">Enlace inválido.</p>
             <Link to="/recovery" className="text-inalde-red font-semibold">Solicitar uno nuevo →</Link>
           </div>
@@ -53,7 +53,7 @@ export default function ResetPassword() {
     <>
       <Header />
       <main className="pt-36 pb-16 px-4">
-        <div className="max-w-[420px] mx-auto bg-white rounded-lg shadow-inalde-card p-10">
+        <div className="max-w-[420px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
             <p className="section-subtitle mb-2">Nueva clave</p>
             <h1 className="section-title">Crear nueva contraseña</h1>

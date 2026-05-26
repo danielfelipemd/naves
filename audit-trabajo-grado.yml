@@ -1,0 +1,32 @@
+- generic [ref=e2]:
+  - banner [ref=e163]:
+    - paragraph [ref=e165]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e167] [cursor=pointer]:
+      - /url: /
+      - img [ref=e168]:
+        - generic [ref=e170]: "N"
+      - generic [ref=e172]:
+        - paragraph [ref=e173]: Trabajo de grado
+        - paragraph [ref=e174]: NAVES
+  - main [ref=e175]:
+    - generic [ref=e176]:
+      - generic [ref=e177]:
+        - paragraph [ref=e178]: Trabajo de grado
+        - heading "Caso" [level=1] [ref=e179]
+      - paragraph [ref=e180]:
+        - text: "Sube los dos archivos: el"
+        - strong [ref=e181]: anteproyecto
+        - text: en PDF y el
+        - strong [ref=e182]: proyecto final
+        - text: "en PDF o Word. Tamaño máximo: 25 MB cada uno. Puedes reemplazarlos las veces que quieras hasta enviar."
+      - generic [ref=e183]:
+        - heading "Anteproyecto (PDF)" [level=2] [ref=e184]
+        - paragraph [ref=e185]: Aún no has subido el anteproyecto.
+        - button "Choose File" [ref=e187]
+      - generic [ref=e188]:
+        - heading "Proyecto final (PDF o Word)" [level=2] [ref=e189]
+        - paragraph [ref=e190]: Aún no has subido el proyecto final.
+        - button "Choose File" [ref=e192]
+      - generic [ref=e193]:
+        - button "← Dashboard" [ref=e194] [cursor=pointer]
+        - button "Enviar definitivo →" [disabled] [ref=e195]

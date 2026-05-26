@@ -142,7 +142,8 @@ export default function Profesores() {
         </fieldset>
       )}
 
-      <table className="w-full text-sm border border-inalde-gray-light rounded overflow-hidden">
+      <div className="border border-inalde-gray-light rounded overflow-x-auto">
+      <table className="w-full text-sm min-w-[680px]">
         <thead className="bg-inalde-gray-bg text-left">
           <tr>
             <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Nombre</th>
@@ -198,6 +199,7 @@ export default function Profesores() {
           ))}
         </tbody>
       </table>
+      </div>
     </>
   );
 }

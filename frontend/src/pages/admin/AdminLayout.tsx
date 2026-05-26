@@ -37,7 +37,7 @@ export default function AdminLayout() {
               )}
             </nav>
           )}
-          <section className="bg-white rounded-lg shadow-inalde-card p-8 min-h-[400px]">
+          <section className="bg-white rounded-lg shadow-inalde-card p-4 sm:p-8 min-h-[400px]">
             <Outlet />
           </section>
         </div>

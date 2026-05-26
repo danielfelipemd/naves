@@ -352,8 +352,8 @@ export default function Participantes() {
         </div>
       )}
 
-      <div className="rounded border border-inalde-gray-light overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded border border-inalde-gray-light overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-inalde-gray-bg text-left">
             <tr>
               <th className="px-3 py-2 w-8">

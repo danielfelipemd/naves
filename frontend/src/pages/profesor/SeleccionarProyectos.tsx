@@ -76,7 +76,7 @@ export default function SeleccionarProyectos() {
     <>
       <Header />
       <main className="pt-36 pb-16 px-4">
-        <div className="max-w-[1100px] mx-auto bg-white rounded-lg shadow-inalde-card p-10">
+        <div className="max-w-[1100px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-6 flex items-start justify-between gap-4">
             <div>
               <p className="section-subtitle mb-2">Mis equipos asignados</p>

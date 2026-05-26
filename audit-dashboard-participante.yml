@@ -1,0 +1,34 @@
+- generic [ref=e2]:
+  - banner [ref=e62]:
+    - paragraph [ref=e64]: INALDE Business School
+    - link "Trabajo de grado NAVES" [ref=e66] [cursor=pointer]:
+      - /url: /
+      - img [ref=e67]:
+        - generic [ref=e69]: "N"
+      - generic [ref=e71]:
+        - paragraph [ref=e72]: Trabajo de grado
+        - paragraph [ref=e73]: NAVES
+  - main [ref=e74]:
+    - generic [ref=e75]:
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - heading "Bienvenido a NAVES" [level=1] [ref=e78]
+          - paragraph [ref=e79]: Elige tu modalidad de trabajo de grado. Esta decisión es definitiva.
+        - button "Salir" [ref=e80] [cursor=pointer]
+      - generic [ref=e81]: "Sesión: bcaed7ef206d99afca43f12f7e95662d3f178cb0cdc5369a0e2ae6f19d7c83d4@naves.local · Rol: participante"
+      - generic [ref=e82]:
+        - button "📋 Business Plan NAVES Equipo, miembros y formulario completo del anteproyecto NAVES Elegir esta modalidad →" [ref=e83] [cursor=pointer]:
+          - generic [ref=e84]: 📋
+          - heading "Business Plan NAVES" [level=2] [ref=e85]
+          - paragraph [ref=e86]: Equipo, miembros y formulario completo del anteproyecto NAVES
+          - generic [ref=e87]: Elegir esta modalidad →
+        - button "📄 Caso Sube el anteproyecto (PDF) y el proyecto final (PDF o Word) Elegir esta modalidad →" [ref=e88] [cursor=pointer]:
+          - generic [ref=e89]: 📄
+          - heading "Caso" [level=2] [ref=e90]
+          - paragraph [ref=e91]: Sube el anteproyecto (PDF) y el proyecto final (PDF o Word)
+          - generic [ref=e92]: Elegir esta modalidad →
+        - button "🔬 Proyecto de Investigación Sube el anteproyecto (PDF) y el proyecto final (PDF o Word) Elegir esta modalidad →" [ref=e93] [cursor=pointer]:
+          - generic [ref=e94]: 🔬
+          - heading "Proyecto de Investigación" [level=2] [ref=e95]
+          - paragraph [ref=e96]: Sube el anteproyecto (PDF) y el proyecto final (PDF o Word)
+          - generic [ref=e97]: Elegir esta modalidad →

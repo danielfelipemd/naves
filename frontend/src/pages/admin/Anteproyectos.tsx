@@ -53,7 +53,8 @@ export default function AnteproyectosList() {
       </div>
 
       {loading ? <p className="text-inalde-gray">Cargando…</p> : (
-        <table className="w-full text-sm border border-inalde-gray-light rounded overflow-hidden">
+        <div className="border border-inalde-gray-light rounded overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-inalde-gray-bg text-left">
             <tr>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Equipo</th>
@@ -91,6 +92,7 @@ export default function AnteproyectosList() {
             {items.length === 0 && <tr><td colSpan={5} className="px-3 py-8 text-center text-inalde-gray">Sin anteproyectos</td></tr>}
           </tbody>
         </table>
+        </div>
       )}
     </>
   );

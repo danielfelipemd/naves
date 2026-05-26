@@ -392,7 +392,7 @@ export default function Anteproyecto() {
       </div>
 
       <main className="pt-40 pb-16 px-4">
-        <div className="max-w-[1100px] mx-auto bg-white rounded-lg shadow-inalde-card p-10">
+        <div className="max-w-[1100px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
             <p className="section-subtitle mb-2">Anteproyecto NAVES</p>
             <h1 className="section-title">
@@ -808,10 +808,10 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
           const dropdownValue = isManual ? '__custom__' : (matchesPreset ? h.descripcion : '');
           const otherDescs = new Set(proyecto.hitos.filter((_, oi) => oi !== hi).map((o) => o.descripcion));
           return (
-          <div key={hi} className="flex items-end gap-3 p-4 rounded bg-inalde-gray-bg/40 border-l-[3px] border-inalde-gold">
+          <div key={hi} className="flex flex-wrap sm:flex-nowrap items-end gap-3 p-4 rounded bg-inalde-gray-bg/40 border-l-[3px] border-inalde-gold">
             <div className="w-12 shrink-0 text-center pt-7 text-inalde-gray font-bold">#{h.posicion}</div>
 
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-[200px]">
               <Field label="Hito">
                 {isManual ? (
                   <div className="flex gap-2 items-stretch">
@@ -852,7 +852,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
               </Field>
             </div>
 
-            <div className="w-44 shrink-0">
+            <div className="w-full sm:w-44 shrink-0">
               <Field label="Inicio">
                 <input type="date" value={h.fecha_inicio}
                   onChange={(e) => onUpdateHito(hi, { fecha_inicio: e.target.value })}
@@ -860,7 +860,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
               </Field>
             </div>
 
-            <div className="w-44 shrink-0">
+            <div className="w-full sm:w-44 shrink-0">
               <Field label="Fin">
                 <input type="date" value={h.fecha_fin} min={h.fecha_inicio || undefined}
                   onChange={(e) => onUpdateHito(hi, { fecha_fin: e.target.value })}

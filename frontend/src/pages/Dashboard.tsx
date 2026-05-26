@@ -100,7 +100,7 @@ export default function Dashboard() {
     <>
       <Header />
       <main className="pt-36 pb-16 px-4">
-        <div className="max-w-[900px] mx-auto bg-white rounded-lg shadow-inalde-card p-10">
+        <div className="max-w-[900px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-6 mb-8 flex items-start justify-between gap-4">
             <div>
               <h1 className="section-title mb-2">
