@@ -28,7 +28,7 @@ router.use(requireAuth(), requireRole('super_admin'));
  *   - Cédula: "cedula", "cédula", "cc", "documento", "identificacion", "dni"
  *   - Email: "email", "correo", "correo electronico", "mail"
  */
-function normalizeHeaderKey(s: string): string {
+function normalizeHeaderKey(s: unknown): string {
   return String(s ?? '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '') // sin acentos
     .toLowerCase()
