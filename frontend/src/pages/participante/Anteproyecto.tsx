@@ -843,7 +843,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
                     <option value="">Selecciona un hito…</option>
                     {PRESET_HITOS.map((p) => (
                       <option key={p.descripcion} value={p.descripcion} disabled={p.descripcion !== h.descripcion && otherDescs.has(p.descripcion)}>
-                        {p.descripcion} · {new Date(p.fecha_fin + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                        {p.descripcion}
                       </option>
                     ))}
                     <option value="__custom__">+ Otro (manual)…</option>
