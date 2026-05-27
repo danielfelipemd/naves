@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { api } from '../../lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { AreasPicker } from '../../components/inalde/AreasPicker';
 import { AREAS_AFINIDAD } from '../../lib/areas';
@@ -28,6 +28,35 @@ export default function Directores() {
   const [editDraft, setEditDraft] = useState<Partial<Director>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ inserted: number; duplicados: number; errors: Array<{ row: number; error: string }> } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function descargarPlantilla() {
+    try {
+      await downloadFile('/directores/plantilla', 'plantilla-directores.xlsx');
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    }
+  }
+
+  async function cargarExcel() {
+    const f = fileRef.current?.files?.[0];
+    if (!f) { setMsg({ kind: 'err', text: 'Selecciona un archivo Excel (.xlsx).' }); return; }
+    setBusy(true); setMsg(null); setBulkResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const { data } = await api.post('/directores/cargar-excel', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setBulkResult(data);
+      setMsg({ kind: 'ok', text: `Carga finalizada: ${data.inserted} director(es) creado(s)${data.duplicados ? `, ${data.duplicados} duplicado(s) omitido(s)` : ''}.` });
+      if (fileRef.current) fileRef.current.value = '';
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setBusy(false); }
+  }
 
   async function load() {
     try { setItems((await api.get('/directores')).data); }
@@ -118,6 +147,51 @@ export default function Directores() {
           {msg.text}
         </div>
       )}
+
+      {/* ====== Carga masiva desde Excel ====== */}
+      <details className="mb-8 border border-inalde-gray-light rounded">
+        <summary className="cursor-pointer px-4 py-3 bg-inalde-gray-bg font-primary font-semibold text-sm">
+          ＋ Cargar lista desde Excel
+        </summary>
+        <div className="p-5 space-y-4">
+          <p className="text-xs text-inalde-text">
+            Descarga la plantilla, llénala con los datos de tus directores y súbela. Las áreas de afinidad son
+            opcionales y deben ir separadas por comas.
+          </p>
+          <button onClick={descargarPlantilla} className="text-sm font-semibold text-inalde-red hover:underline">
+            ↓ Descargar plantilla
+          </button>
+          <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-inalde-gray-light">
+            <div>
+              <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-2">
+                Archivo Excel (.xlsx)
+              </label>
+              <input ref={fileRef} type="file" accept=".xlsx,.xls" className="text-sm" />
+            </div>
+            <button onClick={cargarExcel} disabled={busy}
+              className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-40">
+              {busy ? 'Cargando…' : 'Cargar directores →'}
+            </button>
+          </div>
+          {bulkResult && (
+            <div className="mt-3 rounded border border-inalde-gray-light p-3 text-xs">
+              <p className="font-semibold mb-2">Resumen de la carga</p>
+              <p>{bulkResult.inserted} director(es) creado(s).</p>
+              {bulkResult.duplicados > 0 && (
+                <p className="text-inalde-gray">{bulkResult.duplicados} duplicado(s) omitido(s) (ya existían en el sistema).</p>
+              )}
+              {bulkResult.errors.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-inalde-red font-semibold">Errores ({bulkResult.errors.length}):</p>
+                  <ul className="list-disc pl-5 text-inalde-gray">
+                    {bulkResult.errors.map((e, i) => <li key={i}>Fila {e.row}: {e.error}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </details>
 
       {showNew && (
         <fieldset className="border border-inalde-gray-light rounded p-5 mb-6">

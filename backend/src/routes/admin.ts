@@ -2,12 +2,45 @@ import { Router } from 'express';
 import multer from 'multer';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
+import crypto from 'node:crypto';
 import { supabaseAdmin } from '../db/supabase.js';
 import { encryptPII, decryptPII, sha256Hex, syntheticEmailFromCedula } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { buildAnteproyectoPDF } from '../services/pdf.js';
 import { sendEmail } from '../services/email.js';
 import { AREAS_AFINIDAD } from '../lib/areas.js';
+import { normalizeHeaderKey, findCol, cellStr, cellBool, cellList, buildTemplateXlsx } from '../lib/excel.js';
+
+const AREAS_LOWER = new Map<string, string>(AREAS_AFINIDAD.map((a) => [a.toLowerCase(), a]));
+function matchAreas(raw: string[]): string[] {
+  const out = new Set<string>();
+  for (const r of raw) {
+    const a = AREAS_LOWER.get(r.toLowerCase());
+    if (a) out.add(a);
+  }
+  return Array.from(out);
+}
+
+function passwordAleatoria(len = 12): string {
+  // Garantiza al menos una mayúscula, minúscula y número
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const digits = '23456789';
+  const all = upper + lower + digits;
+  const buf = crypto.randomBytes(len);
+  const chars: string[] = [
+    upper[buf[0] % upper.length],
+    lower[buf[1] % lower.length],
+    digits[buf[2] % digits.length],
+  ];
+  for (let i = 3; i < len; i++) chars.push(all[buf[i] % all.length]);
+  // Mezclar
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = buf[i] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
+}
 
 const areaEnum = z.enum(AREAS_AFINIDAD);
 
@@ -28,13 +61,6 @@ router.use(requireAuth(), requireRole('super_admin'));
  *   - Cédula: "cedula", "cédula", "cc", "documento", "identificacion", "dni"
  *   - Email: "email", "correo", "correo electronico", "mail"
  */
-function normalizeHeaderKey(s: unknown): string {
-  return String(s ?? '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '') // sin acentos
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
 const FULL_NAME_KEYS = new Set([
   'nombre_completo', 'nombres_completos', 'nombre_y_apellido', 'nombre_y_apellidos',
   'nombres_y_apellidos', 'full_name', 'fullname',
@@ -46,12 +72,10 @@ const CEDULA_KEYS = new Set([
   'numero_de_documento', 'identificacion', 'id', 'dni', 'nuip', 'cedula_ciudadania',
 ]);
 const EMAIL_KEYS = new Set(['email', 'correo', 'correo_electronico', 'e_mail', 'mail']);
-function findCol(header: string[], keys: Set<string>): number {
-  for (let i = 0; i < header.length; i++) {
-    if (keys.has(header[i])) return i + 1;
-  }
-  return -1;
-}
+const PASSWORD_KEYS = new Set(['clave', 'contrasena', 'contrasenia', 'password', 'clave_inicial', 'clave_temporal']);
+const BOOKING_KEYS = new Set(['booking_url', 'booking', 'agenda', 'calendly', 'url_agenda']);
+const SUPERADMIN_KEYS = new Set(['admin', 'es_admin', 'administrador', 'es_administrador', 'super_admin']);
+const AREAS_KEYS = new Set(['areas', 'areas_afinidad', 'afinidad', 'sectores', 'especialidad']);
 
 router.post('/participantes/cargar-excel', upload.single('file'), async (req: AuthenticatedRequest, res) => {
   const cohorteId = String(req.body?.cohorte_id ?? '').trim();
@@ -102,15 +126,6 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
 
   let inserted = 0;
   const errors: Array<{ row: number; error: string }> = [];
-
-  function cellStr(row: ExcelJS.Row, col: number): string {
-    if (col < 0) return '';
-    const v: any = row.getCell(col).value;
-    if (v == null) return '';
-    if (typeof v === 'object' && 'text' in v) return String(v.text ?? '').trim();
-    if (typeof v === 'object' && 'result' in v) return String(v.result ?? '').trim();
-    return String(v).trim();
-  }
 
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
@@ -575,6 +590,136 @@ router.post('/profesores', async (req, res) => {
   });
 
   res.status(201).json({ profesor: prof });
+});
+
+// =====================================================================
+// PROFESORES — Plantilla Excel
+// =====================================================================
+router.get('/profesores/plantilla', async (_req, res) => {
+  const headers = ['Nombre completo', 'Email', 'Clave inicial (opcional)', 'URL de booking (opcional)', 'Es administrador (sí/no)', 'Áreas de afinidad (separadas por coma)'];
+  const ejemplo = [
+    ['Juan Pérez García', 'juan.perez@inalde.edu.co', '', 'https://calendly.com/jperez', 'no', AREAS_AFINIDAD.slice(0, 2).join(', ')],
+    ['María Rodríguez', 'maria.rodriguez@inalde.edu.co', '', '', 'sí', ''],
+  ];
+  const buf = await buildTemplateXlsx('Profesores', headers, ejemplo);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="plantilla-profesores.xlsx"');
+  res.send(buf);
+});
+
+// =====================================================================
+// PROFESORES — Cargar Excel
+// =====================================================================
+router.post('/profesores/cargar-excel', upload.single('file'), async (req: AuthenticatedRequest, res) => {
+  if (!req.file) return res.status(400).json({ error: 'MISSING_FILE' });
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(new Uint8Array(req.file.buffer).buffer as ArrayBuffer);
+  const ws = wb.worksheets[0];
+  if (!ws) return res.status(400).json({ error: 'EMPTY_WORKBOOK' });
+
+  const header: string[] = [];
+  ws.getRow(1).eachCell((c) => header.push(normalizeHeaderKey(c.value)));
+
+  const fullCol = findCol(header, FULL_NAME_KEYS);
+  const firstCol = findCol(header, FIRST_NAME_KEYS);
+  const lastCol = findCol(header, LAST_NAME_KEYS);
+  const emailCol = findCol(header, EMAIL_KEYS);
+  const passwordCol = findCol(header, PASSWORD_KEYS);
+  const bookingCol = findCol(header, BOOKING_KEYS);
+  const superCol = findCol(header, SUPERADMIN_KEYS);
+  const areasCol = findCol(header, AREAS_KEYS);
+
+  if (fullCol < 0 && firstCol < 0 && lastCol < 0) {
+    return res.status(400).json({
+      error: 'MISSING_COLUMN', column: 'nombre',
+      detail: 'No encontré una columna de nombre. Acepto "Nombre completo" o "Nombre" + "Apellido".',
+      header_recibido: header,
+    });
+  }
+  if (emailCol < 0) {
+    return res.status(400).json({
+      error: 'MISSING_COLUMN', column: 'email',
+      detail: 'No encontré una columna de email. Acepto "Email", "Correo".',
+      header_recibido: header,
+    });
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL!;
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  let inserted = 0;
+  const errors: Array<{ row: number; error: string }> = [];
+  const claves: Array<{ email: string; nombre: string; clave: string }> = [];
+
+  for (let r = 2; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    try {
+      let nombre: string;
+      if (fullCol > 0) {
+        nombre = cellStr(row, fullCol);
+      } else {
+        const first = cellStr(row, firstCol);
+        const last = cellStr(row, lastCol);
+        nombre = [first, last].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+      }
+      const email = cellStr(row, emailCol).toLowerCase();
+      if (!nombre || !email) continue;
+
+      const passwordExcel = cellStr(row, passwordCol);
+      const password = passwordExcel || passwordAleatoria(12);
+      const booking = cellStr(row, bookingCol) || null;
+      const esAdmin = superCol > 0 ? cellBool(row, superCol) : false;
+      const areas = areasCol > 0 ? matchAreas(cellList(row, areasCol)) : [];
+
+      // Crear auth user
+      const createResp = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, email_confirm: true, app_metadata: { app_role: 'profesor', es_super_admin: esAdmin } }),
+      });
+      if (!createResp.ok) {
+        errors.push({ row: r, error: `Auth user no creado (probablemente ya existe): ${email}` });
+        continue;
+      }
+      const authUser = (await createResp.json()) as { id: string };
+
+      const { data: prof, error: e1 } = await supabaseAdmin.from('profesores').insert({
+        auth_user_id: authUser.id,
+        nombre_completo: nombre,
+        email_encriptado: encryptPII(email),
+        email_hash: sha256Hex(email),
+        es_super_admin: esAdmin,
+        activo: true,
+        booking_url: booking,
+        areas_afinidad: areas,
+      }).select('id').single();
+      if (e1) { errors.push({ row: r, error: e1.message }); continue; }
+
+      await fetch(`${supabaseUrl}/auth/v1/admin/users/${authUser.id}`, {
+        method: 'PUT',
+        headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_metadata: { app_role: 'profesor', es_super_admin: esAdmin, profesor_id: prof.id } }),
+      });
+
+      inserted++;
+      // Si el admin no escribió la clave, devolverla para que pueda compartirla
+      if (!passwordExcel) {
+        claves.push({ email, nombre, clave: password });
+      }
+    } catch (e) {
+      errors.push({ row: r, error: (e as Error).message });
+    }
+  }
+
+  res.json({
+    inserted,
+    errors: errors.slice(0, 50),
+    claves_generadas: claves,
+    nota: claves.length > 0
+      ? 'Se generaron claves aleatorias para los profesores sin "Clave inicial" en el Excel. Guárdalas: solo se muestran una vez.'
+      : undefined,
+  });
 });
 
 const updateProfSchema = z.object({

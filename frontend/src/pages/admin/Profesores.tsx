@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { api } from '../../lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { AreasPicker } from '../../components/inalde/AreasPicker';
 import { AREAS_AFINIDAD } from '../../lib/areas';
@@ -33,6 +33,35 @@ export default function Profesores() {
   const [editDraft, setEditDraft] = useState<Partial<Profesor>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ inserted: number; errors: Array<{ row: number; error: string }>; claves_generadas?: Array<{ email: string; nombre: string; clave: string }>; nota?: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function descargarPlantilla() {
+    try {
+      await downloadFile('/admin/profesores/plantilla', 'plantilla-profesores.xlsx');
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    }
+  }
+
+  async function cargarExcel() {
+    const f = fileRef.current?.files?.[0];
+    if (!f) { setMsg({ kind: 'err', text: 'Selecciona un archivo Excel (.xlsx).' }); return; }
+    setBusy(true); setMsg(null); setBulkResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const { data } = await api.post('/admin/profesores/cargar-excel', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setBulkResult(data);
+      setMsg({ kind: 'ok', text: `Carga finalizada: ${data.inserted} profesor(es) creado(s).` });
+      if (fileRef.current) fileRef.current.value = '';
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setBusy(false); }
+  }
 
   async function load() {
     try { setProfesores((await api.get('/admin/profesores')).data); }
@@ -106,6 +135,74 @@ export default function Profesores() {
           {msg.text}
         </div>
       )}
+
+      {/* ====== Carga masiva desde Excel ====== */}
+      <details className="mb-8 border border-inalde-gray-light rounded">
+        <summary className="cursor-pointer px-4 py-3 bg-inalde-gray-bg font-primary font-semibold text-sm">
+          ＋ Cargar lista desde Excel
+        </summary>
+        <div className="p-5 space-y-4">
+          <p className="text-xs text-inalde-text">
+            Descarga la plantilla, llénala con los datos de tus profesores y súbela. Si dejas vacía la columna
+            <strong> "Clave inicial"</strong>, el sistema generará una clave temporal y te la mostrará al
+            terminar la carga (guárdala: solo se muestra una vez).
+          </p>
+          <button onClick={descargarPlantilla} className="text-sm font-semibold text-inalde-red hover:underline">
+            ↓ Descargar plantilla
+          </button>
+          <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-inalde-gray-light">
+            <div>
+              <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-2">
+                Archivo Excel (.xlsx)
+              </label>
+              <input ref={fileRef} type="file" accept=".xlsx,.xls" className="text-sm" />
+            </div>
+            <button onClick={cargarExcel} disabled={busy}
+              className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-40">
+              {busy ? 'Cargando…' : 'Cargar profesores →'}
+            </button>
+          </div>
+          {bulkResult && (
+            <div className="mt-3 rounded border border-inalde-gray-light p-3 text-xs">
+              <p className="font-semibold mb-2">Resumen de la carga</p>
+              <p>{bulkResult.inserted} profesor(es) creado(s).</p>
+              {bulkResult.errors.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-inalde-red font-semibold">Errores ({bulkResult.errors.length}):</p>
+                  <ul className="list-disc pl-5 text-inalde-gray">
+                    {bulkResult.errors.map((e, i) => <li key={i}>Fila {e.row}: {e.error}</li>)}
+                  </ul>
+                </div>
+              )}
+              {bulkResult.claves_generadas && bulkResult.claves_generadas.length > 0 && (
+                <div className="mt-3 rounded bg-amber-50 border border-inalde-gold p-3">
+                  <p className="font-semibold text-inalde-text mb-2">
+                    ⚠ {bulkResult.claves_generadas.length} clave(s) generadas — guárdalas ahora, no se vuelven a mostrar:
+                  </p>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-inalde-gray uppercase tracking-wider">
+                        <th className="py-1">Profesor</th>
+                        <th className="py-1">Email</th>
+                        <th className="py-1">Clave inicial</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkResult.claves_generadas.map((c) => (
+                        <tr key={c.email} className="border-t border-inalde-gold/40">
+                          <td className="py-1">{c.nombre}</td>
+                          <td className="py-1">{c.email}</td>
+                          <td className="py-1 font-mono">{c.clave}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </details>
 
       {showNew && (
         <fieldset className="border border-inalde-gray-light rounded p-5 mb-6">
