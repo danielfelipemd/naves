@@ -17,19 +17,19 @@ const MODALIDADES: Array<{
     id: 'business_plan',
     emoji: '📋',
     titulo: 'Business Plan NAVES',
-    descripcion: 'Equipo, miembros y formulario completo del anteproyecto NAVES',
+    descripcion: 'Conformación de equipo y formulario de anteproyecto NAVES.',
   },
   {
     id: 'caso',
     emoji: '📄',
     titulo: 'Caso',
-    descripcion: 'Sube el anteproyecto (PDF) y el proyecto final (PDF o Word)',
+    descripcion: 'Conformación de equipo y cargue del anteproyecto.',
   },
   {
     id: 'proyecto_investigacion',
     emoji: '🔬',
     titulo: 'Proyecto de Investigación',
-    descripcion: 'Sube el anteproyecto (PDF) y el proyecto final (PDF o Word)',
+    descripcion: 'Conformación de equipo y cargue del anteproyecto.',
   },
 ];
 
