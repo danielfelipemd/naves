@@ -140,6 +140,9 @@ export default function Anteproyecto() {
   const [anteId, setAnteId] = useState<string | null>(null);
   const [estado, setEstado] = useState<string>('borrador');
   const [equipoNombre, setEquipoNombre] = useState<string>('');
+  // Sabana de proyectos: dos flags a nivel de equipo. NULL = no contestado.
+  const [buscandoSocios, setBuscandoSocios] = useState<boolean | null>(null);
+  const [buscandoAsociacion, setBuscandoAsociacion] = useState<boolean | null>(null);
   const [cohorte, setCohorte] = useState<Cohorte | null>(null);
   const [miembros, setMiembros] = useState<MiembroForm[]>([]);
   const [proyectos, setProyectos] = useState<Proyecto[]>([emptyProyecto(1)]);
@@ -157,6 +160,8 @@ export default function Anteproyecto() {
       const eq = await api.get('/equipos/mi-equipo');
       if (!eq.data.equipo) { navigate('/equipo'); return; }
       setEquipoNombre(eq.data.equipo.nombre_equipo ?? '');
+      setBuscandoSocios(eq.data.equipo.buscando_socios ?? null);
+      setBuscandoAsociacion(eq.data.equipo.buscando_asociacion_otro_proyecto ?? null);
 
       const ms: MiembroForm[] = eq.data.equipo.miembros_equipo
         .sort((a: any, b: any) => a.posicion - b.posicion)
@@ -285,6 +290,9 @@ export default function Anteproyecto() {
     return {
       numero_miembros: miembros.length,
       numero_proyectos: proyectos.length,
+      // Flags de sabana de proyectos (nivel equipo)
+      buscando_socios: buscandoSocios,
+      buscando_asociacion_otro_proyecto: buscandoAsociacion,
       miembros: miembros.map((m) => ({
         // El perfil emprendedor (perfil/emociones/preocupaciones/
         // fue_emprendedor) ya vive en miembros_equipo: se llena en /mi-perfil
@@ -340,6 +348,15 @@ export default function Anteproyecto() {
 
   async function enviar() {
     if (!anteId) return;
+    // Flags de sábana: el equipo debe contestar SI/NO antes de enviar.
+    if (buscandoSocios === null) {
+      setMsg({ kind: 'err', text: 'Indica si tu equipo está buscando socios (SÍ o NO) en la sección "Información del equipo".' });
+      return;
+    }
+    if (buscandoAsociacion === null) {
+      setMsg({ kind: 'err', text: 'Indica si tu equipo busca asociación con otro proyecto (SÍ o NO) en la sección "Información del equipo".' });
+      return;
+    }
     // Validar que TODOS los campos del formulario esten llenos. Lista
     // (campo, etiqueta visible) por proyecto.
     const CAMPOS_OBLIGATORIOS: Array<[keyof Proyecto, string]> = [
@@ -556,6 +573,73 @@ export default function Anteproyecto() {
               <p className="font-primary font-bold text-lg text-inalde-text">{m.nombre}</p>
             </div>
           ))}
+
+          {/* === Estado del equipo (sábana de proyectos) === */}
+          <div className="border border-inalde-gray-light border-l-[3px] border-l-inalde-gold rounded p-5 mt-6">
+            <p className="text-xs font-primary font-bold tracking-wider uppercase text-inalde-gold mb-3">
+              Estado del equipo
+            </p>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-inalde-text mb-2">
+                  ¿Su equipo está buscando socios?
+                </p>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="buscando-socios"
+                      checked={buscandoSocios === true}
+                      onChange={() => setBuscandoSocios(true)}
+                      disabled={readOnly}
+                      className="accent-inalde-red"
+                    />
+                    Sí
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="buscando-socios"
+                      checked={buscandoSocios === false}
+                      onChange={() => setBuscandoSocios(false)}
+                      disabled={readOnly}
+                      className="accent-inalde-red"
+                    />
+                    No
+                  </label>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-inalde-text mb-2">
+                  ¿Su equipo busca asociación con otro proyecto?
+                </p>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="buscando-asociacion"
+                      checked={buscandoAsociacion === true}
+                      onChange={() => setBuscandoAsociacion(true)}
+                      disabled={readOnly}
+                      className="accent-inalde-red"
+                    />
+                    Sí
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="buscando-asociacion"
+                      checked={buscandoAsociacion === false}
+                      onChange={() => setBuscandoAsociacion(false)}
+                      disabled={readOnly}
+                      className="accent-inalde-red"
+                    />
+                    No
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* ============ Sección 2: Tus proyectos ============ */}
           <div className="mt-12">

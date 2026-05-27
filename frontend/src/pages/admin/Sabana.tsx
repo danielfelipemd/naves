@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../../lib/api';
+import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
 
 interface Cohorte { id: string; etiqueta: string; }
@@ -29,6 +30,8 @@ interface FilaResumen {
 }
 
 export default function Sabana() {
+  const role = useAuth((s) => s.role);
+  const isSuperAdmin = useAuth((s) => (s.user?.app_metadata as any)?.es_super_admin === true) || role === 'super_admin';
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorte, setCohorte] = useState('');
   const [snapshot, setSnapshot] = useState<Item[]>([]);
@@ -72,6 +75,21 @@ export default function Sabana() {
     } catch {
       setResumen([]);
     } finally { setLoadingResumen(false); }
+  }
+
+  // Edit-in-place de los flags (solo super_admin)
+  async function actualizarFlag(equipo_id: string, campo: 'buscando_socios' | 'buscando_asociacion', valor: boolean | null) {
+    const payload: Record<string, unknown> = {};
+    if (campo === 'buscando_socios') payload.buscando_socios = valor;
+    else payload.buscando_asociacion_otro_proyecto = valor;
+    // Optimistic update
+    setResumen((prev) => prev.map((f) => f.equipo_id === equipo_id ? { ...f, [campo]: valor } : f));
+    try {
+      await api.patch(`/sabana/equipos/${equipo_id}`, payload);
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+      await loadResumen();
+    }
   }
 
   async function generar() {
@@ -236,14 +254,42 @@ export default function Sabana() {
                       <td className="px-3 py-2 font-medium truncate" title={f.nombre_proyecto}>{f.nombre_proyecto}</td>
                       <td className="px-3 py-2 text-inalde-gray truncate" title={f.sector ?? ''}>{f.sector ?? <span className="italic">—</span>}</td>
                       <td className="px-3 py-2 text-xs">
-                        {f.buscando_socios === true ? <span className="text-inalde-red font-semibold">SÍ</span> :
-                          f.buscando_socios === false ? <span className="text-inalde-gray">NO</span> :
-                            <span className="text-inalde-gray italic">—</span>}
+                        {isSuperAdmin ? (
+                          <select
+                            value={f.buscando_socios === null ? '' : f.buscando_socios ? 'si' : 'no'}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              actualizarFlag(f.equipo_id, 'buscando_socios', v === '' ? null : v === 'si');
+                            }}
+                            className="border border-inalde-gray-light rounded px-1 py-0.5 text-xs">
+                            <option value="">—</option>
+                            <option value="si">SÍ</option>
+                            <option value="no">NO</option>
+                          </select>
+                        ) : (
+                          f.buscando_socios === true ? <span className="text-inalde-red font-semibold">SÍ</span> :
+                            f.buscando_socios === false ? <span className="text-inalde-gray">NO</span> :
+                              <span className="text-inalde-gray italic">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-xs">
-                        {f.buscando_asociacion === true ? <span className="text-inalde-red font-semibold">SÍ</span> :
-                          f.buscando_asociacion === false ? <span className="text-inalde-gray">NO</span> :
-                            <span className="text-inalde-gray italic">—</span>}
+                        {isSuperAdmin ? (
+                          <select
+                            value={f.buscando_asociacion === null ? '' : f.buscando_asociacion ? 'si' : 'no'}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              actualizarFlag(f.equipo_id, 'buscando_asociacion', v === '' ? null : v === 'si');
+                            }}
+                            className="border border-inalde-gray-light rounded px-1 py-0.5 text-xs">
+                            <option value="">—</option>
+                            <option value="si">SÍ</option>
+                            <option value="no">NO</option>
+                          </select>
+                        ) : (
+                          f.buscando_asociacion === true ? <span className="text-inalde-red font-semibold">SÍ</span> :
+                            f.buscando_asociacion === false ? <span className="text-inalde-gray">NO</span> :
+                              <span className="text-inalde-gray italic">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs">
                         <span className={`uppercase tracking-wider font-semibold ${f.modalidad === 'business_plan' ? 'text-inalde-red' : f.modalidad === 'caso' ? 'text-inalde-gold' : 'text-inalde-blue'}`}>

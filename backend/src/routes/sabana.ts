@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { buildSabanaPDF } from '../services/pdf.js';
@@ -249,6 +250,31 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
   filas.forEach((f, i) => { f.numero = i + 1; });
 
   res.json({ cohorte_id: cohorteId, total: filas.length, filas });
+});
+
+/**
+ * PATCH /api/sabana/equipos/:equipoId
+ * Solo super_admin. Permite editar los flags de la sábana (socios /
+ * asociación con otro proyecto) directamente desde la vista admin.
+ */
+const patchEquipoSchema = z.object({
+  buscando_socios: z.boolean().nullable().optional(),
+  buscando_asociacion_otro_proyecto: z.boolean().nullable().optional(),
+});
+router.patch('/equipos/:equipoId', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
+  const parsed = patchEquipoSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  const patch: Record<string, unknown> = {};
+  if (parsed.data.buscando_socios !== undefined) patch.buscando_socios = parsed.data.buscando_socios;
+  if (parsed.data.buscando_asociacion_otro_proyecto !== undefined) patch.buscando_asociacion_otro_proyecto = parsed.data.buscando_asociacion_otro_proyecto;
+  if (!Object.keys(patch).length) return res.status(400).json({ error: 'SIN_CAMBIOS' });
+
+  const { data, error } = await supabaseAdmin
+    .from('equipos').update(patch).eq('id', req.params.equipoId)
+    .select('id, buscando_socios, buscando_asociacion_otro_proyecto').maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
+  res.json(data);
 });
 
 /**

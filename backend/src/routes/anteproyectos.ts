@@ -104,6 +104,9 @@ const updateSchema = z.object({
   numero_proyectos: z.number().int().min(1).max(2),
   miembros: z.array(miembroSchema),
   proyectos: z.array(proyectoSchema).min(1).max(2),
+  // Flags de sábana (nivel equipo, BP) -- nullable mientras no contesten.
+  buscando_socios: z.boolean().nullable().optional(),
+  buscando_asociacion_otro_proyecto: z.boolean().nullable().optional(),
 }).refine((d) => d.miembros.length === d.numero_miembros, {
   message: 'numero_miembros debe coincidir con miembros.length',
 }).refine((d) => d.proyectos.length === d.numero_proyectos, {
@@ -185,6 +188,16 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
           await supabaseAdmin.from('miembro_preocupaciones').insert(m.preocupaciones.map((preocupacion) => ({ miembro_id: row.id, preocupacion })));
         }
       }
+    }
+  }
+
+  // === Persistir flags de sábana en el equipo (si llegaron) =================
+  if (parsed.data.buscando_socios !== undefined || parsed.data.buscando_asociacion_otro_proyecto !== undefined) {
+    const patch: Record<string, unknown> = {};
+    if (parsed.data.buscando_socios !== undefined) patch.buscando_socios = parsed.data.buscando_socios;
+    if (parsed.data.buscando_asociacion_otro_proyecto !== undefined) patch.buscando_asociacion_otro_proyecto = parsed.data.buscando_asociacion_otro_proyecto;
+    if (Object.keys(patch).length) {
+      await supabaseAdmin.from('equipos').update(patch).eq('id', ant.equipo_id);
     }
   }
 
@@ -272,6 +285,25 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
   }
 
   // === Modalidad 'business_plan' (NAVES): validar proyectos + hitos + auto-definitivo
+  // Flags de sábana (a nivel equipo) son obligatorios al enviar
+  const { data: equipoFlags } = await supabaseAdmin
+    .from('equipos')
+    .select('buscando_socios, buscando_asociacion_otro_proyecto')
+    .eq('id', ant.equipo_id)
+    .maybeSingle();
+  if (equipoFlags?.buscando_socios === null || equipoFlags?.buscando_socios === undefined) {
+    return res.status(400).json({
+      error: 'FLAG_BUSCANDO_SOCIOS_REQUERIDO',
+      mensaje: 'Indica si tu equipo está buscando socios antes de enviar.',
+    });
+  }
+  if (equipoFlags?.buscando_asociacion_otro_proyecto === null || equipoFlags?.buscando_asociacion_otro_proyecto === undefined) {
+    return res.status(400).json({
+      error: 'FLAG_BUSCANDO_ASOCIACION_REQUERIDO',
+      mensaje: 'Indica si tu equipo busca asociación con otro proyecto antes de enviar.',
+    });
+  }
+
   const { data: proyectos } = await supabaseAdmin
     .from('proyectos')
     .select('id, nombre, tipo, sector, ciiu, hitos ( posicion, descripcion, fecha_inicio, fecha_fin )')
