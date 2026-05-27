@@ -274,7 +274,7 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
   // === Modalidad 'business_plan' (NAVES): validar proyectos + hitos + auto-definitivo
   const { data: proyectos } = await supabaseAdmin
     .from('proyectos')
-    .select('id, nombre, hitos ( descripcion, fecha_inicio, fecha_fin )')
+    .select('id, nombre, tipo, sector, ciiu, hitos ( posicion, descripcion, fecha_inicio, fecha_fin )')
     .eq('anteproyecto_id', req.params.id);
   if (!proyectos || proyectos.length === 0) return res.status(400).json({ error: 'NO_PROYECTOS' });
 
@@ -304,10 +304,27 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     ultimo_editor_id: pid,
   }).eq('id', req.params.id);
 
+  // El correo de confirmación incluye el cronograma de hitos del/los proyecto(s).
   void notificarRegistroAnteproyectoAParticipantes({
     equipoId: ant.equipo_id,
     modalidad: 'business_plan',
     fechaIso: fechaEnvio,
+    bp: {
+      proyectos: (proyectos as any[]).map((p) => ({
+        nombre: p.nombre,
+        tipo: p.tipo ?? null,
+        sector: p.sector ?? null,
+        ciiu: p.ciiu ?? null,
+        hitos: ((p.hitos as any[]) ?? [])
+          .filter((h) => h?.descripcion && h?.fecha_inicio && h?.fecha_fin)
+          .map((h) => ({
+            posicion: h.posicion ?? 0,
+            descripcion: String(h.descripcion),
+            fecha_inicio: String(h.fecha_inicio),
+            fecha_fin: String(h.fecha_fin),
+          })),
+      })),
+    },
   });
   res.json({
     ok: true,

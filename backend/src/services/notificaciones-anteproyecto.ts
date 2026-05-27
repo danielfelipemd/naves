@@ -17,6 +17,27 @@ export interface OpcionesCasoPI {
   cargadorNombre?: string;
 }
 
+export interface ProyectoCronograma {
+  nombre: string;
+  tipo?: string | null;
+  sector?: string | null;
+  ciiu?: string | null;
+  hitos: Array<{
+    posicion: number;
+    descripcion: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+  }>;
+}
+
+export interface OpcionesBP {
+  /**
+   * Proyectos del equipo BP con sus hitos. Si llega, el correo agrega una
+   * seccion 'Cronograma' al final.
+   */
+  proyectos: ProyectoCronograma[];
+}
+
 const MODALIDAD_LABEL: Record<Exclude<Modalidad, null>, string> = {
   business_plan: 'Business Plan',
   caso: 'Caso',
@@ -35,6 +56,7 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
   modalidad: Modalidad;
   fechaIso: string;
   casoPI?: OpcionesCasoPI;
+  bp?: OpcionesBP;
 }): Promise<void> {
   try {
     const { data: equipo } = await supabaseAdmin
@@ -73,6 +95,54 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
       ? ` ${args.casoPI.lineaAdjuntoParticipante}`
       : '';
 
+    // Cronograma (solo BP): tabla(s) de hitos ordenados por fecha_inicio.
+    const fmtFecha = (iso: string): string => {
+      if (!iso) return '—';
+      const d = new Date(iso.length === 10 ? iso + 'T12:00:00' : iso);
+      return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+    };
+    const seccionCronograma = (() => {
+      const proys = args.bp?.proyectos ?? [];
+      if (!proys.length) return '';
+      const bloques = proys.map((p, idx) => {
+        const hitosOrdenados = [...(p.hitos ?? [])].sort((a, b) =>
+          (a.fecha_inicio || '').localeCompare(b.fecha_inicio || '') || a.posicion - b.posicion,
+        );
+        const filas = hitosOrdenados.length
+          ? hitosOrdenados.map((h, i) => `
+            <tr style="border-bottom: 1px solid #eee;">
+              <td style="padding: 8px 6px; color:#888; width: 32px;">${i + 1}</td>
+              <td style="padding: 8px 6px;">${h.descripcion || '—'}</td>
+              <td style="padding: 8px 6px; white-space: nowrap; color:#555;">${fmtFecha(h.fecha_inicio)}</td>
+              <td style="padding: 8px 6px; white-space: nowrap; color:#555;">${fmtFecha(h.fecha_fin)}</td>
+            </tr>`).join('')
+          : `<tr><td colspan="4" style="padding: 8px 6px; color:#888; font-style: italic;">Sin hitos registrados.</td></tr>`;
+        const meta = [p.sector, p.ciiu ? `CIIU ${p.ciiu}` : '', p.tipo].filter(Boolean).join(' · ');
+        const tituloProy = proys.length > 1 ? `Proyecto ${idx + 1} — ${p.nombre}` : p.nombre;
+        return `
+          <div style="margin-top: 22px;">
+            <p style="margin: 0 0 4px 0; font-weight: 700; color:#1a1a1a;">${tituloProy}</p>
+            ${meta ? `<p style="margin: 0 0 8px 0; color:#888; font-size: 12px;">${meta}</p>` : ''}
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; border-top: 2px solid #e30613;">
+              <thead>
+                <tr style="background: #f5f5f5; text-align: left;">
+                  <th style="padding: 8px 6px; color:#888; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">#</th>
+                  <th style="padding: 8px 6px; color:#888; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Hito</th>
+                  <th style="padding: 8px 6px; color:#888; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Inicio</th>
+                  <th style="padding: 8px 6px; color:#888; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Fin</th>
+                </tr>
+              </thead>
+              <tbody>${filas}</tbody>
+            </table>
+          </div>`;
+      }).join('');
+      return `
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0 8px;"/>
+        <p style="color: #888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 8px 0 0 0;">Cronograma</p>
+        <p style="font-size: 13px; color:#555; margin: 4px 0 0 0;">A continuación se relaciona el cronograma de hitos definido por el equipo. Manten este correo como referencia; el cronograma queda registrado en la plataforma.</p>
+        ${bloques}`;
+    })();
+
     for (const m of miembros) {
       let email = '';
       try { email = decryptPII(m.email_encriptado); } catch { continue; }
@@ -101,7 +171,8 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
             <tr><td style="padding: 6px 0; color:#888;">Fecha y hora</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
           </table>
           <p style="font-size: 13px; color:#555;">El anteproyecto queda registrado de manera definitiva.</p>
-          <p style="margin-top: 18px;">Cordialmente,</p>
+          ${seccionCronograma}
+          <p style="margin-top: 22px;">Cordialmente,</p>
           <p style="margin: 4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
           <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0 16px;"/>
           <p style="font-size: 11px; color: #888; line-height: 1.5; margin: 0;">
