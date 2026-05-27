@@ -426,14 +426,8 @@ export default function Dashboard() {
                           </Link>
                         )
                       )}
-                      {modalidad === 'business_plan' && (
-                        <Link to="/mi-profesor" className="card-inalde-interactive flex flex-col gap-3">
-                          <div className="text-3xl">👨‍🏫</div>
-                          <h2 className="font-primary font-bold text-lg">Mi profesor</h2>
-                          <p className="text-inalde-gray text-sm">Profesor asignado y agenda</p>
-                          <span className="text-sm font-semibold text-inalde-red">Ver →</span>
-                        </Link>
-                      )}
+                      {/* Card 'Mi profesor' retirada del panel — la ruta /mi-profesor
+                          sigue disponible si se necesita restaurar el acceso. */}
                     </div>
                   )}
                 </>
