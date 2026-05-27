@@ -9,11 +9,17 @@ import { formatBackendError } from '../../lib/errors';
 export default function CambiarClaveInicial() {
   const navigate = useNavigate();
   const marcarActivado = useAuth((s) => s.marcarActivado);
+  const signOut = useAuth((s) => s.signOut);
   const nombre = useAuth((s) => s.nombre ?? '');
   const [clave1, setClave1] = useState('');
   const [clave2, setClave2] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function salir() {
+    await signOut();
+    navigate('/login', { replace: true });
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,6 +93,15 @@ export default function CambiarClaveInicial() {
                 Sesión iniciada como <span className="font-semibold text-inalde-text">{nombre}</span>
               </p>
             )}
+
+            <div className="text-center mt-3">
+              <button
+                type="button"
+                onClick={salir}
+                className="text-xs text-inalde-gray hover:text-inalde-red underline transition">
+                Cerrar sesión y crear la clave después
+              </button>
+            </div>
           </div>
         </div>
       </main>
