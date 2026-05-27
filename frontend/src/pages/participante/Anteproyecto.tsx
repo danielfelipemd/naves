@@ -360,7 +360,6 @@ export default function Anteproyecto() {
   }
 
   const readOnly = estado !== 'borrador';
-  const numMiembros = miembros.length;
 
   if (loading) {
     return <><Header /><main className="pt-36 text-center text-inalde-gray">Cargando anteproyecto…</main></>;
@@ -479,13 +478,8 @@ export default function Anteproyecto() {
             </div>
           )}
 
-          {/* ============ Sección 1: Equipo emprendedor ============ */}
-          <SectionHeader n={1} title={`Información del ${numMiembros === 1 ? 'emprendedor' : 'equipo emprendedor'}`} />
-          <p className="text-sm text-inalde-gray mb-6">
-            {numMiembros === 1
-              ? 'Cuéntanos sobre ti y tu perfil emprendedor. Esto nos ayuda a entender tu motivación.'
-              : `Cuéntanos sobre cada uno de los ${numMiembros} miembros del equipo. Esto nos ayuda a entender la motivación colectiva.`}
-          </p>
+          {/* ============ Sección 1: Información del equipo ============ */}
+          <SectionHeader n={1} title="Información del equipo" />
 
           {miembros.map((m) => (
             <div key={m.participante_id}
@@ -494,10 +488,6 @@ export default function Anteproyecto() {
                 Miembro {m.posicion}
               </p>
               <p className="font-primary font-bold text-lg text-inalde-text">{m.nombre}</p>
-              <p className="text-xs text-inalde-gray mt-2 italic">
-                El perfil emprendedor (rol, emprendimiento previo, emociones, preocupaciones) lo llena cada miembro
-                desde <strong>Mi perfil</strong>. Aquí solo aparece su nombre como integrante.
-              </p>
             </div>
           ))}
 
@@ -854,7 +844,10 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
                         onUpdateHito(hi, { descripcion: '', fecha_fin: '' });
                       } else {
                         const preset = PRESET_HITOS.find((p) => p.descripcion === v);
-                        if (preset) onUpdateHito(hi, { descripcion: preset.descripcion, fecha_fin: preset.fecha_fin });
+                        // Solo prellenamos la descripcion del hito; las fechas
+                        // las llena el participante manualmente -- ningun item
+                        // debe aparecer con fecha predeterminada.
+                        if (preset) onUpdateHito(hi, { descripcion: preset.descripcion });
                       }
                     }}
                     className="input-inalde">

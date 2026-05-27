@@ -12,7 +12,7 @@ async function fetchEquipoConCohorte(equipoId: string) {
   const { data, error } = await supabaseAdmin
     .from('equipos')
     .select(`
-      id, cohorte_id, reunion_1_marcada_por, reunion_1_fecha_marcado, proyecto_definitivo_id,
+      id, cohorte_id, creador_id, reunion_1_marcada_por, reunion_1_fecha_marcado, proyecto_definitivo_id,
       cohortes ( fecha_reunion_1, fecha_limite_seleccion_definitivo )
     `)
     .eq('id', equipoId)
@@ -66,37 +66,41 @@ router.post('/equipos/:id/marcar-reunion-1', requireRole('participante'), async 
 });
 
 // === POST /api/equipos/:id/seleccionar-proyecto-definitivo =============
-// Lo ejecuta el PROFESOR asignado al equipo (o super_admin). El participante
-// solo ve el resultado en su Dashboard.
+// Lo ejecuta el CREADOR del equipo (después de la Reunión 1). Tambien permitido
+// para super_admin como red de seguridad.
 const seleccionarSchema = z.object({ proyecto_id: z.string().uuid() });
-router.post('/equipos/:id/seleccionar-proyecto-definitivo', requireRole('profesor', 'super_admin'), async (req: AuthenticatedRequest, res) => {
+router.post('/equipos/:id/seleccionar-proyecto-definitivo', async (req: AuthenticatedRequest, res) => {
   const parsed = seleccionarSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID' });
 
-  const profesorId = req.user!.profesorId;
   const isSuperAdmin = !!req.user!.isSuperAdmin;
-  if (!profesorId && !isSuperAdmin) return res.status(403).json({ error: 'NO_PROFESOR_ID' });
-
-  // Validar asignación: el profesor debe tener este equipo asignado (excepto super_admin).
-  if (!isSuperAdmin) {
-    const { data: asign } = await supabaseAdmin
-      .from('asignaciones_profesor')
-      .select('id')
-      .eq('equipo_id', req.params.id)
-      .eq('profesor_id', profesorId)
-      .maybeSingle();
-    if (!asign) return res.status(403).json({ error: 'NOT_ASSIGNED_TO_TEAM' });
-  }
+  const pid = req.user!.participanteId;
+  const role = req.user!.role;
 
   const equipo = await fetchEquipoConCohorte(req.params.id);
   if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
   if (equipo.proyecto_definitivo_id) return res.status(409).json({ error: 'ALREADY_SELECTED', proyecto_definitivo_id: equipo.proyecto_definitivo_id });
 
+  // Solo el creador del equipo (o super_admin) puede marcar el definitivo.
+  if (!isSuperAdmin) {
+    if (role !== 'participante') return res.status(403).json({ error: 'FORBIDDEN' });
+    if (!pid || pid !== equipo.creador_id) {
+      return res.status(403).json({
+        error: 'SOLO_CREADOR_EQUIPO',
+        mensaje: 'Solo quien creó el equipo puede marcar el proyecto definitivo.',
+      });
+    }
+  }
+
   const fechas = equipo.cohortes as any;
   const ahoraD = new Date();
-  // Reunión 1 marca el momento desde el que el profesor puede elegir el definitivo.
+  // Reunión 1 marca el momento desde el que el creador puede elegir el definitivo.
   if (fechas?.fecha_reunion_1 && ahoraD < new Date(fechas.fecha_reunion_1)) {
-    return res.status(403).json({ error: 'TOO_EARLY', fecha_reunion_1: fechas.fecha_reunion_1 });
+    return res.status(403).json({
+      error: 'TOO_EARLY',
+      fecha_reunion_1: fechas.fecha_reunion_1,
+      mensaje: 'Aún no puedes elegir el proyecto definitivo. Espera a que pase la Reunión 1.',
+    });
   }
   if (fechas?.fecha_limite_seleccion_definitivo && ahoraD > new Date(fechas.fecha_limite_seleccion_definitivo)) {
     return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA' });

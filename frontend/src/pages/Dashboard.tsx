@@ -71,6 +71,10 @@ export default function Dashboard() {
   const [nombre, setNombre] = useState<string | null>(null);
   const [esperandoEquipo, setEsperandoEquipo] = useState(false);
   const [enEquipo, setEnEquipo] = useState(false);
+  // Nombre del proyecto ya marcado como definitivo (si lo hay) -- se usa para
+  // mostrar la card de 'Selección' desactivada con el nombre cuando ya esta
+  // resuelto. Solo aplica a BP.
+  const [proyectoDefinitivoNombre, setProyectoDefinitivoNombre] = useState<string | null>(null);
   const [opBusy, setOpBusy] = useState(false);
 
   // Cargar el nombre real del usuario + flags de equipo
@@ -84,13 +88,27 @@ export default function Dashboard() {
   useEffect(() => { cargarMe(); }, []);
 
   // Saber si el participante ya está en un equipo (para no mostrar la pantalla
-  // 'esperando' si ya fue agregado).
+  // 'esperando' si ya fue agregado). Tambien resolvemos si su equipo ya tiene
+  // proyecto definitivo marcado, para desactivar la card de 'Seleccion' con
+  // el nombre del proyecto elegido.
   useEffect(() => {
     if (role !== 'participante') return;
     (async () => {
       try {
         const { data } = await api.get('/equipos/mi-equipo');
-        setEnEquipo(!!data?.equipo);
+        const eq = data?.equipo;
+        setEnEquipo(!!eq);
+        if (eq?.proyecto_definitivo_id) {
+          // Buscar el nombre del proyecto definitivo entre los del anteproyecto.
+          try {
+            const a = await api.get('/anteproyectos/mi-anteproyecto');
+            const proyectos = (a.data?.anteproyecto?.proyectos ?? []) as Array<{ id: string; nombre: string }>;
+            const def = proyectos.find((p) => p.id === eq.proyecto_definitivo_id);
+            if (def?.nombre) setProyectoDefinitivoNombre(def.nombre);
+          } catch { /* ignore */ }
+        } else {
+          setProyectoDefinitivoNombre(null);
+        }
       } catch { /* ignore */ }
     })();
   }, [role]);
@@ -388,12 +406,25 @@ export default function Dashboard() {
                   {modalidad && (
                     <div className="grid sm:grid-cols-2 gap-6">
                       {modalidad === 'business_plan' && (
-                        <Link to="/seleccion" className="card-inalde-interactive flex flex-col gap-3">
-                          <div className="text-3xl">✅</div>
-                          <h2 className="font-primary font-bold text-lg">Selección del proyecto definitivo</h2>
-                          <p className="text-inalde-gray text-sm">Después de la Reunión 1 con tu profesor</p>
-                          <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
-                        </Link>
+                        proyectoDefinitivoNombre ? (
+                          // Ya hay proyecto definitivo: card desactivada (sin link)
+                          // mostrando cual quedo seleccionado.
+                          <div className="card-inalde-interactive flex flex-col gap-3 opacity-70 cursor-default pointer-events-none">
+                            <div className="text-3xl">✅</div>
+                            <h2 className="font-primary font-bold text-lg">Proyecto definitivo</h2>
+                            <p className="text-inalde-gray text-sm">
+                              El proyecto <strong className="text-inalde-text">{proyectoDefinitivoNombre}</strong> fue definido como definitivo.
+                            </p>
+                            <span className="text-xs font-semibold text-inalde-gray uppercase tracking-wider">Ya resuelto</span>
+                          </div>
+                        ) : (
+                          <Link to="/seleccion" className="card-inalde-interactive flex flex-col gap-3">
+                            <div className="text-3xl">✅</div>
+                            <h2 className="font-primary font-bold text-lg">Selección del proyecto definitivo</h2>
+                            <p className="text-inalde-gray text-sm">Después de la Reunión 1 con tu profesor</p>
+                            <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                          </Link>
+                        )
                       )}
                       {modalidad === 'business_plan' && (
                         <Link to="/mi-profesor" className="card-inalde-interactive flex flex-col gap-3">

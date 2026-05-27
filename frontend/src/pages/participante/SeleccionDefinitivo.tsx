@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
+import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
 
 interface Proyecto {
@@ -13,16 +14,25 @@ interface Proyecto {
 }
 interface Equipo {
   id: string;
+  creador_id: string;
+  cohorte_id: string;
   proyecto_definitivo_id: string | null;
   fecha_seleccion_definitivo: string | null;
+}
+interface Cohorte {
+  fecha_reunion_1: string | null;
+  fecha_limite_seleccion_definitivo: string | null;
 }
 
 export default function SeleccionDefinitivo() {
   const navigate = useNavigate();
+  const meParticipanteId = useAuth((s) => (s.user?.app_metadata as any)?.participante_id as string | undefined);
   const [equipo, setEquipo] = useState<Equipo | null>(null);
+  const [cohorte, setCohorte] = useState<Cohorte | null>(null);
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [estadoAnte, setEstadoAnte] = useState<string>('borrador');
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   async function load() {
@@ -36,12 +46,33 @@ export default function SeleccionDefinitivo() {
       if (!a) { navigate('/equipo'); return; }
       setEstadoAnte(a.estado);
       setProyectos((a.proyectos ?? []).sort((x: any, y: any) => x.posicion - y.posicion));
+      // Cohorte: necesitamos saber si ya paso la Reunion 1 para habilitar el
+      // boton de marcar definitivo.
+      const co = await api.get(`/cohortes/${eq.data.equipo.cohorte_id}`).catch(() => null);
+      if (co?.data) setCohorte(co.data);
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setLoading(false); }
   }
 
   useEffect(() => { load(); }, []);
+
+  async function marcarDefinitivo(proyectoId: string, proyectoNombre: string) {
+    if (!equipo) return;
+    const ok = window.confirm(
+      `Vas a marcar "${proyectoNombre}" como el proyecto definitivo del equipo. ` +
+      'Los demás proyectos quedarán archivados. Esta decisión queda registrada en el sistema. ¿Confirmas?',
+    );
+    if (!ok) return;
+    setBusy(proyectoId); setMsg(null);
+    try {
+      await api.post(`/equipos/${equipo.id}/seleccionar-proyecto-definitivo`, { proyecto_id: proyectoId });
+      await load();
+      setMsg({ kind: 'ok', text: 'Proyecto definitivo marcado correctamente.' });
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setBusy(null); }
+  }
 
   if (loading) {
     return <><Header /><main className="pt-36 text-center text-inalde-gray">Cargando…</main></>;
@@ -84,23 +115,46 @@ export default function SeleccionDefinitivo() {
             </div>
           )}
 
-          {/* Caso 3: 2+ proyectos, sin elegir → pendiente del profesor */}
-          {estadoAnte !== 'borrador' && proyectos.length > 1 && !yaSeleccionado && (
+          {/* Caso 3: 2+ proyectos, sin elegir → decide el creador del equipo */}
+          {estadoAnte !== 'borrador' && proyectos.length > 1 && !yaSeleccionado && (() => {
+            const esCreador = !!(meParticipanteId && equipo?.creador_id === meParticipanteId);
+            const fechaR1 = cohorte?.fecha_reunion_1 ? new Date(cohorte.fecha_reunion_1) : null;
+            const yaPasoR1 = !fechaR1 || new Date() >= fechaR1;
+            return (
             <>
               <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 mb-6">
-                <p className="font-primary font-bold text-sm text-inalde-text mb-1">Esperando decisión del profesor</p>
-                <p className="text-sm text-inalde-gray">
-                  Tu equipo presentó <strong>{proyectos.length} proyectos</strong>. Después de la Reunión 1,
-                  tu profesor asignado entrará al sistema y marcará cuál queda como definitivo.
-                  Los otros quedarán archivados.
+                <p className="font-primary font-bold text-sm text-inalde-text mb-1">
+                  {esCreador ? 'Te corresponde marcar el proyecto definitivo' : 'Esperando decisión del creador del equipo'}
                 </p>
+                <p className="text-sm text-inalde-gray">
+                  Tu equipo presentó <strong>{proyectos.length} proyectos</strong>.
+                  {' '}Después de la Reunión 1,
+                  {esCreador ? ' tú (como creador del equipo) marcas cuál queda como definitivo.' : ' el creador del equipo marcará cuál queda como definitivo.'}
+                  {' '}Los otros quedarán archivados.
+                </p>
+                {esCreador && !yaPasoR1 && fechaR1 && (
+                  <p className="text-xs text-inalde-gray mt-2 italic">
+                    Disponible a partir del {fechaR1.toLocaleDateString('es-CO', { dateStyle: 'medium' })}.
+                  </p>
+                )}
               </div>
 
               <p className="section-subtitle mb-3">Los proyectos que presentaron</p>
               <ul className="space-y-3">
                 {noArchivados.map((p) => (
                   <li key={p.id} className="border border-inalde-gray-light rounded p-4">
-                    <p className="font-primary font-bold">{p.nombre}</p>
+                    <div className="flex justify-between items-start gap-3 mb-2">
+                      <p className="font-primary font-bold">{p.nombre}</p>
+                      {esCreador && (
+                        <button
+                          onClick={() => marcarDefinitivo(p.id, p.nombre)}
+                          disabled={!yaPasoR1 || busy === p.id}
+                          title={!yaPasoR1 ? 'Disponible después de la Reunión 1' : 'Marcar este proyecto como definitivo'}
+                          className="text-xs font-semibold px-3 py-1.5 rounded border border-inalde-red text-inalde-red hover:bg-inalde-red hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition whitespace-nowrap">
+                          {busy === p.id ? 'Marcando…' : 'Marcar como definitivo'}
+                        </button>
+                      )}
+                    </div>
                     <p className="text-xs text-inalde-gray mt-1">
                       {p.sector && <span>{p.sector}</span>}
                       {p.ciiu && <span className="font-mono ml-2 text-inalde-gold">CIIU {p.ciiu}</span>}
@@ -118,7 +172,8 @@ export default function SeleccionDefinitivo() {
                 ))}
               </ul>
             </>
-          )}
+            );
+          })()}
 
           {/* Caso 4: ya hay definitivo */}
           {estadoAnte !== 'borrador' && proyectos.length > 1 && yaSeleccionado && (
@@ -128,7 +183,7 @@ export default function SeleccionDefinitivo() {
                 <p className="font-bold text-lg">{definitivo?.nombre}</p>
                 {equipo?.fecha_seleccion_definitivo && (
                   <p className="text-xs text-inalde-gray mt-1">
-                    Marcado por tu profesor el {new Date(equipo.fecha_seleccion_definitivo).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}.
+                    Marcado el {new Date(equipo.fecha_seleccion_definitivo).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}.
                   </p>
                 )}
               </div>
