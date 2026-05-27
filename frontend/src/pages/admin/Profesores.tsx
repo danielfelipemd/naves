@@ -122,13 +122,16 @@ export default function Profesores() {
     if (!editing) return;
     setBusy(true); setMsg(null);
     try {
-      await api.put(`/admin/profesores/${editing}`, {
+      const payload: Record<string, unknown> = {
         nombre_completo: editDraft.nombre_completo,
         es_super_admin: editDraft.es_super_admin,
         activo: editDraft.activo,
         booking_url: editDraft.booking_url || null,
         areas_afinidad: editDraft.areas_afinidad,
-      });
+      };
+      if (editDraft.email && editDraft.email.trim()) payload.email = editDraft.email.trim();
+      if (editDraft.password && editDraft.password.length > 0) payload.password = editDraft.password;
+      await api.put(`/admin/profesores/${editing}`, payload);
       setMsg({ kind: 'ok', text: 'Profesor actualizado.' });
       setEditing(null);
       await load();
@@ -304,21 +307,54 @@ export default function Profesores() {
         <tbody>
           {profesores.map((p) => (
             editing === p.id ? (
-              <tr key={p.id} className="border-t border-inalde-gray-light bg-inalde-red/5">
-                <td className="px-3 py-2"></td>
-                <td className="px-3 py-2"><input type="text" value={editDraft.nombre_completo ?? ''} onChange={(e) => setEditDraft({ ...editDraft, nombre_completo: e.target.value })} className="input-inalde !py-1 !text-sm" /></td>
-                <td className="px-3 py-2">
-                  <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!editDraft.es_super_admin} onChange={(e) => setEditDraft({ ...editDraft, es_super_admin: e.target.checked })} /> super admin</label>
-                </td>
-                <td className="px-3 py-2"><AreasPicker size="compact" value={editDraft.areas_afinidad ?? []} onChange={(next) => setEditDraft({ ...editDraft, areas_afinidad: next })} /></td>
-                <td className="px-3 py-2">
-                  <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!editDraft.activo} onChange={(e) => setEditDraft({ ...editDraft, activo: e.target.checked })} /> activo</label>
-                </td>
-                <td className="px-3 py-2">
-                  <button onClick={saveEdit} disabled={busy} className="text-xs font-semibold text-inalde-red mr-2">Guardar</button>
-                  <button onClick={() => setEditing(null)} className="text-xs text-inalde-gray">×</button>
-                </td>
-              </tr>
+              <>
+                <tr key={p.id} className="border-t border-inalde-gray-light bg-inalde-red/5">
+                  <td className="px-3 py-2"></td>
+                  <td className="px-3 py-2"><input type="text" value={editDraft.nombre_completo ?? ''} onChange={(e) => setEditDraft({ ...editDraft, nombre_completo: e.target.value })} className="input-inalde !py-1 !text-sm" /></td>
+                  <td className="px-3 py-2">
+                    <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!editDraft.es_super_admin} onChange={(e) => setEditDraft({ ...editDraft, es_super_admin: e.target.checked })} /> super admin</label>
+                  </td>
+                  <td className="px-3 py-2"><AreasPicker size="compact" value={editDraft.areas_afinidad ?? []} onChange={(next) => setEditDraft({ ...editDraft, areas_afinidad: next })} /></td>
+                  <td className="px-3 py-2">
+                    <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!editDraft.activo} onChange={(e) => setEditDraft({ ...editDraft, activo: e.target.checked })} /> activo</label>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <button onClick={saveEdit} disabled={busy} className="text-xs font-semibold text-inalde-red mr-2">Guardar</button>
+                    <button onClick={() => setEditing(null)} className="text-xs text-inalde-gray">×</button>
+                  </td>
+                </tr>
+                <tr key={`${p.id}-extra`} className="bg-inalde-red/5 border-b-2 border-inalde-red/30">
+                  <td></td>
+                  <td colSpan={5} className="px-3 pb-4 pt-2">
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block font-primary font-semibold text-[10px] tracking-wider uppercase text-inalde-gray mb-1">Email institucional</label>
+                        <input type="email" value={editDraft.email ?? ''}
+                          onChange={(e) => setEditDraft({ ...editDraft, email: e.target.value })}
+                          className="input-inalde !py-1 !text-sm w-full"
+                          placeholder="docente@inalde.edu.co" />
+                      </div>
+                      <div>
+                        <label className="block font-primary font-semibold text-[10px] tracking-wider uppercase text-inalde-gray mb-1">Booking URL (opcional)</label>
+                        <input type="url" value={editDraft.booking_url ?? ''}
+                          onChange={(e) => setEditDraft({ ...editDraft, booking_url: e.target.value })}
+                          className="input-inalde !py-1 !text-sm w-full"
+                          placeholder="https://calendly.com/..." />
+                      </div>
+                      <div>
+                        <label className="block font-primary font-semibold text-[10px] tracking-wider uppercase text-inalde-gray mb-1">
+                          Resetear clave <span className="normal-case text-inalde-gray italic">(dejar vacío para no cambiar)</span>
+                        </label>
+                        <input type="password" value={editDraft.password ?? ''}
+                          onChange={(e) => setEditDraft({ ...editDraft, password: e.target.value })}
+                          className="input-inalde !py-1 !text-sm w-full"
+                          placeholder="Min 8 chars · mayúscula · minúscula · número"
+                          autoComplete="new-password" />
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </>
             ) : (
               <tr key={p.id} className="border-t border-inalde-gray-light">
                 <td className="px-3 py-2">

@@ -1324,16 +1324,20 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
   const { cohorteId } = req.params;
   const ahora = new Date().toISOString();
 
-  // 1. Traer todas las asignaciones de la cohorte con datos del profesor y los miembros del equipo
+  // 1. Traer todas las asignaciones de la cohorte con datos del profesor,
+  //    los miembros del equipo y los proyectos no archivados del anteproyecto.
   const { data: asignaciones, error: errAsign } = await supabaseAdmin
     .from('asignaciones_profesor')
     .select(`
       id, equipo_id, profesor_id,
-      profesores:profesores!inner ( nombre_completo, email_encriptado, booking_url, areas_afinidad ),
+      profesores:profesores!inner ( id, nombre_completo, email_encriptado, booking_url, areas_afinidad ),
       equipos:equipos!inner (
-        id, nombre_equipo, cohorte_id,
+        id, nombre_equipo, cohorte_id, buscando_socios, buscando_asociacion_otro_proyecto,
         miembros_equipo (
           participantes_lista ( id, nombre_completo, email_encriptado )
+        ),
+        anteproyectos (
+          proyectos ( id, nombre, sector, tipo, estado_seleccion, posicion )
         )
       )
     `)
@@ -1388,7 +1392,78 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
     }
   }
 
-  // 3. Marcar como comunicada en BD (independiente del resultado de emails)
+  // 3. Email consolidado al profesor: un correo por profesor con la lista
+  //    completa de equipos/proyectos que le fueron asignados en esta cohorte.
+  const porProfesor = new Map<string, { prof: any; equipos: any[] }>();
+  for (const a of asignaciones ?? []) {
+    const prof: any = a.profesores;
+    if (!prof?.id) continue;
+    if (!porProfesor.has(prof.id)) porProfesor.set(prof.id, { prof, equipos: [] });
+    porProfesor.get(prof.id)!.equipos.push(a.equipos);
+  }
+
+  let profesoresEnviados = 0;
+  let profesoresFallados = 0;
+  for (const { prof, equipos } of porProfesor.values()) {
+    let profEmail = '';
+    try { profEmail = decryptPII(prof.email_encriptado); }
+    catch { profesoresFallados++; continue; }
+    if (!profEmail) { profesoresFallados++; continue; }
+
+    const filasEquipos = equipos.map((eq: any) => {
+      const nombreEquipo = eq?.nombre_equipo || '(sin nombre)';
+      const miembrosList = ((eq?.miembros_equipo ?? []) as any[])
+        .map((m) => m.participantes_lista?.nombre_completo)
+        .filter(Boolean);
+      const proyectos = (((eq?.anteproyectos ?? [])[0]?.proyectos ?? []) as any[])
+        .filter((p) => p.estado_seleccion !== 'archivado')
+        .sort((x, y) => (x.posicion ?? 0) - (y.posicion ?? 0));
+      const proyectosHtml = proyectos.length
+        ? `<ul style="margin:4px 0 0 0; padding-left: 18px;">${proyectos.map((p) =>
+            `<li style="font-size:13px;"><strong>${p.nombre}</strong>${p.sector ? ` <span style="color:#888;">· ${p.sector}</span>` : ''}</li>`,
+          ).join('')}</ul>`
+        : '<p style="margin:4px 0 0 0; font-size:13px; color:#888; font-style:italic;">Aún sin proyectos cargados.</p>';
+      return `
+        <div style="border-left:3px solid #e30613; padding: 10px 14px; margin: 12px 0; background:#fafafa;">
+          <p style="margin:0; font-weight:600; font-size:15px;">${nombreEquipo}</p>
+          ${miembrosList.length ? `<p style="margin:4px 0 0 0; color:#555; font-size:12px;">${miembrosList.join(' · ')}</p>` : ''}
+          ${proyectosHtml}
+        </div>`;
+    }).join('');
+
+    const html = `
+      <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto">
+        <div style="border-bottom:3px solid #e30613; padding-bottom:14px; margin-bottom:22px;">
+          <p style="color:#888; text-transform:uppercase; letter-spacing:1.5px; font-size:11px; margin:0;">Asignación de equipos — Programa MBA</p>
+          <h2 style="color:#1a1a1a; margin:6px 0 0 0; font-size:22px;">Equipos asignados para acompañamiento</h2>
+        </div>
+        <p><strong>${prof.nombre_completo}</strong>:</p>
+        <p>Reciba un cordial saludo. Le informamos que la sábana de proyectos de la
+        cohorte <strong>${cohorteId}</strong> fue aprobada y los siguientes equipos quedaron
+        bajo su acompañamiento como profesor de trabajo de grado:</p>
+
+        ${filasEquipos}
+
+        <p style="font-size:13px; color:#555; margin-top:18px;">
+          Por favor coordine la <strong>Reunión 1</strong> con cada equipo dentro de la ventana
+          establecida en el cronograma de la cohorte. Solamente un miembro de cada equipo
+          solicitará la cita en su agenda.
+        </p>
+        <p style="margin-top:18px;">Cordialmente,</p>
+        <p style="margin:4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
+        <hr style="border:none; border-top:1px solid #ddd; margin:24px 0 16px;"/>
+        <p style="font-size:11px; color:#888; line-height:1.5; margin:0;">
+          <strong>INALDE Business School</strong> — Programa MBA<br/>
+          Sistema de trabajos de grado. Este es un mensaje automático, por favor no responda a este correo.
+        </p>
+      </div>`;
+
+    const r = await sendEmail(profEmail, `Equipos asignados — Cohorte ${cohorteId}`, html);
+    if (r.ok) profesoresEnviados++;
+    else profesoresFallados++;
+  }
+
+  // 4. Marcar como comunicada en BD (independiente del resultado de emails)
   await supabaseAdmin
     .from('sabanas_proyectos')
     .update({ estado: 'comunicada', fecha_comunicacion: ahora })
@@ -1402,6 +1477,8 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
     ok: true,
     emails_enviados: emailsEnviados,
     emails_fallados: emailsFallados,
+    profesores_notificados: profesoresEnviados,
+    profesores_fallados: profesoresFallados,
     fallos: fallos.slice(0, 20),
   });
 });
