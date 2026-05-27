@@ -100,8 +100,7 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
             ${filaDireccion}
             <tr><td style="padding: 6px 0; color:#888;">Fecha y hora</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
           </table>
-          <p style="font-size: 13px; color:#555;">El anteproyecto queda registrado de manera
-          definitiva y no podrá ser reemplazado.</p>
+          <p style="font-size: 13px; color:#555;">El anteproyecto queda registrado de manera definitiva.</p>
           <p style="margin-top: 18px;">Cordialmente,</p>
           <p style="margin: 4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
           <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0 16px;"/>
