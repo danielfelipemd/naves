@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
+import { PasswordInput } from '../../components/inalde/PasswordInput';
 import { api } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
@@ -44,8 +45,8 @@ export default function CambiarClaveInicial() {
             </div>
 
             <p className="text-sm text-inalde-text mb-6">
-              Esta es la primera vez que entras a NAVES. Por seguridad, debes reemplazar la clave temporal
-              (tu número de cédula) por una clave propia antes de continuar.
+              Esta es la primera vez que ingresas al sistema de trabajos de grado. Por seguridad,
+              debes reemplazar la clave temporal (tu número de cédula) por una clave propia antes de continuar.
             </p>
 
             <form onSubmit={onSubmit} className="space-y-5">
@@ -58,18 +59,16 @@ export default function CambiarClaveInicial() {
                 <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
                   Nueva clave
                 </label>
-                <input type="password" autoComplete="new-password" minLength={8}
-                  value={clave1} onChange={(e) => setClave1(e.target.value)}
-                  required className="input-inalde" />
+                <PasswordInput value={clave1} onChange={setClave1}
+                  autoComplete="new-password" minLength={8} required />
               </div>
 
               <div>
                 <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
                   Repite la clave
                 </label>
-                <input type="password" autoComplete="new-password" minLength={8}
-                  value={clave2} onChange={(e) => setClave2(e.target.value)}
-                  required className="input-inalde" />
+                <PasswordInput value={clave2} onChange={setClave2}
+                  autoComplete="new-password" minLength={8} required />
               </div>
 
               {error && (

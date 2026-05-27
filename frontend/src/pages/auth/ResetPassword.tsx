@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
+import { PasswordInput } from '../../components/inalde/PasswordInput';
 import { api } from '../../lib/api';
 
 export default function ResetPassword() {
@@ -63,16 +64,16 @@ export default function ResetPassword() {
               <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
                 Nueva clave
               </label>
-              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)}
-                required minLength={8} autoComplete="new-password" className="input-inalde" />
+              <PasswordInput value={pw} onChange={setPw}
+                required minLength={8} autoComplete="new-password" />
               <p className="text-xs text-inalde-gray mt-1">Mín 8 caracteres, con mayúscula, minúscula y número.</p>
             </div>
             <div>
               <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
                 Repetir nueva clave
               </label>
-              <input type="password" value={pw2} onChange={(e) => setPw2(e.target.value)}
-                required minLength={8} className="input-inalde" />
+              <PasswordInput value={pw2} onChange={setPw2}
+                required minLength={8} autoComplete="new-password" />
             </div>
             {error && <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm">{error}</div>}
             <button type="submit" disabled={busy} className="btn-inalde-primary w-full">
