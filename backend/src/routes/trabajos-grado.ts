@@ -145,7 +145,7 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
       : '<strong>No fue posible adjuntar el documento</strong> al presente correo (falla técnica al recuperarlo del almacenamiento). El archivo sigue disponible en la plataforma, en el detalle del anteproyecto correspondiente.';
     const lineaAdjuntoParticipante = tieneAdjunto
       ? `El director(a), <strong>${dir.nombre_completo}</strong>, ya fue notificado(a) por correo electrónico y recibió el documento como archivo adjunto.`
-      : `Se notificó al director(a), <strong>${dir.nombre_completo}</strong>, sobre la carga; sin embargo, no fue posible adjuntar el documento al correo. El Comité del MBA cuenta con el archivo en la plataforma.`;
+      : `Se notificó al director(a), <strong>${dir.nombre_completo}</strong>, sobre la carga; sin embargo, por una falla técnica no fue posible adjuntar el documento al correo. Te pedimos hacerle llegar el documento directamente por correo para que pueda revisarlo.`;
 
     const baseFooter = `
       <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0 16px;"/>
