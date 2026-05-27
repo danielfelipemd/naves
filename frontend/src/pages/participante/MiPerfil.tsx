@@ -111,10 +111,10 @@ export default function MiPerfil() {
       <main className="pt-36 pb-16 px-4">
         <div className="max-w-[800px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
-            <p className="section-subtitle mb-2">Antes de formar equipo</p>
+            <p className="section-subtitle mb-2">Diligenciar antes de formar equipo</p>
             <h1 className="section-title">Mi perfil emprendedor</h1>
             <p className="text-sm text-inalde-text mt-3">
-              Este formulario lo llena <strong>cada participante</strong> antes de crear o unirse a un equipo.
+              Este formulario lo llena <strong>cada participante</strong> antes de crear o ser agregado a un equipo.
               {yaCompleto && ' Ya lo completaste; puedes editarlo si lo necesitas.'}
             </p>
           </div>
