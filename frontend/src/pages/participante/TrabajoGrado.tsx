@@ -172,11 +172,11 @@ export default function TrabajoGrado() {
       },
       caso: {
         p1: 'Para la modalidad Caso puedes crear tu grupo de 1 a 3 personas. Cada miembro debe haber elegido también la modalidad Caso.',
-        p2: 'Una vez formes tu equipo, podrás seleccionar a tu director, cargar el anteproyecto y, después de la aprobación, el proyecto final.',
+        p2: 'Una vez formes tu equipo, podrás seleccionar a tu director y cargar el anteproyecto.',
       },
       proyecto_investigacion: {
         p1: 'Para Proyecto de Investigación puedes crear tu grupo de 1 a 3 personas. Cada miembro debe haber elegido también la modalidad Proyecto de Investigación.',
-        p2: 'Una vez formes tu equipo, podrás seleccionar a tu director, cargar el anteproyecto y, después de la aprobación, el proyecto final.',
+        p2: 'Una vez formes tu equipo, podrás seleccionar a tu director y cargar el anteproyecto.',
       },
     };
     const m = modalidadParticipante;
