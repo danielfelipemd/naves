@@ -367,11 +367,23 @@ export default function Participantes() {
         </div>
       )}
 
+      {/* Scroll horizontal en pantallas chicas: en menos de ~1050px la tabla
+          aparece con scroll lateral. Anchos de columnas fijos para alinear
+          todo verticalmente sin que el badge de cohorte se parta en dos lineas. */}
       <div className="rounded border border-inalde-gray-light overflow-x-auto">
-        <table className="w-full text-sm min-w-[720px]">
+        <table className="w-full text-sm min-w-[1040px] table-fixed">
+          <colgroup>
+            <col className="w-10" />
+            <col className="w-32" />
+            <col className="w-[26%]" />
+            <col className="w-28" />
+            <col className="w-[32%]" />
+            <col className="w-32" />
+            <col className="w-32" />
+          </colgroup>
           <thead className="bg-inalde-gray-bg text-left">
             <tr>
-              <th className="px-3 py-2 w-8">
+              <th className="px-3 py-2">
                 <input
                   type="checkbox"
                   className="accent-inalde-red"
@@ -395,7 +407,7 @@ export default function Participantes() {
             {filtrados.map((p) => editId === p.id ? (
               <tr key={p.id} className="border-t border-inalde-gray-light bg-inalde-red/5">
                 <td className="px-3 py-2"></td>
-                <td className="px-3 py-2 text-xs text-inalde-gray">{cohorteEtiquetas.get(p.cohorte_id) ?? p.cohorte_id}</td>
+                <td className="px-3 py-2 text-xs text-inalde-gray whitespace-nowrap">{cohorteEtiquetas.get(p.cohorte_id) ?? p.cohorte_id}</td>
                 <td className="px-3 py-2">
                   <input type="text" value={editDraft.nombre_completo}
                     onChange={(e) => setEditDraft({ ...editDraft, nombre_completo: e.target.value })}
@@ -439,14 +451,14 @@ export default function Participantes() {
                   />
                 </td>
                 <td className="px-3 py-2 text-xs">
-                  <span className="bg-inalde-gold/15 text-inalde-text px-2 py-0.5 rounded font-semibold">
+                  <span className="inline-block bg-inalde-gold/15 text-inalde-text px-2 py-0.5 rounded font-semibold whitespace-nowrap">
                     {cohorteEtiquetas.get(p.cohorte_id) ?? p.cohorte_id}
                   </span>
                 </td>
-                <td className="px-3 py-2 font-medium">{p.nombre_completo}</td>
-                <td className="px-3 py-2 text-inalde-gray font-mono text-xs">{p.cedula}</td>
-                <td className="px-3 py-2 text-inalde-gray text-xs">{p.email}</td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2 font-medium truncate" title={p.nombre_completo}>{p.nombre_completo}</td>
+                <td className="px-3 py-2 text-inalde-gray font-mono text-xs whitespace-nowrap">{p.cedula}</td>
+                <td className="px-3 py-2 text-inalde-gray text-xs truncate" title={p.email}>{p.email}</td>
+                <td className="px-3 py-2 whitespace-nowrap">
                   <span className={`text-xs uppercase tracking-wider font-semibold ${p.estado === 'activo' ? 'text-inalde-blue' : 'text-inalde-gray'}`}>
                     {p.estado}
                   </span>
