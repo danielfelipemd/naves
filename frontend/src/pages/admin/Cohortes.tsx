@@ -190,7 +190,7 @@ export default function Cohortes() {
         <p className="section-subtitle mb-1">Administración</p>
         <h1 className="section-title">Cohortes y fechas del Scheduler</h1>
         <p className="text-sm text-inalde-gray mt-2">
-          Configura las fechas límite operativas y el cronograma de 11 hitos por cohorte.
+          Configura las fechas límite operativas y el cronograma de 13 hitos por cohorte.
         </p>
       </div>
 
@@ -315,7 +315,7 @@ export default function Cohortes() {
 
                   <div>
                     <h3 className="font-primary font-bold text-xs tracking-wider uppercase text-inalde-text mb-3">
-                      Cronograma — 11 hitos
+                      Cronograma — 13 hitos
                     </h3>
                     <div className="grid sm:grid-cols-2 gap-3">
                       {hitosDraft.map((h) => (

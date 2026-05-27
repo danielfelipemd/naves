@@ -282,7 +282,7 @@ router.get('/cohortes', async (_req, res) => {
 });
 
 const hitoSchema = z.object({
-  posicion: z.number().int().min(1).max(11),
+  posicion: z.number().int().min(1).max(13),
   fecha: z.string().date().nullable(),
 });
 
@@ -292,7 +292,7 @@ const fechasSchema = z.object({
   fecha_reunion_1: z.string().datetime().optional().nullable(),
   fecha_limite_seleccion_definitivo: z.string().datetime().optional().nullable(),
   activa: z.boolean().optional(),
-  hitos: z.array(hitoSchema).max(11).optional(),
+  hitos: z.array(hitoSchema).max(13).optional(),
 });
 router.put('/cohortes/:id', async (req, res) => {
   const parsed = fechasSchema.safeParse(req.body);
@@ -469,11 +469,11 @@ router.get('/cohortes/:id/plantilla', async (req, res) => {
   ws.addRow([]);
 
   // Sección 2: Cronograma
-  addSectionRow('Cronograma — 11 hitos (solo fecha)');
+  addSectionRow('Cronograma — 13 hitos (solo fecha)');
   const hitosMap = new Map<number, { nombre: string; fecha: string | null }>(
     ((hitos as any[]) ?? []).map((h) => [h.posicion, { nombre: h.nombre, fecha: h.fecha }]),
   );
-  for (let pos = 1; pos <= 11; pos++) {
+  for (let pos = 1; pos <= 13; pos++) {
     const h = hitosMap.get(pos);
     addDataRow(`${pos}. ${h?.nombre ?? `Hito ${pos}`}`, h?.fecha ?? null, false);
   }
@@ -561,7 +561,7 @@ router.post('/cohortes/:id/cargar-excel', cohorteExcelUpload.single('file'), asy
     const m = concepto.match(/^(\d{1,2})\.\s*/);
     if (m) {
       const pos = parseInt(m[1], 10);
-      if (pos >= 1 && pos <= 11) {
+      if (pos >= 1 && pos <= 13) {
         // YYYY-MM-DD (sin hora) para cohorte_hitos.fecha (tipo date)
         const yyyy = nueva.getFullYear();
         const mm = String(nueva.getMonth() + 1).padStart(2, '0');
