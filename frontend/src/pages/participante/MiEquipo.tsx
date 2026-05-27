@@ -19,6 +19,8 @@ interface Equipo {
   miembros_equipo: Miembro[];
 }
 
+type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
+
 export default function MiEquipo() {
   const [equipo, setEquipo] = useState<Equipo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,9 +31,20 @@ export default function MiEquipo() {
   const [searching, setSearching] = useState(false);
   const searchSeq = useRef(0);
   const [nombreEquipo, setNombreEquipo] = useState('');
+  const [modalidad, setModalidad] = useState<Modalidad | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const cohorteId = (user?.app_metadata as any)?.cohorte_id ?? '';
+
+  // Cargar la modalidad del participante para adaptar copys cuando aun no hay equipo
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get('/participantes/mi-modalidad');
+        setModalidad((data?.tipo_trabajo_grado as Modalidad | null) ?? null);
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -117,7 +130,7 @@ export default function MiEquipo() {
         <div className="max-w-[800px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
             <p className="section-subtitle mb-2">Sección 1</p>
-            <h1 className="section-title">Información del equipo emprendedor</h1>
+            <h1 className="section-title">Información del equipo</h1>
           </div>
 
           {error && (
@@ -133,13 +146,13 @@ export default function MiEquipo() {
               </p>
               <div>
                 <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
-                  Nombre del equipo (opcional)
+                  {modalidad === 'caso' ? 'Nombre del caso (Provisional)' : 'Nombre del equipo (opcional)'}
                 </label>
                 <input
                   type="text"
                   value={nombreEquipo}
                   onChange={(e) => setNombreEquipo(e.target.value)}
-                  placeholder="Los Disruptores"
+                  placeholder={modalidad === 'caso' ? 'Ej.: Caso Empresa XYZ' : 'Los Disruptores'}
                   className="input-inalde"
                   maxLength={100}
                 />
