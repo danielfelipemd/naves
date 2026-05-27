@@ -378,10 +378,16 @@ router.get('/cohortes/:id/plantilla', async (req, res) => {
     '3. Si dejas una celda vacía, esa fecha NO se modificará al cargar el archivo (se conserva la actual).',
     '4. Guarda el archivo (.xlsx) y súbelo desde la pantalla de edición de la cohorte.',
     '',
+    'Atajos útiles dentro de Excel:',
+    '• Ctrl + ;  →  Inserta la fecha de hoy en la celda.',
+    '• Ctrl + Shift + ;  →  Inserta la hora actual.',
+    '• Excel para Web suele mostrar un mini-calendario al hacer clic en la celda.',
+    '',
     'Notas:',
+    '• Las celdas de "Nueva fecha" tienen validación: si escribes algo que no sea una fecha, Excel te avisa.',
     '• La columna "Fecha actual" es solo informativa (no se valida al cargar).',
     '• Las fechas se interpretan en zona horaria America/Bogota.',
-    '• Si Excel marca la celda como número, asegúrate de aplicarle formato Fecha desde Inicio → Número.',
+    '• Si Excel marca la celda como número, aplícale formato Fecha desde Inicio → Número.',
   ];
   for (const t of lineas) {
     const row = iws.addRow([t]);
@@ -432,9 +438,27 @@ router.get('/cohortes/:id/plantilla', async (req, res) => {
     row.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     row.getCell(1).font = { size: 11, color: { argb: 'FF1A1A1A' } };
     row.getCell(2).font = { size: 11, color: { argb: 'FF6B6B6B' } };
-    row.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_GRAY_HEX } };
-    row.getCell(3).numFmt = conHora ? 'dd/mm/yyyy hh:mm' : 'dd/mm/yyyy';
-    row.getCell(3).border = { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
+    const nueva = row.getCell(3);
+    nueva.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_GRAY_HEX } };
+    nueva.numFmt = conHora ? 'dd/mm/yyyy hh:mm' : 'dd/mm/yyyy';
+    nueva.border = { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
+    // Data validation tipo fecha: rango amplio 2020-2035 + tooltip de ayuda.
+    // No es un 'datepicker' real (Excel no tiene uno nativo cross-platform),
+    // pero da prompt al seleccionar la celda y rechaza texto invalido.
+    nueva.dataValidation = {
+      type: 'date',
+      operator: 'between',
+      formulae: [new Date(Date.UTC(2020, 0, 1)), new Date(Date.UTC(2035, 11, 31))],
+      showInputMessage: true,
+      promptTitle: 'Nueva fecha',
+      prompt: conHora
+        ? 'Escribe la fecha y hora (dd/mm/aaaa hh:mm). Atajo: Ctrl+; para hoy.'
+        : 'Escribe la fecha (dd/mm/aaaa). Atajo: Ctrl+; para hoy.',
+      showErrorMessage: true,
+      errorStyle: 'warning',
+      errorTitle: 'Formato inválido',
+      error: 'Ingresa una fecha válida en formato dd/mm/aaaa.',
+    };
   }
 
   // Sección 1: Fechas operativas
