@@ -73,6 +73,21 @@ export const useAuth = create<AuthState>((set, get) => ({
         set({ requiereCambioClave: false, requierePerfil: false, nombre: null });
       }
     });
+
+    // Renovacion proactiva del access token cada 10 min, mientras haya
+    // sesion. El access token de Supabase vive 1h: si el auto-refresh
+    // interno de supabase-js falla (pestaña suspendida, red intermitente,
+    // etc.) el participante termina deslogueado a mitad de un formulario
+    // largo. Forzando refreshSession periodicamente garantizamos que el
+    // token siempre este fresco.
+    if (typeof window !== 'undefined') {
+      const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+      window.setInterval(async () => {
+        if (!get().session) return;
+        try { await supabase.auth.refreshSession(); }
+        catch { /* si falla, onAuthStateChange se encarga */ }
+      }, REFRESH_INTERVAL_MS);
+    }
   },
 
   refreshEstado: async () => {
