@@ -10,6 +10,7 @@ import {
   type TipoArchivoTrabajo,
 } from '../services/storage.js';
 import { sendEmail, type EmailAttachment } from '../services/email.js';
+import { notificarRegistroAnteproyectoAParticipantes } from '../services/notificaciones-anteproyecto.js';
 import { decryptPII } from '../auth/crypto.js';
 
 // (Antes este archivo enviaba un correo al Comité del MBA por cada carga.
@@ -191,42 +192,19 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
     // desde admin (endpoint separado, no este flujo de upload).
 
     // === 2) Email a TODOS los miembros del equipo (confirmación, sin adjunto)
-    for (const m of miembros) {
-      let email = '';
-      try { email = decryptPII(m.email_encriptado); } catch { continue; }
-      if (!email) continue;
-
-      const html = `
-        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #1a1a1a;">
-          <div style="border-bottom: 3px solid #e30613; padding-bottom: 14px; margin-bottom: 22px;">
-            <p style="color:#888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Confirmación de carga — Programa MBA</p>
-            <h2 style="color:#1a1a1a; margin: 6px 0 0 0; font-size: 22px;">El anteproyecto de su equipo fue cargado</h2>
-          </div>
-          <p><strong>${m.nombre_completo}</strong>:</p>
-          <p>Reciba un cordial saludo. Le confirmamos que el anteproyecto del equipo
-          <strong>${equipoNombre}</strong> fue cargado en el sistema de trabajos de grado del
-          MBA${cargadorNombre && cargadorNombre !== m.nombre_completo ? ` por ${cargadorNombre}` : ''}.
-          ${lineaAdjuntoParticipante}</p>
-          <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
-            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
-            <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Miembros</td><td style="padding: 6px 0;">${miembrosNombres}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Dirección asignada</td><td style="padding: 6px 0;">${dir.nombre_completo}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Fecha de carga</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
-          </table>
-          <p style="font-size: 13px; color:#555;">
-            El anteproyecto queda registrado de manera definitiva y no podrá ser reemplazado. Una
-            vez la dirección revise el documento y se cumpla la fecha establecida en el cronograma,
-            podrán cargar el proyecto final desde la plataforma.
-          </p>
-          <p style="margin-top: 18px;">Cordialmente,</p>
-          <p style="margin: 4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
-          ${baseFooter}
-        </div>`;
-      try { await sendEmail(email, 'Confirmación de carga del anteproyecto — MBA INALDE', html); }
-      catch { /* best effort */ }
-    }
+    // Usa el helper compartido para que el correo sea idéntico al del flujo
+    // BP (envío definitivo del formulario): un solo template para todas las
+    // modalidades.
+    await notificarRegistroAnteproyectoAParticipantes({
+      equipoId: ctx.equipoId,
+      modalidad: ctx.modalidad,
+      fechaIso: ctx.fechaSubida,
+      casoPI: {
+        directorNombre: dir.nombre_completo,
+        lineaAdjuntoParticipante,
+        cargadorNombre: cargadorNombre || undefined,
+      },
+    });
   } catch (e) {
     console.warn('[anteproyecto.subido] notificaciones fallaron:', (e as Error).message);
   }

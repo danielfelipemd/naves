@@ -3,84 +3,10 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
 import { crearUrlProxyArchivo } from '../services/storage.js';
-import { sendEmail } from '../services/email.js';
-import { decryptPII } from '../auth/crypto.js';
+import { notificarRegistroAnteproyectoAParticipantes } from '../services/notificaciones-anteproyecto.js';
 
 const router = Router();
 router.use(requireAuth());
-
-/**
- * Envia un correo de confirmacion de envio del anteproyecto a TODOS los miembros del equipo.
- * Falla silenciosamente: nunca bloquea la respuesta al cliente.
- */
-async function notificarEnvioAnteproyecto(equipoId: string, fechaEnvio: string, modalidad: string | null) {
-  try {
-    const { data: equipo } = await supabaseAdmin
-      .from('equipos')
-      .select(`
-        id, nombre_equipo, cohorte_id,
-        miembros_equipo (
-          participantes_lista ( nombre_completo, email_encriptado )
-        )
-      `)
-      .eq('id', equipoId)
-      .maybeSingle();
-    if (!equipo) return;
-
-    const fechaStr = new Date(fechaEnvio).toLocaleString('es-CO', {
-      timeZone: 'America/Bogota',
-      year: 'numeric', month: 'long', day: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: false,
-    });
-    const modalidadLabel = modalidad === 'caso' ? 'Caso'
-      : modalidad === 'proyecto_investigacion' ? 'Proyecto de investigación'
-      : 'Business Plan';
-    const equipoNombre = (equipo as any).nombre_equipo || '(sin nombre)';
-    const cohorte = (equipo as any).cohorte_id ?? '';
-
-    const miembros = (((equipo as any).miembros_equipo ?? []) as any[])
-      .map((m) => m.participantes_lista)
-      .filter(Boolean);
-
-    for (const m of miembros) {
-      let email = '';
-      try { email = decryptPII(m.email_encriptado); } catch { continue; }
-      if (!email) continue;
-
-      const html = `
-        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #1a1a1a;">
-          <div style="border-bottom: 3px solid #e30613; padding-bottom: 14px; margin-bottom: 22px;">
-            <p style="color: #888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Confirmación de envío — Programa MBA</p>
-            <h2 style="color: #1a1a1a; margin: 6px 0 0 0; font-size: 22px;">El anteproyecto de su equipo fue enviado</h2>
-          </div>
-          <p><strong>${m.nombre_completo}</strong>:</p>
-          <p>Reciba un cordial saludo. Le confirmamos que el anteproyecto de su equipo fue enviado
-          al Programa MBA de INALDE Business School.</p>
-          <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
-            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Fecha y hora</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
-          </table>
-          <p style="font-size: 13px; color:#555;">A partir de este momento el anteproyecto queda
-          bloqueado para edición. Si requiere algún ajuste, por favor comuníquelo a la asistente
-          del programa.</p>
-          <p style="margin-top: 18px;">Cordialmente,</p>
-          <p style="margin: 4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0 16px;"/>
-          <p style="font-size: 11px; color: #888; line-height: 1.5; margin: 0;">
-            <strong>INALDE Business School</strong> — Programa MBA<br/>
-            Sistema de trabajos de grado. Este es un mensaje automático, por favor no responda a este correo.
-          </p>
-        </div>`;
-      try {
-        await sendEmail(email, 'Confirmación de envío del anteproyecto — MBA INALDE', html);
-      } catch { /* best effort */ }
-    }
-  } catch (e) {
-    console.warn('[anteproyectos.enviar] notificacion email fallo:', (e as Error).message);
-  }
-}
 
 // === GET /api/anteproyectos/mi-anteproyecto =================================
 router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
@@ -316,7 +242,14 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
       ultimo_editor_id: pid,
     }).eq('id', req.params.id);
 
-    void notificarEnvioAnteproyecto(ant.equipo_id, fechaEnvio, modalidad);
+    // Mismo correo unificado para todas las modalidades (sin info de director
+    // porque para caso/PI ya se notifico al cargar el archivo, aqui es solo
+    // el envio definitivo).
+    void notificarRegistroAnteproyectoAParticipantes({
+      equipoId: ant.equipo_id,
+      modalidad: modalidad as 'business_plan' | 'caso' | 'proyecto_investigacion' | null,
+      fechaIso: fechaEnvio,
+    });
     return res.json({ ok: true, modalidad, fecha_envio: fechaEnvio });
   }
 
@@ -353,7 +286,11 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     ultimo_editor_id: pid,
   }).eq('id', req.params.id);
 
-  void notificarEnvioAnteproyecto(ant.equipo_id, fechaEnvio, 'business_plan');
+  void notificarRegistroAnteproyectoAParticipantes({
+    equipoId: ant.equipo_id,
+    modalidad: 'business_plan',
+    fechaIso: fechaEnvio,
+  });
   res.json({
     ok: true,
     modalidad: 'business_plan',
