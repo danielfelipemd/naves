@@ -198,22 +198,31 @@ export default function Cohortes() {
                     <button onClick={save} className="btn-inalde-primary !py-2 !px-4 !text-xs">Guardar</button>
                   </div>
                 ) : (
-                  <div className="flex gap-3 items-center" onClick={(e) => e.stopPropagation()}>
+                  // Grid de 3 columnas de ancho fijo para que las acciones de
+                  // todas las cohortes queden alineadas verticalmente, sin
+                  // importar el largo del label (Desactivar vs Activar) ni si
+                  // 'Borrar' aplica o no. El slot de Borrar se reserva con
+                  // `invisible` cuando la cohorte no es borrable.
+                  <div
+                    className="grid grid-cols-[110px_90px_60px] gap-3 items-center justify-items-center"
+                    onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => toggleActiva(c)}
                       title={c.activa ? 'Desactivar cohorte (no recibe más participantes)' : 'Reactivar cohorte'}
-                      className={`text-xs font-semibold px-3 py-1.5 rounded border transition ${c.activa
+                      className={`w-full text-xs font-semibold px-3 py-1.5 rounded border transition ${c.activa
                         ? 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'
                         : 'border-inalde-blue text-inalde-blue hover:bg-inalde-blue/10'}`}>
                       {c.activa ? 'Desactivar' : 'Activar'}
                     </button>
                     <button onClick={() => startEdit(c)} className="text-sm font-semibold text-inalde-red hover:text-inalde-red-hover">Editar →</button>
-                    {c.participantes_count === 0 && c.equipos_count === 0 && (
-                      <button onClick={() => eliminar(c)}
-                        title="Borrar cohorte (solo si está vacía)"
-                        className="text-xs font-semibold text-inalde-gray hover:text-inalde-red transition">
-                        Borrar
-                      </button>
-                    )}
+                    <button
+                      onClick={() => eliminar(c)}
+                      disabled={c.participantes_count > 0 || c.equipos_count > 0}
+                      title={c.participantes_count > 0 || c.equipos_count > 0 ? 'No se puede borrar: la cohorte tiene participantes o equipos.' : 'Borrar cohorte (solo si está vacía)'}
+                      className={`text-xs font-semibold transition ${c.participantes_count === 0 && c.equipos_count === 0
+                        ? 'text-inalde-gray hover:text-inalde-red cursor-pointer'
+                        : 'invisible'}`}>
+                      Borrar
+                    </button>
                   </div>
                 )}
               </div>
