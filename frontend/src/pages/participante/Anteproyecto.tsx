@@ -148,6 +148,7 @@ export default function Anteproyecto() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [envioConfirmacion, setEnvioConfirmacion] = useState<{ fechaEnvio: string; autoDefinitivo: boolean } | null>(null);
+  const [autoSaveEstado, setAutoSaveEstado] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   // ----- Carga inicial -----
   useEffect(() => { (async () => {
@@ -317,6 +318,25 @@ export default function Anteproyecto() {
       setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
+
+  // Auto-guardado del borrador: 3 segundos despues del ultimo cambio en el
+  // formulario. Asi, si la sesion se cae mientras el participante llena
+  // (los tokens de Supabase expiran cada hora), no se pierde el progreso.
+  useEffect(() => {
+    if (!anteId || estado !== 'borrador' || loading) return;
+    setAutoSaveEstado('idle');
+    const t = setTimeout(async () => {
+      setAutoSaveEstado('saving');
+      try {
+        await api.put(`/anteproyectos/${anteId}`, buildPayload());
+        setAutoSaveEstado('saved');
+      } catch {
+        setAutoSaveEstado('error');
+      }
+    }, 3000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proyectos, miembros, anteId, estado, loading]);
 
   async function enviar() {
     if (!anteId) return;
@@ -608,7 +628,12 @@ export default function Anteproyecto() {
               <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
                 ← Dashboard
               </button>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-inalde-gray italic mr-1">
+                  {autoSaveEstado === 'saving' && 'Guardando…'}
+                  {autoSaveEstado === 'saved' && '✓ Guardado automáticamente'}
+                  {autoSaveEstado === 'error' && '⚠ No se pudo autoguardar — usa «Guardar borrador»'}
+                </span>
                 <button onClick={guardar} disabled={busy}
                   className="px-6 py-3 rounded border-2 border-inalde-gray text-inalde-text font-primary font-semibold hover:border-inalde-red hover:text-inalde-red transition">
                   Guardar borrador
