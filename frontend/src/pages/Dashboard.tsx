@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../components/inalde/Header';
 import { useAuth } from '../auth/store';
 import { api } from '../lib/api';
@@ -34,10 +34,13 @@ const MODALIDADES: Array<{
 ];
 
 function destinoModalidad(m: Modalidad): string {
-  return m === 'business_plan' ? '/equipo' : '/equipo';
+  // Business Plan pasa por la pantalla de equipo (puede tener hasta 3 miembros).
+  // Caso y Proyecto de Investigacion son individuales: van directo a subir archivos.
+  return m === 'business_plan' ? '/equipo' : '/trabajo-grado';
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { user, role, signOut } = useAuth();
   const isSuperAdmin = (user?.app_metadata as any)?.es_super_admin === true;
   const isProfesor = role === 'profesor' || role === 'super_admin';
@@ -90,6 +93,9 @@ export default function Dashboard() {
     try {
       await api.put('/participantes/mi-modalidad', { tipo: m });
       setModalidad(m);
+      // Al fijar modalidad, llevar al participante directo al siguiente paso
+      // (sin obligarlo a ver de nuevo el dashboard).
+      navigate(destinoModalidad(m), { replace: true });
     } catch (e: any) {
       setError(formatBackendError(e));
     } finally {

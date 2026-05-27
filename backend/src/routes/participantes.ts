@@ -57,8 +57,52 @@ router.put('/mi-modalidad', requireRole('participante'), async (req: Authenticat
     .is('tipo_trabajo_grado', null);
   if (upErr) return res.status(500).json({ error: upErr.message });
 
+  // Caso y Proyecto de Investigacion son individuales: no hay pantalla de "Mi equipo",
+  // el participante pasa directo a subir archivos. Crear el equipo "solo" + anteproyecto
+  // borrador aqui mismo para que la transicion sea invisible.
+  if (parsed.data.tipo === 'caso' || parsed.data.tipo === 'proyecto_investigacion') {
+    try { await crearEquipoSoloSiHaceFalta(pid, parsed.data.tipo); }
+    catch (e) { console.warn('[mi-modalidad] auto-crear equipo solo fallo:', (e as Error).message); }
+  }
+
   res.json({ ok: true, tipo: parsed.data.tipo });
 });
+
+/**
+ * Crea un equipo de 1 persona + anteproyecto borrador para participantes con
+ * modalidad individual (caso / proyecto_investigacion). Idempotente: si ya existe
+ * un equipo del participante, no hace nada.
+ */
+export async function crearEquipoSoloSiHaceFalta(
+  participanteId: string,
+  modalidad: 'caso' | 'proyecto_investigacion',
+): Promise<void> {
+  const { data: existente } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', participanteId).maybeSingle();
+  if (existente) return;
+
+  const { data: p } = await supabaseAdmin
+    .from('participantes_lista').select('cohorte_id, nombre_completo').eq('id', participanteId).maybeSingle();
+  if (!p) throw new Error('PARTICIPANT_NOT_FOUND');
+
+  const { data: equipo, error: e1 } = await supabaseAdmin
+    .from('equipos')
+    .insert({
+      cohorte_id: p.cohorte_id,
+      creador_id: participanteId,
+      nombre_equipo: p.nombre_completo,
+      tipo_trabajo_grado: modalidad,
+    })
+    .select('id').single();
+  if (e1) throw e1;
+
+  const { error: e2 } = await supabaseAdmin
+    .from('miembros_equipo')
+    .insert({ equipo_id: equipo.id, participante_id: participanteId, posicion: 1 });
+  if (e2) throw e2;
+
+  await supabaseAdmin.from('anteproyectos').insert({ equipo_id: equipo.id, ultimo_editor_id: participanteId });
+}
 
 // === GET /api/participantes/mi-perfil =======================================
 // Devuelve el perfil emprendedor del participante logueado (modalidad business_plan)

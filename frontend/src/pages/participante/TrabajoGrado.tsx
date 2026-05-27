@@ -123,7 +123,8 @@ export default function TrabajoGrado() {
     return <><Header /><main className="pt-36 text-center text-inalde-gray">Cargando…</main></>;
   }
 
-  // Sin equipo → CTA para formarlo
+  // Sin equipo: solo posible para business_plan (caso/PI auto-crean el equipo invisible).
+  // Para BP enviamos al participante a la pantalla de formacion de equipo.
   if (!tieneEquipo) {
     return (
       <>
@@ -134,7 +135,8 @@ export default function TrabajoGrado() {
               <h1 className="section-title">Trabajo de grado</h1>
             </div>
             <p className="text-inalde-gray mb-6">
-              Primero debes formar tu equipo. Después podrás subir tu anteproyecto y tu proyecto final.
+              Para el Business Plan necesitas formar tu equipo primero. Después podrás trabajar
+              en el anteproyecto y el proyecto final.
             </p>
             <button onClick={() => navigate('/equipo')} className="btn-inalde-primary">
               Ir a Mi equipo →
