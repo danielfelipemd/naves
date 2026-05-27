@@ -20,14 +20,14 @@ const EMOCIONES: Array<{ value: Emocion; label: string }> = [
   { value: 'dinero',    label: 'El potencial económico' },
   { value: 'problema',  label: 'Resolver un problema que me apasiona' },
   { value: 'autonomia', label: 'La autonomía e independencia' },
-  { value: 'ninguna',   label: 'Aún no siento emoción' },
+  { value: 'ninguna',   label: 'No tengo ninguna emoción en particular' },
 ];
 const PREOCUPACIONES: Array<{ value: Preocupacion; label: string }> = [
   { value: 'financiera',  label: 'La incertidumbre financiera' },
   { value: 'estres',      label: 'El estrés y sobrecarga de trabajo' },
   { value: 'habilidades', label: 'No sé si tengo las habilidades necesarias' },
   { value: 'familia',     label: 'El impacto en mi familia' },
-  { value: 'ninguna',     label: 'Aún no me preocupa nada' },
+  { value: 'ninguna',     label: 'No tengo ninguna preocupación en particular' },
 ];
 const ESTADO_EMPRENDIMIENTO: Array<{ value: Quiebra; label: string }> = [
   { value: 'nunca_despego',  label: 'Nunca despegó' },
