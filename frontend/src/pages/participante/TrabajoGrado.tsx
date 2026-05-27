@@ -35,6 +35,22 @@ const MIME_ANTEPROYECTO_ACCEPT = '.pdf,application/pdf';
 const MIME_PROYECTO_FINAL_ACCEPT =
   '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
+const MIME_ANTEPROYECTO_SET = new Set(['application/pdf']);
+const MIME_PROYECTO_FINAL_SET = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
+function aceptaMime(tipo: 'anteproyecto' | 'proyecto-final', file: File): boolean {
+  const set = tipo === 'anteproyecto' ? MIME_ANTEPROYECTO_SET : MIME_PROYECTO_FINAL_SET;
+  if (file.type) return set.has(file.type);
+  // Fallback por extension si el SO no manda mime
+  const ext = file.name.toLowerCase().split('.').pop();
+  if (tipo === 'anteproyecto') return ext === 'pdf';
+  return ext === 'pdf' || ext === 'doc' || ext === 'docx';
+}
+
 const TITULO_MODALIDAD: Record<Modalidad, string> = {
   business_plan: 'Business Plan NAVES',
   caso: 'Caso',
@@ -54,6 +70,70 @@ function formatoFecha(iso: string | null): string {
   } catch {
     return iso;
   }
+}
+
+/** Zona de drag-and-drop sobre un input file nativo. */
+function DropZone(props: {
+  tipo: 'anteproyecto' | 'proyecto-final';
+  accept: string;
+  disabled: boolean;
+  subiendoEste: boolean;
+  onFile: (f: File) => void;
+  inputRef: React.RefObject<HTMLInputElement>;
+}) {
+  const { tipo, accept, disabled, subiendoEste, onFile, inputRef } = props;
+  const [drag, setDrag] = useState(false);
+  const [errMime, setErrMime] = useState(false);
+
+  function handleFiles(files: FileList | null) {
+    const f = files?.[0];
+    if (!f) return;
+    if (!aceptaMime(tipo, f)) { setErrMime(true); return; }
+    setErrMime(false);
+    onFile(f);
+  }
+
+  return (
+    <div
+      onDragOver={(e) => { if (disabled) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDrag(true); }}
+      onDragLeave={() => setDrag(false)}
+      onDrop={(e) => {
+        if (disabled) return;
+        e.preventDefault();
+        setDrag(false);
+        handleFiles(e.dataTransfer.files);
+      }}
+      onClick={() => { if (!disabled) inputRef.current?.click(); }}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
+      className={[
+        'rounded border-2 border-dashed px-4 py-6 text-center transition select-none',
+        disabled ? 'opacity-50 cursor-not-allowed bg-inalde-gray-bg/30 border-inalde-gray-light' : 'cursor-pointer hover:bg-inalde-gray-bg/40',
+        drag ? 'border-inalde-red bg-red-50' : 'border-inalde-gray-light',
+      ].join(' ')}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        disabled={disabled}
+        onChange={(e) => handleFiles(e.target.files)}
+        className="hidden"
+      />
+      <p className="text-sm text-inalde-text font-medium">
+        {subiendoEste ? 'Cargando…' : 'Arrastra el archivo aquí o haz clic para seleccionarlo'}
+      </p>
+      <p className="text-xs text-inalde-gray mt-1">
+        {tipo === 'anteproyecto' ? 'PDF · máximo 25 MB' : 'PDF o Word · máximo 25 MB'}
+      </p>
+      {errMime && (
+        <p className="text-xs text-inalde-red mt-2">
+          El tipo de archivo no es válido. {tipo === 'anteproyecto' ? 'Solo PDF.' : 'Solo PDF o Word.'}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function TrabajoGrado() {
@@ -341,20 +421,14 @@ export default function TrabajoGrado() {
                     ? 'Selecciona primero a tu director.'
                     : 'Aún no has cargado el anteproyecto.'}
                 </p>
-                <div className="flex items-center gap-3">
-                  <input
-                    ref={inputAntRef}
-                    type="file"
-                    accept={MIME_ANTEPROYECTO_ACCEPT}
-                    disabled={!!subiendo || (esCasoOPI && !directorAsignado)}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) subir('anteproyecto', f);
-                    }}
-                    className="text-sm disabled:opacity-40"
-                  />
-                  {subiendo === 'anteproyecto' && <span className="text-xs text-inalde-gray">Cargando…</span>}
-                </div>
+                <DropZone
+                  tipo="anteproyecto"
+                  accept={MIME_ANTEPROYECTO_ACCEPT}
+                  disabled={!!subiendo || (esCasoOPI && !directorAsignado)}
+                  subiendoEste={subiendo === 'anteproyecto'}
+                  onFile={(f) => subir('anteproyecto', f)}
+                  inputRef={inputAntRef}
+                />
               </>
             )}
           </div>
@@ -391,20 +465,14 @@ export default function TrabajoGrado() {
             ) : aprobado ? (
               <>
                 <p className="text-sm text-inalde-gray italic mb-3">Aún no has cargado el proyecto final.</p>
-                <div className="flex items-center gap-3">
-                  <input
-                    ref={inputFinalRef}
-                    type="file"
-                    accept={MIME_PROYECTO_FINAL_ACCEPT}
-                    disabled={!!subiendo}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) subir('proyecto-final', f);
-                    }}
-                    className="text-sm"
-                  />
-                  {subiendo === 'proyecto-final' && <span className="text-xs text-inalde-gray">Cargando…</span>}
-                </div>
+                <DropZone
+                  tipo="proyecto-final"
+                  accept={MIME_PROYECTO_FINAL_ACCEPT}
+                  disabled={!!subiendo}
+                  subiendoEste={subiendo === 'proyecto-final'}
+                  onFile={(f) => subir('proyecto-final', f)}
+                  inputRef={inputFinalRef}
+                />
               </>
             ) : (
               <p className="text-sm text-inalde-gray italic">Disponible al final del proceso.</p>
