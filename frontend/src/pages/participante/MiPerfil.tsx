@@ -95,7 +95,10 @@ export default function MiPerfil() {
         preocupaciones,
       });
       await refreshEstado();
-      navigate('/', { replace: true });
+      // /mi-perfil solo se usa en el flujo BP. Tras guardar, llevamos al
+      // participante directo a /equipo para formar grupo (no al menu
+      // principal). No afecta caso/PI: esos flujos no pasan por aqui.
+      navigate('/equipo', { replace: true });
     } catch (e: any) {
       setError(formatBackendError(e));
     } finally { setBusy(false); }
