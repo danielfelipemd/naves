@@ -54,15 +54,20 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
 });
 
 // === Validaciones del payload ===============================================
+// El perfil emprendedor (rol, emociones, preocupaciones, emprendimiento previo)
+// se llena en /mi-perfil y de ahi se copia a miembros_equipo via
+// copyPerfilParticipanteAMiembro. Aqui en /anteproyecto solo se valida lo que
+// es propio del anteproyecto. Los campos del perfil son opcionales en el
+// payload; si llegan se aplican, si no, se respeta lo que ya hay en BD.
 const miembroSchema = z.object({
   participante_id: z.string().uuid(),
   posicion: z.number().int().min(1).max(3),
-  fue_emprendedor: z.boolean(),
+  fue_emprendedor: z.boolean().optional(),
   quiebra: z.enum(['nunca_despego', 'funcionamiento', 'vendido', 'quebro', 'na']).optional(),
   aprendizajes_quiebra: z.string().max(300).optional(),
-  perfil: z.enum(['emprendedor', 'directivo', 'ambos']),
-  emociones: z.array(z.enum(['crear', 'dinero', 'problema', 'autonomia', 'ninguna'])).min(1),
-  preocupaciones: z.array(z.enum(['financiera', 'estres', 'habilidades', 'familia', 'ninguna'])).min(1),
+  perfil: z.enum(['emprendedor', 'directivo', 'ambos']).optional(),
+  emociones: z.array(z.enum(['crear', 'dinero', 'problema', 'autonomia', 'ninguna'])).optional(),
+  preocupaciones: z.array(z.enum(['financiera', 'estres', 'habilidades', 'familia', 'ninguna'])).optional(),
 });
 
 const hitoSchema = z.object({
@@ -147,25 +152,38 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
     if (invalid.length) return res.status(400).json({ error: 'INVALID_CIIU', invalid });
   }
 
-  // === Actualizar miembros (datos del perfil emprendedor) ===================
+  // === Actualizar miembros (perfil emprendedor) =============================
+  // El perfil ya viene cargado en miembros_equipo desde /mi-perfil. Solo
+  // sobreescribimos campos que el cliente envia explicitamente; los que no
+  // llegan se respetan tal cual estan en BD.
   for (const m of parsed.data.miembros) {
-    await supabaseAdmin.from('miembros_equipo').update({
-      fue_emprendedor: m.fue_emprendedor,
-      quiebra: m.fue_emprendedor ? m.quiebra : null,
-      aprendizajes_quiebra: m.fue_emprendedor ? m.aprendizajes_quiebra : null,
-      perfil: m.perfil,
-    }).eq('equipo_id', ant.equipo_id).eq('participante_id', m.participante_id);
+    const updateRow: Record<string, unknown> = {};
+    if (m.fue_emprendedor !== undefined) {
+      updateRow.fue_emprendedor = m.fue_emprendedor;
+      updateRow.quiebra = m.fue_emprendedor ? (m.quiebra ?? null) : null;
+      updateRow.aprendizajes_quiebra = m.fue_emprendedor ? (m.aprendizajes_quiebra ?? null) : null;
+    }
+    if (m.perfil !== undefined) updateRow.perfil = m.perfil;
+    if (Object.keys(updateRow).length) {
+      await supabaseAdmin.from('miembros_equipo').update(updateRow)
+        .eq('equipo_id', ant.equipo_id).eq('participante_id', m.participante_id);
+    }
 
     const { data: row } = await supabaseAdmin
       .from('miembros_equipo').select('id').eq('equipo_id', ant.equipo_id).eq('participante_id', m.participante_id).maybeSingle();
     if (row) {
-      await supabaseAdmin.from('miembro_emociones').delete().eq('miembro_id', row.id);
-      await supabaseAdmin.from('miembro_preocupaciones').delete().eq('miembro_id', row.id);
-      if (m.emociones.length) {
-        await supabaseAdmin.from('miembro_emociones').insert(m.emociones.map((emocion) => ({ miembro_id: row.id, emocion })));
+      // Solo reescribir emociones/preocupaciones si el cliente las envio.
+      if (m.emociones) {
+        await supabaseAdmin.from('miembro_emociones').delete().eq('miembro_id', row.id);
+        if (m.emociones.length) {
+          await supabaseAdmin.from('miembro_emociones').insert(m.emociones.map((emocion) => ({ miembro_id: row.id, emocion })));
+        }
       }
-      if (m.preocupaciones.length) {
-        await supabaseAdmin.from('miembro_preocupaciones').insert(m.preocupaciones.map((preocupacion) => ({ miembro_id: row.id, preocupacion })));
+      if (m.preocupaciones) {
+        await supabaseAdmin.from('miembro_preocupaciones').delete().eq('miembro_id', row.id);
+        if (m.preocupaciones.length) {
+          await supabaseAdmin.from('miembro_preocupaciones').insert(m.preocupaciones.map((preocupacion) => ({ miembro_id: row.id, preocupacion })));
+        }
       }
     }
   }

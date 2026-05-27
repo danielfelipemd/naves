@@ -285,14 +285,12 @@ export default function Anteproyecto() {
       numero_miembros: miembros.length,
       numero_proyectos: proyectos.length,
       miembros: miembros.map((m) => ({
+        // El perfil emprendedor (perfil/emociones/preocupaciones/
+        // fue_emprendedor) ya vive en miembros_equipo: se llena en /mi-perfil
+        // y se copia al equipo automaticamente. Aqui solo enviamos identidad y
+        // posicion para que el backend respete lo que ya hay en BD.
         participante_id: m.participante_id,
         posicion: m.posicion,
-        fue_emprendedor: m.fue_emprendedor,
-        quiebra: m.fue_emprendedor ? m.quiebra : undefined,
-        aprendizajes_quiebra: m.fue_emprendedor && m.quiebra === 'quebro' ? m.aprendizajes_quiebra : undefined,
-        perfil: m.perfil,
-        emociones: m.emociones,
-        preocupaciones: m.preocupaciones,
       })),
       proyectos: proyectos.map((p) => ({
         posicion: p.posicion, nombre: p.nombre, tipo: p.tipo,
