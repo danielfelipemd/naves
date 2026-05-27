@@ -167,7 +167,7 @@ export default function MiPerfil() {
             </div>
 
             <div>
-              <p className="text-sm text-inalde-red font-primary font-semibold mb-1">¿Qué te emociona de emprender?</p>
+              <p className="text-sm text-inalde-red font-primary font-semibold mb-1">En general, ¿qué te emociona de emprender?</p>
               <p className="text-xs text-inalde-gray italic mb-3">Selecciona uno o varios</p>
               <div className="grid sm:grid-cols-2 gap-2">
                 {EMOCIONES.map((e) => (
@@ -180,7 +180,7 @@ export default function MiPerfil() {
             </div>
 
             <div>
-              <p className="text-sm text-inalde-red font-primary font-semibold mb-1">¿Qué te preocupa de emprender?</p>
+              <p className="text-sm text-inalde-red font-primary font-semibold mb-1">En general, ¿qué te preocupa de emprender?</p>
               <p className="text-xs text-inalde-gray italic mb-3">Selecciona uno o varios</p>
               <div className="grid sm:grid-cols-2 gap-2">
                 {PREOCUPACIONES.map((p) => (
