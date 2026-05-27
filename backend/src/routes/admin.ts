@@ -834,10 +834,16 @@ router.delete('/cohortes/:id', async (req, res) => {
 router.get('/profesores', async (_req, res) => {
   const { data, error } = await supabaseAdmin
     .from('profesores')
-    .select('id, auth_user_id, nombre_completo, es_super_admin, activo, booking_url, areas_afinidad, ultimo_login, fecha_creacion')
+    .select('id, auth_user_id, nombre_completo, email_encriptado, es_super_admin, activo, booking_url, areas_afinidad, ultimo_login, fecha_creacion')
     .order('nombre_completo');
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data ?? []);
+  const out = (data ?? []).map((p: any) => {
+    let email = '';
+    try { email = p.email_encriptado ? decryptPII(p.email_encriptado) : ''; } catch { email = ''; }
+    const { email_encriptado: _omit, ...rest } = p;
+    return { ...rest, email };
+  });
+  res.json(out);
 });
 
 const createProfSchema = z.object({
@@ -1113,6 +1119,8 @@ router.post('/profesores/bulk-delete', async (req, res) => {
 
 const updateProfSchema = z.object({
   nombre_completo: z.string().min(2).max(150).optional(),
+  email: z.string().email().optional(),
+  password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/\d/).optional(),
   es_super_admin: z.boolean().optional(),
   activo: z.boolean().optional(),
   booking_url: z.string().url().nullable().optional(),
@@ -1121,9 +1129,46 @@ const updateProfSchema = z.object({
 router.put('/profesores/:id', async (req, res) => {
   const parsed = updateProfSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
-  const { data, error } = await supabaseAdmin.from('profesores').update(parsed.data).eq('id', req.params.id).select().single();
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ profesor: data });
+
+  // Cargar auth_user_id antes de actualizar (lo necesitamos para email/password)
+  const { data: cur } = await supabaseAdmin
+    .from('profesores').select('id, auth_user_id').eq('id', req.params.id).maybeSingle();
+  if (!cur) return res.status(404).json({ error: 'NOT_FOUND' });
+
+  // Construir patch para la tabla profesores
+  const { email, password, ...rest } = parsed.data;
+  const patch: Record<string, unknown> = { ...rest };
+  if (email !== undefined) {
+    patch.email_encriptado = encryptPII(email.toLowerCase().trim());
+    patch.email_hash = sha256Hex(email.toLowerCase().trim());
+  }
+
+  if (Object.keys(patch).length) {
+    const { error } = await supabaseAdmin.from('profesores').update(patch).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+  }
+
+  // Sincronizar con Supabase Auth si cambio email, password o es_super_admin
+  if (cur.auth_user_id && (email !== undefined || password !== undefined || parsed.data.es_super_admin !== undefined)) {
+    const supabaseUrl = process.env.SUPABASE_URL!;
+    const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const body: Record<string, unknown> = {};
+    if (email !== undefined) { body.email = email.toLowerCase().trim(); body.email_confirm = true; }
+    if (password !== undefined) body.password = password;
+    if (parsed.data.es_super_admin !== undefined) {
+      body.app_metadata = { app_role: 'profesor', profesor_id: cur.id, es_super_admin: parsed.data.es_super_admin };
+    }
+    const r = await fetch(`${supabaseUrl}/auth/v1/admin/users/${cur.auth_user_id}`, {
+      method: 'PUT',
+      headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) return res.status(400).json({ error: 'AUTH_USER_UPDATE_FAILED', detail: (await r.text()).slice(0, 200) });
+  }
+
+  const { data: out } = await supabaseAdmin
+    .from('profesores').select('id, nombre_completo, es_super_admin, activo, booking_url, areas_afinidad').eq('id', req.params.id).maybeSingle();
+  res.json({ profesor: out });
 });
 
 // =====================================================================

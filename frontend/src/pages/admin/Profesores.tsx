@@ -12,6 +12,7 @@ function sanitizeAreas(input: string[] | undefined | null): string[] {
 interface Profesor {
   id: string;
   nombre_completo: string;
+  email: string;
   es_super_admin: boolean;
   activo: boolean;
   booking_url: string | null;
@@ -30,7 +31,7 @@ export default function Profesores() {
     es_super_admin: false, booking_url: '', areas_afinidad: [],
   });
   const [editing, setEditing] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<Partial<Profesor>>({});
+  const [editDraft, setEditDraft] = useState<Partial<Profesor> & { password?: string }>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [bulkResult, setBulkResult] = useState<{ inserted: number; errors: Array<{ row: number; error: string }>; claves_generadas?: Array<{ email: string; nombre: string; clave: string }>; nota?: string } | null>(null);

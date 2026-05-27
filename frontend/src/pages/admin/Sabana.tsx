@@ -3,7 +3,7 @@ import { api, downloadFile } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
 
-interface Cohorte { id: string; etiqueta: string; }
+interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Profesor { id: string; nombre_completo: string; areas_afinidad: string[]; }
 interface Item {
   equipo_id: string; equipo_nombre: string | null;
@@ -70,7 +70,8 @@ export default function Sabana() {
   const [filtroBuscar, setFiltroBuscar] = useState('');
 
   useEffect(() => { (async () => {
-    setCohortes((await api.get('/admin/cohortes')).data);
+    // Solo cohortes activas en el dropdown de la sabana
+    setCohortes(((await api.get('/admin/cohortes')).data as Cohorte[]).filter((c) => c.activa));
     setProfesores((await api.get('/admin/profesores')).data.filter((p: any) => p.activo));
   })(); }, []);
 
