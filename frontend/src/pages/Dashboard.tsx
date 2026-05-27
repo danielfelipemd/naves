@@ -82,6 +82,10 @@ export default function Dashboard() {
     return () => { cancel = true; };
   }, [role]);
 
+  // Modalidad recien elegida: muestra la pantalla intermedia "estas en la lista
+  // de candidatos" antes de llevar al participante al flujo de equipo.
+  const [recienElegida, setRecienElegida] = useState<Modalidad | null>(null);
+
   async function elegirModalidad(m: Modalidad) {
     if (modalidad) return;
     const confirmar = window.confirm(
@@ -93,14 +97,49 @@ export default function Dashboard() {
     try {
       await api.put('/participantes/mi-modalidad', { tipo: m });
       setModalidad(m);
-      // Al fijar modalidad, llevar al participante directo al siguiente paso
-      // (sin obligarlo a ver de nuevo el dashboard).
-      navigate(destinoModalidad(m), { replace: true });
+      setRecienElegida(m);
     } catch (e: any) {
       setError(formatBackendError(e));
     } finally {
       setFijando(null);
     }
+  }
+
+  // Pantalla intermedia tras elegir modalidad: confirmacion de que el participante
+  // ya esta en la lista de candidatos para su modalidad. De aqui pasa al flujo de
+  // formacion de equipo. Si para ese momento ya lo seleccionaron, vera el equipo
+  // formado en /equipo; si no, vera la pantalla para crear equipo.
+  if (recienElegida) {
+    const labelModalidad = MODALIDADES.find((x) => x.id === recienElegida)?.titulo ?? '';
+    return (
+      <>
+        <Header />
+        <main className="pt-36 pb-16 px-4">
+          <div className="max-w-[640px] mx-auto bg-white rounded-lg shadow-inalde-card p-6 sm:p-10">
+            <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
+              <p className="section-subtitle mb-2">Modalidad elegida</p>
+              <h1 className="section-title">Estás en la lista de candidatos</h1>
+            </div>
+            <p className="text-inalde-text mb-4">
+              Elegiste <strong>{labelModalidad}</strong> como tu modalidad de trabajo de grado.
+            </p>
+            <p className="text-inalde-gray mb-3 leading-relaxed">
+              Desde este momento estás disponible para que otros compañeros de tu misma modalidad
+              te seleccionen como miembro de su equipo.
+            </p>
+            <p className="text-inalde-gray mb-6 leading-relaxed">
+              En el siguiente paso podrás crear tu propio equipo eligiendo a tus compañeros. Si para
+              cuando llegues ya un compañero te agregó a su equipo, verás el equipo formado.
+            </p>
+            <button
+              onClick={() => navigate(destinoModalidad(recienElegida), { replace: true })}
+              className="btn-inalde-primary">
+              Continuar a Mi equipo →
+            </button>
+          </div>
+        </main>
+      </>
+    );
   }
 
   return (
