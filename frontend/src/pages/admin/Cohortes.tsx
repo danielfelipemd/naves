@@ -67,6 +67,17 @@ export default function Cohortes() {
   const [hitosDraft, setHitosDraft] = useState<Hito[]>([]);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  // Acordeon: ids de cohortes con detalle expandido. Por defecto todas
+  // contraidas (solo se ve el encabezado). Click en la fila -> toggle.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   const ordenadas = useMemo(() => sortCohortes(cohortes), [cohortes]);
 
@@ -82,6 +93,12 @@ export default function Cohortes() {
     setDraft({ ...c });
     setHitosDraft(c.hitos ?? []);
     setMsg(null);
+    // Asegura que el contenido este visible al entrar a editar
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.add(c.id);
+      return next;
+    });
   }
 
   function updateHito(posicion: number, fecha: string) {
@@ -151,23 +168,37 @@ export default function Cohortes() {
 
       {loading ? <p className="text-inalde-gray">Cargando…</p> : (
         <div className="space-y-4">
-          {ordenadas.map((c) => (
+          {ordenadas.map((c) => {
+            const isOpen = expanded.has(c.id) || editing === c.id;
+            return (
             <div key={c.id} className="border border-inalde-gray-light rounded">
-              <div className="flex items-center justify-between p-4 bg-inalde-gray-bg">
-                <div>
-                  <h2 className="font-primary font-bold text-inalde-text">{c.etiqueta}</h2>
-                  <p className="text-xs text-inalde-gray mt-1">
-                    {c.id} · {c.participantes_count} participantes · {c.equipos_count} equipos
-                    {' · '}<span className={c.activa ? 'text-inalde-blue' : 'text-inalde-gray'}>{c.activa ? 'activa' : 'inactiva'}</span>
-                  </p>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => editing === c.id ? undefined : toggleExpand(c.id)}
+                onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && editing !== c.id) { e.preventDefault(); toggleExpand(c.id); } }}
+                className={`flex items-center justify-between p-4 bg-inalde-gray-bg ${editing === c.id ? '' : 'cursor-pointer hover:bg-inalde-gray-bg/70'}`}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    aria-hidden
+                    className={`inline-block text-inalde-gray transition-transform select-none ${isOpen ? 'rotate-90' : ''}`}>
+                    ▶
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="font-primary font-bold text-inalde-text">{c.etiqueta}</h2>
+                    <p className="text-xs text-inalde-gray mt-1">
+                      {c.id} · {c.participantes_count} participantes · {c.equipos_count} equipos
+                      {' · '}<span className={c.activa ? 'text-inalde-blue' : 'text-inalde-gray'}>{c.activa ? 'activa' : 'inactiva'}</span>
+                    </p>
+                  </div>
                 </div>
                 {editing === c.id ? (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => setEditing(null)} className="text-sm text-inalde-gray hover:text-inalde-text">Cancelar</button>
                     <button onClick={save} className="btn-inalde-primary !py-2 !px-4 !text-xs">Guardar</button>
                   </div>
                 ) : (
-                  <div className="flex gap-3 items-center">
+                  <div className="flex gap-3 items-center" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => toggleActiva(c)}
                       title={c.activa ? 'Desactivar cohorte (no recibe más participantes)' : 'Reactivar cohorte'}
                       className={`text-xs font-semibold px-3 py-1.5 rounded border transition ${c.activa
@@ -187,7 +218,7 @@ export default function Cohortes() {
                 )}
               </div>
 
-              {editing === c.id && (
+              {isOpen && editing === c.id && (
                 <div className="p-4 space-y-5 border-t border-inalde-gray-light">
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={!!draft.activa} onChange={(e) => setDraft({ ...draft, activa: e.target.checked })} />
@@ -232,8 +263,8 @@ export default function Cohortes() {
                 </div>
               )}
 
-              {editing !== c.id && (
-                <div className="p-4 space-y-4 text-xs">
+              {isOpen && editing !== c.id && (
+                <div className="p-4 space-y-4 text-xs border-t border-inalde-gray-light">
                   <div className="grid sm:grid-cols-2 gap-2">
                     {fechaFields.map(([k, label]) => {
                       const v = (c as any)[k];
@@ -266,7 +297,8 @@ export default function Cohortes() {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </>
