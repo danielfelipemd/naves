@@ -26,7 +26,6 @@ export default function MiEquipo() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [search, setSearch] = useState('');
   const [results, setResults] = useState<Array<{ id: string; nombre_completo: string; perfil_completo?: boolean }>>([]);
   const [searching, setSearching] = useState(false);
   const searchSeq = useRef(0);
@@ -107,23 +106,6 @@ export default function MiEquipo() {
       }
     })();
   }, [cohorteId, equipo]);
-
-  async function agregar(participante_id: string) {
-    if (!equipo) return;
-    setBusy(true); setError(null);
-    try {
-      // Buscar siguiente posición libre (2 o 3)
-      const taken = new Set(equipo.miembros_equipo.map((m) => m.posicion));
-      const posicion = [2, 3].find((p) => !taken.has(p));
-      if (!posicion) { setError('Equipo lleno (máx 3)'); return; }
-      await api.post(`/equipos/${equipo.id}/agregar-miembro`, { participante_id, posicion });
-      setSearch('');
-      setResults([]);
-      await load();
-    } catch (e: any) {
-      setError(formatBackendError(e));
-    } finally { setBusy(false); }
-  }
 
   async function remover(participante_id: string) {
     if (!equipo) return;
@@ -285,38 +267,9 @@ export default function MiEquipo() {
                   ))}
               </div>
 
-              {equipo.miembros_equipo.length < 3 && (
-                <div className="border-t border-inalde-gray-light pt-6">
-                  <p className="section-subtitle mb-3">Agregar participante</p>
-                  {searching ? (
-                    <p className="text-sm text-inalde-gray italic">Cargando participantes disponibles…</p>
-                  ) : results.length === 0 ? (
-                    <p className="text-sm text-inalde-gray italic">
-                      No hay participantes disponibles en tu cohorte. Todos ya están en equipos o aún no han activado su cuenta.
-                    </p>
-                  ) : (
-                    <>
-                      <select
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="input-inalde w-full"
-                      >
-                        <option value="">Selecciona un participante…</option>
-                        {results.map((p) => (
-                          <option key={p.id} value={p.id}>{p.nombre_completo}</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => { if (search) { agregar(search); setSearch(''); } }}
-                        disabled={busy || !search}
-                        className="btn-inalde-primary mt-3 !py-2 !text-xs disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {busy ? 'Agregando…' : 'Agregar participante →'}
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+              {/* La conformacion del equipo se hace en un solo paso al crearlo
+                  (multi-select en la pantalla previa). Aqui ya no se agregan
+                  participantes uno a uno. */}
 
               <div className="mt-10 pt-6 border-t border-inalde-gray-light flex justify-between">
                 <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
