@@ -18,6 +18,7 @@ import AdminResumen from './pages/admin/Resumen';
 import AdminCohortes from './pages/admin/Cohortes';
 import AdminParticipantes from './pages/admin/Participantes';
 import AdminProfesores from './pages/admin/Profesores';
+import AdminDirectores from './pages/admin/Directores';
 import AdminAnteproyectos from './pages/admin/Anteproyectos';
 import AdminAnteproyectoDetail from './pages/admin/AnteproyectoDetail';
 import AdminSabana from './pages/admin/Sabana';
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="cohortes" element={<AdminCohortes />} />
           <Route path="participantes" element={<AdminParticipantes />} />
           <Route path="profesores" element={<AdminProfesores />} />
+          <Route path="directores" element={<AdminDirectores />} />
           <Route path="anteproyectos" element={<AdminAnteproyectos />} />
           <Route path="anteproyectos/:id" element={<AdminAnteproyectoDetail />} />
           <Route path="sabana" element={<AdminSabana />} />

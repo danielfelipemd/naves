@@ -603,7 +603,10 @@ router.get('/anteproyectos', async (req, res) => {
     .from('anteproyectos')
     .select(`
       id, estado, fecha_envio, fecha_actualizacion,
-      equipos!inner ( id, nombre_equipo, cohorte_id ),
+      archivo_anteproyecto_path, archivo_proyecto_final_path,
+      anteproyecto_aprobado_at,
+      equipos!inner ( id, nombre_equipo, cohorte_id, tipo_trabajo_grado,
+        director:directores ( id, nombre_completo ) ),
       proyectos ( id, nombre, sector, estado_seleccion )
     `)
     .order('fecha_actualizacion', { ascending: false });
@@ -622,7 +625,8 @@ router.get('/anteproyectos/:id', async (req, res) => {
     .select(`
       *,
       equipos (
-        id, nombre_equipo, cohorte_id,
+        id, nombre_equipo, cohorte_id, tipo_trabajo_grado, director_id,
+        director:directores ( id, nombre_completo ),
         miembros_equipo (
           posicion, fue_emprendedor, perfil,
           participantes_lista ( id, nombre_completo )

@@ -33,6 +33,11 @@ const SECTIONS: Section[] = [
     hint: (d) => `${d.profesores} registrados`,
   },
   {
+    to: '/admin/directores', icon: '🎓',
+    title: 'Directores',
+    desc: 'Gestiona la lista de directores para Caso y Proyecto de Investigación. No ingresan al sistema; reciben notificaciones por correo.',
+  },
+  {
     to: '/admin/anteproyectos', icon: '📋',
     title: 'Anteproyectos',
     desc: 'Lista todos los anteproyectos con filtros por cohorte y estado. Entra al detalle de cada uno.',

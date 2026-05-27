@@ -5,6 +5,7 @@ const sectionLabels: Record<string, string> = {
   cohortes: 'Cohortes',
   participantes: 'Participantes',
   profesores: 'Profesores',
+  directores: 'Directores',
   anteproyectos: 'Anteproyectos',
   sabana: 'Sábana de proyectos',
   solicitudes: 'Solicitudes de desarchivado',

@@ -1,17 +1,56 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, downloadFile } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
+
+type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
+
+const MODALIDAD_LABEL: Record<Modalidad, string> = {
+  business_plan: 'Business Plan',
+  caso: 'Caso',
+  proyecto_investigacion: 'Proyecto de Investigación',
+};
 
 export default function AnteproyectoDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
-  useEffect(() => { (async () => {
-    setData((await api.get(`/admin/anteproyectos/${id}`)).data);
-  })(); }, [id]);
+  async function load() {
+    try { setData((await api.get(`/admin/anteproyectos/${id}`)).data); }
+    catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
+  }
+  useEffect(() => { load(); }, [id]);
+
+  async function aprobar() {
+    if (!data) return;
+    if (!confirm('¿Aprobar este anteproyecto? El participante podrá cargar el proyecto final cuando se cumpla el cronograma.')) return;
+    setBusy(true); setMsg(null);
+    try {
+      await api.post(`/anteproyectos/${data.id}/aprobar`);
+      setMsg({ kind: 'ok', text: 'Anteproyecto aprobado. El participante ya puede cargar el proyecto final.' });
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setBusy(false); }
+  }
+
+  async function abrirArchivo(tipo: 'anteproyecto' | 'proyecto-final') {
+    if (!data) return;
+    try {
+      const r = await api.get(`/anteproyectos/${data.id}/archivo/${tipo}`);
+      if (r.data?.url) window.open(r.data.url, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    }
+  }
 
   if (!data) return <p className="text-inalde-gray">Cargando…</p>;
+
+  const modalidad: Modalidad = data.equipos?.tipo_trabajo_grado ?? 'business_plan';
+  const esArchivos = modalidad === 'caso' || modalidad === 'proyecto_investigacion';
 
   return (
     <>
@@ -19,20 +58,137 @@ export default function AnteproyectoDetail() {
 
       <div className="border-b-[3px] border-inalde-red pb-4 mb-6 flex items-end justify-between gap-4">
         <div>
-          <p className="section-subtitle mb-1">Anteproyecto · {data.estado}</p>
-          <h1 className="section-title">{data.equipos.nombre_equipo ?? '(equipo sin nombre)'}</h1>
+          <p className="section-subtitle mb-1">
+            {MODALIDAD_LABEL[modalidad]} · {data.estado}
+          </p>
+          <h1 className="section-title">{data.equipos.nombre_equipo ?? '(sin nombre)'}</h1>
           <p className="text-xs text-inalde-gray mt-1">Cohorte {data.equipos.cohorte_id}</p>
         </div>
-        <button
-          onClick={() => downloadFile(
-            `/admin/anteproyectos/${data.id}/pdf`,
-            `anteproyecto-${(data.equipos.nombre_equipo ?? 'equipo').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
-          )}
-          className="btn-inalde-primary !py-2 !px-4 !text-xs whitespace-nowrap">
-          ↓ Descargar PDF
-        </button>
+        {!esArchivos && (
+          <button
+            onClick={() => downloadFile(
+              `/admin/anteproyectos/${data.id}/pdf`,
+              `anteproyecto-${(data.equipos.nombre_equipo ?? 'equipo').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+            )}
+            className="btn-inalde-primary !py-2 !px-4 !text-xs whitespace-nowrap">
+            ↓ Descargar PDF
+          </button>
+        )}
       </div>
 
+      {msg && (
+        <div className={`rounded border-l-4 px-4 py-3 text-sm mb-6 whitespace-pre-line ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>
+          {msg.text}
+        </div>
+      )}
+
+      {esArchivos ? (
+        <CasoPIView data={data} busy={busy} onAprobar={aprobar} onAbrirArchivo={abrirArchivo} />
+      ) : (
+        <BusinessPlanView data={data} />
+      )}
+    </>
+  );
+}
+
+// =============================================================================
+// Vista para Caso / Proyecto de Investigación
+// =============================================================================
+function CasoPIView({
+  data, busy, onAprobar, onAbrirArchivo,
+}: {
+  data: any;
+  busy: boolean;
+  onAprobar: () => void;
+  onAbrirArchivo: (tipo: 'anteproyecto' | 'proyecto-final') => void;
+}) {
+  const director = data.equipos?.director;
+  const miembro = data.equipos?.miembros_equipo?.[0]?.participantes_lista;
+  const anteproyectoPath = data.archivo_anteproyecto_path as string | null;
+  const proyectoFinalPath = data.archivo_proyecto_final_path as string | null;
+  const aprobadoAt = data.anteproyecto_aprobado_at as string | null;
+
+  return (
+    <>
+      <h2 className="section-subtitle mb-3">Participante</h2>
+      <p className="mb-6 text-inalde-text font-medium">
+        {miembro?.nombre_completo ?? '—'}
+      </p>
+
+      <h2 className="section-subtitle mb-3">Director asignado</h2>
+      <p className="mb-6 text-inalde-text">
+        {director?.nombre_completo ?? <span className="italic text-inalde-gray">Aún no ha elegido director</span>}
+      </p>
+
+      {/* === Anteproyecto =================================================== */}
+      <div className="border border-inalde-gray-light rounded p-5 mb-5">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <h3 className="font-primary font-bold text-base">Anteproyecto</h3>
+          {aprobadoAt && <span className="text-xs uppercase tracking-wider text-inalde-blue font-semibold">✓ Aprobado</span>}
+        </div>
+        {anteproyectoPath ? (
+          <>
+            <p className="text-sm text-inalde-gray mb-2">
+              Cargado el {new Date(data.archivo_anteproyecto_uploaded_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
+            </p>
+            <button onClick={() => onAbrirArchivo('anteproyecto')}
+              className="text-inalde-red font-semibold hover:underline text-sm">
+              Ver / descargar →
+            </button>
+            {!aprobadoAt && (
+              <div className="mt-5 pt-4 border-t border-inalde-gray-light">
+                <p className="text-sm text-inalde-gray mb-3">
+                  Al aprobar, el participante quedará habilitado para cargar el proyecto final
+                  (sujeto al cronograma de la cohorte).
+                </p>
+                <button onClick={onAprobar} disabled={busy}
+                  className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-40">
+                  {busy ? 'Aprobando…' : 'Aprobar anteproyecto →'}
+                </button>
+              </div>
+            )}
+            {aprobadoAt && (
+              <p className="text-xs text-inalde-gray mt-3 italic">
+                Aprobado el {new Date(aprobadoAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-inalde-gray italic">El participante aún no ha cargado el anteproyecto.</p>
+        )}
+      </div>
+
+      {/* === Proyecto final ================================================ */}
+      <div className="border border-inalde-gray-light rounded p-5 mb-6">
+        <h3 className="font-primary font-bold text-base mb-2">Proyecto final</h3>
+        {proyectoFinalPath ? (
+          <>
+            <p className="text-sm text-inalde-gray mb-2">
+              Cargado el {new Date(data.archivo_proyecto_final_uploaded_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
+            </p>
+            <button onClick={() => onAbrirArchivo('proyecto-final')}
+              className="text-inalde-red font-semibold hover:underline text-sm">
+              Ver / descargar →
+            </button>
+          </>
+        ) : (
+          <p className="text-sm text-inalde-gray italic">
+            {aprobadoAt
+              ? 'El participante puede cargar el proyecto final cuando lo desee (dentro del cronograma).'
+              : 'Bloqueado hasta que se apruebe el anteproyecto.'}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
+// =============================================================================
+// Vista para Business Plan (la original, intacta)
+// =============================================================================
+function BusinessPlanView({ data }: { data: any }) {
+  return (
+    <>
       <h2 className="section-subtitle mb-3">Miembros</h2>
       <div className="space-y-2 mb-8">
         {data.equipos.miembros_equipo.sort((a: any, b: any) => a.posicion - b.posicion).map((m: any) => (
