@@ -147,10 +147,10 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
 
     const lineaAdjuntoDirector = tieneAdjunto
       ? 'El documento se adjunta al presente correo para su revisión.'
-      : 'No fue posible adjuntar el documento al presente correo. Por favor solicítelo directamente al participante o al grupo de participantes del equipo.';
+      : 'No fue posible adjuntar el documento al presente correo. Pronto el equipo se lo enviará.';
     const lineaAdjuntoParticipante = tieneAdjunto
-      ? `La dirección asignada, a cargo de <strong>${dir.nombre_completo}</strong>, ya fue notificada por correo electrónico y recibió el documento como archivo adjunto.`
-      : `Se notificó a la dirección asignada, a cargo de <strong>${dir.nombre_completo}</strong>, sobre la carga; sin embargo, por una falla técnica no fue posible adjuntar el documento al correo. Le pedimos hacerle llegar el documento directamente por correo para que pueda revisarlo.`;
+      ? `Los directores asignados (<strong>${dir.nombre_completo}</strong>) ya fueron notificados por correo electrónico y recibieron el documento como archivo adjunto.`
+      : `Se notificó a los directores asignados (<strong>${dir.nombre_completo}</strong>) sobre la carga; sin embargo, por una falla técnica no fue posible adjuntar el documento al correo. Te pedimos hacerles llegar el documento directamente por correo para que puedan revisarlo.`;
 
     const baseFooter = `
       <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0 16px;"/>
@@ -164,7 +164,7 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
       const html = `
         <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #1a1a1a;">
           <div style="border-bottom: 3px solid #e30613; padding-bottom: 14px; margin-bottom: 22px;">
-            <p style="color:#888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Notificación a dirección — Programa MBA</p>
+            <p style="color:#888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Notificación a directores — Programa MBA</p>
             <h2 style="color:#1a1a1a; margin: 6px 0 0 0; font-size: 22px;">Anteproyecto recibido para revisión</h2>
           </div>
           <p><strong>${dir.nombre_completo}</strong>:</p>

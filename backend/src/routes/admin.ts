@@ -1029,10 +1029,7 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
     const equipo: any = a.equipos;
     const profesorNombre = prof?.nombre_completo ?? 'tu profesor';
     const bookingLine = prof?.booking_url
-      ? `<p style="margin:12pt 0">Agenda de tutoría del profesor: <a href="${prof.booking_url}">${prof.booking_url}</a></p>`
-      : '';
-    const areasLine = (prof?.areas_afinidad?.length ?? 0) > 0
-      ? `<p style="margin:6pt 0;color:#6b6b6b;font-size:11pt"><strong>Áreas de afinidad:</strong> ${(prof.areas_afinidad as string[]).join(', ')}</p>`
+      ? `<p style="margin:12pt 0">Agenda del profesor: <a href="${prof.booking_url}">${prof.booking_url}</a></p>`
       : '';
 
     const miembros = (equipo?.miembros_equipo ?? []) as Array<{ participantes_lista: any }>;
@@ -1051,13 +1048,13 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
           <p>Hola <strong>${p.nombre_completo}</strong>,</p>
           <p>El equipo <strong>${equipo?.nombre_equipo ?? '(sin nombre)'}</strong>
              tiene asignado el profesor <strong>${profesorNombre}</strong> para acompañar el trabajo de grado.</p>
-          ${areasLine}
-          ${bookingLine}
           <p style="margin-top:18pt">Próximos pasos:</p>
-          <ul>
-            <li>Coordinar la <strong>Reunión 1</strong> con tu profesor según el cronograma de la cohorte.</li>
-            <li>Entrar a la plataforma para revisar el detalle: <a href="${process.env.FRONTEND_URL ?? 'https://naves-frontend.huem98.easypanel.host'}">NAVES</a></li>
-          </ul>
+          <p style="margin:6pt 0">
+            Coordinar la <strong>Reunión 1</strong> con tu profesor según el cronograma de la cohorte.
+            <strong>IMPORTANTE:</strong> solamente un miembro del equipo debe solicitar la cita
+            (aunque todos asistirán).
+          </p>
+          ${bookingLine}
           <p style="font-size:9pt;color:#6b6b6b;margin-top:24pt">
             NAVES — INALDE Business School · MBA<br>
             Este es un mensaje automático del sistema; por favor no respondas a este correo.
