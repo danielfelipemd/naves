@@ -51,7 +51,7 @@ function soloNombres(full: string | null | undefined): string {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, role, signOut } = useAuth();
+  const { user, role, signOut, refreshEstado } = useAuth();
   const isSuperAdmin = (user?.app_metadata as any)?.es_super_admin === true;
   const isProfesor = role === 'profesor' || role === 'super_admin';
 
@@ -153,6 +153,12 @@ export default function Dashboard() {
     setFijando(m); setError(null);
     try {
       await api.put('/participantes/mi-modalidad', { tipo: m });
+      // Refresca el estado en el store: para BP esto activa requierePerfil
+      // y ProtectedRoute redirige automaticamente a /mi-perfil cuando el
+      // participante intenta entrar a /equipo, /anteproyecto o /seleccion.
+      // Sin este refresh el flag queda en false y el participante BP entra
+      // directo a /equipo sin haber llenado el perfil emprendedor.
+      await refreshEstado();
       setModalidad(m);
       setRecienElegida(m);
     } catch (e: any) {
