@@ -122,6 +122,17 @@ export default function Dashboard() {
     } finally { setOpBusy(false); }
   }
 
+  async function volverMenuDesdeEspera() {
+    setOpBusy(true); setError(null);
+    try {
+      await api.put('/participantes/cancelar-espera');
+      setEsperandoEquipo(false);
+      // Queda en el dashboard normal con modalidad ya elegida
+    } catch (e: any) {
+      setError(formatBackendError(e));
+    } finally { setOpBusy(false); }
+  }
+
   async function elegirModalidad(m: Modalidad) {
     if (modalidad) return;
     const confirmar = window.confirm(
@@ -222,15 +233,25 @@ export default function Dashboard() {
                 {error}
               </div>
             )}
-            <button onClick={cargarMe} className="btn-inalde-primary mr-3">
-              Volver a comprobar
-            </button>
-            <button
-              onClick={cancelarEspera}
-              disabled={opBusy}
-              className="text-sm text-inalde-gray hover:text-inalde-red underline disabled:opacity-40">
-              {opBusy ? 'Procesando…' : 'Cambiar de opinión y crear mi equipo'}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button onClick={cargarMe} disabled={opBusy} className="btn-inalde-primary disabled:opacity-40">
+                Volver a comprobar
+              </button>
+              <button
+                onClick={volverMenuDesdeEspera}
+                disabled={opBusy}
+                className="px-5 py-3 rounded font-primary font-semibold text-xs uppercase tracking-wider border-2 border-inalde-gray text-inalde-gray hover:border-inalde-text hover:text-inalde-text transition disabled:opacity-40">
+                {opBusy ? 'Procesando…' : 'Volver al menú principal'}
+              </button>
+            </div>
+            <div className="mt-5">
+              <button
+                onClick={cancelarEspera}
+                disabled={opBusy}
+                className="text-sm text-inalde-gray hover:text-inalde-red underline disabled:opacity-40">
+                {opBusy ? 'Procesando…' : 'Cambié de opinión, quiero crear mi equipo'}
+              </button>
+            </div>
             <div className="mt-8 pt-4 border-t border-inalde-gray-light">
               <button onClick={signOut} className="text-sm text-inalde-gray hover:text-inalde-text">
                 Cerrar sesión
