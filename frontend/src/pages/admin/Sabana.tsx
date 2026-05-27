@@ -20,7 +20,15 @@ interface FilaResumen {
   equipo_id: string;
   nombre_equipo: string | null;
   autores: string;
-  proyectos: Array<{ id: string; nombre: string; sector: string | null; tipo: string | null }>;
+  proyectos: Array<{
+    id: string;
+    nombre: string;
+    sector: string | null;
+    tipo: string | null;
+    ciiu: string | null;
+    canvas_problema: string | null;
+    canvas_solucion: string | null;
+  }>;
   modalidad: 'business_plan' | 'caso' | 'proyecto_investigacion';
   buscando_socios: boolean | null;
   buscando_asociacion: boolean | null;
@@ -309,21 +317,27 @@ export default function Sabana() {
                 {/* Tabla */}
                 <div className="rounded-lg border border-inalde-gray-light overflow-hidden shadow-inalde-card bg-white">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm min-w-[1200px] table-fixed border-collapse">
+                    <table className="w-full text-sm min-w-[1700px] table-fixed border-collapse">
                       <colgroup>
-                        <col className="w-14" />
+                        <col className="w-12" />
+                        <col className="w-[14%]" />
                         <col className="w-[18%]" />
-                        <col className="w-[30%]" />
+                        <col className="w-[10%]" />
+                        <col className="w-20" />
+                        <col className="w-[22%]" />
                         <col className="w-20" />
                         <col className="w-20" />
                         <col className="w-32" />
-                        <col className="w-48" />
+                        <col className="w-44" />
                       </colgroup>
                       <thead>
                         <tr className="bg-gradient-to-b from-inalde-text to-[#2a2a2a]">
                           <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">#</th>
                           <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Autores</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Proyecto(s) · Sector</th>
+                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Proyecto(s)</th>
+                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Sector</th>
+                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">CIIU</th>
+                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Problema · Solución</th>
                           <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-center" title="¿Está buscando socios?">Socios</th>
                           <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-center" title="¿Busca asociación con otro proyecto?">Asoc.</th>
                           <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Modalidad</th>
@@ -333,7 +347,7 @@ export default function Sabana() {
                       <tbody>
                         {filtrados.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="px-3 py-12 text-center text-inalde-gray italic">
+                            <td colSpan={10} className="px-3 py-12 text-center text-inalde-gray italic">
                               No hay equipos que coincidan con el filtro.
                             </td>
                           </tr>
@@ -362,19 +376,74 @@ export default function Sabana() {
                                     <div key={p.id || i} className="bg-inalde-gold/5 border-l-[3px] border-inalde-gold rounded-sm pl-2.5 py-1.5">
                                       <p className="text-[9px] uppercase tracking-wider text-inalde-gold font-bold mb-0.5">Proyecto {i + 1}</p>
                                       <p className="font-medium text-inalde-text leading-tight" title={p.nombre}>{p.nombre}</p>
-                                      {p.sector && <p className="text-[11px] text-inalde-gray mt-0.5 truncate" title={p.sector}>{p.sector}</p>}
                                     </div>
                                   ))}
                                 </div>
                               ) : (
-                                <div>
-                                  <p className="font-medium text-inalde-text leading-snug" title={f.proyectos[0]?.nombre}>
-                                    {f.proyectos[0]?.nombre ?? <span className="italic text-inalde-gray font-normal">—</span>}
-                                  </p>
-                                  {f.proyectos[0]?.sector && (
-                                    <p className="text-[11px] text-inalde-gray mt-1 truncate" title={f.proyectos[0].sector}>{f.proyectos[0].sector}</p>
-                                  )}
+                                <p className="font-medium text-inalde-text leading-snug" title={f.proyectos[0]?.nombre}>
+                                  {f.proyectos[0]?.nombre ?? <span className="italic text-inalde-gray font-normal">—</span>}
+                                </p>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 align-top text-inalde-gray text-xs">
+                              {f.proyectos.length > 1 ? (
+                                <div className="space-y-2">
+                                  {f.proyectos.map((p, i) => (
+                                    <div key={p.id || i} className="leading-tight">
+                                      <span className="text-[9px] uppercase tracking-wider text-inalde-gold font-bold">P{i + 1}</span>{' '}
+                                      {p.sector || <span className="italic">—</span>}
+                                    </div>
+                                  ))}
                                 </div>
+                              ) : (
+                                f.proyectos[0]?.sector ?? <span className="italic">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 align-top">
+                              {f.proyectos.length > 1 ? (
+                                <div className="space-y-2">
+                                  {f.proyectos.map((p, i) => (
+                                    <div key={p.id || i} className="leading-tight">
+                                      <span className="text-[9px] uppercase tracking-wider text-inalde-gold font-bold">P{i + 1}</span>{' '}
+                                      <span className="font-mono text-xs text-inalde-text">{p.ciiu || <span className="italic text-inalde-gray">—</span>}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="font-mono text-xs text-inalde-text">{f.proyectos[0]?.ciiu || <span className="italic text-inalde-gray">—</span>}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 align-top text-xs">
+                              {f.proyectos.length > 1 ? (
+                                <div className="space-y-3">
+                                  {f.proyectos.map((p, i) => (
+                                    <div key={p.id || i} className="border-l-2 border-inalde-gold/40 pl-2">
+                                      <p className="text-[9px] uppercase tracking-wider text-inalde-gold font-bold mb-1">Proyecto {i + 1}</p>
+                                      {p.canvas_problema && (
+                                        <p className="text-inalde-text leading-snug mb-1"><span className="text-[10px] uppercase tracking-wider text-inalde-gray font-semibold">Problema:</span> {p.canvas_problema}</p>
+                                      )}
+                                      {p.canvas_solucion && (
+                                        <p className="text-inalde-text leading-snug"><span className="text-[10px] uppercase tracking-wider text-inalde-gray font-semibold">Solución:</span> {p.canvas_solucion}</p>
+                                      )}
+                                      {!p.canvas_problema && !p.canvas_solucion && <span className="italic text-inalde-gray">—</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                (() => {
+                                  const p = f.proyectos[0];
+                                  if (!p?.canvas_problema && !p?.canvas_solucion) return <span className="italic text-inalde-gray">—</span>;
+                                  return (
+                                    <div className="leading-snug">
+                                      {p?.canvas_problema && (
+                                        <p className="text-inalde-text mb-1"><span className="text-[10px] uppercase tracking-wider text-inalde-gray font-semibold">Problema:</span> {p.canvas_problema}</p>
+                                      )}
+                                      {p?.canvas_solucion && (
+                                        <p className="text-inalde-text"><span className="text-[10px] uppercase tracking-wider text-inalde-gray font-semibold">Solución:</span> {p.canvas_solucion}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })()
                               )}
                             </td>
                             <td className="px-3 py-3 text-center align-top">

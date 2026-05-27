@@ -151,7 +151,7 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
       ),
       anteproyectos (
         id, estado,
-        proyectos ( id, posicion, nombre, sector, tipo, estado_seleccion )
+        proyectos ( id, posicion, nombre, sector, tipo, ciiu, canvas_problema, canvas_solucion, estado_seleccion )
       ),
       asignaciones_profesor (
         profesores ( id, nombre_completo )
@@ -161,7 +161,15 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
     .eq('cohorte_id', cohorteId);
   if (error) return res.status(500).json({ error: error.message });
 
-  type Proyecto = { id: string; nombre: string; sector: string | null; tipo: string | null };
+  type Proyecto = {
+    id: string;
+    nombre: string;
+    sector: string | null;
+    tipo: string | null;
+    ciiu: string | null;
+    canvas_problema: string | null;
+    canvas_solucion: string | null;
+  };
   type Fila = {
     numero: number;
     equipo_id: string;
@@ -203,6 +211,9 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
           nombre: p.nombre || '(sin nombre)',
           sector: p.sector ?? null,
           tipo: p.tipo ?? null,
+          ciiu: p.ciiu ?? null,
+          canvas_problema: p.canvas_problema ?? null,
+          canvas_solucion: p.canvas_solucion ?? null,
         }));
     }
     // Para caso/PI o BP sin proyectos: usamos un placeholder con el nombre del equipo
@@ -212,6 +223,9 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
         nombre: eq.nombre_equipo || '(sin nombre)',
         sector: null,
         tipo: null,
+        ciiu: null,
+        canvas_problema: null,
+        canvas_solucion: null,
       }];
     }
 
