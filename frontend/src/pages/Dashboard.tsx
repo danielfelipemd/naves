@@ -39,6 +39,16 @@ function destinoModalidad(_m: Modalidad): string {
   return '/equipo';
 }
 
+// Convención colombiana: "Nombre1 [Nombre2] Apellido1 Apellido2".
+// Quita los dos últimos tokens (apellidos) si hay 3 o más; si solo hay 1 o 2,
+// usa el primero.
+function soloNombres(full: string | null | undefined): string {
+  if (!full) return '';
+  const parts = full.trim().split(/\s+/);
+  if (parts.length >= 3) return parts.slice(0, parts.length - 2).join(' ');
+  return parts[0] ?? '';
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, role, signOut } = useAuth();
@@ -271,7 +281,7 @@ export default function Dashboard() {
           <div className="border-b-[3px] border-inalde-red pb-6 mb-8 flex items-start justify-between gap-4">
             <div>
               <h1 className="section-title mb-2">
-                Bienvenid{role === 'participante' ? 'o' : 'o'}{nombre ? `, ${nombre}` : ''}
+                Te damos la bienvenida{nombre ? `, ${soloNombres(nombre)}` : ''}
               </h1>
               <p className="text-inalde-gray text-sm leading-relaxed">
                 Rol: <span className="text-inalde-red font-semibold uppercase tracking-wider">{role}</span>
