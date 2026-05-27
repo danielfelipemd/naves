@@ -9,8 +9,8 @@ export function Header() {
       <div className="flex items-center max-w-[1400px] mx-auto px-4 sm:px-8 py-3 sm:py-4 bg-white">
         <a href="/" className="flex items-center gap-3 sm:gap-6">
           <img
-            src="/inalde-logo.jpg"
-            alt="INALDE Business School"
+            src="/inalde-40-anos.png"
+            alt="INALDE Business School · 40 años"
             className="h-10 sm:h-14 w-auto"
           />
           <div className="w-px h-9 sm:h-11 bg-inalde-gray-light" />
