@@ -278,8 +278,7 @@ export default function TrabajoGrado() {
           )}
 
           <p className="text-inalde-gray mb-8 text-sm">
-            Carga el <strong>anteproyecto</strong> en PDF. Una vez sea revisado y aprobado, podrás
-            cargar el <strong>proyecto final</strong> en PDF o Word. Tamaño máximo: 25 MB cada uno.
+            Carga el <strong>anteproyecto</strong> en PDF. Tamaño máximo: 25 MB.
           </p>
 
           {/* === Bloque 1: Anteproyecto =================================== */}
