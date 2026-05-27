@@ -128,6 +128,130 @@ router.get('/:cohorteId', requireRole('profesor', 'super_admin'), async (req, re
 });
 
 /**
+ * GET /api/sabana/:cohorteId/resumen
+ * Tabla resumen tipo Base de Datos: una fila por proyecto (BP) o por
+ * equipo (caso/PI). Vista para profesor (filtrada a sus equipos) y
+ * super_admin (toda la cohorte).
+ */
+router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async (req: AuthenticatedRequest, res) => {
+  const cohorteId = req.params.cohorteId;
+  const isSuperAdmin = !!req.user!.isSuperAdmin;
+  const profesorId = req.user!.profesorId;
+  if (!isSuperAdmin && !profesorId) return res.status(403).json({ error: 'NO_PROFESOR_ID' });
+
+  // Equipos de la cohorte con miembros, anteproyecto+proyectos, asignacion de profesor
+  const { data: equipos, error } = await supabaseAdmin
+    .from('equipos')
+    .select(`
+      id, nombre_equipo, tipo_trabajo_grado, buscando_socios, buscando_asociacion_otro_proyecto,
+      miembros_equipo (
+        posicion,
+        participantes_lista ( nombre_completo )
+      ),
+      anteproyectos (
+        id, estado,
+        proyectos ( id, posicion, nombre, sector, tipo, estado_seleccion )
+      ),
+      asignaciones_profesor (
+        profesores ( id, nombre_completo )
+      ),
+      directores ( id, nombre_completo )
+    `)
+    .eq('cohorte_id', cohorteId);
+  if (error) return res.status(500).json({ error: error.message });
+
+  type Fila = {
+    numero: number;
+    equipo_id: string;
+    proyecto_id: string | null;
+    nombre_proyecto: string;
+    autores: string;
+    sector: string | null;
+    modalidad: string;
+    buscando_socios: boolean | null;
+    buscando_asociacion: boolean | null;
+    profesor_asignado: string | null;
+    director_asignado: string | null;
+  };
+  const filas: Fila[] = [];
+
+  for (const eq of (equipos as any[]) ?? []) {
+    // Filtrado para profesor: solo equipos donde es asignado (BP) o donde es director (caso/PI)
+    if (!isSuperAdmin) {
+      const profesorMatch = (eq.asignaciones_profesor ?? []).some((a: any) => a.profesores?.id === profesorId);
+      if (!profesorMatch) continue;
+    }
+
+    const miembros = ((eq.miembros_equipo as any[]) ?? [])
+      .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
+      .map((m) => m.participantes_lista?.nombre_completo)
+      .filter(Boolean);
+    const autores = miembros.join(', ');
+    const modalidad = eq.tipo_trabajo_grado as string;
+    const profesorNombre = ((eq.asignaciones_profesor as any[]) ?? [])[0]?.profesores?.nombre_completo ?? null;
+    const directorNombre = (eq.directores as any)?.nombre_completo ?? null;
+
+    if (modalidad === 'business_plan') {
+      const ant = (eq.anteproyectos as any[])?.[0];
+      const proys = ((ant?.proyectos ?? []) as any[])
+        .filter((p) => p.estado_seleccion !== 'archivado')
+        .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0));
+      if (proys.length === 0) {
+        filas.push({
+          numero: 0,
+          equipo_id: eq.id,
+          proyecto_id: null,
+          nombre_proyecto: eq.nombre_equipo || '(sin nombre)',
+          autores,
+          sector: null,
+          modalidad,
+          buscando_socios: eq.buscando_socios ?? null,
+          buscando_asociacion: eq.buscando_asociacion_otro_proyecto ?? null,
+          profesor_asignado: profesorNombre,
+          director_asignado: null,
+        });
+      } else {
+        for (const p of proys) {
+          filas.push({
+            numero: 0,
+            equipo_id: eq.id,
+            proyecto_id: p.id,
+            nombre_proyecto: p.nombre || '(sin nombre)',
+            autores,
+            sector: p.sector ?? null,
+            modalidad,
+            buscando_socios: eq.buscando_socios ?? null,
+            buscando_asociacion: eq.buscando_asociacion_otro_proyecto ?? null,
+            profesor_asignado: profesorNombre,
+            director_asignado: null,
+          });
+        }
+      }
+    } else {
+      // Caso / Proyecto de investigacion -> 1 fila por equipo
+      filas.push({
+        numero: 0,
+        equipo_id: eq.id,
+        proyecto_id: null,
+        nombre_proyecto: eq.nombre_equipo || '(sin nombre)',
+        autores,
+        sector: null,
+        modalidad,
+        buscando_socios: eq.buscando_socios ?? null,
+        buscando_asociacion: eq.buscando_asociacion_otro_proyecto ?? null,
+        profesor_asignado: null,
+        director_asignado: directorNombre,
+      });
+    }
+  }
+
+  // Numerar despues de filtrar/aplanar
+  filas.forEach((f, i) => { f.numero = i + 1; });
+
+  res.json({ cohorte_id: cohorteId, total: filas.length, filas });
+});
+
+/**
  * GET /api/sabana/:cohorteId/pdf
  */
 router.get('/:cohorteId/pdf', requireRole('profesor', 'super_admin'), async (req, res) => {

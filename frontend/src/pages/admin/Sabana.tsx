@@ -14,6 +14,20 @@ interface Item {
 }
 interface Asignacion { equipo_id: string; profesor_id: string; }
 
+interface FilaResumen {
+  numero: number;
+  equipo_id: string;
+  proyecto_id: string | null;
+  nombre_proyecto: string;
+  autores: string;
+  sector: string | null;
+  modalidad: 'business_plan' | 'caso' | 'proyecto_investigacion';
+  buscando_socios: boolean | null;
+  buscando_asociacion: boolean | null;
+  profesor_asignado: string | null;
+  director_asignado: string | null;
+}
+
 export default function Sabana() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorte, setCohorte] = useState('');
@@ -24,6 +38,9 @@ export default function Sabana() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [vista, setVista] = useState<'detalle' | 'resumen'>('resumen');
+  const [resumen, setResumen] = useState<FilaResumen[]>([]);
+  const [loadingResumen, setLoadingResumen] = useState(false);
 
   useEffect(() => { (async () => {
     setCohortes((await api.get('/admin/cohortes')).data);
@@ -44,7 +61,18 @@ export default function Sabana() {
     } finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, [cohorte]);
+  useEffect(() => { load(); loadResumen(); }, [cohorte]);
+
+  async function loadResumen() {
+    if (!cohorte) { setResumen([]); return; }
+    setLoadingResumen(true);
+    try {
+      const { data } = await api.get(`/sabana/${cohorte}/resumen`);
+      setResumen((data?.filas ?? []) as FilaResumen[]);
+    } catch {
+      setResumen([]);
+    } finally { setLoadingResumen(false); }
+  }
 
   async function generar() {
     setBusy(true); setMsg(null);
@@ -157,7 +185,85 @@ export default function Sabana() {
         </div>
       )}
 
-      {loading ? <p className="text-inalde-gray">Cargando…</p> :
+      {cohorte && (
+        <div className="flex gap-2 mb-4 border-b border-inalde-gray-light">
+          <button
+            onClick={() => setVista('resumen')}
+            className={`text-xs font-primary font-semibold uppercase tracking-wider px-3 py-2 -mb-px border-b-2 transition ${vista === 'resumen' ? 'border-inalde-red text-inalde-red' : 'border-transparent text-inalde-gray hover:text-inalde-text'}`}>
+            Tabla resumen
+          </button>
+          <button
+            onClick={() => setVista('detalle')}
+            className={`text-xs font-primary font-semibold uppercase tracking-wider px-3 py-2 -mb-px border-b-2 transition ${vista === 'detalle' ? 'border-inalde-red text-inalde-red' : 'border-transparent text-inalde-gray hover:text-inalde-text'}`}>
+            Detalle por equipo (asignaciones)
+          </button>
+        </div>
+      )}
+
+      {/* === Vista resumen: tabla tipo Base de Datos del CSV institucional === */}
+      {vista === 'resumen' && cohorte ? (
+        loadingResumen ? <p className="text-inalde-gray">Cargando resumen…</p> :
+          resumen.length === 0 ? <p className="text-inalde-gray text-sm">Esta cohorte aún no tiene proyectos cargados.</p> : (
+            <div className="rounded border border-inalde-gray-light overflow-x-auto">
+              <table className="w-full text-sm min-w-[1100px] table-fixed">
+                <colgroup>
+                  <col className="w-12" />
+                  <col className="w-[22%]" />
+                  <col className="w-[24%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-20" />
+                  <col className="w-20" />
+                  <col className="w-32" />
+                  <col className="w-32" />
+                </colgroup>
+                <thead className="bg-inalde-gray-bg text-left">
+                  <tr>
+                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">#</th>
+                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Autores</th>
+                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Proyecto</th>
+                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Sector</th>
+                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray" title="¿Está buscando socios?">Socios</th>
+                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray" title="¿Busca asociación con otro proyecto?">Asoc.</th>
+                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Modalidad</th>
+                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Profesor / Director</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resumen.map((f) => (
+                    <tr key={`${f.equipo_id}-${f.proyecto_id ?? 'eq'}`} className="border-t border-inalde-gray-light">
+                      <td className="px-3 py-2 text-inalde-gray font-mono text-xs">{f.numero}</td>
+                      <td className="px-3 py-2 truncate" title={f.autores}>{f.autores || <span className="italic text-inalde-gray">—</span>}</td>
+                      <td className="px-3 py-2 font-medium truncate" title={f.nombre_proyecto}>{f.nombre_proyecto}</td>
+                      <td className="px-3 py-2 text-inalde-gray truncate" title={f.sector ?? ''}>{f.sector ?? <span className="italic">—</span>}</td>
+                      <td className="px-3 py-2 text-xs">
+                        {f.buscando_socios === true ? <span className="text-inalde-red font-semibold">SÍ</span> :
+                          f.buscando_socios === false ? <span className="text-inalde-gray">NO</span> :
+                            <span className="text-inalde-gray italic">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {f.buscando_asociacion === true ? <span className="text-inalde-red font-semibold">SÍ</span> :
+                          f.buscando_asociacion === false ? <span className="text-inalde-gray">NO</span> :
+                            <span className="text-inalde-gray italic">—</span>}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs">
+                        <span className={`uppercase tracking-wider font-semibold ${f.modalidad === 'business_plan' ? 'text-inalde-red' : f.modalidad === 'caso' ? 'text-inalde-gold' : 'text-inalde-blue'}`}>
+                          {f.modalidad === 'business_plan' ? 'Business Plan' : f.modalidad === 'caso' ? 'Caso' : 'Proy. Investigación'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-inalde-gray text-xs truncate" title={f.profesor_asignado ?? f.director_asignado ?? ''}>
+                        {f.profesor_asignado ?? f.director_asignado ?? <span className="italic">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+      ) : null}
+
+      {/* === Vista detalle: original (asignaciones por equipo) === */}
+      {vista === 'detalle' && (
+      loading ? <p className="text-inalde-gray">Cargando…</p> :
         Object.keys(equipos).length === 0 ? (
           cohorte && (
             <p className="text-inalde-gray text-sm">
@@ -206,7 +312,8 @@ export default function Sabana() {
               </div>
             ))}
           </div>
-        )}
+        )
+      )}
     </>
   );
 }
