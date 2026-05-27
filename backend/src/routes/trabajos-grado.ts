@@ -127,8 +127,12 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
     try {
       const buf = await downloadTrabajoGradoFile(ctx.archivoPath);
       const ext = extForMime(ctx.archivoMime) ?? 'pdf';
+      // El path ahora conserva el nombre original sanitizado (ej.
+      // 'equipoId/anteproyecto/cindy_anteproyecto_v2.pdf'). Lo usamos
+      // tal cual para el adjunto.
+      const filenameFromPath = ctx.archivoPath.split('/').pop();
       attachments = [{
-        filename: `anteproyecto-${equipoNombre.replace(/[^a-zA-Z0-9._-]/g, '_')}.${ext}`,
+        filename: filenameFromPath || `anteproyecto-${equipoNombre.replace(/[^a-zA-Z0-9._-]/g, '_')}.${ext}`,
         content: buf,
         contentType: ctx.archivoMime,
       }];
@@ -332,7 +336,13 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
   let path: string;
   let size: number;
   try {
-    const result = await uploadTrabajoGradoFile(ant.equipo_id, tipo, req.file.buffer, mime);
+    const result = await uploadTrabajoGradoFile(
+      ant.equipo_id,
+      tipo,
+      req.file.buffer,
+      mime,
+      req.file.originalname,
+    );
     path = result.path;
     size = result.size;
   } catch (e: any) {

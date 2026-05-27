@@ -17,10 +17,32 @@ export function extForMime(mime: string): string | null {
   return MIME_TO_EXT[mime] ?? null;
 }
 
-export function pathFor(equipoId: string, tipo: TipoArchivoTrabajo, mime: string): string {
+/**
+ * Limpia un filename para usarlo como path en Supabase Storage: quita
+ * diacríticos, reemplaza caracteres no seguros por '_', conserva extensión.
+ */
+function sanitizeFilename(name: string, fallbackExt: string): string {
+  const raw = (name ?? '').trim() || `archivo.${fallbackExt}`;
+  const lastDot = raw.lastIndexOf('.');
+  const base = lastDot > 0 ? raw.slice(0, lastDot) : raw;
+  const rawExt = lastDot > 0 ? raw.slice(lastDot + 1) : '';
+  const safeBase = base
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // quita acentos
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^[_.\-]+|[_.\-]+$/g, '')
+    .slice(0, 100) || 'archivo';
+  const safeExt = (rawExt || fallbackExt).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10).toLowerCase() || fallbackExt;
+  return `${safeBase}.${safeExt}`;
+}
+
+export function pathFor(equipoId: string, tipo: TipoArchivoTrabajo, originalFilename: string, mime: string): string {
   const ext = extForMime(mime);
   if (!ext) throw new Error('UNSUPPORTED_MIME');
-  return `${equipoId}/${tipo}.${ext}`;
+  const safe = sanitizeFilename(originalFilename, ext);
+  // Subcarpeta por tipo: distinguishes anteproyecto vs proyecto-final dentro
+  // del bucket aun viendo varios equipos a la vez.
+  return `${equipoId}/${tipo}/${safe}`;
 }
 
 export async function uploadTrabajoGradoFile(
@@ -28,8 +50,9 @@ export async function uploadTrabajoGradoFile(
   tipo: TipoArchivoTrabajo,
   buffer: Buffer,
   mime: string,
+  originalFilename: string,
 ): Promise<{ path: string; size: number }> {
-  const path = pathFor(equipoId, tipo, mime);
+  const path = pathFor(equipoId, tipo, originalFilename, mime);
   const { error } = await supabaseAdmin.storage.from(BUCKET).upload(path, buffer, {
     contentType: mime,
     upsert: true,
