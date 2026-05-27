@@ -334,8 +334,8 @@ export default function TrabajoGrado() {
 
             {!aprobado && !finalSubido && (
               <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-xs text-inalde-text mb-3">
-                Este paso queda <strong>bloqueado</strong> hasta que el anteproyecto sea revisado y
-                aprobado, y se cumpla la fecha del cronograma para la entrega final.
+                Este paso queda <strong>bloqueado</strong> hasta la entrega final; estará disponible
+                al final del proceso.
               </div>
             )}
 
@@ -373,7 +373,7 @@ export default function TrabajoGrado() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-inalde-gray italic">Disponible cuando se apruebe el anteproyecto.</p>
+              <p className="text-sm text-inalde-gray italic">Disponible al final del proceso.</p>
             )}
           </div>
 
