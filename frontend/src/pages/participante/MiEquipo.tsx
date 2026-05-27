@@ -220,7 +220,7 @@ export default function MiEquipo() {
                   ← Menú principal
                 </button>
                 <button onClick={crear} disabled={busy} className="btn-inalde-primary">
-                  {busy ? 'Creando…' : 'Crear mi equipo →'}
+                  {busy ? 'Guardando…' : 'Siguiente →'}
                 </button>
               </div>
             </div>
