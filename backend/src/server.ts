@@ -28,10 +28,18 @@ app.use(express.json({ limit: '1mb' }));
 app.use(morgan('combined'));
 
 // Rate limiters
-const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 30 });
-const ciiuLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 200 });
+// - sensitiveAuthLimiter: solo endpoints que NO requieren auth (anti fuerza bruta).
+//   /verificar-cedula y /recovery son los unicos publicos -> 30/h por IP es razonable.
+// - authLimiter: aplica a TODO el router de auth pero relajado (incluye /me que
+//   se llama en cada navegacion). 600/h cubre uso intensivo de una cohorte
+//   institucional desde el mismo WiFi (varios participantes compartiendo IP).
+const sensitiveAuthLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50 });
+const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 600 });
+const ciiuLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 1000 });
 
 app.use('/', healthRouter);
+app.use('/api/auth/verificar-cedula', sensitiveAuthLimiter);
+app.use('/api/auth/recovery', sensitiveAuthLimiter);
 app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/ciiu', ciiuLimiter, ciiuRouter);
 app.use('/api/admin', adminRouter);
