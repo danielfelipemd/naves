@@ -50,18 +50,31 @@ export default function Dashboard() {
   const [fijando, setFijando] = useState<Modalidad | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nombre, setNombre] = useState<string | null>(null);
+  const [esperandoEquipo, setEsperandoEquipo] = useState(false);
+  const [enEquipo, setEnEquipo] = useState(false);
+  const [opBusy, setOpBusy] = useState(false);
 
-  // Cargar el nombre real del usuario (no el email sintético hasheado)
+  // Cargar el nombre real del usuario + flags de equipo
+  async function cargarMe() {
+    try {
+      const { data } = await api.get('/auth/me');
+      setNombre(data?.nombre_completo ?? null);
+      setEsperandoEquipo(!!data?.esperando_equipo);
+    } catch { /* ignore */ }
+  }
+  useEffect(() => { cargarMe(); }, []);
+
+  // Saber si el participante ya está en un equipo (para no mostrar la pantalla
+  // 'esperando' si ya fue agregado).
   useEffect(() => {
-    let cancel = false;
+    if (role !== 'participante') return;
     (async () => {
       try {
-        const { data } = await api.get('/auth/me');
-        if (!cancel) setNombre(data?.nombre_completo ?? null);
+        const { data } = await api.get('/equipos/mi-equipo');
+        setEnEquipo(!!data?.equipo);
       } catch { /* ignore */ }
     })();
-    return () => { cancel = true; };
-  }, []);
+  }, [role]);
 
   useEffect(() => {
     if (role !== 'participante') {
@@ -82,9 +95,32 @@ export default function Dashboard() {
     return () => { cancel = true; };
   }, [role]);
 
-  // Modalidad recien elegida: muestra la pantalla intermedia "estas en la lista
-  // de candidatos" antes de llevar al participante al flujo de equipo.
+  // Modalidad recien elegida: muestra la pantalla intermedia "estas en la lista"
+  // antes de llevar al participante al flujo de equipo.
   const [recienElegida, setRecienElegida] = useState<Modalidad | null>(null);
+
+  async function elegirEsperar() {
+    if (!recienElegida) return;
+    setOpBusy(true); setError(null);
+    try {
+      await api.put('/participantes/esperar-equipo');
+      setEsperandoEquipo(true);
+      setRecienElegida(null);
+    } catch (e: any) {
+      setError(formatBackendError(e));
+    } finally { setOpBusy(false); }
+  }
+
+  async function cancelarEspera() {
+    setOpBusy(true); setError(null);
+    try {
+      await api.put('/participantes/cancelar-espera');
+      setEsperandoEquipo(false);
+      navigate('/equipo', { replace: true });
+    } catch (e: any) {
+      setError(formatBackendError(e));
+    } finally { setOpBusy(false); }
+  }
 
   async function elegirModalidad(m: Modalidad) {
     if (modalidad) return;
@@ -126,11 +162,80 @@ export default function Dashboard() {
               Desde este momento estás disponible para que otros participantes de esta misma
               modalidad te seleccionen o para crear tu equipo.
             </p>
-            <button
-              onClick={() => navigate(destinoModalidad(recienElegida), { replace: true })}
-              className="btn-inalde-primary">
-              Continuar a Mi equipo →
+            {error && (
+              <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm mb-4">
+                {error}
+              </div>
+            )}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => navigate(destinoModalidad(recienElegida), { replace: true })}
+                disabled={opBusy}
+                className="btn-inalde-primary disabled:opacity-40">
+                Continuar a Mi equipo →
+              </button>
+              <button
+                onClick={elegirEsperar}
+                disabled={opBusy}
+                className="px-5 py-3 rounded font-primary font-semibold text-xs uppercase tracking-wider border-2 border-inalde-gray text-inalde-gray hover:border-inalde-text hover:text-inalde-text transition disabled:opacity-40">
+                {opBusy ? 'Guardando…' : 'Esperar a ser agregado'}
+              </button>
+            </div>
+            <p className="text-xs text-inalde-gray mt-4 leading-relaxed">
+              <strong>"Esperar a ser agregado":</strong> volverás al menú principal y, hasta que otro
+              participante te agregue a su equipo, no podrás avanzar en el sistema. Pídele al
+              participante que te agregue cuando ingrese.
+            </p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  // Pantalla bloqueada "esperando a ser agregado": el participante eligio
+  // explicitamente esperar y aun no tiene equipo. No puede avanzar hasta que
+  // alguien lo agregue (auto-clear del flag) o decida crear su propio equipo.
+  if (role === 'participante' && esperandoEquipo && !enEquipo) {
+    const labelModalidad = modalidad ? MODALIDADES.find((x) => x.id === modalidad)?.titulo ?? '' : '';
+    return (
+      <>
+        <Header />
+        <main className="pt-36 pb-16 px-4">
+          <div className="max-w-[640px] mx-auto bg-white rounded-lg shadow-inalde-card p-6 sm:p-10">
+            <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
+              <p className="section-subtitle mb-2">Esperando</p>
+              <h1 className="section-title">Estás a la espera de ser agregado a un equipo</h1>
+            </div>
+            {nombre && (
+              <p className="text-inalde-text mb-3">Hola, <strong>{nombre}</strong>.</p>
+            )}
+            <p className="text-inalde-gray mb-3 leading-relaxed">
+              Elegiste la modalidad <strong>{labelModalidad}</strong> y declaraste que esperarás a que
+              otro participante te agregue a su equipo.
+            </p>
+            <p className="text-inalde-gray mb-6 leading-relaxed">
+              Cuando un participante te agregue, esta pantalla se cerrará automáticamente y podrás
+              continuar con tu trabajo de grado. Mientras tanto no es posible avanzar en el sistema.
+            </p>
+            {error && (
+              <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm mb-4">
+                {error}
+              </div>
+            )}
+            <button onClick={cargarMe} className="btn-inalde-primary mr-3">
+              Volver a comprobar
             </button>
+            <button
+              onClick={cancelarEspera}
+              disabled={opBusy}
+              className="text-sm text-inalde-gray hover:text-inalde-red underline disabled:opacity-40">
+              {opBusy ? 'Procesando…' : 'Cambiar de opinión y crear mi equipo'}
+            </button>
+            <div className="mt-8 pt-4 border-t border-inalde-gray-light">
+              <button onClick={signOut} className="text-sm text-inalde-gray hover:text-inalde-text">
+                Cerrar sesión
+              </button>
+            </div>
           </div>
         </main>
       </>

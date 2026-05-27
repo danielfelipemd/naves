@@ -166,13 +166,23 @@ export default function MiEquipo() {
 
               <div>
                 <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
-                  {modalidad === 'caso' ? 'Nombre del caso (Provisional)' : 'Nombre del equipo (opcional)'}
+                  {modalidad === 'caso'
+                    ? 'Nombre provisional del caso'
+                    : modalidad === 'proyecto_investigacion'
+                      ? 'Nombre provisional del proyecto de investigación'
+                      : 'Nombre del equipo (opcional)'}
                 </label>
                 <input
                   type="text"
                   value={nombreEquipo}
                   onChange={(e) => setNombreEquipo(e.target.value)}
-                  placeholder={modalidad === 'caso' ? 'Ej.: Caso Empresa XYZ' : 'Los Disruptores'}
+                  placeholder={
+                    modalidad === 'caso'
+                      ? 'Ej.: Caso Empresa XYZ'
+                      : modalidad === 'proyecto_investigacion'
+                        ? 'Ej.: Investigación en sector salud'
+                        : 'Los Disruptores'
+                  }
                   className="input-inalde"
                   maxLength={100}
                 />
@@ -230,7 +240,13 @@ export default function MiEquipo() {
           ) : (
             <>
               <div className="mb-8">
-                <p className="text-xs uppercase tracking-wider text-inalde-gray mb-1">Equipo</p>
+                <p className="text-xs uppercase tracking-wider text-inalde-gray mb-1">
+                  {equipo.tipo_trabajo_grado === 'caso'
+                    ? 'Nombre provisional del caso'
+                    : equipo.tipo_trabajo_grado === 'proyecto_investigacion'
+                      ? 'Nombre provisional del proyecto de investigación'
+                      : 'Equipo'}
+                </p>
                 <h2 className="text-xl font-primary font-bold text-inalde-text">
                   {equipo.nombre_equipo ?? '(sin nombre)'}
                 </h2>

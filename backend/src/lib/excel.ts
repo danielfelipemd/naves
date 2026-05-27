@@ -209,8 +209,11 @@ export async function buildTemplateXlsx(opts: TemplateOpts): Promise<Buffer> {
         };
       }
     } else if (c.dropdownRange) {
-      // Lista en rango (catálogo en otra hoja)
-      const ref = `=${c.dropdownRange.sheet}!${c.dropdownRange.range}`;
+      // Lista en rango (catálogo en otra hoja). ExcelJS NO espera el "=" inicial
+      // (lo agrega internamente). Y siempre envolvemos el nombre de la hoja en
+      // comillas simples — es el formato canónico de Excel para hojas con
+      // espacios/acentos/guiones y no daña nombres simples.
+      const ref = `'${c.dropdownRange.sheet}'!${c.dropdownRange.range}`;
       for (let r = firstDataRow; r < firstDataRow + totalRowsConDropdown; r++) {
         ws.getCell(`${colLetter}${r}`).dataValidation = {
           type: 'list',

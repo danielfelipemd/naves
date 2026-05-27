@@ -195,16 +195,22 @@ router.get('/me', requireAuth(), async (req: any, res) => {
   let estado: string | null = null;
   let perfil_completo = false;
   let tipo_trabajo_grado: string | null = null;
+  let esperando_equipo = false;
+  let en_equipo = false;
   if (req.user.participanteId) {
     const { data } = await supabaseAdmin
       .from('participantes_lista')
-      .select('nombre_completo, estado, perfil_completo_at, tipo_trabajo_grado')
+      .select('nombre_completo, estado, perfil_completo_at, tipo_trabajo_grado, esperando_equipo_at')
       .eq('id', req.user.participanteId)
       .maybeSingle();
     nombre_completo = data?.nombre_completo ?? null;
     estado = data?.estado ?? null;
     perfil_completo = !!data?.perfil_completo_at;
     tipo_trabajo_grado = data?.tipo_trabajo_grado ?? null;
+    esperando_equipo = !!data?.esperando_equipo_at;
+    const { data: miembro } = await supabaseAdmin
+      .from('miembros_equipo').select('equipo_id').eq('participante_id', req.user.participanteId).maybeSingle();
+    en_equipo = !!miembro;
   } else if (req.user.profesorId) {
     const { data } = await supabaseAdmin
       .from('profesores')
@@ -223,6 +229,7 @@ router.get('/me', requireAuth(), async (req: any, res) => {
     perfil_completo,
     requiere_cambio_clave: estado === 'pendiente_activacion',
     requiere_perfil: tipo_trabajo_grado === 'business_plan' && !perfil_completo && estado === 'activo',
+    esperando_equipo: esperando_equipo && !en_equipo,
     es_super_admin: req.user.isSuperAdmin,
     profesor_id: req.user.profesorId ?? null,
     participante_id: req.user.participanteId ?? null,

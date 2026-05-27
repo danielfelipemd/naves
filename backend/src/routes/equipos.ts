@@ -183,6 +183,12 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
     if (e2) throw e2;
     if (miembroCreador) await copyPerfilParticipanteAMiembro(pid, miembroCreador.id);
 
+    // Limpiar flag de espera de TODOS los miembros (creador + agregados)
+    const todosIds = [pid, ...miembrosIds];
+    await supabaseAdmin.from('participantes_lista')
+      .update({ esperando_equipo_at: null })
+      .in('id', todosIds);
+
     // Inscribir miembros adicionales (posiciones 2 y 3)
     let pos = 2;
     for (const id of miembrosIds) {
@@ -281,6 +287,11 @@ router.post('/:id/agregar-miembro', async (req: AuthenticatedRequest, res) => {
     .select().single();
   if (error) return res.status(500).json({ error: error.message });
   if (data) await copyPerfilParticipanteAMiembro(target.id, data.id);
+
+  // Limpiar flag de espera del miembro recien agregado
+  await supabaseAdmin.from('participantes_lista')
+    .update({ esperando_equipo_at: null })
+    .eq('id', target.id);
 
   res.status(201).json({ miembro: data });
 });

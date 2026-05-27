@@ -60,6 +60,40 @@ router.put('/mi-modalidad', requireRole('participante'), async (req: Authenticat
   res.json({ ok: true, tipo: parsed.data.tipo });
 });
 
+// === PUT /api/participantes/esperar-equipo ==================================
+// El participante declara que NO va a crear equipo; espera a ser agregado.
+// Su Dashboard quedara bloqueado con un mensaje hasta que alguien lo agregue
+// (lo que limpia el flag automaticamente).
+router.put('/esperar-equipo', requireRole('participante'), async (req: AuthenticatedRequest, res) => {
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+
+  // Si ya esta en un equipo, no tiene sentido el estado de espera
+  const { data: yaEnEq } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).maybeSingle();
+  if (yaEnEq) return res.status(409).json({ error: 'YA_EN_EQUIPO' });
+
+  const { error } = await supabaseAdmin
+    .from('participantes_lista')
+    .update({ esperando_equipo_at: new Date().toISOString() })
+    .eq('id', pid);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// === PUT /api/participantes/cancelar-espera =================================
+// El participante cambia de opinion y decide crear su propio equipo.
+router.put('/cancelar-espera', requireRole('participante'), async (req: AuthenticatedRequest, res) => {
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+  const { error } = await supabaseAdmin
+    .from('participantes_lista')
+    .update({ esperando_equipo_at: null })
+    .eq('id', pid);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 // === GET /api/participantes/mi-perfil =======================================
 // Devuelve el perfil emprendedor del participante logueado (modalidad business_plan)
 router.get('/mi-perfil', requireRole('participante'), async (req: AuthenticatedRequest, res) => {
