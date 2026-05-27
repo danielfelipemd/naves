@@ -169,15 +169,30 @@ router.get('/buscar', async (req: AuthenticatedRequest, res) => {
     return res.status(403).json({ error: 'COHORTE_MISMATCH' });
   }
 
+  // Si el caller es participante, derivamos su modalidad para filtrar la lista
+  // a quienes comparten la misma modalidad y excluirlo a el mismo.
+  let modalidadCaller: string | null = null;
+  let callerId: string | null = null;
+  if (req.user!.role === 'participante' && req.user!.participanteId) {
+    callerId = req.user!.participanteId;
+    const { data: yo } = await supabaseAdmin
+      .from('participantes_lista').select('tipo_trabajo_grado').eq('id', callerId).maybeSingle();
+    modalidadCaller = (yo?.tipo_trabajo_grado as string | null) ?? null;
+  }
+
   // Subquery: participantes que YA están en un equipo
   const { data: enEquipos } = await supabaseAdmin.from('miembros_equipo').select('participante_id');
   const idsOcupados = new Set((enEquipos ?? []).map((m) => m.participante_id));
 
   let q = supabaseAdmin
     .from('participantes_lista')
-    .select('id, nombre_completo, cohorte_id, estado')
+    .select('id, nombre_completo, cohorte_id, estado, tipo_trabajo_grado, perfil_completo_at')
     .eq('cohorte_id', parsed.data.cohorte)
     .eq('estado', 'activo');
+
+  if (modalidadCaller) {
+    q = q.eq('tipo_trabajo_grado', modalidadCaller);
+  }
 
   if (parsed.data.query) {
     q = q.ilike('nombre_completo', `%${parsed.data.query}%`);
@@ -186,8 +201,12 @@ router.get('/buscar', async (req: AuthenticatedRequest, res) => {
   const { data, error } = await q.order('nombre_completo').limit(200);
   if (error) return res.status(500).json({ error: error.message });
 
-  const disponibles = (data ?? []).filter((p) => !idsOcupados.has(p.id));
-  res.json(disponibles.map((p) => ({ id: p.id, nombre_completo: p.nombre_completo })));
+  const disponibles = (data ?? []).filter((p) => !idsOcupados.has(p.id) && p.id !== callerId);
+  res.json(disponibles.map((p) => ({
+    id: p.id,
+    nombre_completo: p.nombre_completo,
+    perfil_completo: !!p.perfil_completo_at,
+  })));
 });
 
 export default router;

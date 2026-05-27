@@ -27,14 +27,26 @@ export default function MiEquipo() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
-  const [results, setResults] = useState<Array<{ id: string; nombre_completo: string }>>([]);
+  const [results, setResults] = useState<Array<{ id: string; nombre_completo: string; perfil_completo?: boolean }>>([]);
   const [searching, setSearching] = useState(false);
   const searchSeq = useRef(0);
   const [nombreEquipo, setNombreEquipo] = useState('');
   const [modalidad, setModalidad] = useState<Modalidad | null>(null);
+  // Multi-select de compañeros para crear el equipo en un solo paso
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
   const { user } = useAuth();
   const cohorteId = (user?.app_metadata as any)?.cohorte_id ?? '';
+
+  function toggleSeleccionado(id: string) {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); return next; }
+      if (next.size >= 2) return prev; // máximo 2 compañeros + el creador = 3
+      next.add(id);
+      return next;
+    });
+  }
 
   // Cargar la modalidad del participante para adaptar copys cuando aun no hay equipo
   useEffect(() => {
@@ -63,23 +75,29 @@ export default function MiEquipo() {
   async function crear() {
     setBusy(true); setError(null);
     try {
-      await api.post('/equipos', { nombre_equipo: nombreEquipo || undefined });
+      await api.post('/equipos', {
+        nombre_equipo: nombreEquipo || undefined,
+        miembros_ids: Array.from(seleccionados),
+      });
+      setSeleccionados(new Set());
       await load();
     } catch (e: any) {
       setError(formatBackendError(e));
     } finally { setBusy(false); }
   }
 
-  // Carga TODOS los disponibles de la cohorte al montar/actualizar equipo
+  // Carga la lista de compañeros disponibles. Si ya hay equipo, excluye a sus miembros
+  // (para usarla en "Agregar miembro"). Si no hay equipo, carga toda la lista para el
+  // multi-select de creación.
   useEffect(() => {
-    if (!equipo || !cohorteId) return;
+    if (!cohorteId) return;
     const seq = ++searchSeq.current;
     setSearching(true);
     (async () => {
       try {
         const { data } = await api.get('/participantes/buscar', { params: { cohorte: cohorteId } });
         if (seq === searchSeq.current) {
-          const miembrosIds = new Set(equipo.miembros_equipo.map((m) => m.participantes_lista.id));
+          const miembrosIds = new Set((equipo?.miembros_equipo ?? []).map((m) => m.participantes_lista.id));
           setResults((data ?? []).filter((p: any) => !miembrosIds.has(p.id)));
         }
       } catch (e: any) {
@@ -142,8 +160,10 @@ export default function MiEquipo() {
           {!equipo ? (
             <div className="space-y-6">
               <p className="text-inalde-gray">
-                Aún no perteneces a un equipo. Crea uno y luego agrega 1 o 2 compañeros (equipos de 1, 2 o 3 personas).
+                Aún no perteneces a un equipo. Selecciona a tu(s) compañero(s) y créalo en un solo paso
+                (equipos de 1 a 3 personas).
               </p>
+
               <div>
                 <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
                   {modalidad === 'caso' ? 'Nombre del caso (Provisional)' : 'Nombre del equipo (opcional)'}
@@ -157,6 +177,48 @@ export default function MiEquipo() {
                   maxLength={100}
                 />
               </div>
+
+              <div>
+                <p className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
+                  Compañeros de equipo (máximo 2)
+                </p>
+                {searching ? (
+                  <p className="text-sm text-inalde-gray italic">Cargando compañeros disponibles…</p>
+                ) : results.length === 0 ? (
+                  <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-xs text-inalde-text">
+                    Aún no hay otros compañeros disponibles en tu modalidad. Puedes crear el equipo
+                    solo(a) y agregar compañeros más adelante cuando ellos ingresen.
+                  </div>
+                ) : (
+                  <>
+                    <div className="border border-inalde-gray-light rounded max-h-60 overflow-y-auto divide-y divide-inalde-gray-light/60">
+                      {results.map((p) => {
+                        const checked = seleccionados.has(p.id);
+                        const disabled = !checked && seleccionados.size >= 2;
+                        return (
+                          <label key={p.id}
+                            className={`flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-inalde-gray-bg/40 ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                            <input type="checkbox" checked={checked} disabled={disabled}
+                              onChange={() => toggleSeleccionado(p.id)}
+                              className="accent-inalde-red" />
+                            <span className="font-medium">{p.nombre_completo}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-inalde-gray mt-2">
+                      {seleccionados.size} de 2 compañero(s) seleccionados.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-xs text-inalde-text">
+                <strong>¿No encuentras a un compañero en la lista?</strong> Es porque aún no ha ingresado
+                a la plataforma o todavía no ha elegido su modalidad. Pídele que ingrese y seleccione la
+                misma modalidad para que aparezca aquí.
+              </div>
+
               <button onClick={crear} disabled={busy} className="btn-inalde-primary">
                 {busy ? 'Creando…' : 'Crear mi equipo →'}
               </button>

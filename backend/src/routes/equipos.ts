@@ -95,6 +95,7 @@ async function copyPerfilParticipanteAMiembro(participanteId: string, miembroId:
 // === POST /api/equipos =================================
 const createSchema = z.object({
   nombre_equipo: z.string().trim().max(100).optional(),
+  miembros_ids: z.array(z.string().uuid()).max(2).optional(),
 });
 router.post('/', async (req: AuthenticatedRequest, res) => {
   const parsed = createSchema.safeParse(req.body);
@@ -126,6 +127,42 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
       .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).maybeSingle();
     if (existing) return res.status(409).json({ error: 'ALREADY_IN_TEAM', equipo_id: existing.equipo_id });
 
+    // Validar miembros antes de crear el equipo: misma cohorte, misma modalidad,
+    // no estan en otro equipo, y (para BP) tienen perfil completo.
+    const miembrosIds = (parsed.data.miembros_ids ?? []).filter((id) => id !== pid);
+    if (miembrosIds.length > 0) {
+      const { data: targets } = await supabaseAdmin
+        .from('participantes_lista')
+        .select('id, nombre_completo, cohorte_id, estado, tipo_trabajo_grado, perfil_completo_at')
+        .in('id', miembrosIds);
+      const found = new Map((targets ?? []).map((t: any) => [t.id, t]));
+      for (const id of miembrosIds) {
+        const t = found.get(id);
+        if (!t) return res.status(404).json({ error: 'MIEMBRO_NOT_FOUND', participante_id: id });
+        if (t.estado !== 'activo') return res.status(400).json({ error: 'MIEMBRO_NO_ACTIVO', participante: t.nombre_completo });
+        if (t.cohorte_id !== me.cohorte_id) return res.status(400).json({ error: 'COHORTE_MISMATCH', participante: t.nombre_completo });
+        if (t.tipo_trabajo_grado !== me.tipo_trabajo_grado) {
+          return res.status(400).json({ error: 'MODALIDAD_MISMATCH', participante: t.nombre_completo });
+        }
+        if (me.tipo_trabajo_grado === 'business_plan' && !t.perfil_completo_at) {
+          return res.status(400).json({
+            error: 'TARGET_PERFIL_NO_COMPLETO',
+            mensaje: `${t.nombre_completo} todavía no ha completado su perfil emprendedor.`,
+          });
+        }
+      }
+      // Tambien verificar que ninguno ya este en otro equipo (carrera con otros creadores)
+      const { data: yaEn } = await supabaseAdmin
+        .from('miembros_equipo').select('participante_id').in('participante_id', miembrosIds);
+      if (yaEn && yaEn.length > 0) {
+        const ocupado = found.get((yaEn[0] as any).participante_id) as any;
+        return res.status(409).json({
+          error: 'MIEMBRO_YA_EN_EQUIPO',
+          mensaje: `${ocupado?.nombre_completo ?? 'Un compañero seleccionado'} ya pertenece a otro equipo.`,
+        });
+      }
+    }
+
     // Crear equipo
     const { data: equipo, error: e1 } = await supabaseAdmin
       .from('equipos')
@@ -145,6 +182,21 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
       .select('id').single();
     if (e2) throw e2;
     if (miembroCreador) await copyPerfilParticipanteAMiembro(pid, miembroCreador.id);
+
+    // Inscribir miembros adicionales (posiciones 2 y 3)
+    let pos = 2;
+    for (const id of miembrosIds) {
+      const { data: m, error: emErr } = await supabaseAdmin
+        .from('miembros_equipo')
+        .insert({ equipo_id: equipo.id, participante_id: id, posicion: pos })
+        .select('id').single();
+      if (emErr) {
+        console.warn(`[equipos.crear] no se pudo agregar miembro ${id}:`, emErr.message);
+        continue;
+      }
+      if (m) await copyPerfilParticipanteAMiembro(id, m.id);
+      pos++;
+    }
 
     // Crear anteproyecto en borrador
     await supabaseAdmin.from('anteproyectos').insert({ equipo_id: equipo.id, ultimo_editor_id: pid });
