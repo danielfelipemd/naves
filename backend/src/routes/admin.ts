@@ -790,6 +790,51 @@ router.post('/profesores/cargar-excel', upload.single('file'), async (req: Authe
   });
 });
 
+// === DELETE /api/admin/profesores/:id ====================================
+router.delete('/profesores/:id', async (req, res) => {
+  const supabaseUrl = process.env.SUPABASE_URL!;
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const { data: prof } = await supabaseAdmin.from('profesores').select('auth_user_id').eq('id', req.params.id).maybeSingle();
+  if (!prof) return res.status(404).json({ error: 'NOT_FOUND' });
+  // Borrar asignaciones primero (FK)
+  await supabaseAdmin.from('asignaciones_profesor').delete().eq('profesor_id', req.params.id);
+  const { error } = await supabaseAdmin.from('profesores').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  if (prof.auth_user_id) {
+    try {
+      await fetch(`${supabaseUrl}/auth/v1/admin/users/${prof.auth_user_id}`, {
+        method: 'DELETE', headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` },
+      });
+    } catch { /* best effort */ }
+  }
+  res.json({ ok: true });
+});
+
+// === POST /api/admin/profesores/bulk-delete ==============================
+router.post('/profesores/bulk-delete', async (req, res) => {
+  const parsed = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  const supabaseUrl = process.env.SUPABASE_URL!;
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  let borrados = 0; const fallos: any[] = [];
+  for (const id of parsed.data.ids) {
+    const { data: prof } = await supabaseAdmin.from('profesores').select('auth_user_id, nombre_completo').eq('id', id).maybeSingle();
+    if (!prof) { fallos.push({ id, error: 'NOT_FOUND' }); continue; }
+    await supabaseAdmin.from('asignaciones_profesor').delete().eq('profesor_id', id);
+    const { error } = await supabaseAdmin.from('profesores').delete().eq('id', id);
+    if (error) { fallos.push({ id, nombre: prof.nombre_completo, error: error.message }); continue; }
+    if (prof.auth_user_id) {
+      try {
+        await fetch(`${supabaseUrl}/auth/v1/admin/users/${prof.auth_user_id}`, {
+          method: 'DELETE', headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` },
+        });
+      } catch { /* best effort */ }
+    }
+    borrados++;
+  }
+  res.json({ borrados, fallos });
+});
+
 const updateProfSchema = z.object({
   nombre_completo: z.string().min(2).max(150).optional(),
   es_super_admin: z.boolean().optional(),

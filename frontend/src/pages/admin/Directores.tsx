@@ -29,7 +29,38 @@ export default function Directores() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [bulkResult, setBulkResult] = useState<{ inserted: number; duplicados: number; errors: Array<{ row: number; error: string }> } | null>(null);
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function toggleSel(id: string) {
+    setSeleccion((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelAll() {
+    setSeleccion((prev) => {
+      if (prev.size === items.length) return new Set();
+      return new Set(items.map((d) => d.id));
+    });
+  }
+
+  async function eliminarMasivo() {
+    if (seleccion.size === 0) return;
+    const ids = Array.from(seleccion);
+    if (!confirm(`¿Eliminar ${ids.length} director(es)? Esta acción es irreversible.`)) return;
+    setBusy(true); setMsg(null);
+    try {
+      const { data } = await api.post('/directores/bulk-delete', { ids });
+      setSeleccion(new Set());
+      const texto = `${data.borrados} director(es) eliminado(s).${data.fallos?.length ? ` ${data.fallos.length} no se pudo(ieron) borrar (algunos están asignados a equipos).` : ''}`;
+      setMsg({ kind: data.fallos?.length ? 'err' : 'ok', text: texto });
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setBusy(false); }
+  }
 
   async function descargarPlantilla() {
     try {
@@ -224,10 +255,29 @@ export default function Directores() {
         </fieldset>
       )}
 
+      {seleccion.size > 0 && (
+        <div className="flex items-center justify-between bg-inalde-red/5 border border-inalde-red/30 rounded px-4 py-2 mb-3">
+          <span className="text-sm text-inalde-text">{seleccion.size} director(es) seleccionado(s)</span>
+          <div className="flex gap-2">
+            <button onClick={() => setSeleccion(new Set())} className="text-xs text-inalde-gray hover:text-inalde-text">Limpiar</button>
+            <button onClick={eliminarMasivo} disabled={busy}
+              className="text-xs font-semibold bg-inalde-red text-white px-3 py-1.5 rounded hover:bg-inalde-red-hover disabled:opacity-40">
+              Eliminar seleccionados
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="border border-inalde-gray-light rounded overflow-x-auto">
-        <table className="w-full text-sm min-w-[680px]">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-inalde-gray-bg text-left">
             <tr>
+              <th className="px-3 py-2 w-10">
+                <input type="checkbox"
+                  checked={items.length > 0 && seleccion.size === items.length}
+                  onChange={toggleSelAll}
+                  className="accent-inalde-red" />
+              </th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Nombre</th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Email</th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Áreas</th>
@@ -239,6 +289,7 @@ export default function Directores() {
             {items.map((d) => (
               editing === d.id ? (
                 <tr key={d.id} className="border-t border-inalde-gray-light bg-inalde-red/5">
+                  <td className="px-3 py-2"></td>
                   <td className="px-3 py-2">
                     <input type="text" value={editDraft.nombre_completo ?? ''}
                       onChange={(e) => setEditDraft({ ...editDraft, nombre_completo: e.target.value })}
@@ -268,6 +319,11 @@ export default function Directores() {
                 </tr>
               ) : (
                 <tr key={d.id} className="border-t border-inalde-gray-light">
+                  <td className="px-3 py-2">
+                    <input type="checkbox" checked={seleccion.has(d.id)}
+                      onChange={() => toggleSel(d.id)}
+                      className="accent-inalde-red" />
+                  </td>
                   <td className="px-3 py-2 font-medium">{d.nombre_completo}</td>
                   <td className="px-3 py-2 text-xs text-inalde-gray">{d.email}</td>
                   <td className="px-3 py-2 text-xs text-inalde-gray">{d.areas_afinidad?.join(', ') || '—'}</td>
@@ -294,7 +350,7 @@ export default function Directores() {
               )
             ))}
             {items.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-8 text-center text-inalde-gray">Sin directores. Crea el primero con el botón "+ Nuevo".</td></tr>
+              <tr><td colSpan={6} className="px-3 py-8 text-center text-inalde-gray">Sin directores. Crea el primero con el botón "+ Nuevo".</td></tr>
             )}
           </tbody>
         </table>

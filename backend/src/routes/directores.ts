@@ -126,6 +126,22 @@ router.put('/:id', requireRole('super_admin'), async (req: AuthenticatedRequest,
   res.json({ ok: true });
 });
 
+// === POST /api/directores/bulk-delete (admin) ===============================
+router.post('/bulk-delete', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
+  const parsed = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  let borrados = 0; const fallos: any[] = [];
+  for (const id of parsed.data.ids) {
+    const { count } = await supabaseAdmin
+      .from('equipos').select('id', { count: 'exact', head: true }).eq('director_id', id);
+    if ((count ?? 0) > 0) { fallos.push({ id, error: 'DIRECTOR_EN_USO' }); continue; }
+    const { error } = await supabaseAdmin.from('directores').delete().eq('id', id);
+    if (error) { fallos.push({ id, error: error.message }); continue; }
+    borrados++;
+  }
+  res.json({ borrados, fallos });
+});
+
 // === DELETE /api/directores/:id (admin) =====================================
 router.delete('/:id', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
   const { count } = await supabaseAdmin

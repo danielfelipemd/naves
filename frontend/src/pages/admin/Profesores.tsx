@@ -34,7 +34,38 @@ export default function Profesores() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [bulkResult, setBulkResult] = useState<{ inserted: number; errors: Array<{ row: number; error: string }>; claves_generadas?: Array<{ email: string; nombre: string; clave: string }>; nota?: string } | null>(null);
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function toggleSel(id: string) {
+    setSeleccion((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelAll() {
+    setSeleccion((prev) => {
+      if (prev.size === profesores.length) return new Set();
+      return new Set(profesores.map((p) => p.id));
+    });
+  }
+
+  async function eliminarMasivo() {
+    if (seleccion.size === 0) return;
+    const ids = Array.from(seleccion);
+    if (!confirm(`¿Eliminar ${ids.length} profesor(es)? Esta acción es irreversible y también borra sus cuentas de acceso.`)) return;
+    setBusy(true); setMsg(null);
+    try {
+      const { data } = await api.post('/admin/profesores/bulk-delete', { ids });
+      setSeleccion(new Set());
+      const texto = `${data.borrados} profesor(es) eliminado(s).${data.fallos?.length ? ` ${data.fallos.length} no se pudo(ieron) borrar.` : ''}`;
+      setMsg({ kind: data.fallos?.length ? 'err' : 'ok', text: texto });
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setBusy(false); }
+  }
 
   async function descargarPlantilla() {
     try {
@@ -239,10 +270,29 @@ export default function Profesores() {
         </fieldset>
       )}
 
+      {seleccion.size > 0 && (
+        <div className="flex items-center justify-between bg-inalde-red/5 border border-inalde-red/30 rounded px-4 py-2 mb-3">
+          <span className="text-sm text-inalde-text">{seleccion.size} profesor(es) seleccionado(s)</span>
+          <div className="flex gap-2">
+            <button onClick={() => setSeleccion(new Set())} className="text-xs text-inalde-gray hover:text-inalde-text">Limpiar</button>
+            <button onClick={eliminarMasivo} disabled={busy}
+              className="text-xs font-semibold bg-inalde-red text-white px-3 py-1.5 rounded hover:bg-inalde-red-hover disabled:opacity-40">
+              Eliminar seleccionados
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="border border-inalde-gray-light rounded overflow-x-auto">
-      <table className="w-full text-sm min-w-[680px]">
+      <table className="w-full text-sm min-w-[720px]">
         <thead className="bg-inalde-gray-bg text-left">
           <tr>
+            <th className="px-3 py-2 w-10">
+              <input type="checkbox"
+                checked={profesores.length > 0 && seleccion.size === profesores.length}
+                onChange={toggleSelAll}
+                className="accent-inalde-red" />
+            </th>
             <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Nombre</th>
             <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Rol</th>
             <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Áreas</th>
@@ -254,6 +304,7 @@ export default function Profesores() {
           {profesores.map((p) => (
             editing === p.id ? (
               <tr key={p.id} className="border-t border-inalde-gray-light bg-inalde-red/5">
+                <td className="px-3 py-2"></td>
                 <td className="px-3 py-2"><input type="text" value={editDraft.nombre_completo ?? ''} onChange={(e) => setEditDraft({ ...editDraft, nombre_completo: e.target.value })} className="input-inalde !py-1 !text-sm" /></td>
                 <td className="px-3 py-2">
                   <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!editDraft.es_super_admin} onChange={(e) => setEditDraft({ ...editDraft, es_super_admin: e.target.checked })} /> super admin</label>
@@ -269,6 +320,11 @@ export default function Profesores() {
               </tr>
             ) : (
               <tr key={p.id} className="border-t border-inalde-gray-light">
+                <td className="px-3 py-2">
+                  <input type="checkbox" checked={seleccion.has(p.id)}
+                    onChange={() => toggleSel(p.id)}
+                    className="accent-inalde-red" />
+                </td>
                 <td className="px-3 py-2 font-medium">{p.nombre_completo}</td>
                 <td className="px-3 py-2">
                   {p.es_super_admin

@@ -118,18 +118,13 @@ export default function Dashboard() {
           <div className="max-w-[640px] mx-auto bg-white rounded-lg shadow-inalde-card p-6 sm:p-10">
             <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
               <p className="section-subtitle mb-2">Modalidad elegida</p>
-              <h1 className="section-title">Estás en la lista de candidatos</h1>
+              <h1 className="section-title">
+                Estás en la lista de participantes que eligieron la modalidad {labelModalidad}
+              </h1>
             </div>
-            <p className="text-inalde-text mb-4">
-              Elegiste <strong>{labelModalidad}</strong> como tu modalidad de trabajo de grado.
-            </p>
-            <p className="text-inalde-gray mb-3 leading-relaxed">
-              Desde este momento estás disponible para que otros compañeros de tu misma modalidad
-              te seleccionen como miembro de su equipo.
-            </p>
             <p className="text-inalde-gray mb-6 leading-relaxed">
-              En el siguiente paso podrás crear tu propio equipo eligiendo a tus compañeros. Si para
-              cuando llegues ya un compañero te agregó a su equipo, verás el equipo formado.
+              Desde este momento estás disponible para que otros participantes de esta misma
+              modalidad te seleccionen o para crear tu equipo.
             </p>
             <button
               onClick={() => navigate(destinoModalidad(recienElegida), { replace: true })}

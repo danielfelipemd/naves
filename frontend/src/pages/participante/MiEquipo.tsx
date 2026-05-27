@@ -160,8 +160,8 @@ export default function MiEquipo() {
           {!equipo ? (
             <div className="space-y-6">
               <p className="text-inalde-gray">
-                Aún no perteneces a un equipo. Selecciona a tu(s) compañero(s) y créalo en un solo paso
-                (equipos de 1 a 3 personas).
+                Aún no perteneces a un equipo. Selecciona a otro(s) participante(s) de tu modalidad y
+                créalo en un solo paso (equipos de 1 a 3 personas).
               </p>
 
               <div>
@@ -180,18 +180,18 @@ export default function MiEquipo() {
 
               <div>
                 <p className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">
-                  Compañeros de equipo
+                  Participantes del equipo
                 </p>
                 <p className="text-xs text-inalde-gray mb-2">
-                  Los equipos pueden ser de 1 a 3 personas. Tú ya cuentas como una, así que puedes seleccionar
-                  hasta 2 compañeros más.
+                  Los equipos pueden ser de 1 a 3 personas. Tú ya cuentas como una, así que puedes
+                  seleccionar hasta 2 participantes más.
                 </p>
                 {searching ? (
-                  <p className="text-sm text-inalde-gray italic">Cargando compañeros disponibles…</p>
+                  <p className="text-sm text-inalde-gray italic">Cargando participantes disponibles…</p>
                 ) : results.length === 0 ? (
                   <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-xs text-inalde-text">
-                    Aún no hay otros compañeros disponibles en tu modalidad. Puedes crear el equipo
-                    solo(a) y agregar compañeros más adelante cuando ellos ingresen.
+                    Aún no hay otros participantes disponibles en tu modalidad. Puedes crear el equipo
+                    solo(a) y agregar participantes más adelante cuando ellos ingresen.
                   </div>
                 ) : (
                   <>
@@ -218,9 +218,9 @@ export default function MiEquipo() {
               </div>
 
               <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-xs text-inalde-text">
-                <strong>¿No encuentras a un compañero en la lista?</strong> Es porque aún no ha ingresado
-                a la plataforma o todavía no ha elegido su modalidad. Pídele que ingrese y seleccione la
-                misma modalidad para que aparezca aquí.
+                <strong>¿No encuentras a un participante en la lista?</strong> Es porque aún no ha
+                ingresado a la plataforma o todavía no ha elegido su modalidad. Pídele que ingrese y
+                seleccione la misma modalidad para que aparezca aquí.
               </div>
 
               <button onClick={crear} disabled={busy} className="btn-inalde-primary">
@@ -266,12 +266,12 @@ export default function MiEquipo() {
 
               {equipo.miembros_equipo.length < 3 && (
                 <div className="border-t border-inalde-gray-light pt-6">
-                  <p className="section-subtitle mb-3">Agregar miembro</p>
+                  <p className="section-subtitle mb-3">Agregar participante</p>
                   {searching ? (
-                    <p className="text-sm text-inalde-gray italic">Cargando compañeros disponibles…</p>
+                    <p className="text-sm text-inalde-gray italic">Cargando participantes disponibles…</p>
                   ) : results.length === 0 ? (
                     <p className="text-sm text-inalde-gray italic">
-                      No hay compañeros disponibles en tu cohorte. Todos ya están en equipos o aún no han activado su cuenta.
+                      No hay participantes disponibles en tu cohorte. Todos ya están en equipos o aún no han activado su cuenta.
                     </p>
                   ) : (
                     <>
@@ -280,7 +280,7 @@ export default function MiEquipo() {
                         onChange={(e) => setSearch(e.target.value)}
                         className="input-inalde w-full"
                       >
-                        <option value="">Selecciona un compañero…</option>
+                        <option value="">Selecciona un participante…</option>
                         {results.map((p) => (
                           <option key={p.id} value={p.id}>{p.nombre_completo}</option>
                         ))}
@@ -290,7 +290,7 @@ export default function MiEquipo() {
                         disabled={busy || !search}
                         className="btn-inalde-primary mt-3 !py-2 !text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        {busy ? 'Agregando…' : 'Agregar miembro →'}
+                        {busy ? 'Agregando…' : 'Agregar participante →'}
                       </button>
                     </>
                   )}

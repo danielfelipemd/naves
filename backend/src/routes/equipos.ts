@@ -158,7 +158,7 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
         const ocupado = found.get((yaEn[0] as any).participante_id) as any;
         return res.status(409).json({
           error: 'MIEMBRO_YA_EN_EQUIPO',
-          mensaje: `${ocupado?.nombre_completo ?? 'Un compañero seleccionado'} ya pertenece a otro equipo.`,
+          mensaje: `${ocupado?.nombre_completo ?? 'Un participante seleccionado'} ya pertenece a otro equipo.`,
         });
       }
     }
@@ -260,7 +260,7 @@ router.post('/:id/agregar-miembro', async (req: AuthenticatedRequest, res) => {
     if (!tgtPerfil?.perfil_completo_at) {
       return res.status(400).json({
         error: 'TARGET_PERFIL_NO_COMPLETO',
-        mensaje: 'Ese compañero todavía no ha completado su perfil emprendedor.',
+        mensaje: 'Ese participante todavía no ha completado su perfil emprendedor.',
       });
     }
   }
