@@ -3,7 +3,31 @@
 // (`{ error: "INVALID", details: [...] }`).
 
 export function formatBackendError(e: any): string {
+  const status: number | undefined = e?.response?.status ?? e?.status;
   const data = e?.response?.data;
+
+  // Errores comunes por status HTTP (sin payload útil del backend)
+  if (status === 429) {
+    return 'Demasiados intentos en poco tiempo. Espera unos segundos antes de volver a intentar.';
+  }
+  if (status === 401 && !data?.error) {
+    return 'Sesión expirada o credenciales inválidas. Vuelve a iniciar sesión.';
+  }
+  if (status === 403 && !data?.error) {
+    return 'No tienes permiso para realizar esta acción.';
+  }
+  if (status === 404 && !data?.error) {
+    return 'No encontramos el recurso solicitado. Verifica e inténtalo de nuevo.';
+  }
+  if (status === 413) {
+    return 'El archivo supera el tamaño máximo permitido.';
+  }
+  if (status && status >= 500) {
+    return 'Tuvimos un problema del lado del servidor. Inténtalo en unos minutos. Si persiste, contacta a la asistente del programa.';
+  }
+  if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error') {
+    return 'No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.';
+  }
 
   const codeMessages: Record<string, string> = {
     NO_PROYECTOS: 'Debes crear al menos un proyecto antes de enviar.',
@@ -133,8 +157,10 @@ export function formatBackendError(e: any): string {
     return 'Hay campos por completar:\n• ' + unique.join('\n• ');
   }
 
-  if (data?.error) return String(data.error);
+  // Code conocido pero sin traducción → mensaje genérico (NO el código crudo)
+  if (data?.error) return 'Ocurrió un error procesando tu solicitud. Inténtalo de nuevo o contacta a la asistente del programa.';
   if (data?.message) return String(data.message);
-  if (e?.message) return String(e.message);
-  return 'Error inesperado. Inténtalo de nuevo.';
+  // Último recurso: nunca mostrar "Request failed with status code XXX"
+  if (typeof e?.message === 'string' && !/^Request failed/i.test(e.message)) return e.message;
+  return 'Error inesperado. Inténtalo de nuevo. Si persiste, contacta a la asistente del programa.';
 }

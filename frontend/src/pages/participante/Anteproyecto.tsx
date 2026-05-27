@@ -201,7 +201,7 @@ export default function Anteproyecto() {
         }
       }
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setLoading(false); }
   })(); }, [navigate]);
 

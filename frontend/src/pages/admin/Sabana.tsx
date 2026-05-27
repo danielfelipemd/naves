@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 
 interface Cohorte { id: string; etiqueta: string; }
 interface Profesor { id: string; nombre_completo: string; areas_afinidad: string[]; }
@@ -39,7 +40,7 @@ export default function Sabana() {
     } catch (e: any) {
       if (e?.response?.status === 404) {
         setSnapshot([]); setEstadoSabana(null);
-      } else { setMsg({ kind: 'err', text: e.message }); }
+      } else { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     } finally { setLoading(false); }
   }
 
@@ -52,7 +53,7 @@ export default function Sabana() {
       await load();
       setMsg({ kind: 'ok', text: 'Sábana generada con datos actuales.' });
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -70,7 +71,7 @@ export default function Sabana() {
       setAsignaciones(newAsign);
       setMsg({ kind: 'ok', text: 'Sugerencias aplicadas a equipos sin asignación previa.' });
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -86,7 +87,7 @@ export default function Sabana() {
       setMsg({ kind: 'ok', text: `${list.length} asignaciones guardadas.` });
       await load();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -98,7 +99,7 @@ export default function Sabana() {
       setMsg({ kind: 'ok', text: data.nota ?? 'Comunicada.' });
       await load();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 

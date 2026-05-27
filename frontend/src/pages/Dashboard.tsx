@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Header } from '../components/inalde/Header';
 import { useAuth } from '../auth/store';
 import { api } from '../lib/api';
+import { formatBackendError } from '../lib/errors';
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
 
@@ -70,7 +71,7 @@ export default function Dashboard() {
         const { data } = await api.get('/participantes/mi-modalidad');
         if (!cancel) setModalidad((data?.tipo_trabajo_grado as Modalidad | null) ?? null);
       } catch (e: any) {
-        if (!cancel) setError(e?.response?.data?.error ?? e.message);
+        if (!cancel) setError(formatBackendError(e));
       } finally {
         if (!cancel) setCargando(false);
       }
@@ -90,7 +91,7 @@ export default function Dashboard() {
       await api.put('/participantes/mi-modalidad', { tipo: m });
       setModalidad(m);
     } catch (e: any) {
-      setError(e?.response?.data?.error ?? e.message);
+      setError(formatBackendError(e));
     } finally {
       setFijando(null);
     }

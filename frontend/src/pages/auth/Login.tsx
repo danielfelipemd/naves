@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { supabase, syntheticEmailFromCedula } from '../../lib/supabase';
 import { api } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 
 type Mode = 'participante' | 'profesor';
 
@@ -43,14 +44,25 @@ export default function Login() {
 
       const { error: authErr } = await supabase.auth.signInWithPassword({ email, password: clave });
       if (authErr) {
-        if (authErr.message.toLowerCase().includes('invalid')) {
-          throw new Error('Credenciales incorrectas.');
+        const msg = (authErr.message ?? '').toLowerCase();
+        const status = (authErr as any)?.status;
+        if (status === 429 || msg.includes('rate') || msg.includes('too many')) {
+          throw new Error('Demasiados intentos de inicio de sesión. Espera unos segundos y vuelve a intentar.');
         }
-        throw authErr;
+        if (msg.includes('invalid')) {
+          throw new Error('La cédula o la clave no coinciden. Si es tu primer ingreso, recuerda que tu clave inicial es tu cédula.');
+        }
+        if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+          throw new Error('Tu cuenta aún no fue confirmada por el administrador. Contacta a la asistente del programa.');
+        }
+        if (status && status >= 500) {
+          throw new Error('Tuvimos un problema autenticándote. Inténtalo en unos minutos.');
+        }
+        throw new Error('No pudimos iniciar tu sesión. Verifica tu cédula y clave e inténtalo de nuevo.');
       }
       navigate('/', { replace: true });
     } catch (err: any) {
-      setError(err.message ?? 'Error al iniciar sesión.');
+      setError(formatBackendError(err));
     } finally {
       setLoading(false);
     }

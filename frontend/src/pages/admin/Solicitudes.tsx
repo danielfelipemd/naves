@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 
 interface Solicitud {
   id: string;
@@ -31,7 +32,7 @@ export default function Solicitudes() {
       setMsg({ kind: 'ok', text: `Solicitud ${accion === 'aprobar' ? 'aprobada' : 'rechazada'}.` });
       await load();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 

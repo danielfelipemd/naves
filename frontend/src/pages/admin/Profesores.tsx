@@ -36,7 +36,7 @@ export default function Profesores() {
 
   async function load() {
     try { setProfesores((await api.get('/admin/profesores')).data); }
-    catch (e: any) { setMsg({ kind: 'err', text: e.message }); }
+    catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }
   useEffect(() => { load(); }, []);
 

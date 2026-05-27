@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
 import { useAuth } from '../../auth/store';
+import { formatBackendError } from '../../lib/errors';
 
 interface Miembro {
   id: string;
@@ -38,7 +39,7 @@ export default function MiEquipo() {
       const { data } = await api.get('/equipos/mi-equipo');
       setEquipo(data.equipo);
     } catch (e: any) {
-      setError(e?.response?.data?.error ?? e.message);
+      setError(formatBackendError(e));
     } finally {
       setLoading(false);
     }
@@ -52,7 +53,7 @@ export default function MiEquipo() {
       await api.post('/equipos', { nombre_equipo: nombreEquipo || undefined });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.error ?? e.message);
+      setError(formatBackendError(e));
     } finally { setBusy(false); }
   }
 
@@ -69,7 +70,7 @@ export default function MiEquipo() {
           setResults((data ?? []).filter((p: any) => !miembrosIds.has(p.id)));
         }
       } catch (e: any) {
-        if (seq === searchSeq.current) setError(e?.response?.data?.error ?? e.message);
+        if (seq === searchSeq.current) setError(formatBackendError(e));
       } finally {
         if (seq === searchSeq.current) setSearching(false);
       }
@@ -89,7 +90,7 @@ export default function MiEquipo() {
       setResults([]);
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.error ?? e.message);
+      setError(formatBackendError(e));
     } finally { setBusy(false); }
   }
 
@@ -101,7 +102,7 @@ export default function MiEquipo() {
       await api.post(`/equipos/${equipo.id}/remover-miembro`, { participante_id });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.error ?? e.message);
+      setError(formatBackendError(e));
     } finally { setBusy(false); }
   }
 

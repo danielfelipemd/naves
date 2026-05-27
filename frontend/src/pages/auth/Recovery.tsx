@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 
 export default function Recovery() {
   const [mode, setMode] = useState<'cedula' | 'email'>('cedula');
@@ -19,7 +20,7 @@ export default function Recovery() {
       await api.post('/auth/recovery', payload);
       setDone(true);
     } catch (e: any) {
-      setError(e?.response?.data?.error ?? e.message);
+      setError(formatBackendError(e));
     } finally { setBusy(false); }
   }
 

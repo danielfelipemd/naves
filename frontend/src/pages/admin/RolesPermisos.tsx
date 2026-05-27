@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api';
+import { formatBackendError } from '../../lib/errors';
 import { Modal } from '../../components/inalde/Modal';
 
 interface Permiso { code: string; descripcion: string; categoria: string; }
@@ -68,7 +69,7 @@ export default function RolesPermisos() {
       setBulkRolId('');
       await load();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -90,7 +91,7 @@ export default function RolesPermisos() {
       setRoles(r.data);
       setUsuarios(u.data);
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -105,7 +106,7 @@ export default function RolesPermisos() {
       setMsg({ kind: 'ok', text: `Rol "${r.nombre}" eliminado.` });
       await load();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.response?.data?.error ?? e.message });
+      setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
 
@@ -389,7 +390,7 @@ function RolModal({ mode, rol, permisosByCategoria, onClose, onSaved, onError }:
         onSaved(`Rol "${rol.nombre}" actualizado.`);
       }
     } catch (e: any) {
-      onError(e?.response?.data?.error ?? e.message);
+      onError(formatBackendError(e));
     } finally { setBusy(false); }
   }
 
@@ -512,7 +513,7 @@ function UserModal({ user, roles, onClose, onSaved, onError }: {
       });
       onSaved(`Roles de ${user.nombre_completo} actualizados.`);
     } catch (e: any) {
-      onError(e?.response?.data?.error ?? e.message);
+      onError(formatBackendError(e));
     } finally { setBusy(false); }
   }
 
