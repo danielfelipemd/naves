@@ -156,7 +156,7 @@ export default function MiPerfil() {
                   {quiebra === 'quebro' && (
                     <div>
                       <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
-                        ¿Cuál fue el aprendizaje de esta gran experiencia?
+                        ¿Cuál fue el gran aprendizaje de esta experiencia?
                       </label>
                       <textarea value={aprendizajes} onChange={(e) => setAprendizajes(e.target.value)} maxLength={200} rows={3} className="input-inalde resize-none" />
                       <p className="text-xs text-inalde-gray text-right mt-1">{aprendizajes.length} / 200</p>
