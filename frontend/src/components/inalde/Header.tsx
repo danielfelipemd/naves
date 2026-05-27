@@ -8,16 +8,11 @@ export function Header() {
       </div>
       <div className="flex items-center max-w-[1400px] mx-auto px-4 sm:px-8 py-3 sm:py-4 bg-white">
         <a href="/" className="flex items-center gap-3 sm:gap-6">
-          <svg viewBox="0 0 128 128" className="h-10 sm:h-14 w-auto" xmlns="http://www.w3.org/2000/svg">
-            <rect width="128" height="128" fill="#e30613" />
-            <text
-              x="64" y="80"
-              fontFamily="Montserrat" fontSize="48" fontWeight="700" fill="white"
-              textAnchor="middle"
-            >
-              N
-            </text>
-          </svg>
+          <img
+            src="/inalde-logo.jpg"
+            alt="INALDE Business School"
+            className="h-10 sm:h-14 w-auto"
+          />
           <div className="w-px h-9 sm:h-11 bg-inalde-gray-light" />
           <div className="text-center">
             <p className="font-primary font-semibold text-[10px] sm:text-[0.7rem] tracking-widest uppercase text-inalde-gray mb-0.5">
