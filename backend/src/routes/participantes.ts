@@ -94,7 +94,7 @@ const perfilSchema = z.object({
   perfil: z.enum(['emprendedor', 'directivo', 'ambos']),
   fue_emprendedor: z.boolean(),
   quiebra: z.enum(['nunca_despego', 'funcionamiento', 'vendido', 'quebro', 'na']).optional(),
-  aprendizajes_quiebra: z.string().max(500).optional(),
+  aprendizajes_quiebra: z.string().max(200).optional(),
   emociones: z.array(z.enum(['crear', 'dinero', 'problema', 'autonomia', 'ninguna'])).min(1),
   preocupaciones: z.array(z.enum(['financiera', 'estres', 'habilidades', 'familia', 'ninguna'])).min(1),
 });
