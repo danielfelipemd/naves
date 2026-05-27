@@ -84,7 +84,14 @@ export const useAuth = create<AuthState>((set, get) => ({
   marcarActivado: () => set({ requiereCambioClave: false }),
 
   signOut: async () => {
-    await supabase.auth.signOut();
+    // 'local' evita el roundtrip de red para revocar el token en el servidor.
+    // Es mucho mas confiable: solo limpia el storage local. Si la red esta
+    // mal, antes el signOut fallaba y el estado quedaba pegado.
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* ignore */ }
+    // Limpiar estado SIEMPRE, ocurra lo que ocurra arriba.
     set({ session: null, user: null, role: null, nombre: null, requiereCambioClave: false, requierePerfil: false });
+    // Hard redirect: garantiza que se llega a /login independientemente del
+    // arbol de rutas/estado actual (incluida la pantalla 'esperando').
+    window.location.href = '/login';
   },
 }));
