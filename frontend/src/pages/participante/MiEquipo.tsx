@@ -179,8 +179,12 @@ export default function MiEquipo() {
               </div>
 
               <div>
-                <p className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
-                  Compañeros de equipo (máximo 2)
+                <p className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">
+                  Compañeros de equipo
+                </p>
+                <p className="text-xs text-inalde-gray mb-2">
+                  Los equipos pueden ser de 1 a 3 personas. Tú ya cuentas como una, así que puedes seleccionar
+                  hasta 2 compañeros más.
                 </p>
                 {searching ? (
                   <p className="text-sm text-inalde-gray italic">Cargando compañeros disponibles…</p>
@@ -207,7 +211,7 @@ export default function MiEquipo() {
                       })}
                     </div>
                     <p className="text-xs text-inalde-gray mt-2">
-                      {seleccionados.size} de 2 compañero(s) seleccionados.
+                      Tu equipo tendrá {seleccionados.size + 1} de 3 personas.
                     </p>
                   </>
                 )}
