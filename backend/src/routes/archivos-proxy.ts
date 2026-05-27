@@ -33,6 +33,10 @@ router.get('/stream', async (req, res) => {
 
   const filename = path.split('/').pop() ?? 'archivo';
   res.setHeader('Content-Type', mime);
+  // `inline` (sin filename ni attachment) maximiza la probabilidad de que el
+  // navegador abra el PDF en pestaña en vez de forzar descarga. Si el usuario
+  // tiene configurado el navegador para descargar PDFs, igual lo hara.
+  // Mantener el filename para que, al descargar, conserve un nombre util.
   res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');

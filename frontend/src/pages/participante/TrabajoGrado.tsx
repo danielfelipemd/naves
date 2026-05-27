@@ -258,14 +258,41 @@ export default function TrabajoGrado() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [subiendo]);
 
-  async function abrirArchivo(tipo: 'anteproyecto' | 'proyecto-final') {
+  function abrirArchivo(tipo: 'anteproyecto' | 'proyecto-final') {
     if (!ant) return;
-    try {
-      const { data } = await api.get(`/anteproyectos/${ant.id}/archivo/${tipo}`);
-      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
-    } catch (e: any) {
-      setError(formatBackendError(e));
+    setError(null);
+    // Abrimos la pestaña sincronicamente dentro del onClick para conservar el
+    // 'user gesture'; luego, cuando la API responde con la URL del proxy,
+    // navegamos esa pestaña. Esto evita dos problemas:
+    //   1) Pop-up blockers que cancelan ventanas abiertas tras un await.
+    //   2) Cancelar la descarga deja la pestaña en blanco; al darle al boton
+    //      otra vez se abre una nueva pestaña y vuelve a disparar la descarga
+    //      (antes no pasaba nada porque la API se llamaba sin abrir ventana).
+    const win = window.open('', '_blank', 'noopener,noreferrer');
+    if (!win) {
+      setError('Tu navegador bloqueó la ventana. Permite ventanas emergentes para este sitio.');
+      return;
     }
+    try {
+      win.document.write(
+        '<title>Cargando archivo…</title><p style="font-family:Arial,sans-serif;color:#555;padding:24px;">Cargando archivo…</p>',
+      );
+    } catch { /* algunos navegadores restringen document.write en about:blank */ }
+
+    api.get(`/anteproyectos/${ant.id}/archivo/${tipo}`)
+      .then(({ data }) => {
+        if (data?.url) {
+          const absolute = new URL(data.url, window.location.origin).href;
+          try { win.location.href = absolute; } catch { /* tab cerrada por el usuario */ }
+        } else {
+          try { win.close(); } catch { /* ignore */ }
+          setError('No fue posible obtener el archivo. Inténtalo de nuevo.');
+        }
+      })
+      .catch((e: any) => {
+        try { win.close(); } catch { /* ignore */ }
+        setError(formatBackendError(e));
+      });
   }
 
   if (cargando) {
