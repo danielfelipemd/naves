@@ -233,9 +233,14 @@ export default function MiEquipo() {
                 seleccione la misma modalidad para que aparezca aquí.
               </div>
 
-              <button onClick={crear} disabled={busy} className="btn-inalde-primary">
-                {busy ? 'Creando…' : 'Crear mi equipo →'}
-              </button>
+              <div className="flex items-center justify-between gap-3 pt-2 border-t border-inalde-gray-light">
+                <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
+                  ← Menú principal
+                </button>
+                <button onClick={crear} disabled={busy} className="btn-inalde-primary">
+                  {busy ? 'Creando…' : 'Crear mi equipo →'}
+                </button>
+              </div>
             </div>
           ) : (
             <>
