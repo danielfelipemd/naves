@@ -9,6 +9,7 @@ interface AuthState {
   session: Session | null;
   user: User | null;
   role: AppRole;
+  nombre: string | null;
   loading: boolean;
   requiereCambioClave: boolean;
   requierePerfil: boolean;
@@ -24,20 +25,22 @@ function roleFromUser(user: User | null): AppRole {
   return null;
 }
 
-async function fetchAuthFlags(): Promise<{ requiereCambio: boolean; requierePerfil: boolean }> {
+async function fetchMe(): Promise<{ requiereCambio: boolean; requierePerfil: boolean; nombre: string | null }> {
   try {
     const { data } = await api.get('/auth/me');
     return {
       requiereCambio: !!data?.requiere_cambio_clave,
       requierePerfil: !!data?.requiere_perfil,
+      nombre: data?.nombre_completo ?? null,
     };
-  } catch { return { requiereCambio: false, requierePerfil: false }; }
+  } catch { return { requiereCambio: false, requierePerfil: false, nombre: null }; }
 }
 
 export const useAuth = create<AuthState>((set, get) => ({
   session: null,
   user: null,
   role: null,
+  nombre: null,
   loading: true,
   requiereCambioClave: false,
   requierePerfil: false,
@@ -46,41 +49,42 @@ export const useAuth = create<AuthState>((set, get) => ({
     const { data } = await supabase.auth.getSession();
     const user = data.session?.user ?? null;
     const role = roleFromUser(user);
-    let flags = { requiereCambio: false, requierePerfil: false };
-    if (data.session && role === 'participante') {
-      flags = await fetchAuthFlags();
+    let me = { requiereCambio: false, requierePerfil: false, nombre: null as string | null };
+    if (data.session) {
+      me = await fetchMe();
     }
     set({
       session: data.session,
       user,
       role,
-      requiereCambioClave: flags.requiereCambio,
-      requierePerfil: flags.requierePerfil,
+      nombre: me.nombre,
+      requiereCambioClave: me.requiereCambio,
+      requierePerfil: me.requierePerfil,
       loading: false,
     });
     supabase.auth.onAuthStateChange(async (_event, session) => {
       const u = session?.user ?? null;
       const r = roleFromUser(u);
       set({ session, user: u, role: r });
-      if (session && r === 'participante') {
-        const fl = await fetchAuthFlags();
-        set({ requiereCambioClave: fl.requiereCambio, requierePerfil: fl.requierePerfil });
+      if (session) {
+        const fl = await fetchMe();
+        set({ requiereCambioClave: fl.requiereCambio, requierePerfil: fl.requierePerfil, nombre: fl.nombre });
       } else {
-        set({ requiereCambioClave: false, requierePerfil: false });
+        set({ requiereCambioClave: false, requierePerfil: false, nombre: null });
       }
     });
   },
 
   refreshEstado: async () => {
-    if (!get().session || get().role !== 'participante') return;
-    const fl = await fetchAuthFlags();
-    set({ requiereCambioClave: fl.requiereCambio, requierePerfil: fl.requierePerfil });
+    if (!get().session) return;
+    const fl = await fetchMe();
+    set({ requiereCambioClave: fl.requiereCambio, requierePerfil: fl.requierePerfil, nombre: fl.nombre });
   },
 
   marcarActivado: () => set({ requiereCambioClave: false }),
 
   signOut: async () => {
     await supabase.auth.signOut();
-    set({ session: null, user: null, role: null, requiereCambioClave: false, requierePerfil: false });
+    set({ session: null, user: null, role: null, nombre: null, requiereCambioClave: false, requierePerfil: false });
   },
 }));

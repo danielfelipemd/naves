@@ -62,7 +62,7 @@ const SECTIONS: Section[] = [
 ];
 
 export default function Resumen() {
-  const { user } = useAuth();
+  const { nombre } = useAuth();
   const [data, setData] = useState({
     cohortes: [] as Cohorte[],
     profesores: 0,
@@ -97,7 +97,7 @@ export default function Resumen() {
         <p className="section-subtitle mb-2">Panel administrativo</p>
         <h1 className="section-title">Selecciona qué quieres administrar</h1>
         <p className="text-sm text-inalde-gray mt-2">
-          Sesión: <span className="text-inalde-text">{user?.email}</span>
+          Sesión: <span className="text-inalde-text">{nombre ?? '—'}</span>
         </p>
       </div>
 
