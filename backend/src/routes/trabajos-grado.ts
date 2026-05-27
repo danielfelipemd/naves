@@ -77,31 +77,48 @@ interface NotificacionAnteproyectoCtx {
 }
 
 /**
- * Envia 3 emails tras subir el anteproyecto en modalidad Caso/PI:
+ * Envia los emails tras subir el anteproyecto en modalidad Caso/PI:
  *  1. Al DIRECTOR seleccionado (con PDF adjunto)
  *  2. Al COMITE del MBA (susana.jaime@inalde.edu.co, con PDF adjunto)
- *  3. Al PARTICIPANTE que subio el archivo (confirmacion, sin adjunto)
+ *  3. A TODOS los miembros del equipo (confirmacion, sin adjunto)
  * Falla silenciosamente: nunca bloquea la respuesta al upload.
  */
 async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCtx): Promise<void> {
   try {
-    const [{ data: dir }, { data: equipo }, { data: participante }] = await Promise.all([
+    const [{ data: dir }, { data: equipo }, { data: cargador }] = await Promise.all([
       supabaseAdmin.from('directores').select('nombre_completo, email_encriptado').eq('id', ctx.directorId).maybeSingle(),
-      supabaseAdmin.from('equipos').select('nombre_equipo, cohorte_id').eq('id', ctx.equipoId).maybeSingle(),
-      supabaseAdmin.from('participantes_lista').select('nombre_completo, email_encriptado').eq('id', ctx.participanteId).maybeSingle(),
+      supabaseAdmin
+        .from('equipos')
+        .select(`
+          nombre_equipo, cohorte_id,
+          miembros_equipo (
+            posicion,
+            participantes_lista ( nombre_completo, email_encriptado )
+          )
+        `)
+        .eq('id', ctx.equipoId)
+        .maybeSingle(),
+      supabaseAdmin.from('participantes_lista').select('nombre_completo').eq('id', ctx.participanteId).maybeSingle(),
     ]);
-    if (!dir || !participante) return;
+    if (!dir || !equipo) return;
 
     const directorEmail = (() => { try { return decryptPII(dir.email_encriptado); } catch { return ''; } })();
-    const participanteEmail = (() => { try { return decryptPII(participante.email_encriptado); } catch { return ''; } })();
-
     const modalidadLabel = ctx.modalidad === 'caso' ? 'Caso' : 'Proyecto de Investigación';
-    const equipoLabel = (equipo as any)?.nombre_equipo || participante.nombre_completo;
-    const cohorte = (equipo as any)?.cohorte_id ?? '';
+    const equipoNombre = (equipo as any).nombre_equipo || '(sin nombre)';
+    const cohorte = (equipo as any).cohorte_id ?? '';
+    const cargadorNombre = cargador?.nombre_completo ?? '';
     const fechaStr = new Date(ctx.fechaSubida).toLocaleString('es-CO', {
       timeZone: 'America/Bogota',
       year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
     });
+
+    // Miembros del equipo (orden por posicion)
+    const miembros = (((equipo as any).miembros_equipo ?? []) as any[])
+      .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
+      .map((m) => m.participantes_lista)
+      .filter(Boolean);
+    const miembrosNombres = miembros.map((m: any) => m.nombre_completo).join(', ');
+    const miembrosListaHtml = `<ul style="margin: 6px 0 0 0; padding-left: 20px;">${miembros.map((m: any) => `<li>${m.nombre_completo}</li>`).join('')}</ul>`;
 
     // Descargar el PDF para adjuntar
     let attachments: EmailAttachment[] | undefined;
@@ -109,7 +126,7 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
       const buf = await downloadTrabajoGradoFile(ctx.archivoPath);
       const ext = extForMime(ctx.archivoMime) ?? 'pdf';
       attachments = [{
-        filename: `anteproyecto-${equipoLabel.replace(/[^a-zA-Z0-9._-]/g, '_')}.${ext}`,
+        filename: `anteproyecto-${equipoNombre.replace(/[^a-zA-Z0-9._-]/g, '_')}.${ext}`,
         content: buf,
         contentType: ctx.archivoMime,
       }];
@@ -133,11 +150,12 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
             <h2 style="color:#1a1a1a; margin: 6px 0 0 0; font-size: 22px;">Anteproyecto recibido para su revisión</h2>
           </div>
           <p>Estimado(a) <strong>${dir.nombre_completo}</strong>:</p>
-          <p>Reciba un cordial saludo. Le informamos que el(la) participante relacionado(a) a
-          continuación lo(a) seleccionó como director(a) de su trabajo de grado y ha cargado su
-          anteproyecto en el sistema. El documento se adjunta al presente correo para su revisión.</p>
+          <p>Reciba un cordial saludo. Le informamos que el equipo relacionado a continuación lo(a)
+          seleccionó como director(a) de su trabajo de grado y ha cargado su anteproyecto en el sistema.
+          El documento se adjunta al presente correo para su revisión.</p>
           <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
-            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Participante</td><td style="padding: 6px 0;"><strong>${participante.nombre_completo}</strong></td></tr>
+            <tr><td style="padding: 6px 0; color:#888; width: 40%; vertical-align: top;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
+            <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Miembros</td><td style="padding: 6px 0;">${miembrosListaHtml}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Fecha de carga</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
@@ -149,7 +167,7 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
           <p style="margin: 4px 0;"><strong>Comité del MBA</strong><br/>INALDE Business School</p>
           ${baseFooter}
         </div>`;
-      try { await sendEmail(directorEmail, `Anteproyecto recibido — ${participante.nombre_completo}`, html, attachments); }
+      try { await sendEmail(directorEmail, `Anteproyecto recibido — ${equipoNombre}`, html, attachments); }
       catch { /* best effort */ }
     }
 
@@ -165,34 +183,43 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
           <p>Les informamos que se cargó un nuevo anteproyecto en el sistema de trabajos de grado del MBA.
           A continuación los detalles. Se adjunta el documento para los archivos del Comité.</p>
           <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
-            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Participante</td><td style="padding: 6px 0;"><strong>${participante.nombre_completo}</strong></td></tr>
+            <tr><td style="padding: 6px 0; color:#888; width: 40%; vertical-align: top;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
+            <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Miembros</td><td style="padding: 6px 0;">${miembrosListaHtml}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Director seleccionado</td><td style="padding: 6px 0;">${dir.nombre_completo}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Cargado por</td><td style="padding: 6px 0;">${cargadorNombre}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Fecha de carga</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
           </table>
           <p style="margin-top: 18px;">Atentamente,</p>
           <p style="margin: 4px 0;"><strong>Sistema de trabajos de grado MBA</strong><br/>INALDE Business School</p>
           ${baseFooter}
         </div>`;
-      try { await sendEmail(EMAIL_COMITE_MBA, `Nuevo anteproyecto cargado — ${participante.nombre_completo} (${modalidadLabel})`, html, attachments); }
+      try { await sendEmail(EMAIL_COMITE_MBA, `Nuevo anteproyecto cargado — ${equipoNombre} (${modalidadLabel})`, html, attachments); }
       catch { /* best effort */ }
     }
 
-    // === 3) Email al PARTICIPANTE (confirmación, sin adjunto) ===============
-    if (participanteEmail) {
+    // === 3) Email a TODOS los miembros del equipo (confirmación, sin adjunto)
+    for (const m of miembros) {
+      let email = '';
+      try { email = decryptPII(m.email_encriptado); } catch { continue; }
+      if (!email) continue;
+
       const html = `
         <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #1a1a1a;">
           <div style="border-bottom: 3px solid #e30613; padding-bottom: 14px; margin-bottom: 22px;">
             <p style="color:#888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Confirmación de carga</p>
-            <h2 style="color:#1a1a1a; margin: 6px 0 0 0; font-size: 22px;">Su anteproyecto fue cargado correctamente</h2>
+            <h2 style="color:#1a1a1a; margin: 6px 0 0 0; font-size: 22px;">El anteproyecto de su equipo fue cargado</h2>
           </div>
-          <p>Estimado(a) <strong>${participante.nombre_completo}</strong>:</p>
-          <p>Confirmamos que su anteproyecto fue cargado exitosamente en el sistema de trabajos de grado
-          del MBA. Su director(a), <strong>${dir.nombre_completo}</strong>, ya fue notificado(a) por
-          correo electrónico y recibió el documento como archivo adjunto.</p>
+          <p>Estimado(a) <strong>${m.nombre_completo}</strong>:</p>
+          <p>Confirmamos que el anteproyecto del equipo <strong>${equipoNombre}</strong> fue cargado
+          exitosamente en el sistema de trabajos de grado del MBA${cargadorNombre && cargadorNombre !== m.nombre_completo ? ` por ${cargadorNombre}` : ''}.
+          El director(a), <strong>${dir.nombre_completo}</strong>, ya fue notificado(a) por correo electrónico
+          y recibió el documento como archivo adjunto.</p>
           <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
-            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
+            <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Miembros</td><td style="padding: 6px 0;">${miembrosNombres}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Director(a)</td><td style="padding: 6px 0;">${dir.nombre_completo}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Fecha de carga</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
@@ -200,13 +227,13 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
           <p style="font-size: 13px; color:#555;">
             El anteproyecto queda registrado de manera definitiva y no podrá ser reemplazado. Una vez
             su director(a) y el Comité revisen el documento, y se cumpla la fecha establecida en el
-            cronograma, podrá cargar el proyecto final desde la plataforma.
+            cronograma, podrán cargar el proyecto final desde la plataforma.
           </p>
           <p style="margin-top: 18px;">Cordialmente,</p>
           <p style="margin: 4px 0;"><strong>Comité del MBA</strong><br/>INALDE Business School</p>
           ${baseFooter}
         </div>`;
-      try { await sendEmail(participanteEmail, 'Confirmación de carga del anteproyecto — MBA INALDE', html); }
+      try { await sendEmail(email, 'Confirmación de carga del anteproyecto — MBA INALDE', html); }
       catch { /* best effort */ }
     }
   } catch (e) {

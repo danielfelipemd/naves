@@ -33,10 +33,10 @@ const MODALIDADES: Array<{
   },
 ];
 
-function destinoModalidad(m: Modalidad): string {
-  // Business Plan pasa por la pantalla de equipo (puede tener hasta 3 miembros).
-  // Caso y Proyecto de Investigacion son individuales: van directo a subir archivos.
-  return m === 'business_plan' ? '/equipo' : '/trabajo-grado';
+function destinoModalidad(_m: Modalidad): string {
+  // Todas las modalidades pasan por la pantalla de equipo (1 a 3 miembros).
+  // En business_plan luego van al formulario; en caso/PI van a subir archivos.
+  return '/equipo';
 }
 
 export default function Dashboard() {

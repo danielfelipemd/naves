@@ -5,7 +5,6 @@ import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
 import { getSignedUrlTrabajoGrado } from '../services/storage.js';
 import { sendEmail } from '../services/email.js';
 import { decryptPII } from '../auth/crypto.js';
-import { crearEquipoSoloSiHaceFalta } from './participantes.js';
 
 const router = Router();
 router.use(requireAuth());
@@ -85,28 +84,11 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
   const pid = req.user!.participanteId;
   if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
 
-  let { data: miembro } = await supabaseAdmin
+  const { data: miembro } = await supabaseAdmin
     .from('miembros_equipo')
     .select('equipo_id')
     .eq('participante_id', pid)
     .maybeSingle();
-
-  // Modalidades individuales (caso / PI): si por alguna razon no se creo el equipo
-  // solo en el momento de fijar la modalidad, lo creamos ahora de manera idempotente.
-  if (!miembro) {
-    const { data: p } = await supabaseAdmin
-      .from('participantes_lista').select('tipo_trabajo_grado').eq('id', pid).maybeSingle();
-    if (p?.tipo_trabajo_grado === 'caso' || p?.tipo_trabajo_grado === 'proyecto_investigacion') {
-      try {
-        await crearEquipoSoloSiHaceFalta(pid, p.tipo_trabajo_grado);
-        const r = await supabaseAdmin
-          .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).maybeSingle();
-        miembro = r.data;
-      } catch (e) {
-        console.warn('[mi-anteproyecto] auto-crear equipo solo fallo:', (e as Error).message);
-      }
-    }
-  }
 
   if (!miembro) return res.json({ anteproyecto: null });
 

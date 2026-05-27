@@ -5,8 +5,6 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
 
-type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
-
 interface Miembro {
   id: string;
   posicion: number;
@@ -48,20 +46,6 @@ export default function MiEquipo() {
   }
 
   useEffect(() => { load(); }, []);
-
-  // Caso y Proyecto de Investigacion son individuales: no hay pantalla "Mi equipo".
-  // Si alguien llega aca por marcador antiguo o URL directa, lo redirigimos.
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await api.get('/participantes/mi-modalidad');
-        const tipo = data?.tipo_trabajo_grado as Modalidad | null;
-        if (tipo && tipo !== 'business_plan') {
-          navigate('/trabajo-grado', { replace: true });
-        }
-      } catch { /* ignore */ }
-    })();
-  }, [navigate]);
 
   async function crear() {
     setBusy(true); setError(null);
