@@ -5,7 +5,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { encryptPII, decryptPII } from '../auth/crypto.js';
 import { AREAS_AFINIDAD } from '../lib/areas.js';
-import { normalizeHeaderKey, findCol, cellStr, cellList, buildTemplateXlsx, ExcelJS } from '../lib/excel.js';
+import { normalizeHeaderKey, findCol, cellStr, buildTemplateXlsx, ExcelJS } from '../lib/excel.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -16,6 +16,26 @@ const FIRST_NAME_KEYS = new Set(['nombre', 'nombres', 'first_name', 'firstname',
 const LAST_NAME_KEYS = new Set(['apellido', 'apellidos', 'last_name', 'lastname', 'surname']);
 const EMAIL_KEYS = new Set(['email', 'correo', 'correo_electronico', 'e_mail', 'mail']);
 const AREAS_KEYS = new Set(['areas', 'areas_afinidad', 'afinidad', 'sectores', 'especialidad']);
+const AREA_1_KEYS = new Set(['area_de_afinidad_1', 'area_afinidad_1', 'area_1', 'area_principal']);
+const AREA_2_KEYS = new Set(['area_de_afinidad_2', 'area_afinidad_2', 'area_2', 'area_secundaria_1', 'area_secundaria']);
+const AREA_3_KEYS = new Set(['area_de_afinidad_3', 'area_afinidad_3', 'area_3', 'area_secundaria_2']);
+
+function leerAreas(
+  row: ExcelJS.Row,
+  cols: { uno: number; dos: number; tres: number; legacy: number },
+): string[] {
+  const vals: string[] = [];
+  for (const c of [cols.uno, cols.dos, cols.tres]) {
+    if (c > 0) {
+      const v = cellStr(row, c);
+      if (v) vals.push(v);
+    }
+  }
+  if (vals.length === 0 && cols.legacy > 0) {
+    return cellStr(row, cols.legacy).split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+  }
+  return vals;
+}
 
 const AREAS_LOWER = new Map<string, string>(AREAS_AFINIDAD.map((a) => [a.toLowerCase(), a]));
 function matchAreas(raw: string[]): string[] {
@@ -120,12 +140,51 @@ router.delete('/:id', requireRole('super_admin'), async (req: AuthenticatedReque
 
 // === GET /api/directores/plantilla (admin) ==================================
 router.get('/plantilla', requireRole('super_admin'), async (_req: AuthenticatedRequest, res) => {
-  const headers = ['Nombre completo', 'Email', 'Áreas de afinidad (separadas por coma)'];
-  const ejemplo = [
-    ['Carlos González', 'carlos.gonzalez@inalde.edu.co', AREAS_AFINIDAD.slice(0, 2).join(', ')],
-    ['Ana Martínez', 'ana.martinez@inalde.edu.co', ''],
-  ];
-  const buf = await buildTemplateXlsx('Directores', headers, ejemplo);
+  const totalCatalogo = AREAS_AFINIDAD.length;
+  const rangoCatalogo = `$A$2:$A$${totalCatalogo + 1}`;
+
+  const buf = await buildTemplateXlsx({
+    sheetName: 'Directores',
+    titulo: 'Plantilla — Directores',
+    subtitulo: 'Programa MBA · INALDE Business School',
+    instrucciones: [
+      'Esta plantilla sirve para cargar directores en lote al sistema de trabajos de grado.',
+      '',
+      'Los directores acompañan los trabajos de grado en modalidad Caso y Proyecto de Investigación.',
+      'NO ingresan a la plataforma; reciben notificaciones por correo cuando un equipo los selecciona',
+      'y carga su anteproyecto.',
+      '',
+      'Cómo usarla:',
+      '1. En la hoja "Directores", llena una fila por cada director que vayas a cargar.',
+      '2. Las columnas marcadas con * son obligatorias (Nombre completo y Email).',
+      '3. Para las áreas de afinidad usa los menús desplegables (hasta 3 áreas por director).',
+      '4. Si un nombre ya existe en el sistema, esa fila se omite (no se duplica).',
+      '',
+      'Notas:',
+      '· Los emails deben ser válidos. Se cifran al guardar (no quedan visibles en texto plano en la BD).',
+      '· Las áreas disponibles están en la hoja "Catálogo - Áreas".',
+    ],
+    catalogos: [{
+      sheet: 'Catálogo - Áreas',
+      titulo: 'Áreas de afinidad disponibles',
+      valores: [...AREAS_AFINIDAD],
+    }],
+    columns: [
+      { header: 'Nombre completo', width: 32, required: true, comment: 'Nombre y apellidos completos del director.' },
+      { header: 'Email institucional', width: 34, required: true, comment: 'Correo al que se enviarán las notificaciones (con el anteproyecto adjunto).' },
+      { header: 'Área de afinidad 1', width: 22, comment: 'Principal. Selecciona del menú desplegable.',
+        dropdownRange: { sheet: 'Catálogo - Áreas', range: rangoCatalogo } },
+      { header: 'Área de afinidad 2', width: 22, comment: 'Opcional. Selecciona del menú desplegable.',
+        dropdownRange: { sheet: 'Catálogo - Áreas', range: rangoCatalogo } },
+      { header: 'Área de afinidad 3', width: 22, comment: 'Opcional. Selecciona del menú desplegable.',
+        dropdownRange: { sheet: 'Catálogo - Áreas', range: rangoCatalogo } },
+    ],
+    exampleRows: [
+      ['Carlos González Ramírez', 'carlos.gonzalez@inalde.edu.co', AREAS_AFINIDAD[0], AREAS_AFINIDAD[1], ''],
+      ['Ana Martínez Quintero', 'ana.martinez@inalde.edu.co', AREAS_AFINIDAD[3], '', ''],
+    ],
+    filasReservadas: 50,
+  });
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename="plantilla-directores.xlsx"');
   res.send(buf);
@@ -147,7 +206,10 @@ router.post('/cargar-excel', requireRole('super_admin'), upload.single('file'), 
   const firstCol = findCol(header, FIRST_NAME_KEYS);
   const lastCol = findCol(header, LAST_NAME_KEYS);
   const emailCol = findCol(header, EMAIL_KEYS);
-  const areasCol = findCol(header, AREAS_KEYS);
+  const area1Col = findCol(header, AREA_1_KEYS);
+  const area2Col = findCol(header, AREA_2_KEYS);
+  const area3Col = findCol(header, AREA_3_KEYS);
+  const areasLegacyCol = findCol(header, AREAS_KEYS);
 
   if (fullCol < 0 && firstCol < 0 && lastCol < 0) {
     return res.status(400).json({
@@ -182,7 +244,9 @@ router.post('/cargar-excel', requireRole('super_admin'), upload.single('file'), 
       const email = cellStr(row, emailCol).toLowerCase();
       if (!nombre || !email) continue;
 
-      const areas = areasCol > 0 ? matchAreas(cellList(row, areasCol)) : [];
+      const areas = matchAreas(
+        leerAreas(row, { uno: area1Col, dos: area2Col, tres: area3Col, legacy: areasLegacyCol })
+      );
 
       // Comprobar duplicado por nombre (no hay email_hash en directores)
       const { data: dup } = await supabaseAdmin

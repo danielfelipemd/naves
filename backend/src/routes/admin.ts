@@ -9,7 +9,7 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/mid
 import { buildAnteproyectoPDF } from '../services/pdf.js';
 import { sendEmail } from '../services/email.js';
 import { AREAS_AFINIDAD } from '../lib/areas.js';
-import { normalizeHeaderKey, findCol, cellStr, cellBool, cellList, buildTemplateXlsx } from '../lib/excel.js';
+import { normalizeHeaderKey, findCol, cellStr, cellBool, buildTemplateXlsx } from '../lib/excel.js';
 
 const AREAS_LOWER = new Map<string, string>(AREAS_AFINIDAD.map((a) => [a.toLowerCase(), a]));
 function matchAreas(raw: string[]): string[] {
@@ -76,6 +76,27 @@ const PASSWORD_KEYS = new Set(['clave', 'contrasena', 'contrasenia', 'password',
 const BOOKING_KEYS = new Set(['booking_url', 'booking', 'agenda', 'calendly', 'url_agenda']);
 const SUPERADMIN_KEYS = new Set(['admin', 'es_admin', 'administrador', 'es_administrador', 'super_admin']);
 const AREAS_KEYS = new Set(['areas', 'areas_afinidad', 'afinidad', 'sectores', 'especialidad']);
+const AREA_1_KEYS = new Set(['area_de_afinidad_1', 'area_afinidad_1', 'area_1', 'area_principal']);
+const AREA_2_KEYS = new Set(['area_de_afinidad_2', 'area_afinidad_2', 'area_2', 'area_secundaria_1', 'area_secundaria']);
+const AREA_3_KEYS = new Set(['area_de_afinidad_3', 'area_afinidad_3', 'area_3', 'area_secundaria_2']);
+
+/** Lee áreas: primero busca 3 columnas separadas; si no existen, intenta una columna comma-separated (legacy). */
+function leerAreas(
+  row: ExcelJS.Row,
+  cols: { uno: number; dos: number; tres: number; legacy: number },
+): string[] {
+  const vals: string[] = [];
+  for (const c of [cols.uno, cols.dos, cols.tres]) {
+    if (c > 0) {
+      const v = cellStr(row, c);
+      if (v) vals.push(v);
+    }
+  }
+  if (vals.length === 0 && cols.legacy > 0) {
+    return cellStr(row, cols.legacy).split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+  }
+  return vals;
+}
 
 router.post('/participantes/cargar-excel', upload.single('file'), async (req: AuthenticatedRequest, res) => {
   const cohorteId = String(req.body?.cohorte_id ?? '').trim();
@@ -593,15 +614,57 @@ router.post('/profesores', async (req, res) => {
 });
 
 // =====================================================================
-// PROFESORES — Plantilla Excel
+// PROFESORES — Plantilla Excel (profesional, con dropdowns)
 // =====================================================================
 router.get('/profesores/plantilla', async (_req, res) => {
-  const headers = ['Nombre completo', 'Email', 'Clave inicial (opcional)', 'URL de booking (opcional)', 'Es administrador (sí/no)', 'Áreas de afinidad (separadas por coma)'];
-  const ejemplo = [
-    ['Juan Pérez García', 'juan.perez@inalde.edu.co', '', 'https://calendly.com/jperez', 'no', AREAS_AFINIDAD.slice(0, 2).join(', ')],
-    ['María Rodríguez', 'maria.rodriguez@inalde.edu.co', '', '', 'sí', ''],
-  ];
-  const buf = await buildTemplateXlsx('Profesores', headers, ejemplo);
+  const totalCatalogo = AREAS_AFINIDAD.length;
+  const rangoCatalogo = `$A$2:$A$${totalCatalogo + 1}`;
+
+  const buf = await buildTemplateXlsx({
+    sheetName: 'Profesores',
+    titulo: 'Plantilla — Profesores',
+    subtitulo: 'Programa MBA · INALDE Business School',
+    instrucciones: [
+      'Esta plantilla sirve para cargar profesores en lote al sistema de trabajos de grado.',
+      '',
+      'Cómo usarla:',
+      '1. En la hoja "Profesores", llena una fila por cada profesor que vayas a cargar.',
+      '2. Las columnas marcadas con * son obligatorias (Nombre completo y Email).',
+      '3. Para "Es administrador" usa el menú desplegable: Sí / No.',
+      '4. Para las áreas de afinidad usa los menús desplegables (1 principal + 2 opcionales). Si necesitas más, contacta al equipo técnico.',
+      '5. Si dejas "Clave inicial" vacía, el sistema generará una clave aleatoria de 12 caracteres y te la mostrará al subir el archivo (cópiala: solo se muestra una vez).',
+      '6. La columna "URL de booking" es opcional. Pega ahí el enlace de Calendly u otra plataforma de agenda del profesor.',
+      '',
+      'Notas:',
+      '· Los emails deben ser válidos y únicos en el sistema.',
+      '· Cada profesor recibirá un correo de bienvenida con sus credenciales (en una próxima versión).',
+      '· Las áreas disponibles están en la hoja "Catálogo - Áreas".',
+    ],
+    catalogos: [{
+      sheet: 'Catálogo - Áreas',
+      titulo: 'Áreas de afinidad disponibles',
+      valores: [...AREAS_AFINIDAD],
+    }],
+    columns: [
+      { header: 'Nombre completo', width: 32, required: true, comment: 'Nombre y apellidos completos del profesor.' },
+      { header: 'Email institucional', width: 34, required: true, comment: 'Correo institucional INALDE u otro. Será su usuario para ingresar al sistema.' },
+      { header: 'Clave inicial', width: 22, comment: 'Opcional. Si la dejas en blanco, el sistema genera una al cargar el Excel.' },
+      { header: 'URL de booking', width: 32, comment: 'Opcional. Enlace de Calendly u otra plataforma de agenda.' },
+      { header: 'Es administrador', width: 18, comment: 'Sí = puede gestionar todo el sistema. No = solo es profesor.',
+        dropdownValues: ['Sí', 'No'] },
+      { header: 'Área de afinidad 1', width: 22, comment: 'Principal. Selecciona del menú desplegable.',
+        dropdownRange: { sheet: 'Catálogo - Áreas', range: rangoCatalogo } },
+      { header: 'Área de afinidad 2', width: 22, comment: 'Opcional. Selecciona del menú desplegable.',
+        dropdownRange: { sheet: 'Catálogo - Áreas', range: rangoCatalogo } },
+      { header: 'Área de afinidad 3', width: 22, comment: 'Opcional. Selecciona del menú desplegable.',
+        dropdownRange: { sheet: 'Catálogo - Áreas', range: rangoCatalogo } },
+    ],
+    exampleRows: [
+      ['Juan Pérez García', 'juan.perez@inalde.edu.co', '', 'https://calendly.com/jperez', 'No', AREAS_AFINIDAD[0], AREAS_AFINIDAD[1], ''],
+      ['María Rodríguez Mejía', 'maria.rodriguez@inalde.edu.co', '', '', 'Sí', AREAS_AFINIDAD[2], '', ''],
+    ],
+    filasReservadas: 50,
+  });
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename="plantilla-profesores.xlsx"');
   res.send(buf);
@@ -628,7 +691,10 @@ router.post('/profesores/cargar-excel', upload.single('file'), async (req: Authe
   const passwordCol = findCol(header, PASSWORD_KEYS);
   const bookingCol = findCol(header, BOOKING_KEYS);
   const superCol = findCol(header, SUPERADMIN_KEYS);
-  const areasCol = findCol(header, AREAS_KEYS);
+  const area1Col = findCol(header, AREA_1_KEYS);
+  const area2Col = findCol(header, AREA_2_KEYS);
+  const area3Col = findCol(header, AREA_3_KEYS);
+  const areasLegacyCol = findCol(header, AREAS_KEYS);
 
   if (fullCol < 0 && firstCol < 0 && lastCol < 0) {
     return res.status(400).json({
@@ -670,7 +736,9 @@ router.post('/profesores/cargar-excel', upload.single('file'), async (req: Authe
       const password = passwordExcel || passwordAleatoria(12);
       const booking = cellStr(row, bookingCol) || null;
       const esAdmin = superCol > 0 ? cellBool(row, superCol) : false;
-      const areas = areasCol > 0 ? matchAreas(cellList(row, areasCol)) : [];
+      const areas = matchAreas(
+        leerAreas(row, { uno: area1Col, dos: area2Col, tres: area3Col, legacy: areasLegacyCol })
+      );
 
       // Crear auth user
       const createResp = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {

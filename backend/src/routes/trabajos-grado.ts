@@ -120,8 +120,10 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
     const miembrosNombres = miembros.map((m: any) => m.nombre_completo).join(', ');
     const miembrosListaHtml = `<ul style="margin: 6px 0 0 0; padding-left: 20px;">${miembros.map((m: any) => `<li>${m.nombre_completo}</li>`).join('')}</ul>`;
 
-    // Descargar el PDF para adjuntar
+    // Descargar el PDF para adjuntar. Si falla, los correos al director y al
+    // comite van SIN adjunto y el cuerpo lo dice explicitamente (no mentimos).
     let attachments: EmailAttachment[] | undefined;
+    let tieneAdjunto = false;
     try {
       const buf = await downloadTrabajoGradoFile(ctx.archivoPath);
       const ext = extForMime(ctx.archivoMime) ?? 'pdf';
@@ -130,9 +132,20 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
         content: buf,
         contentType: ctx.archivoMime,
       }];
+      tieneAdjunto = true;
     } catch (e) {
       console.warn('[anteproyecto.subido] no se pudo adjuntar PDF:', (e as Error).message);
     }
+
+    const lineaAdjuntoDirector = tieneAdjunto
+      ? 'El documento se adjunta al presente correo para su revisión.'
+      : 'No fue posible adjuntar el documento al presente correo. Por favor solicítelo al Comité del MBA en el correo <a href="mailto:susana.jaime@inalde.edu.co">susana.jaime@inalde.edu.co</a>.';
+    const lineaAdjuntoComite = tieneAdjunto
+      ? 'Se adjunta el documento para los archivos del Comité.'
+      : '<strong>No fue posible adjuntar el documento</strong> al presente correo (falla técnica al recuperarlo del almacenamiento). El archivo sigue disponible en la plataforma, en el detalle del anteproyecto correspondiente.';
+    const lineaAdjuntoParticipante = tieneAdjunto
+      ? `El director(a), <strong>${dir.nombre_completo}</strong>, ya fue notificado(a) por correo electrónico y recibió el documento como archivo adjunto.`
+      : `Se notificó al director(a), <strong>${dir.nombre_completo}</strong>, sobre la carga; sin embargo, no fue posible adjuntar el documento al correo. El Comité del MBA cuenta con el archivo en la plataforma.`;
 
     const baseFooter = `
       <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0 16px;"/>
@@ -152,7 +165,7 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
           <p>Estimado(a) <strong>${dir.nombre_completo}</strong>:</p>
           <p>Reciba un cordial saludo. Le informamos que el equipo relacionado a continuación lo(a)
           seleccionó como director(a) de su trabajo de grado y ha cargado su anteproyecto en el sistema.
-          El documento se adjunta al presente correo para su revisión.</p>
+          ${lineaAdjuntoDirector}</p>
           <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
             <tr><td style="padding: 6px 0; color:#888; width: 40%; vertical-align: top;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
             <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Miembros</td><td style="padding: 6px 0;">${miembrosListaHtml}</td></tr>
@@ -181,7 +194,7 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
           </div>
           <p>Estimados miembros del Comité:</p>
           <p>Les informamos que se cargó un nuevo anteproyecto en el sistema de trabajos de grado del MBA.
-          A continuación los detalles. Se adjunta el documento para los archivos del Comité.</p>
+          A continuación los detalles. ${lineaAdjuntoComite}</p>
           <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
             <tr><td style="padding: 6px 0; color:#888; width: 40%; vertical-align: top;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
             <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Miembros</td><td style="padding: 6px 0;">${miembrosListaHtml}</td></tr>
@@ -214,8 +227,7 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
           <p>Estimado(a) <strong>${m.nombre_completo}</strong>:</p>
           <p>Confirmamos que el anteproyecto del equipo <strong>${equipoNombre}</strong> fue cargado
           exitosamente en el sistema de trabajos de grado del MBA${cargadorNombre && cargadorNombre !== m.nombre_completo ? ` por ${cargadorNombre}` : ''}.
-          El director(a), <strong>${dir.nombre_completo}</strong>, ya fue notificado(a) por correo electrónico
-          y recibió el documento como archivo adjunto.</p>
+          ${lineaAdjuntoParticipante}</p>
           <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
             <tr><td style="padding: 6px 0; color:#888; width: 40%;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
             <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Miembros</td><td style="padding: 6px 0;">${miembrosNombres}</td></tr>

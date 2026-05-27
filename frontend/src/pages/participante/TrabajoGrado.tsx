@@ -60,6 +60,7 @@ export default function TrabajoGrado() {
   const navigate = useNavigate();
   const [ant, setAnt] = useState<Anteproyecto | null>(null);
   const [tieneEquipo, setTieneEquipo] = useState<boolean | null>(null);
+  const [modalidadParticipante, setModalidadParticipante] = useState<Modalidad | null>(null);
   const [cargando, setCargando] = useState(true);
   const [subiendo, setSubiendo] = useState<'anteproyecto' | 'proyecto-final' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +88,17 @@ export default function TrabajoGrado() {
   }
 
   useEffect(() => { cargar(); }, []);
+
+  // Cargar la modalidad del participante: necesaria para mostrar el mensaje correcto
+  // cuando aun no tiene equipo (ant es null y por tanto no tenemos modalidad por esa via).
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get('/participantes/mi-modalidad');
+        setModalidadParticipante((data?.tipo_trabajo_grado as Modalidad | null) ?? null);
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   // Cargar lista de directores solo si la modalidad lo requiere y no hay uno asignado
   useEffect(() => {
@@ -145,22 +157,53 @@ export default function TrabajoGrado() {
     return <><Header /><main className="pt-36 text-center text-inalde-gray">Cargando…</main></>;
   }
 
-  // Sin equipo: solo posible para business_plan (caso/PI auto-crean el equipo invisible).
+  // Sin equipo: cualquier modalidad puede llegar aquí. Adaptamos el mensaje y el título
+  // a la modalidad del participante.
   if (!tieneEquipo) {
+    const tituloPorModalidad: Record<Modalidad, string> = {
+      business_plan: 'Business Plan NAVES',
+      caso: 'Caso',
+      proyecto_investigacion: 'Proyecto de Investigación',
+    };
+    const mensajePorModalidad: Record<Modalidad, { p1: string; p2: string }> = {
+      business_plan: {
+        p1: 'Para el Business Plan puedes crear tu grupo de 1 a 3 personas. Cada miembro debe haber elegido también la modalidad Business Plan.',
+        p2: 'Una vez formes tu equipo, podrás trabajar en el anteproyecto y, luego, en el proyecto final.',
+      },
+      caso: {
+        p1: 'Para la modalidad Caso puedes crear tu grupo de 1 a 3 personas. Cada miembro debe haber elegido también la modalidad Caso.',
+        p2: 'Una vez formes tu equipo, podrás seleccionar a tu director, cargar el anteproyecto y, después de la aprobación, el proyecto final.',
+      },
+      proyecto_investigacion: {
+        p1: 'Para Proyecto de Investigación puedes crear tu grupo de 1 a 3 personas. Cada miembro debe haber elegido también la modalidad Proyecto de Investigación.',
+        p2: 'Una vez formes tu equipo, podrás seleccionar a tu director, cargar el anteproyecto y, después de la aprobación, el proyecto final.',
+      },
+    };
+    const m = modalidadParticipante;
+    const titulo = m ? tituloPorModalidad[m] : 'Trabajo de grado';
+    const mensaje = m ? mensajePorModalidad[m] : null;
+
     return (
       <>
         <Header />
         <main className="pt-36 pb-16 px-4">
           <div className="max-w-[700px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
             <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
-              <h1 className="section-title">Trabajo de grado</h1>
+              {m && <p className="section-subtitle mb-2">Trabajo de grado</p>}
+              <h1 className="section-title">{titulo}</h1>
             </div>
-            <p className="text-inalde-gray mb-6">
-              Para el Business Plan necesitas formar tu equipo primero. Después podrás trabajar
-              en el anteproyecto y el proyecto final.
-            </p>
-            <button onClick={() => navigate('/equipo')} className="btn-inalde-primary">
-              Ir a Mi equipo →
+            {mensaje ? (
+              <>
+                <p className="text-inalde-gray mb-3">{mensaje.p1}</p>
+                <p className="text-inalde-gray mb-6">{mensaje.p2}</p>
+              </>
+            ) : (
+              <p className="text-inalde-gray mb-6">
+                Primero elige tu modalidad y forma tu equipo. Después podrás continuar con tu trabajo de grado.
+              </p>
+            )}
+            <button onClick={() => navigate(m ? '/equipo' : '/')} className="btn-inalde-primary">
+              {m ? 'Ir a Mi equipo →' : 'Volver al inicio →'}
             </button>
           </div>
         </main>

@@ -42,25 +42,206 @@ export function cellList(row: ExcelJS.Row, col: number): string[] {
     .split(/[,;]/).map((s) => s.trim()).filter(Boolean);
 }
 
-/** Genera un workbook con una sola hoja, headers en fila 1 + filas de ejemplo. */
-export async function buildTemplateXlsx(
-  sheetName: string,
-  headers: string[],
-  exampleRows: string[][],
-): Promise<Buffer> {
+// ============================================================================
+// Construcción de plantillas Excel profesionales
+// ============================================================================
+
+const INALDE_RED = 'FFE30613';
+const INALDE_GRAY_BG = 'FFF6F6F6';
+const INALDE_DARK = 'FF1A1A1A';
+
+export interface ColumnDef {
+  header: string;
+  /** Ancho en caracteres */
+  width?: number;
+  /** Comentario para el header (texto de ayuda) */
+  comment?: string;
+  /** Si true, aparece como `Header *` y nota en instrucciones */
+  required?: boolean;
+  /** Activa dropdown con estos valores (lista corta directa) */
+  dropdownValues?: string[];
+  /** Activa dropdown con valores en un rango de otra hoja (lista larga) */
+  dropdownRange?: { sheet: string; range: string };
+}
+
+export interface TemplateOpts {
+  /** Nombre de la hoja principal */
+  sheetName: string;
+  /** Título grande arriba (rojo INALDE) */
+  titulo: string;
+  /** Subtítulo (gris) */
+  subtitulo?: string;
+  /** Columnas en orden */
+  columns: ColumnDef[];
+  /** Filas de ejemplo */
+  exampleRows: Array<Array<string | undefined>>;
+  /** Catálogos a publicar en hojas adicionales (sirven como rangos de dropdowns) */
+  catalogos?: Array<{ sheet: string; titulo: string; valores: string[] }>;
+  /** Texto de instrucciones (multi-línea) */
+  instrucciones?: string[];
+  /** Cuántas filas vacías dejar con formato + dropdowns listos */
+  filasReservadas?: number;
+}
+
+export async function buildTemplateXlsx(opts: TemplateOpts): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet(sheetName);
-  ws.addRow(headers);
-  ws.getRow(1).font = { bold: true };
-  ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE30613' } };
-  ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  for (const r of exampleRows) ws.addRow(r);
-  ws.columns.forEach((col, i) => {
-    const h = headers[i] ?? '';
-    col.width = Math.max(h.length + 4, 22);
+  wb.creator = 'INALDE Business School';
+  wb.created = new Date();
+
+  // === 1) Hojas de catálogos (van primero para que existan al referenciarlas)
+  for (const cat of opts.catalogos ?? []) {
+    const cws = wb.addWorksheet(cat.sheet, { state: 'visible' });
+    cws.addRow([cat.titulo]).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_RED } };
+    cws.getRow(1).alignment = { vertical: 'middle', horizontal: 'left' };
+    for (const v of cat.valores) cws.addRow([v]);
+    cws.getColumn(1).width = Math.max(28, cat.titulo.length + 6);
+  }
+
+  // === 2) Hoja de instrucciones (si hay)
+  if (opts.instrucciones && opts.instrucciones.length > 0) {
+    const iws = wb.addWorksheet('Instrucciones');
+    iws.addRow([`Instrucciones — ${opts.titulo}`]).font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+    iws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_RED } };
+    iws.getRow(1).height = 26;
+    iws.getRow(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    iws.addRow([]);
+    for (const line of opts.instrucciones) {
+      const row = iws.addRow([line]);
+      row.alignment = { wrapText: true, vertical: 'top' };
+      row.font = { color: { argb: INALDE_DARK }, size: 11 };
+    }
+    iws.getColumn(1).width = 90;
+  }
+
+  // === 3) Hoja principal
+  const ws = wb.addWorksheet(opts.sheetName, {
+    views: [{ state: 'frozen', ySplit: 2, xSplit: 0 }],
   });
+
+  // Fila 1: título de la hoja
+  ws.mergeCells(1, 1, 1, opts.columns.length);
+  const titleCell = ws.getCell(1, 1);
+  titleCell.value = opts.subtitulo ? `${opts.titulo}  —  ${opts.subtitulo}` : opts.titulo;
+  titleCell.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_RED } };
+  ws.getRow(1).height = 28;
+
+  // Fila 2: encabezados
+  const headerLabels = opts.columns.map((c) => c.required ? `${c.header} *` : c.header);
+  ws.addRow(headerLabels);
+  const headerRow = ws.getRow(2);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+  headerRow.height = 22;
+  headerRow.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+  headerRow.eachCell((cell) => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_RED } };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFFFFFFF' } },
+      bottom: { style: 'medium', color: { argb: INALDE_DARK } },
+      left: { style: 'thin', color: { argb: 'FFFFFFFF' } },
+      right: { style: 'thin', color: { argb: 'FFFFFFFF' } },
+    };
+  });
+
+  // Comentarios en cabeceras (si los hay)
+  opts.columns.forEach((c, idx) => {
+    if (c.comment) {
+      const cell = ws.getCell(2, idx + 1);
+      cell.note = { texts: [{ text: c.comment }] };
+    }
+  });
+
+  // Anchos de columna
+  opts.columns.forEach((c, idx) => {
+    ws.getColumn(idx + 1).width = c.width ?? Math.max(c.header.length + 8, 22);
+  });
+
+  // === 4) Filas de ejemplo
+  const firstDataRow = 3;
+  opts.exampleRows.forEach((row) => {
+    const excelRow = ws.addRow(row);
+    excelRow.height = 20;
+    excelRow.eachCell({ includeEmpty: true }, (cell) => {
+      cell.font = { italic: true, color: { argb: 'FF666666' }, size: 11 };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      cell.border = {
+        bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+        right: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+      };
+    });
+  });
+  // Resaltar suavemente las filas de ejemplo
+  for (let r = firstDataRow; r < firstDataRow + opts.exampleRows.length; r++) {
+    for (let c = 1; c <= opts.columns.length; c++) {
+      ws.getCell(r, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_GRAY_BG } };
+    }
+  }
+
+  // === 5) Filas reservadas en blanco (con dropdowns ya configurados)
+  const totalRowsConDropdown = (opts.filasReservadas ?? 40) + opts.exampleRows.length;
+  for (let r = firstDataRow + opts.exampleRows.length; r < firstDataRow + totalRowsConDropdown; r++) {
+    for (let c = 1; c <= opts.columns.length; c++) {
+      const cell = ws.getCell(r, c);
+      cell.border = {
+        bottom: { style: 'hair', color: { argb: 'FFEEEEEE' } },
+        right: { style: 'hair', color: { argb: 'FFEEEEEE' } },
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    }
+  }
+
+  // === 6) Data validations (dropdowns) en todo el rango
+  opts.columns.forEach((c, idx) => {
+    const colLetter = colNumberToLetter(idx + 1);
+    if (c.dropdownValues && c.dropdownValues.length > 0) {
+      // Lista corta inline
+      const formula = `"${c.dropdownValues.join(',')}"`;
+      for (let r = firstDataRow; r < firstDataRow + totalRowsConDropdown; r++) {
+        ws.getCell(`${colLetter}${r}`).dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: [formula],
+          showErrorMessage: true,
+          errorTitle: 'Valor inválido',
+          error: `Selecciona uno de los valores del menú desplegable.`,
+        };
+      }
+    } else if (c.dropdownRange) {
+      // Lista en rango (catálogo en otra hoja)
+      const ref = `=${c.dropdownRange.sheet}!${c.dropdownRange.range}`;
+      for (let r = firstDataRow; r < firstDataRow + totalRowsConDropdown; r++) {
+        ws.getCell(`${colLetter}${r}`).dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: [ref],
+          showErrorMessage: true,
+          errorTitle: 'Valor inválido',
+          error: `Selecciona uno de los valores del menú desplegable (catálogo en la hoja "${c.dropdownRange.sheet}").`,
+        };
+      }
+    }
+  });
+
+  // === 7) AutoFilter en los encabezados
+  ws.autoFilter = {
+    from: { row: 2, column: 1 },
+    to: { row: 2, column: opts.columns.length },
+  };
+
   const out = await wb.xlsx.writeBuffer();
   return Buffer.from(out);
+}
+
+function colNumberToLetter(n: number): string {
+  let s = '';
+  while (n > 0) {
+    const m = (n - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    n = Math.floor((n - m) / 26);
+  }
+  return s;
 }
 
 export { ExcelJS };
