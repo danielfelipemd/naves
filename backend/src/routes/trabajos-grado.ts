@@ -12,7 +12,10 @@ import {
 import { sendEmail, type EmailAttachment } from '../services/email.js';
 import { decryptPII } from '../auth/crypto.js';
 
-const EMAIL_COMITE_MBA = 'susana.jaime@inalde.edu.co';
+// (Antes este archivo enviaba un correo al Comité del MBA por cada carga.
+// Eso fue retirado: el Comité recibe un solo correo consolidado cuando el
+// super_admin revisa y aprueba la sábana de caso/PI — implementado en
+// admin.ts, no aquí.)
 
 const router = Router();
 router.use(requireAuth());
@@ -144,9 +147,6 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
     const lineaAdjuntoDirector = tieneAdjunto
       ? 'El documento se adjunta al presente correo para su revisión.'
       : 'No fue posible adjuntar el documento al presente correo. Por favor solicítelo directamente al participante o al grupo de participantes del equipo.';
-    const lineaAdjuntoComite = tieneAdjunto
-      ? 'Se adjunta el documento para los archivos del Comité.'
-      : '<strong>No fue posible adjuntar el documento</strong> al presente correo (falla técnica al recuperarlo del almacenamiento). El archivo sigue disponible en la plataforma, en el detalle del anteproyecto correspondiente.';
     const lineaAdjuntoParticipante = tieneAdjunto
       ? `La dirección asignada, a cargo de <strong>${dir.nombre_completo}</strong>, ya fue notificada por correo electrónico y recibió el documento como archivo adjunto.`
       : `Se notificó a la dirección asignada, a cargo de <strong>${dir.nombre_completo}</strong>, sobre la carga; sin embargo, por una falla técnica no fue posible adjuntar el documento al correo. Le pedimos hacerle llegar el documento directamente por correo para que pueda revisarlo.`;
@@ -185,37 +185,12 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
       catch { /* best effort */ }
     }
 
-    // === 2) Email al COMITE MBA (con PDF) ===================================
-    // Va dirigido al Comité — la mención aquí es necesaria porque ES el
-    // destinatario; en el resto de comunicaciones no se referencia.
-    {
-      const html = `
-        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #1a1a1a;">
-          <div style="border-bottom: 3px solid #e30613; padding-bottom: 14px; margin-bottom: 22px;">
-            <p style="color:#888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Notificación interna — Programa MBA</p>
-            <h2 style="color:#1a1a1a; margin: 6px 0 0 0; font-size: 22px;">Nuevo anteproyecto cargado al sistema</h2>
-          </div>
-          <p>Reciba un cordial saludo. Le informamos que se cargó un nuevo anteproyecto en el
-          sistema de trabajos de grado del MBA. A continuación se relacionan los detalles.
-          ${lineaAdjuntoComite}</p>
-          <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
-            <tr><td style="padding: 6px 0; color:#888; width: 40%; vertical-align: top;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
-            <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Miembros</td><td style="padding: 6px 0;">${miembrosListaHtml}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Dirección asignada</td><td style="padding: 6px 0;">${dir.nombre_completo}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Cargado por</td><td style="padding: 6px 0;">${cargadorNombre}</td></tr>
-            <tr><td style="padding: 6px 0; color:#888;">Fecha de carga</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
-          </table>
-          <p style="margin-top: 18px;">Atentamente,</p>
-          <p style="margin: 4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
-          ${baseFooter}
-        </div>`;
-      try { await sendEmail(EMAIL_COMITE_MBA, `Nuevo anteproyecto cargado — ${equipoNombre} (${modalidadLabel})`, html, attachments); }
-      catch { /* best effort */ }
-    }
+    // El Comité NO recibe correo por cada carga (es spam). En su lugar, cuando
+    // el super_admin revise y apruebe la sábana de caso/PI, se envia UN solo
+    // correo consolidado con el listado de todos los equipos. Eso se maneja
+    // desde admin (endpoint separado, no este flujo de upload).
 
-    // === 3) Email a TODOS los miembros del equipo (confirmación, sin adjunto)
+    // === 2) Email a TODOS los miembros del equipo (confirmación, sin adjunto)
     for (const m of miembros) {
       let email = '';
       try { email = decryptPII(m.email_encriptado); } catch { continue; }
