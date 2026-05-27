@@ -199,9 +199,18 @@ export default function MiPerfil() {
             )}
 
             <div className="flex gap-3 justify-end border-t border-inalde-gray-light pt-5">
-              <button type="button" onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
-                Volver
-              </button>
+              {yaCompleto ? (
+                <button type="button" onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
+                  Volver
+                </button>
+              ) : (
+                // Si todavia no ha completado el perfil, 'Volver' lleva al
+                // Dashboard que rebota aqui mismo. Mejor un boton claro para
+                // salir si no quiere terminar ahora.
+                <button type="button" onClick={() => useAuth.getState().signOut()} className="text-sm text-inalde-gray hover:text-inalde-text">
+                  Cerrar sesión
+                </button>
+              )}
               <button type="submit" disabled={busy} className="btn-inalde-primary !py-2 !px-5 !text-sm">
                 {busy ? 'Guardando…' : yaCompleto ? 'Actualizar perfil →' : 'Guardar perfil y continuar →'}
               </button>

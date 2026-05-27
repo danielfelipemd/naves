@@ -51,7 +51,16 @@ function soloNombres(full: string | null | undefined): string {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, role, signOut, refreshEstado } = useAuth();
+  const { user, role, signOut, refreshEstado, requierePerfil } = useAuth();
+
+  // Si es BP y aun no completo el perfil emprendedor, no puede estar en
+  // ninguna otra pantalla (incluida esta). Se le envia inmediatamente al
+  // formulario; el resto del flujo queda bloqueado hasta que termine.
+  useEffect(() => {
+    if (role === 'participante' && requierePerfil) {
+      navigate('/mi-perfil', { replace: true });
+    }
+  }, [role, requierePerfil, navigate]);
   const isSuperAdmin = (user?.app_metadata as any)?.es_super_admin === true;
   const isProfesor = role === 'profesor' || role === 'super_admin';
 
@@ -153,13 +162,20 @@ export default function Dashboard() {
     setFijando(m); setError(null);
     try {
       await api.put('/participantes/mi-modalidad', { tipo: m });
-      // Refresca el estado en el store: para BP esto activa requierePerfil
-      // y ProtectedRoute redirige automaticamente a /mi-perfil cuando el
-      // participante intenta entrar a /equipo, /anteproyecto o /seleccion.
-      // Sin este refresh el flag queda en false y el participante BP entra
-      // directo a /equipo sin haber llenado el perfil emprendedor.
+      // Refresca el estado: para BP activa requierePerfil (lo usa
+      // ProtectedRoute para redirigir cualquier otra ruta a /mi-perfil).
       await refreshEstado();
       setModalidad(m);
+      if (m === 'business_plan') {
+        // BP: pasa inmediatamente al formulario del perfil emprendedor.
+        // Es obligatorio antes de poder ir a /equipo o cualquier otra
+        // pantalla del flujo; saltar este paso bloqueaba la creacion
+        // de equipo con un error que el usuario no entendia.
+        navigate('/mi-perfil', { replace: true });
+        return;
+      }
+      // Caso / Proyecto de investigacion: pantalla intermedia para que
+      // decida entre crear equipo o esperar a ser agregado.
       setRecienElegida(m);
     } catch (e: any) {
       setError(formatBackendError(e));
