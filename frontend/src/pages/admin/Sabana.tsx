@@ -18,15 +18,15 @@ interface Asignacion { equipo_id: string; profesor_id: string; }
 interface FilaResumen {
   numero: number;
   equipo_id: string;
-  proyecto_id: string | null;
-  nombre_proyecto: string;
+  nombre_equipo: string | null;
   autores: string;
-  sector: string | null;
+  proyectos: Array<{ id: string; nombre: string; sector: string | null; tipo: string | null }>;
   modalidad: 'business_plan' | 'caso' | 'proyecto_investigacion';
   buscando_socios: boolean | null;
   buscando_asociacion: boolean | null;
-  profesor_asignado: string | null;
-  director_asignado: string | null;
+  profesor_asignado_id: string | null;
+  profesor_asignado_nombre: string | null;
+  director_asignado_nombre: string | null;
 }
 
 export default function Sabana() {
@@ -82,10 +82,23 @@ export default function Sabana() {
     const payload: Record<string, unknown> = {};
     if (campo === 'buscando_socios') payload.buscando_socios = valor;
     else payload.buscando_asociacion_otro_proyecto = valor;
-    // Optimistic update
     setResumen((prev) => prev.map((f) => f.equipo_id === equipo_id ? { ...f, [campo]: valor } : f));
     try {
       await api.patch(`/sabana/equipos/${equipo_id}`, payload);
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+      await loadResumen();
+    }
+  }
+
+  // Asignacion inline de profesor (solo super_admin, solo BP)
+  async function asignarProfesor(equipo_id: string, profesor_id: string | null) {
+    const prof = profesores.find((p) => p.id === profesor_id);
+    setResumen((prev) => prev.map((f) => f.equipo_id === equipo_id
+      ? { ...f, profesor_asignado_id: profesor_id, profesor_asignado_nombre: prof?.nombre_completo ?? null }
+      : f));
+    try {
+      await api.patch(`/sabana/equipos/${equipo_id}`, { profesor_id });
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
       await loadResumen();
@@ -223,23 +236,21 @@ export default function Sabana() {
         loadingResumen ? <p className="text-inalde-gray">Cargando resumen…</p> :
           resumen.length === 0 ? <p className="text-inalde-gray text-sm">Esta cohorte aún no tiene proyectos cargados.</p> : (
             <div className="rounded border border-inalde-gray-light overflow-x-auto">
-              <table className="w-full text-sm min-w-[1100px] table-fixed">
+              <table className="w-full text-sm min-w-[1200px] table-fixed">
                 <colgroup>
                   <col className="w-12" />
-                  <col className="w-[22%]" />
-                  <col className="w-[24%]" />
-                  <col className="w-[14%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[28%]" />
                   <col className="w-20" />
                   <col className="w-20" />
                   <col className="w-32" />
-                  <col className="w-32" />
+                  <col className="w-44" />
                 </colgroup>
                 <thead className="bg-inalde-gray-bg text-left">
                   <tr>
                     <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">#</th>
                     <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Autores</th>
-                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Proyecto</th>
-                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Sector</th>
+                    <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Proyecto(s) · Sector</th>
                     <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray" title="¿Está buscando socios?">Socios</th>
                     <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray" title="¿Busca asociación con otro proyecto?">Asoc.</th>
                     <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Modalidad</th>
@@ -248,11 +259,27 @@ export default function Sabana() {
                 </thead>
                 <tbody>
                   {resumen.map((f) => (
-                    <tr key={`${f.equipo_id}-${f.proyecto_id ?? 'eq'}`} className="border-t border-inalde-gray-light">
+                    <tr key={f.equipo_id} className="border-t border-inalde-gray-light align-top">
                       <td className="px-3 py-2 text-inalde-gray font-mono text-xs">{f.numero}</td>
                       <td className="px-3 py-2 truncate" title={f.autores}>{f.autores || <span className="italic text-inalde-gray">—</span>}</td>
-                      <td className="px-3 py-2 font-medium truncate" title={f.nombre_proyecto}>{f.nombre_proyecto}</td>
-                      <td className="px-3 py-2 text-inalde-gray truncate" title={f.sector ?? ''}>{f.sector ?? <span className="italic">—</span>}</td>
+                      <td className="px-3 py-2">
+                        {f.proyectos.length > 1 ? (
+                          <div className="space-y-2">
+                            {f.proyectos.map((p, idx) => (
+                              <div key={p.id || idx} className="border-l-2 border-inalde-gold pl-2">
+                                <p className="text-[10px] uppercase tracking-wider text-inalde-gold font-bold">Proyecto {idx + 1}</p>
+                                <p className="font-medium truncate" title={p.nombre}>{p.nombre}</p>
+                                {p.sector && <p className="text-xs text-inalde-gray italic truncate" title={p.sector}>{p.sector}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="font-medium truncate" title={f.proyectos[0]?.nombre}>{f.proyectos[0]?.nombre ?? '—'}</p>
+                            {f.proyectos[0]?.sector && <p className="text-xs text-inalde-gray italic truncate" title={f.proyectos[0].sector}>{f.proyectos[0].sector}</p>}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-xs">
                         {isSuperAdmin ? (
                           <select
@@ -296,8 +323,24 @@ export default function Sabana() {
                           {f.modalidad === 'business_plan' ? 'Business Plan' : f.modalidad === 'caso' ? 'Caso' : 'Proy. Investigación'}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-inalde-gray text-xs truncate" title={f.profesor_asignado ?? f.director_asignado ?? ''}>
-                        {f.profesor_asignado ?? f.director_asignado ?? <span className="italic">—</span>}
+                      <td className="px-3 py-2 text-xs">
+                        {f.modalidad === 'business_plan' ? (
+                          isSuperAdmin ? (
+                            <select
+                              value={f.profesor_asignado_id ?? ''}
+                              onChange={(e) => asignarProfesor(f.equipo_id, e.target.value || null)}
+                              className="border border-inalde-gray-light rounded px-1 py-0.5 text-xs w-full">
+                              <option value="">— Sin asignar —</option>
+                              {profesores.map((p) => (
+                                <option key={p.id} value={p.id}>{p.nombre_completo}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-inalde-gray">{f.profesor_asignado_nombre ?? <span className="italic">— Sin asignar —</span>}</span>
+                          )
+                        ) : (
+                          <span className="text-inalde-gray italic">{f.director_asignado_nombre ?? '— Sin director —'}</span>
+                        )}
                       </td>
                     </tr>
                   ))}

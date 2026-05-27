@@ -161,23 +161,23 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
     .eq('cohorte_id', cohorteId);
   if (error) return res.status(500).json({ error: error.message });
 
+  type Proyecto = { id: string; nombre: string; sector: string | null; tipo: string | null };
   type Fila = {
     numero: number;
     equipo_id: string;
-    proyecto_id: string | null;
-    nombre_proyecto: string;
+    nombre_equipo: string | null;
     autores: string;
-    sector: string | null;
+    proyectos: Proyecto[];
     modalidad: string;
     buscando_socios: boolean | null;
     buscando_asociacion: boolean | null;
-    profesor_asignado: string | null;
-    director_asignado: string | null;
+    profesor_asignado_id: string | null;
+    profesor_asignado_nombre: string | null;
+    director_asignado_nombre: string | null;
   };
   const filas: Fila[] = [];
 
   for (const eq of (equipos as any[]) ?? []) {
-    // Filtrado para profesor: solo equipos donde es asignado (BP) o donde es director (caso/PI)
     if (!isSuperAdmin) {
       const profesorMatch = (eq.asignaciones_profesor ?? []).some((a: any) => a.profesores?.id === profesorId);
       if (!profesorMatch) continue;
@@ -189,64 +189,47 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
       .filter(Boolean);
     const autores = miembros.join(', ');
     const modalidad = eq.tipo_trabajo_grado as string;
-    const profesorNombre = ((eq.asignaciones_profesor as any[]) ?? [])[0]?.profesores?.nombre_completo ?? null;
+    const asignacion = ((eq.asignaciones_profesor as any[]) ?? [])[0]?.profesores ?? null;
     const directorNombre = (eq.directores as any)?.nombre_completo ?? null;
 
+    let proyectos: Proyecto[] = [];
     if (modalidad === 'business_plan') {
       const ant = (eq.anteproyectos as any[])?.[0];
-      const proys = ((ant?.proyectos ?? []) as any[])
+      proyectos = ((ant?.proyectos ?? []) as any[])
         .filter((p) => p.estado_seleccion !== 'archivado')
-        .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0));
-      if (proys.length === 0) {
-        filas.push({
-          numero: 0,
-          equipo_id: eq.id,
-          proyecto_id: null,
-          nombre_proyecto: eq.nombre_equipo || '(sin nombre)',
-          autores,
-          sector: null,
-          modalidad,
-          buscando_socios: eq.buscando_socios ?? null,
-          buscando_asociacion: eq.buscando_asociacion_otro_proyecto ?? null,
-          profesor_asignado: profesorNombre,
-          director_asignado: null,
-        });
-      } else {
-        for (const p of proys) {
-          filas.push({
-            numero: 0,
-            equipo_id: eq.id,
-            proyecto_id: p.id,
-            nombre_proyecto: p.nombre || '(sin nombre)',
-            autores,
-            sector: p.sector ?? null,
-            modalidad,
-            buscando_socios: eq.buscando_socios ?? null,
-            buscando_asociacion: eq.buscando_asociacion_otro_proyecto ?? null,
-            profesor_asignado: profesorNombre,
-            director_asignado: null,
-          });
-        }
-      }
-    } else {
-      // Caso / Proyecto de investigacion -> 1 fila por equipo
-      filas.push({
-        numero: 0,
-        equipo_id: eq.id,
-        proyecto_id: null,
-        nombre_proyecto: eq.nombre_equipo || '(sin nombre)',
-        autores,
-        sector: null,
-        modalidad,
-        buscando_socios: eq.buscando_socios ?? null,
-        buscando_asociacion: eq.buscando_asociacion_otro_proyecto ?? null,
-        profesor_asignado: null,
-        director_asignado: directorNombre,
-      });
+        .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
+        .map((p) => ({
+          id: p.id,
+          nombre: p.nombre || '(sin nombre)',
+          sector: p.sector ?? null,
+          tipo: p.tipo ?? null,
+        }));
     }
+    // Para caso/PI o BP sin proyectos: usamos un placeholder con el nombre del equipo
+    if (!proyectos.length) {
+      proyectos = [{
+        id: '',
+        nombre: eq.nombre_equipo || '(sin nombre)',
+        sector: null,
+        tipo: null,
+      }];
+    }
+
+    filas.push({
+      numero: 0,
+      equipo_id: eq.id,
+      nombre_equipo: eq.nombre_equipo ?? null,
+      autores,
+      proyectos,
+      modalidad,
+      buscando_socios: eq.buscando_socios ?? null,
+      buscando_asociacion: eq.buscando_asociacion_otro_proyecto ?? null,
+      profesor_asignado_id: asignacion?.id ?? null,
+      profesor_asignado_nombre: asignacion?.nombre_completo ?? null,
+      director_asignado_nombre: modalidad === 'business_plan' ? null : directorNombre,
+    });
   }
 
-  // Numerar despues de filtrar/aplanar
   filas.forEach((f, i) => { f.numero = i + 1; });
 
   res.json({ cohorte_id: cohorteId, total: filas.length, filas });
@@ -260,20 +243,52 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
 const patchEquipoSchema = z.object({
   buscando_socios: z.boolean().nullable().optional(),
   buscando_asociacion_otro_proyecto: z.boolean().nullable().optional(),
+  // profesor_id null = quitar asignacion. Solo aplica para equipos BP.
+  profesor_id: z.string().uuid().nullable().optional(),
 });
 router.patch('/equipos/:equipoId', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
   const parsed = patchEquipoSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  // Validar que el equipo exista y obtener su cohorte
+  const { data: eq } = await supabaseAdmin
+    .from('equipos').select('id, cohorte_id, tipo_trabajo_grado').eq('id', req.params.equipoId).maybeSingle();
+  if (!eq) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
+
+  // 1) Flags sobre equipos
   const patch: Record<string, unknown> = {};
   if (parsed.data.buscando_socios !== undefined) patch.buscando_socios = parsed.data.buscando_socios;
   if (parsed.data.buscando_asociacion_otro_proyecto !== undefined) patch.buscando_asociacion_otro_proyecto = parsed.data.buscando_asociacion_otro_proyecto;
-  if (!Object.keys(patch).length) return res.status(400).json({ error: 'SIN_CAMBIOS' });
+  if (Object.keys(patch).length) {
+    const { error } = await supabaseAdmin.from('equipos').update(patch).eq('id', req.params.equipoId);
+    if (error) return res.status(500).json({ error: error.message });
+  }
+
+  // 2) Asignación de profesor (solo BP)
+  if (parsed.data.profesor_id !== undefined) {
+    const equipoId = req.params.equipoId;
+    if (parsed.data.profesor_id === null) {
+      // Quitar asignación
+      const { error } = await supabaseAdmin.from('asignaciones_profesor').delete().eq('equipo_id', equipoId);
+      if (error) return res.status(500).json({ error: error.message });
+    } else {
+      // Asignar / reemplazar. Si super_admin no tiene profesor_id, usamos el profesor mismo como asignado_por.
+      const asignadoPor = req.user!.profesorId ?? parsed.data.profesor_id;
+      const { error } = await supabaseAdmin
+        .from('asignaciones_profesor')
+        .upsert({
+          equipo_id: equipoId,
+          profesor_id: parsed.data.profesor_id,
+          cohorte_id: (eq as any).cohorte_id,
+          asignado_por: asignadoPor,
+        }, { onConflict: 'equipo_id' });
+      if (error) return res.status(500).json({ error: error.message });
+    }
+  }
 
   const { data, error } = await supabaseAdmin
-    .from('equipos').update(patch).eq('id', req.params.equipoId)
-    .select('id, buscando_socios, buscando_asociacion_otro_proyecto').maybeSingle();
+    .from('equipos').select('id, buscando_socios, buscando_asociacion_otro_proyecto').eq('id', req.params.equipoId).maybeSingle();
   if (error) return res.status(500).json({ error: error.message });
-  if (!data) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
   res.json(data);
 });
 
