@@ -57,6 +57,21 @@ export function formatBackendError(e: any): string {
     PARTICIPANT_NOT_ACTIVE: 'Tu cuenta no está activa. Contacta al administrador.',
     NOT_AUTHENTICATED: 'Sesión expirada. Vuelve a iniciar sesión.',
     INVALID_TOKEN: 'Sesión inválida. Vuelve a iniciar sesión.',
+    PERFIL_NO_COMPLETO: 'Debes completar tu perfil emprendedor antes de crear un equipo.',
+    TARGET_PERFIL_NO_COMPLETO: 'El participante seleccionado todavía no completó su perfil emprendedor. Pídele que lo termine antes de agregarlo al equipo.',
+    MIEMBRO_NO_ACTIVO: 'El participante seleccionado no está activo todavía. Avísale para que active su cuenta antes de agregarlo.',
+    MIEMBRO_NOT_FOUND: 'El participante seleccionado no existe o fue eliminado.',
+    MIEMBRO_YA_EN_EQUIPO: 'Uno de los participantes que seleccionaste ya pertenece a otro equipo.',
+    TEAM_NOT_FOUND: 'No se encontró el equipo.',
+    PARTICIPANT_NOT_FOUND: 'No se encontró al participante.',
+    NO_FILE: 'No adjuntaste ningún archivo.',
+    TIPO_INVALIDO: 'El tipo de archivo solicitado no es válido.',
+    ANTEPROYECTO_YA_SUBIDO: 'El anteproyecto ya fue cargado y no se puede reemplazar.',
+    PROYECTO_FINAL_YA_SUBIDO: 'El proyecto final ya fue cargado y no se puede reemplazar.',
+    ESPERA_APROBACION_ANTEPROYECTO: 'El proyecto final estará disponible cuando se cumpla la fecha establecida en el cronograma.',
+    DIRECTOR_NO_SELECCIONADO: 'Selecciona a la dirección antes de cargar el anteproyecto.',
+    ARCHIVO_NO_SUBIDO: 'Aún no se ha cargado ese archivo.',
+    TIPO_TRABAJO_GRADO_INMUTABLE: 'Tu modalidad ya está fijada y no se puede cambiar.',
   };
 
   if (data?.error && codeMessages[data.error]) {
@@ -157,9 +172,12 @@ export function formatBackendError(e: any): string {
     return 'Hay campos por completar:\n• ' + unique.join('\n• ');
   }
 
+  // Si el backend nos manda un mensaje en espanol ('mensaje' o 'message'),
+  // usalo antes de caer al generico. Asi siempre vemos el detalle real.
+  if (data?.mensaje) return String(data.mensaje);
+  if (data?.message) return String(data.message);
   // Code conocido pero sin traducción → mensaje genérico (NO el código crudo)
   if (data?.error) return 'Ocurrió un error procesando tu solicitud. Inténtalo de nuevo o contacta a la asistente del programa.';
-  if (data?.message) return String(data.message);
   // Último recurso: nunca mostrar "Request failed with status code XXX"
   if (typeof e?.message === 'string' && !/^Request failed/i.test(e.message)) return e.message;
   return 'Error inesperado. Inténtalo de nuevo. Si persiste, contacta a la asistente del programa.';
