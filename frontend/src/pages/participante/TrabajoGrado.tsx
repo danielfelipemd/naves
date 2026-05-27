@@ -258,41 +258,30 @@ export default function TrabajoGrado() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [subiendo]);
 
-  function abrirArchivo(tipo: 'anteproyecto' | 'proyecto-final') {
+  async function abrirArchivo(tipo: 'anteproyecto' | 'proyecto-final') {
     if (!ant) return;
     setError(null);
-    // Abrimos la pestaña sincronicamente dentro del onClick para conservar el
-    // 'user gesture'; luego, cuando la API responde con la URL del proxy,
-    // navegamos esa pestaña. Esto evita dos problemas:
-    //   1) Pop-up blockers que cancelan ventanas abiertas tras un await.
-    //   2) Cancelar la descarga deja la pestaña en blanco; al darle al boton
-    //      otra vez se abre una nueva pestaña y vuelve a disparar la descarga
-    //      (antes no pasaba nada porque la API se llamaba sin abrir ventana).
-    const win = window.open('', '_blank', 'noopener,noreferrer');
-    if (!win) {
-      setError('Tu navegador bloqueó la ventana. Permite ventanas emergentes para este sitio.');
-      return;
-    }
     try {
-      win.document.write(
-        '<title>Cargando archivo…</title><p style="font-family:Arial,sans-serif;color:#555;padding:24px;">Cargando archivo…</p>',
-      );
-    } catch { /* algunos navegadores restringen document.write en about:blank */ }
-
-    api.get(`/anteproyectos/${ant.id}/archivo/${tipo}`)
-      .then(({ data }) => {
-        if (data?.url) {
-          const absolute = new URL(data.url, window.location.origin).href;
-          try { win.location.href = absolute; } catch { /* tab cerrada por el usuario */ }
-        } else {
-          try { win.close(); } catch { /* ignore */ }
-          setError('No fue posible obtener el archivo. Inténtalo de nuevo.');
-        }
-      })
-      .catch((e: any) => {
-        try { win.close(); } catch { /* ignore */ }
-        setError(formatBackendError(e));
-      });
+      const { data } = await api.get(`/anteproyectos/${ant.id}/archivo/${tipo}`);
+      if (!data?.url) {
+        setError('No fue posible obtener el archivo. Inténtalo de nuevo.');
+        return;
+      }
+      // Programmatic <a download> click: dispara el dialogo 'Guardar como'
+      // sin abrir pestañas nuevas. Cancelar la descarga deja todo limpio y
+      // volver a hacer click vuelve a lanzar el dialogo. El backend manda
+      // 'Content-Disposition: attachment' para garantizar el comportamiento.
+      const absolute = new URL(data.url, window.location.origin).href;
+      const a = document.createElement('a');
+      a.href = absolute;
+      a.download = ''; // el filename real lo manda el header del backend
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e: any) {
+      setError(formatBackendError(e));
+    }
   }
 
   if (cargando) {
@@ -435,7 +424,7 @@ export default function TrabajoGrado() {
                 <button
                   onClick={() => abrirArchivo('anteproyecto')}
                   className="text-inalde-red font-semibold hover:underline text-sm mt-1">
-                  Ver / descargar →
+                  Descargar →
                 </button>
                 <p className="text-xs text-inalde-gray italic mt-3">
                   Este archivo no se puede reemplazar.
@@ -483,7 +472,7 @@ export default function TrabajoGrado() {
                 <button
                   onClick={() => abrirArchivo('proyecto-final')}
                   className="text-inalde-red font-semibold hover:underline text-sm mt-1">
-                  Ver / descargar →
+                  Descargar →
                 </button>
                 <p className="text-xs text-inalde-gray italic mt-3">
                   Este archivo no se puede reemplazar.
