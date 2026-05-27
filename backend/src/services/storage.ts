@@ -45,3 +45,11 @@ export async function deleteTrabajoGradoFile(path: string): Promise<void> {
   const { error } = await supabaseAdmin.storage.from(BUCKET).remove([path]);
   if (error) throw error;
 }
+
+/** Descarga el archivo del bucket privado a un Buffer (para adjuntar en emails). */
+export async function downloadTrabajoGradoFile(path: string): Promise<Buffer> {
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(path);
+  if (error || !data) throw error ?? new Error('NO_FILE');
+  const arr = await data.arrayBuffer();
+  return Buffer.from(arr);
+}

@@ -5,9 +5,14 @@ import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
 import {
   uploadTrabajoGradoFile,
   getSignedUrlTrabajoGrado,
-  deleteTrabajoGradoFile,
+  downloadTrabajoGradoFile,
+  extForMime,
   type TipoArchivoTrabajo,
 } from '../services/storage.js';
+import { sendEmail, type EmailAttachment } from '../services/email.js';
+import { decryptPII } from '../auth/crypto.js';
+
+const EMAIL_COMITE_MBA = 'susana.jaime@inalde.edu.co';
 
 const router = Router();
 router.use(requireAuth());
@@ -51,13 +56,162 @@ async function loadAnteproyectoConEquipo(id: string) {
     .select(`
       id, equipo_id, estado,
       archivo_anteproyecto_path, archivo_proyecto_final_path,
-      equipos:equipos!inner ( id, cohorte_id, tipo_trabajo_grado,
+      anteproyecto_aprobado_at,
+      equipos:equipos!inner ( id, cohorte_id, tipo_trabajo_grado, nombre_equipo, director_id,
         cohortes:cohortes ( fecha_limite_entrega_anteproyecto )
       )
     `)
     .eq('id', id)
     .maybeSingle();
   return ant as any;
+}
+
+interface NotificacionAnteproyectoCtx {
+  equipoId: string;
+  modalidad: 'caso' | 'proyecto_investigacion';
+  directorId: string;
+  archivoPath: string;
+  archivoMime: string;
+  fechaSubida: string;
+  participanteId: string;
+}
+
+/**
+ * Envia 3 emails tras subir el anteproyecto en modalidad Caso/PI:
+ *  1. Al DIRECTOR seleccionado (con PDF adjunto)
+ *  2. Al COMITE del MBA (susana.jaime@inalde.edu.co, con PDF adjunto)
+ *  3. Al PARTICIPANTE que subio el archivo (confirmacion, sin adjunto)
+ * Falla silenciosamente: nunca bloquea la respuesta al upload.
+ */
+async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCtx): Promise<void> {
+  try {
+    const [{ data: dir }, { data: equipo }, { data: participante }] = await Promise.all([
+      supabaseAdmin.from('directores').select('nombre_completo, email_encriptado').eq('id', ctx.directorId).maybeSingle(),
+      supabaseAdmin.from('equipos').select('nombre_equipo, cohorte_id').eq('id', ctx.equipoId).maybeSingle(),
+      supabaseAdmin.from('participantes_lista').select('nombre_completo, email_encriptado').eq('id', ctx.participanteId).maybeSingle(),
+    ]);
+    if (!dir || !participante) return;
+
+    const directorEmail = (() => { try { return decryptPII(dir.email_encriptado); } catch { return ''; } })();
+    const participanteEmail = (() => { try { return decryptPII(participante.email_encriptado); } catch { return ''; } })();
+
+    const modalidadLabel = ctx.modalidad === 'caso' ? 'Caso' : 'Proyecto de Investigación';
+    const equipoLabel = (equipo as any)?.nombre_equipo || participante.nombre_completo;
+    const cohorte = (equipo as any)?.cohorte_id ?? '';
+    const fechaStr = new Date(ctx.fechaSubida).toLocaleString('es-CO', {
+      timeZone: 'America/Bogota',
+      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+
+    // Descargar el PDF para adjuntar
+    let attachments: EmailAttachment[] | undefined;
+    try {
+      const buf = await downloadTrabajoGradoFile(ctx.archivoPath);
+      const ext = extForMime(ctx.archivoMime) ?? 'pdf';
+      attachments = [{
+        filename: `anteproyecto-${equipoLabel.replace(/[^a-zA-Z0-9._-]/g, '_')}.${ext}`,
+        content: buf,
+        contentType: ctx.archivoMime,
+      }];
+    } catch (e) {
+      console.warn('[anteproyecto.subido] no se pudo adjuntar PDF:', (e as Error).message);
+    }
+
+    const baseFooter = `
+      <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0 16px;"/>
+      <p style="font-size: 11px; color: #888; line-height: 1.5; margin: 0;">
+        <strong>INALDE Business School</strong> — Programa MBA<br/>
+        Sistema de trabajos de grado. Este es un mensaje automático, por favor no responda a este correo.
+      </p>`;
+
+    // === 1) Email al DIRECTOR (con PDF) =====================================
+    if (directorEmail) {
+      const html = `
+        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #1a1a1a;">
+          <div style="border-bottom: 3px solid #e30613; padding-bottom: 14px; margin-bottom: 22px;">
+            <p style="color:#888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Notificación a director — Programa MBA</p>
+            <h2 style="color:#1a1a1a; margin: 6px 0 0 0; font-size: 22px;">Anteproyecto recibido para su revisión</h2>
+          </div>
+          <p>Estimado(a) <strong>${dir.nombre_completo}</strong>:</p>
+          <p>Reciba un cordial saludo. Le informamos que el(la) participante relacionado(a) a
+          continuación lo(a) seleccionó como director(a) de su trabajo de grado y ha cargado su
+          anteproyecto en el sistema. El documento se adjunta al presente correo para su revisión.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
+            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Participante</td><td style="padding: 6px 0;"><strong>${participante.nombre_completo}</strong></td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Fecha de carga</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
+          </table>
+          <p style="font-size: 13px; color:#555;">
+            Cualquier observación o solicitud relacionada con la revisión puede dirigirla al Comité del MBA.
+          </p>
+          <p style="margin-top: 18px;">Cordialmente,</p>
+          <p style="margin: 4px 0;"><strong>Comité del MBA</strong><br/>INALDE Business School</p>
+          ${baseFooter}
+        </div>`;
+      try { await sendEmail(directorEmail, `Anteproyecto recibido — ${participante.nombre_completo}`, html, attachments); }
+      catch { /* best effort */ }
+    }
+
+    // === 2) Email al COMITE MBA (con PDF) ===================================
+    {
+      const html = `
+        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #1a1a1a;">
+          <div style="border-bottom: 3px solid #e30613; padding-bottom: 14px; margin-bottom: 22px;">
+            <p style="color:#888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Comité del MBA — Notificación interna</p>
+            <h2 style="color:#1a1a1a; margin: 6px 0 0 0; font-size: 22px;">Nuevo anteproyecto cargado al sistema</h2>
+          </div>
+          <p>Estimados miembros del Comité:</p>
+          <p>Les informamos que se cargó un nuevo anteproyecto en el sistema de trabajos de grado del MBA.
+          A continuación los detalles. Se adjunta el documento para los archivos del Comité.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
+            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Participante</td><td style="padding: 6px 0;"><strong>${participante.nombre_completo}</strong></td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Director seleccionado</td><td style="padding: 6px 0;">${dir.nombre_completo}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Fecha de carga</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
+          </table>
+          <p style="margin-top: 18px;">Atentamente,</p>
+          <p style="margin: 4px 0;"><strong>Sistema de trabajos de grado MBA</strong><br/>INALDE Business School</p>
+          ${baseFooter}
+        </div>`;
+      try { await sendEmail(EMAIL_COMITE_MBA, `Nuevo anteproyecto cargado — ${participante.nombre_completo} (${modalidadLabel})`, html, attachments); }
+      catch { /* best effort */ }
+    }
+
+    // === 3) Email al PARTICIPANTE (confirmación, sin adjunto) ===============
+    if (participanteEmail) {
+      const html = `
+        <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #1a1a1a;">
+          <div style="border-bottom: 3px solid #e30613; padding-bottom: 14px; margin-bottom: 22px;">
+            <p style="color:#888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Confirmación de carga</p>
+            <h2 style="color:#1a1a1a; margin: 6px 0 0 0; font-size: 22px;">Su anteproyecto fue cargado correctamente</h2>
+          </div>
+          <p>Estimado(a) <strong>${participante.nombre_completo}</strong>:</p>
+          <p>Confirmamos que su anteproyecto fue cargado exitosamente en el sistema de trabajos de grado
+          del MBA. Su director(a), <strong>${dir.nombre_completo}</strong>, ya fue notificado(a) por
+          correo electrónico y recibió el documento como archivo adjunto.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
+            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Director(a)</td><td style="padding: 6px 0;">${dir.nombre_completo}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888;">Fecha de carga</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
+          </table>
+          <p style="font-size: 13px; color:#555;">
+            El anteproyecto queda registrado de manera definitiva y no podrá ser reemplazado. Una vez
+            su director(a) y el Comité revisen el documento, y se cumpla la fecha establecida en el
+            cronograma, podrá cargar el proyecto final desde la plataforma.
+          </p>
+          <p style="margin-top: 18px;">Cordialmente,</p>
+          <p style="margin: 4px 0;"><strong>Comité del MBA</strong><br/>INALDE Business School</p>
+          ${baseFooter}
+        </div>`;
+      try { await sendEmail(participanteEmail, 'Confirmación de carga del anteproyecto — MBA INALDE', html); }
+      catch { /* best effort */ }
+    }
+  } catch (e) {
+    console.warn('[anteproyecto.subido] notificaciones fallaron:', (e as Error).message);
+  }
 }
 
 async function isMiembroDelEquipo(pid: string, equipoId: string): Promise<boolean> {
@@ -93,6 +247,40 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     return res.status(400).json({ error: 'MODALIDAD_NO_USA_ARCHIVOS', modalidad });
   }
 
+  const directorId = ant.equipos?.director_id as string | null;
+  const aprobadoAt = ant.anteproyecto_aprobado_at as string | null;
+  const yaSubido = ant[COL_PATH[tipo]] as string | null;
+
+  // Reglas por tipo
+  if (tipo === 'anteproyecto') {
+    if (!directorId) {
+      return res.status(400).json({
+        error: 'DIRECTOR_NO_SELECCIONADO',
+        mensaje: 'Selecciona tu director antes de cargar el anteproyecto.',
+      });
+    }
+    if (yaSubido) {
+      return res.status(409).json({
+        error: 'ANTEPROYECTO_YA_SUBIDO',
+        mensaje: 'El anteproyecto ya fue cargado y no se puede reemplazar.',
+      });
+    }
+  } else {
+    // proyecto-final: solo permitido si el anteproyecto fue aprobado
+    if (!aprobadoAt) {
+      return res.status(403).json({
+        error: 'ESPERA_APROBACION_ANTEPROYECTO',
+        mensaje: 'Solo puedes cargar el proyecto final cuando tu anteproyecto haya sido aprobado.',
+      });
+    }
+    if (yaSubido) {
+      return res.status(409).json({
+        error: 'PROYECTO_FINAL_YA_SUBIDO',
+        mensaje: 'El proyecto final ya fue cargado y no se puede reemplazar.',
+      });
+    }
+  }
+
   const mime = req.file.mimetype;
   const setPermitido = tipo === 'anteproyecto' ? MIME_ANTEPROYECTO : MIME_PROYECTO_FINAL;
   if (!setPermitido.has(mime)) return res.status(400).json({ error: 'INVALID_MIME', mime });
@@ -101,9 +289,6 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
   if (limite && new Date() >= new Date(limite)) {
     return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA', fecha_limite: limite });
   }
-
-  // Borrar archivo previo si existía con extensión distinta (para no dejar huérfanos)
-  const previo = ant[COL_PATH[tipo]] as string | null;
 
   let path: string;
   let size: number;
@@ -115,17 +300,14 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     return res.status(500).json({ error: e?.message ?? 'UPLOAD_FAILED' });
   }
 
-  if (previo && previo !== path) {
-    try { await deleteTrabajoGradoFile(previo); } catch { /* best-effort */ }
-  }
-
+  const fechaSubida = new Date().toISOString();
   const update: Record<string, unknown> = {
     [COL_PATH[tipo]]: path,
     [COL_MIME[tipo]]: mime,
     [COL_SIZE[tipo]]: size,
-    [COL_UPLOADED[tipo]]: new Date().toISOString(),
+    [COL_UPLOADED[tipo]]: fechaSubida,
     ultimo_editor_id: pid,
-    fecha_actualizacion: new Date().toISOString(),
+    fecha_actualizacion: fechaSubida,
   };
   const { error: upErr } = await supabaseAdmin
     .from('anteproyectos')
@@ -133,7 +315,55 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     .eq('id', req.params.id);
   if (upErr) return res.status(500).json({ error: upErr.message });
 
+  // Notificaciones para el anteproyecto (caso/PI): director + comité + participante
+  if (tipo === 'anteproyecto' && directorId) {
+    void notificarSubidaAnteproyectoCasoPI({
+      equipoId: ant.equipo_id,
+      modalidad,
+      directorId,
+      archivoPath: path,
+      archivoMime: mime,
+      fechaSubida,
+      participanteId: pid,
+    });
+  }
+
   res.status(201).json({ ok: true, path, size, mime });
+});
+
+// === POST /api/anteproyectos/:id/aprobar (admin/profesor) ===================
+// Aprueba el anteproyecto (modalidades caso/PI). Desbloquea el upload del
+// proyecto final. Por ahora solo super_admin puede aprobar (los directores
+// no tienen acceso al sistema).
+router.post('/:id/aprobar', async (req: AuthenticatedRequest, res) => {
+  const role = req.user!.role;
+  const esAdmin = role === 'super_admin' || req.user!.isSuperAdmin;
+  if (!esAdmin) return res.status(403).json({ error: 'SOLO_ADMIN' });
+
+  const ant = await loadAnteproyectoConEquipo(req.params.id);
+  if (!ant) return res.status(404).json({ error: 'NOT_FOUND' });
+
+  const modalidad = ant.equipos?.tipo_trabajo_grado;
+  if (!(modalidad === 'caso' || modalidad === 'proyecto_investigacion')) {
+    return res.status(400).json({ error: 'MODALIDAD_NO_REQUIERE_APROBACION' });
+  }
+  if (!ant.archivo_anteproyecto_path) {
+    return res.status(400).json({ error: 'ANTEPROYECTO_NO_SUBIDO' });
+  }
+  if (ant.anteproyecto_aprobado_at) {
+    return res.status(409).json({ error: 'ANTEPROYECTO_YA_APROBADO' });
+  }
+
+  const { error } = await supabaseAdmin
+    .from('anteproyectos')
+    .update({
+      anteproyecto_aprobado_at: new Date().toISOString(),
+      anteproyecto_aprobado_por: req.user!.sub ?? null,
+    })
+    .eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({ ok: true });
 });
 
 // === GET /api/anteproyectos/:id/archivo/:tipo ===============================

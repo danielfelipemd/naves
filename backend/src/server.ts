@@ -16,6 +16,7 @@ import trabajosGradoRouter from './routes/trabajos-grado.js';
 import seleccionRouter from './routes/seleccion.js';
 import rolesRouter from './routes/roles.js';
 import cohortesRouter from './routes/cohortes.js';
+import directoresRouter from './routes/directores.js';
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use('/api/anteproyectos', trabajosGradoRouter);
 app.use('/api', seleccionRouter); // monta /equipos/:id/marcar-reunion-1, /equipos/:id/seleccionar-proyecto-definitivo, /proyectos/:id/solicitar-desarchivar, /admin/solicitudes-desarchivado/:id/(aprobar|rechazar)
 app.use('/api/admin/roles', rolesRouter);
 app.use('/api/cohortes', cohortesRouter);
+app.use('/api/directores', directoresRouter);
 
 // 404 + error handlers
 app.use((_req, res) => res.status(404).json({ error: 'NOT_FOUND' }));

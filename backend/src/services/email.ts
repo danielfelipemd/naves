@@ -15,12 +15,29 @@ function getTransporter(): nodemailer.Transporter | null {
   return cached;
 }
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; reason?: string }> {
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  attachments?: EmailAttachment[],
+): Promise<{ ok: boolean; reason?: string }> {
   const t = getTransporter();
   if (!t) {
     console.warn(`[email] SMTP not configured, would send to=${to} subject="${subject}"`);
     return { ok: false, reason: 'SMTP_NOT_CONFIGURED' };
   }
-  await t.sendMail({ from: config.smtp.from, to, subject, html });
+  await t.sendMail({
+    from: config.smtp.from,
+    to,
+    subject,
+    html,
+    attachments: attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
+  });
   return { ok: true };
 }

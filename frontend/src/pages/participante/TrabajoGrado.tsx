@@ -5,7 +5,12 @@ import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
-type TipoArchivo = 'anteproyecto' | 'proyecto-final';
+
+interface Director {
+  id: string;
+  nombre_completo: string;
+  areas_afinidad?: string[];
+}
 
 interface Anteproyecto {
   id: string;
@@ -14,12 +19,16 @@ interface Anteproyecto {
   archivo_anteproyecto_path: string | null;
   archivo_anteproyecto_mime: string | null;
   archivo_anteproyecto_uploaded_at: string | null;
-  archivo_anteproyecto_url?: string;
   archivo_proyecto_final_path: string | null;
   archivo_proyecto_final_mime: string | null;
   archivo_proyecto_final_uploaded_at: string | null;
-  archivo_proyecto_final_url?: string;
-  equipos: { id: string; tipo_trabajo_grado: Modalidad };
+  anteproyecto_aprobado_at: string | null;
+  equipos: {
+    id: string;
+    tipo_trabajo_grado: Modalidad;
+    director_id: string | null;
+    director?: { id: string; nombre_completo: string } | null;
+  };
 }
 
 const MIME_ANTEPROYECTO_ACCEPT = '.pdf,application/pdf';
@@ -52,9 +61,12 @@ export default function TrabajoGrado() {
   const [ant, setAnt] = useState<Anteproyecto | null>(null);
   const [tieneEquipo, setTieneEquipo] = useState<boolean | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [subiendo, setSubiendo] = useState<TipoArchivo | null>(null);
-  const [enviando, setEnviando] = useState(false);
+  const [subiendo, setSubiendo] = useState<'anteproyecto' | 'proyecto-final' | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [directores, setDirectores] = useState<Director[]>([]);
+  const [directorSel, setDirectorSel] = useState<string>('');
+  const [guardandoDirector, setGuardandoDirector] = useState(false);
 
   const inputAntRef = useRef<HTMLInputElement>(null);
   const inputFinalRef = useRef<HTMLInputElement>(null);
@@ -76,7 +88,31 @@ export default function TrabajoGrado() {
 
   useEffect(() => { cargar(); }, []);
 
-  async function subir(tipo: TipoArchivo, file: File) {
+  // Cargar lista de directores solo si la modalidad lo requiere y no hay uno asignado
+  useEffect(() => {
+    const modalidad = ant?.equipos?.tipo_trabajo_grado;
+    if (!modalidad || modalidad === 'business_plan') return;
+    if (ant?.equipos?.director_id) return;
+    (async () => {
+      try {
+        const { data } = await api.get('/directores/disponibles');
+        setDirectores(data ?? []);
+      } catch { /* ignore */ }
+    })();
+  }, [ant]);
+
+  async function asignarDirector() {
+    if (!ant || !directorSel) return;
+    setGuardandoDirector(true); setError(null);
+    try {
+      await api.put(`/equipos/${ant.equipo_id}/director`, { director_id: directorSel });
+      await cargar();
+    } catch (e: any) {
+      setError(formatBackendError(e));
+    } finally { setGuardandoDirector(false); }
+  }
+
+  async function subir(tipo: 'anteproyecto' | 'proyecto-final', file: File) {
     if (!ant) return;
     setSubiendo(tipo); setError(null);
     try {
@@ -95,7 +131,7 @@ export default function TrabajoGrado() {
     }
   }
 
-  async function abrirArchivo(tipo: TipoArchivo) {
+  async function abrirArchivo(tipo: 'anteproyecto' | 'proyecto-final') {
     if (!ant) return;
     try {
       const { data } = await api.get(`/anteproyectos/${ant.id}/archivo/${tipo}`);
@@ -105,26 +141,11 @@ export default function TrabajoGrado() {
     }
   }
 
-  async function enviarDefinitivo() {
-    if (!ant) return;
-    if (!confirm('Vas a enviar tu trabajo de grado de forma definitiva. ¿Confirmas?')) return;
-    setEnviando(true); setError(null);
-    try {
-      await api.post(`/anteproyectos/${ant.id}/enviar`);
-      await cargar();
-    } catch (e: any) {
-      setError(formatBackendError(e));
-    } finally {
-      setEnviando(false);
-    }
-  }
-
   if (cargando) {
     return <><Header /><main className="pt-36 text-center text-inalde-gray">Cargando…</main></>;
   }
 
   // Sin equipo: solo posible para business_plan (caso/PI auto-crean el equipo invisible).
-  // Para BP enviamos al participante a la pantalla de formacion de equipo.
   if (!tieneEquipo) {
     return (
       <>
@@ -148,8 +169,11 @@ export default function TrabajoGrado() {
   }
 
   const modalidad = ant?.equipos?.tipo_trabajo_grado;
-  const bloqueado = !!ant && ant.estado !== 'borrador';
-  const ambosSubidos = !!(ant?.archivo_anteproyecto_path && ant?.archivo_proyecto_final_path);
+  const esCasoOPI = modalidad === 'caso' || modalidad === 'proyecto_investigacion';
+  const directorAsignado = ant?.equipos?.director_id ?? null;
+  const antSubido = !!ant?.archivo_anteproyecto_path;
+  const aprobado = !!ant?.anteproyecto_aprobado_at;
+  const finalSubido = !!ant?.archivo_proyecto_final_path;
 
   return (
     <>
@@ -169,90 +193,144 @@ export default function TrabajoGrado() {
             </div>
           )}
 
-          {bloqueado && (
-            <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-sm mb-6">
-              Tu trabajo de grado está en estado <strong>{ant!.estado}</strong>. No se aceptan más cambios.
+          {/* === Selección de director (solo caso/PI) ====================== */}
+          {esCasoOPI && !directorAsignado && (
+            <div className="border-2 border-inalde-red rounded p-5 mb-8 bg-red-50/30">
+              <h2 className="font-primary font-bold text-base mb-2">Selecciona tu director</h2>
+              <p className="text-sm text-inalde-gray mb-4">
+                Antes de cargar el anteproyecto, elige al director que acompañará tu trabajo de
+                grado. Esta selección es <strong>definitiva</strong> y no se puede cambiar después.
+              </p>
+              {directores.length === 0 ? (
+                <p className="text-sm text-inalde-gray italic">Cargando directores disponibles…</p>
+              ) : (
+                <>
+                  <select
+                    value={directorSel}
+                    onChange={(e) => setDirectorSel(e.target.value)}
+                    className="input-inalde w-full mb-3">
+                    <option value="">Selecciona un director…</option>
+                    {directores.map((d) => (
+                      <option key={d.id} value={d.id}>{d.nombre_completo}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={asignarDirector}
+                    disabled={!directorSel || guardandoDirector}
+                    className="btn-inalde-primary !py-2 !text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                    {guardandoDirector ? 'Guardando…' : 'Confirmar director →'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {esCasoOPI && directorAsignado && (
+            <div className="border border-inalde-gray-light rounded p-4 mb-6 bg-inalde-gray-bg/40">
+              <p className="text-xs uppercase tracking-wider text-inalde-gray mb-1">Tu director</p>
+              <p className="font-medium text-inalde-text">
+                {ant?.equipos?.director?.nombre_completo ?? 'Director asignado'}
+              </p>
             </div>
           )}
 
           <p className="text-inalde-gray mb-8 text-sm">
-            Sube los dos archivos: el <strong>anteproyecto</strong> en PDF y el <strong>proyecto final</strong> en
-            PDF o Word. Tamaño máximo: 25 MB cada uno. Puedes reemplazarlos las veces que quieras hasta enviar.
+            Carga el <strong>anteproyecto</strong> en PDF. Una vez sea revisado y aprobado, podrás
+            cargar el <strong>proyecto final</strong> en PDF o Word. Tamaño máximo: 25 MB cada uno.
           </p>
 
-          {/* Bloque 1: Anteproyecto */}
+          {/* === Bloque 1: Anteproyecto =================================== */}
           <div className="border border-inalde-gray-light rounded p-5 mb-5">
             <h2 className="font-primary font-bold text-base mb-2">Anteproyecto (PDF)</h2>
-            {ant?.archivo_anteproyecto_path ? (
+            {antSubido ? (
               <div className="text-sm text-inalde-gray mb-3">
                 <p>
-                  ✅ Subido el {formatoFecha(ant.archivo_anteproyecto_uploaded_at)} —{' '}
-                  <span className="text-inalde-text">{nombreArchivoDePath(ant.archivo_anteproyecto_path)}</span>
+                  ✅ Cargado el {formatoFecha(ant!.archivo_anteproyecto_uploaded_at)} —{' '}
+                  <span className="text-inalde-text">{nombreArchivoDePath(ant!.archivo_anteproyecto_path)}</span>
                 </p>
                 <button
                   onClick={() => abrirArchivo('anteproyecto')}
-                  className="text-inalde-red font-semibold hover:underline text-sm mt-1"
-                >
+                  className="text-inalde-red font-semibold hover:underline text-sm mt-1">
                   Ver / descargar →
                 </button>
+                <p className="text-xs text-inalde-gray italic mt-3">
+                  Este archivo no se puede reemplazar.
+                </p>
               </div>
             ) : (
-              <p className="text-sm text-inalde-gray italic mb-3">Aún no has subido el anteproyecto.</p>
-            )}
-
-            {!bloqueado && (
-              <div className="flex items-center gap-3">
-                <input
-                  ref={inputAntRef}
-                  type="file"
-                  accept={MIME_ANTEPROYECTO_ACCEPT}
-                  disabled={!!subiendo}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) subir('anteproyecto', f);
-                  }}
-                  className="text-sm"
-                />
-                {subiendo === 'anteproyecto' && <span className="text-xs text-inalde-gray">Subiendo…</span>}
-              </div>
+              <>
+                <p className="text-sm text-inalde-gray italic mb-3">
+                  {esCasoOPI && !directorAsignado
+                    ? 'Selecciona primero a tu director.'
+                    : 'Aún no has cargado el anteproyecto.'}
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    ref={inputAntRef}
+                    type="file"
+                    accept={MIME_ANTEPROYECTO_ACCEPT}
+                    disabled={!!subiendo || (esCasoOPI && !directorAsignado)}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) subir('anteproyecto', f);
+                    }}
+                    className="text-sm disabled:opacity-40"
+                  />
+                  {subiendo === 'anteproyecto' && <span className="text-xs text-inalde-gray">Cargando…</span>}
+                </div>
+              </>
             )}
           </div>
 
-          {/* Bloque 2: Proyecto final */}
-          <div className="border border-inalde-gray-light rounded p-5 mb-8">
-            <h2 className="font-primary font-bold text-base mb-2">Proyecto final (PDF o Word)</h2>
-            {ant?.archivo_proyecto_final_path ? (
+          {/* === Bloque 2: Proyecto final ================================= */}
+          <div className={`border rounded p-5 mb-8 ${aprobado ? 'border-inalde-gray-light' : 'border-inalde-gray-light bg-inalde-gray-bg/30'}`}>
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h2 className="font-primary font-bold text-base">Proyecto final (PDF o Word)</h2>
+              {!aprobado && <span className="text-xs">🔒</span>}
+            </div>
+
+            {!aprobado && !finalSubido && (
+              <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-xs text-inalde-text mb-3">
+                Este paso queda <strong>bloqueado</strong> hasta que el anteproyecto sea revisado y
+                aprobado, y se cumpla la fecha del cronograma para la entrega final.
+              </div>
+            )}
+
+            {finalSubido ? (
               <div className="text-sm text-inalde-gray mb-3">
                 <p>
-                  ✅ Subido el {formatoFecha(ant.archivo_proyecto_final_uploaded_at)} —{' '}
-                  <span className="text-inalde-text">{nombreArchivoDePath(ant.archivo_proyecto_final_path)}</span>
+                  ✅ Cargado el {formatoFecha(ant!.archivo_proyecto_final_uploaded_at)} —{' '}
+                  <span className="text-inalde-text">{nombreArchivoDePath(ant!.archivo_proyecto_final_path)}</span>
                 </p>
                 <button
                   onClick={() => abrirArchivo('proyecto-final')}
-                  className="text-inalde-red font-semibold hover:underline text-sm mt-1"
-                >
+                  className="text-inalde-red font-semibold hover:underline text-sm mt-1">
                   Ver / descargar →
                 </button>
+                <p className="text-xs text-inalde-gray italic mt-3">
+                  Este archivo no se puede reemplazar.
+                </p>
               </div>
+            ) : aprobado ? (
+              <>
+                <p className="text-sm text-inalde-gray italic mb-3">Aún no has cargado el proyecto final.</p>
+                <div className="flex items-center gap-3">
+                  <input
+                    ref={inputFinalRef}
+                    type="file"
+                    accept={MIME_PROYECTO_FINAL_ACCEPT}
+                    disabled={!!subiendo}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) subir('proyecto-final', f);
+                    }}
+                    className="text-sm"
+                  />
+                  {subiendo === 'proyecto-final' && <span className="text-xs text-inalde-gray">Cargando…</span>}
+                </div>
+              </>
             ) : (
-              <p className="text-sm text-inalde-gray italic mb-3">Aún no has subido el proyecto final.</p>
-            )}
-
-            {!bloqueado && (
-              <div className="flex items-center gap-3">
-                <input
-                  ref={inputFinalRef}
-                  type="file"
-                  accept={MIME_PROYECTO_FINAL_ACCEPT}
-                  disabled={!!subiendo}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) subir('proyecto-final', f);
-                  }}
-                  className="text-sm"
-                />
-                {subiendo === 'proyecto-final' && <span className="text-xs text-inalde-gray">Subiendo…</span>}
-              </div>
+              <p className="text-sm text-inalde-gray italic">Disponible cuando se apruebe el anteproyecto.</p>
             )}
           </div>
 
@@ -260,15 +338,6 @@ export default function TrabajoGrado() {
             <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
               ← Dashboard
             </button>
-            {!bloqueado && (
-              <button
-                onClick={enviarDefinitivo}
-                disabled={!ambosSubidos || enviando}
-                className="btn-inalde-primary disabled:opacity-50"
-              >
-                {enviando ? 'Enviando…' : 'Enviar definitivo →'}
-              </button>
-            )}
           </div>
         </div>
       </main>

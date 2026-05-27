@@ -233,6 +233,47 @@ router.post('/:id/agregar-miembro', async (req: AuthenticatedRequest, res) => {
   res.status(201).json({ miembro: data });
 });
 
+// === PUT /api/equipos/:id/director =========================================
+// Asigna director al equipo (solo modalidades caso/proyecto_investigacion).
+// Inmutable: el trigger SQL impide cambiarlo despues.
+const directorSchema = z.object({ director_id: z.string().uuid() });
+router.put('/:id/director', async (req: AuthenticatedRequest, res) => {
+  const parsed = directorSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+
+  // Caller debe ser miembro del equipo
+  const { data: yo } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).eq('equipo_id', req.params.id).maybeSingle();
+  if (!yo) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
+
+  const { data: equipo } = await supabaseAdmin
+    .from('equipos')
+    .select('tipo_trabajo_grado, director_id')
+    .eq('id', req.params.id)
+    .maybeSingle();
+  if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
+  if (!(equipo.tipo_trabajo_grado === 'caso' || equipo.tipo_trabajo_grado === 'proyecto_investigacion')) {
+    return res.status(400).json({ error: 'MODALIDAD_NO_USA_DIRECTOR' });
+  }
+  if (equipo.director_id) return res.status(409).json({ error: 'DIRECTOR_YA_ASIGNADO' });
+
+  // Validar director activo
+  const { data: dir } = await supabaseAdmin
+    .from('directores').select('id, estado').eq('id', parsed.data.director_id).maybeSingle();
+  if (!dir) return res.status(404).json({ error: 'DIRECTOR_NOT_FOUND' });
+  if (dir.estado !== 'activo') return res.status(400).json({ error: 'DIRECTOR_INACTIVO' });
+
+  const { error } = await supabaseAdmin
+    .from('equipos')
+    .update({ director_id: parsed.data.director_id, director_asignado_at: new Date().toISOString() })
+    .eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 // === POST /api/equipos/:id/remover-miembro =================================
 const removeSchema = z.object({ participante_id: z.string().uuid() });
 router.post('/:id/remover-miembro', async (req: AuthenticatedRequest, res) => {
