@@ -134,6 +134,40 @@ export default function Cohortes() {
     }
   }
 
+  async function descargarPlantilla(cohorteId: string) {
+    setMsg(null);
+    try {
+      const resp = await api.get(`/admin/cohortes/${cohorteId}/plantilla`, { responseType: 'blob' });
+      const url = URL.createObjectURL(resp.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plantilla-cohorte-${cohorteId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    }
+  }
+
+  async function cargarExcel(cohorteId: string, file: File) {
+    setMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await api.post(`/admin/cohortes/${cohorteId}/cargar-excel`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const op = r.data?.operativas_actualizadas ?? 0;
+      const hi = r.data?.hitos_actualizados ?? 0;
+      setMsg({ kind: 'ok', text: `Excel cargado: ${op} fechas operativas y ${hi} hitos actualizados.` });
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    }
+  }
+
   async function eliminar(c: Cohorte) {
     if (c.participantes_count > 0 || c.equipos_count > 0) {
       setMsg({ kind: 'err', text: `No se puede borrar "${c.etiqueta}": tiene ${c.participantes_count} participante(s) y ${c.equipos_count} equipo(s). Bórralos primero.` });
@@ -233,6 +267,34 @@ export default function Cohortes() {
                     <input type="checkbox" checked={!!draft.activa} onChange={(e) => setDraft({ ...draft, activa: e.target.checked })} />
                     Cohorte activa
                   </label>
+
+                  {/* === Carga por Excel ============================== */}
+                  <div className="rounded border border-dashed border-inalde-gold/60 bg-amber-50/40 p-4">
+                    <p className="font-primary font-bold text-xs tracking-wider uppercase text-inalde-text mb-2">
+                      Carga rápida por Excel
+                    </p>
+                    <p className="text-sm text-inalde-gray mb-3">
+                      Descarga la plantilla con las fechas actuales, edítala y súbela. Lo que dejes
+                      vacío en la columna «Nueva fecha» no se modifica.
+                    </p>
+                    <div className="flex flex-wrap gap-3 items-center">
+                      <button
+                        onClick={() => descargarPlantilla(c.id)}
+                        className="text-xs font-semibold px-4 py-2 rounded border-2 border-inalde-gold text-inalde-text hover:bg-inalde-gold/10 transition">
+                        Descargar plantilla →
+                      </button>
+                      <label className="text-xs font-semibold px-4 py-2 rounded bg-inalde-gold text-white hover:opacity-90 transition cursor-pointer inline-block">
+                        Cargar Excel
+                        <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) cargarExcel(c.id, f);
+                            e.target.value = '';
+                          }} />
+                      </label>
+                    </div>
+                  </div>
 
                   <div>
                     <h3 className="font-primary font-bold text-xs tracking-wider uppercase text-inalde-text mb-3">

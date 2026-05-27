@@ -319,6 +319,258 @@ router.put('/cohortes/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// =====================================================================
+// COHORTES — plantilla Excel para cargar fechas masivamente
+// =====================================================================
+
+const FECHAS_OPERATIVAS: Array<{ key: string; label: string }> = [
+  { key: 'fecha_limite_formacion_equipos',    label: 'Cierre formación de equipos' },
+  { key: 'fecha_limite_entrega_anteproyecto', label: 'Cierre entrega anteproyecto' },
+  { key: 'fecha_reunion_1',                   label: 'Reunión 1' },
+  { key: 'fecha_limite_seleccion_definitivo', label: 'Cierre selección definitivo' },
+];
+
+const INALDE_RED_HEX = 'FFE30613';
+const INALDE_GOLD_HEX = 'FFB89E5A';
+const INALDE_GRAY_HEX = 'FFF6F6F6';
+
+function fmtFechaCO(iso: string | null | undefined, conHora: boolean): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso.length === 10 ? iso + 'T12:00:00' : iso);
+    return d.toLocaleString('es-CO', {
+      timeZone: 'America/Bogota',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      ...(conHora ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}),
+    });
+  } catch { return ''; }
+}
+
+router.get('/cohortes/:id/plantilla', async (req, res) => {
+  const cohorteId = req.params.id;
+  const [{ data: coh }, { data: hitos }] = await Promise.all([
+    supabaseAdmin.from('cohortes').select('*').eq('id', cohorteId).maybeSingle(),
+    supabaseAdmin.from('cohorte_hitos').select('posicion, nombre, fecha').eq('cohorte_id', cohorteId).order('posicion'),
+  ]);
+  if (!coh) return res.status(404).json({ error: 'COHORTE_NOT_FOUND' });
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'INALDE Business School';
+  wb.created = new Date();
+
+  // === Hoja 1: Instrucciones ===========================================
+  const iws = wb.addWorksheet('Instrucciones');
+  iws.mergeCells('A1:C1');
+  iws.getCell('A1').value = `Plantilla de fechas — Cohorte ${(coh as any).etiqueta} (${cohorteId})`;
+  iws.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+  iws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_RED_HEX } };
+  iws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  iws.getRow(1).height = 28;
+
+  const lineas = [
+    '',
+    'Cómo llenar esta plantilla:',
+    '',
+    '1. Ve a la hoja "Fechas".',
+    '2. En la columna "Nueva fecha", escribe la fecha que quieres aplicar al concepto correspondiente.',
+    '   • Para las 4 primeras filas (Fechas operativas), incluye fecha + hora (formato: dd/mm/aaaa hh:mm).',
+    '   • Para las 11 filas del Cronograma, solo escribe la fecha (formato: dd/mm/aaaa).',
+    '3. Si dejas una celda vacía, esa fecha NO se modificará al cargar el archivo (se conserva la actual).',
+    '4. Guarda el archivo (.xlsx) y súbelo desde la pantalla de edición de la cohorte.',
+    '',
+    'Notas:',
+    '• La columna "Fecha actual" es solo informativa (no se valida al cargar).',
+    '• Las fechas se interpretan en zona horaria America/Bogota.',
+    '• Si Excel marca la celda como número, asegúrate de aplicarle formato Fecha desde Inicio → Número.',
+  ];
+  for (const t of lineas) {
+    const row = iws.addRow([t]);
+    row.font = { size: 11, color: { argb: 'FF1A1A1A' } };
+    row.alignment = { vertical: 'top', wrapText: true };
+  }
+  iws.getColumn(1).width = 100;
+
+  // === Hoja 2: Fechas ===================================================
+  const ws = wb.addWorksheet('Fechas', { views: [{ state: 'frozen', ySplit: 2 }] });
+  ws.columns = [
+    { key: 'concepto',  width: 42 },
+    { key: 'actual',    width: 26 },
+    { key: 'nueva',     width: 26 },
+  ];
+
+  // Fila 1: título
+  ws.mergeCells('A1:C1');
+  ws.getCell('A1').value = `Fechas — ${(coh as any).etiqueta} (${cohorteId})`;
+  ws.getCell('A1').font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+  ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_RED_HEX } };
+  ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  ws.getRow(1).height = 28;
+
+  // Fila 2: encabezados
+  ws.addRow(['Concepto', 'Fecha actual', 'Nueva fecha']);
+  const head = ws.getRow(2);
+  head.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+  head.height = 22;
+  head.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  head.eachCell((c) => {
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_RED_HEX } };
+    c.border = { bottom: { style: 'medium', color: { argb: 'FF1A1A1A' } } };
+  });
+
+  function addSectionRow(label: string) {
+    const row = ws.addRow([label, '', '']);
+    ws.mergeCells(`A${row.number}:C${row.number}`);
+    row.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+    row.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_GOLD_HEX } };
+    row.height = 20;
+  }
+
+  function addDataRow(concepto: string, actualIso: string | null | undefined, conHora: boolean) {
+    const row = ws.addRow([concepto, fmtFechaCO(actualIso, conHora), '']);
+    row.height = 20;
+    row.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    row.getCell(1).font = { size: 11, color: { argb: 'FF1A1A1A' } };
+    row.getCell(2).font = { size: 11, color: { argb: 'FF6B6B6B' } };
+    row.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: INALDE_GRAY_HEX } };
+    row.getCell(3).numFmt = conHora ? 'dd/mm/yyyy hh:mm' : 'dd/mm/yyyy';
+    row.getCell(3).border = { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
+  }
+
+  // Sección 1: Fechas operativas
+  addSectionRow('Fechas operativas (Business Plan) — incluir fecha + hora');
+  for (const f of FECHAS_OPERATIVAS) {
+    addDataRow(f.label, (coh as any)[f.key], true);
+  }
+  ws.addRow([]);
+
+  // Sección 2: Cronograma
+  addSectionRow('Cronograma — 11 hitos (solo fecha)');
+  const hitosMap = new Map<number, { nombre: string; fecha: string | null }>(
+    ((hitos as any[]) ?? []).map((h) => [h.posicion, { nombre: h.nombre, fecha: h.fecha }]),
+  );
+  for (let pos = 1; pos <= 11; pos++) {
+    const h = hitosMap.get(pos);
+    addDataRow(`${pos}. ${h?.nombre ?? `Hito ${pos}`}`, h?.fecha ?? null, false);
+  }
+
+  const buf = await wb.xlsx.writeBuffer();
+  const filename = `plantilla-cohorte-${cohorteId}.xlsx`;
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(Buffer.from(buf));
+});
+
+// === POST /api/admin/cohortes/:id/cargar-excel ===========================
+const cohorteExcelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+router.post('/cohortes/:id/cargar-excel', cohorteExcelUpload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'MISSING_FILE' });
+  const cohorteId = req.params.id;
+  const { data: coh } = await supabaseAdmin.from('cohortes').select('id').eq('id', cohorteId).maybeSingle();
+  if (!coh) return res.status(404).json({ error: 'COHORTE_NOT_FOUND' });
+
+  let wb: ExcelJS.Workbook;
+  try {
+    wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer as any);
+  } catch {
+    return res.status(400).json({ error: 'INVALID_XLSX' });
+  }
+
+  const ws = wb.getWorksheet('Fechas');
+  if (!ws) return res.status(400).json({ error: 'SHEET_NOT_FOUND', mensaje: 'El archivo no tiene la hoja "Fechas".' });
+
+  function parseCellDate(cell: ExcelJS.Cell): Date | null {
+    const v = cell.value;
+    if (v == null || v === '') return null;
+    if (v instanceof Date) return v;
+    if (typeof v === 'number') {
+      // Excel serial date
+      const ms = (v - 25569) * 86400 * 1000;
+      const d = new Date(ms);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof v === 'string') {
+      const s = v.trim();
+      if (!s) return null;
+      // dd/mm/yyyy [hh:mm]
+      const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?$/);
+      if (m) {
+        const [, dd, mm, yyyyRaw, hh, mi] = m;
+        const yyyy = yyyyRaw.length === 2 ? 2000 + parseInt(yyyyRaw, 10) : parseInt(yyyyRaw, 10);
+        // Construir en hora local Bogota: usamos toISOString despues
+        const d = new Date(yyyy, parseInt(mm, 10) - 1, parseInt(dd, 10), hh ? parseInt(hh, 10) : 0, mi ? parseInt(mi, 10) : 0);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof v === 'object' && (v as any).text) {
+      // RichText
+      return null;
+    }
+    return null;
+  }
+
+  // Mapeo concepto (texto en columna A) -> destino
+  const operativasByLabel = new Map(FECHAS_OPERATIVAS.map((f) => [f.label.toLowerCase(), f.key]));
+
+  const operativasUpdate: Record<string, string | null> = {};
+  const hitosUpdate: Array<{ posicion: number; fecha: string | null }> = [];
+
+  let lastError: string | null = null;
+  ws.eachRow((row) => {
+    if (row.number <= 2) return; // titulo + header
+    const concepto = String(row.getCell(1).value ?? '').trim();
+    if (!concepto) return;
+    const nueva = parseCellDate(row.getCell(3));
+    if (nueva === null) return; // celda vacia o invalida -> no se toca
+
+    const conceptoLower = concepto.toLowerCase();
+    const opKey = operativasByLabel.get(conceptoLower);
+    if (opKey) {
+      operativasUpdate[opKey] = nueva.toISOString();
+      return;
+    }
+    // Cronograma: "N. Nombre del hito"
+    const m = concepto.match(/^(\d{1,2})\.\s*/);
+    if (m) {
+      const pos = parseInt(m[1], 10);
+      if (pos >= 1 && pos <= 11) {
+        // YYYY-MM-DD (sin hora) para cohorte_hitos.fecha (tipo date)
+        const yyyy = nueva.getFullYear();
+        const mm = String(nueva.getMonth() + 1).padStart(2, '0');
+        const dd = String(nueva.getDate()).padStart(2, '0');
+        hitosUpdate.push({ posicion: pos, fecha: `${yyyy}-${mm}-${dd}` });
+        return;
+      }
+    }
+    lastError = `Concepto no reconocido en fila ${row.number}: "${concepto}"`;
+  });
+
+  if (Object.keys(operativasUpdate).length === 0 && hitosUpdate.length === 0) {
+    return res.status(400).json({ error: 'SIN_CAMBIOS', mensaje: 'No se encontraron fechas para aplicar en la columna "Nueva fecha".', detail: lastError });
+  }
+
+  if (Object.keys(operativasUpdate).length > 0) {
+    const { error } = await supabaseAdmin.from('cohortes').update(operativasUpdate).eq('id', cohorteId);
+    if (error) return res.status(500).json({ error: error.message });
+  }
+  for (const h of hitosUpdate) {
+    const { error } = await supabaseAdmin
+      .from('cohorte_hitos').update({ fecha: h.fecha }).eq('cohorte_id', cohorteId).eq('posicion', h.posicion);
+    if (error) return res.status(500).json({ error: error.message, paso: `hito ${h.posicion}` });
+  }
+
+  res.json({
+    ok: true,
+    operativas_actualizadas: Object.keys(operativasUpdate).length,
+    hitos_actualizados: hitosUpdate.length,
+    nota: lastError ?? undefined,
+  });
+});
+
 // GET /api/admin/participantes — TODOS los participantes con su cohorte
 router.get('/participantes', async (_req, res) => {
   const { data, error } = await supabaseAdmin
