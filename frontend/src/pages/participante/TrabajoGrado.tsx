@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useBlocker, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
@@ -159,37 +159,24 @@ export default function TrabajoGrado() {
     }
   }
 
-  // === Proteccion contra navegacion/refresh mientras se sube un archivo =====
-  // 1) beforeunload: cubre F5, cerrar pestaña, cerrar navegador y clicks en
-  //    enlaces externos (incluido el <a href="/"> del logo en el Header).
-  //    El navegador muestra un dialogo nativo (el texto exacto lo decide el
-  //    navegador, no se puede personalizar).
+  // Proteccion contra refresh/cierre mientras se sube un archivo.
+  // beforeunload cubre F5, cerrar pestaña, cerrar navegador y clicks en
+  // enlaces externos (incluido el <a href="/"> del logo en el Header).
+  // El texto exacto del dialogo lo decide el navegador, no se puede
+  // personalizar en navegadores modernos.
+  // Para la navegacion interna del SPA usamos solo el `disabled` del boton
+  // 'Volver al Dashboard' mas abajo, porque la app esta montada sobre
+  // <BrowserRouter> (router legacy) y useBlocker requiere createBrowserRouter.
   useEffect(() => {
     if (!subiendo) return;
     function onBeforeUnload(e: BeforeUnloadEvent) {
       e.preventDefault();
-      // Required por compatibilidad con navegadores antiguos.
+      // Requerido por compatibilidad con navegadores antiguos.
       e.returnValue = '';
     }
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [subiendo]);
-
-  // 2) useBlocker: cubre la navegacion interna de React Router (cualquier
-  //    Link/navigate dentro de la SPA). Cuando hay subida en curso bloqueamos
-  //    y mostramos modal propio para decidir.
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    !!subiendo && currentLocation.pathname !== nextLocation.pathname,
-  );
-
-  function confirmarSalir() {
-    // Cancela el upload y deja proceder la navegacion.
-    abortRef.current?.abort();
-    if (blocker.state === 'blocked') blocker.proceed();
-  }
-  function quedarse() {
-    if (blocker.state === 'blocked') blocker.reset();
-  }
 
   async function abrirArchivo(tipo: 'anteproyecto' | 'proyecto-final') {
     if (!ant) return;
@@ -269,32 +256,6 @@ export default function TrabajoGrado() {
   return (
     <>
       <Header />
-      {/* Modal: hay subida en curso e intentan navegar fuera del SPA */}
-      {blocker.state === 'blocked' && (
-        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center px-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="font-primary font-bold text-lg mb-2 text-inalde-text">
-              Hay un archivo subiéndose
-            </h3>
-            <p className="text-sm text-inalde-gray mb-6">
-              Si sales de esta pantalla, la carga se cancelará y deberás
-              empezar de nuevo. ¿Deseas salir?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={quedarse}
-                className="px-4 py-2 text-sm font-medium text-inalde-text border border-inalde-gray-light rounded hover:bg-inalde-gray-bg">
-                No, seguir cargando
-              </button>
-              <button
-                onClick={confirmarSalir}
-                className="px-4 py-2 text-sm font-medium text-white bg-inalde-red rounded hover:bg-red-700">
-                Sí, salir y cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <main className="pt-36 pb-16 px-4">
         <div className="max-w-[800px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
@@ -451,9 +412,18 @@ export default function TrabajoGrado() {
           </div>
 
           <div className="flex justify-between items-center pt-6 border-t border-inalde-gray-light">
-            <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
+            <button
+              onClick={() => navigate('/')}
+              disabled={!!subiendo}
+              title={subiendo ? 'Espera a que termine la carga' : undefined}
+              className="text-sm text-inalde-gray hover:text-inalde-text disabled:opacity-40 disabled:cursor-not-allowed">
               ← Dashboard
             </button>
+            {subiendo && (
+              <span className="text-xs text-inalde-gray italic">
+                Subiendo archivo… no recargues ni salgas de esta pantalla.
+              </span>
+            )}
           </div>
         </div>
       </main>
