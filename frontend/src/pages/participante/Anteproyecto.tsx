@@ -320,6 +320,39 @@ export default function Anteproyecto() {
 
   async function enviar() {
     if (!anteId) return;
+    // Validar que TODOS los campos del formulario esten llenos. Lista
+    // (campo, etiqueta visible) por proyecto.
+    const CAMPOS_OBLIGATORIOS: Array<[keyof Proyecto, string]> = [
+      ['nombre', 'Nombre del proyecto'],
+      ['sector', 'Sector'],
+      ['ciiu', 'CIIU'],
+      ['estado', 'Estado del proyecto'],
+      ['canvas_cliente', 'Cliente'],
+      ['canvas_problema', 'Problema'],
+      ['canvas_solucion', 'Solución'],
+      ['canvas_canales', 'Canales'],
+      ['canvas_relaciones', 'Relación con clientes'],
+      ['canvas_ingresos', 'Modelo de ingresos'],
+      ['canvas_recursos', 'Recursos clave'],
+      ['canvas_actividades', 'Actividades clave'],
+      ['canvas_socios', 'Socios clave'],
+      ['canvas_costos', 'Estructura de costos'],
+      ['fuentes_primarias', 'Fuentes primarias'],
+      ['fuentes_secundarias', 'Fuentes secundarias'],
+    ];
+    for (const p of proyectos) {
+      const nombreProyecto = p.nombre || `#${p.posicion}`;
+      for (const [campo, label] of CAMPOS_OBLIGATORIOS) {
+        const v = (p as any)[campo];
+        if (!v || (typeof v === 'string' && !v.trim())) {
+          setMsg({
+            kind: 'err',
+            text: `El proyecto "${nombreProyecto}" tiene el campo "${label}" sin completar. Llena todos los campos del formulario antes de enviar.`,
+          });
+          return;
+        }
+      }
+    }
     // Validar que TODAS las filas de hitos esten completas. Si hay una fila
     // visible con algun campo vacio, no se puede enviar (antes el frontend
     // las filtraba silenciosamente y dejaba pasar el envio).
