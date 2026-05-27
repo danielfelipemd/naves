@@ -139,7 +139,7 @@ async function notificarSubidaAnteproyectoCasoPI(ctx: NotificacionAnteproyectoCt
 
     const lineaAdjuntoDirector = tieneAdjunto
       ? 'El documento se adjunta al presente correo para su revisión.'
-      : 'No fue posible adjuntar el documento al presente correo. Por favor solicítelo al Comité del MBA en el correo <a href="mailto:susana.jaime@inalde.edu.co">susana.jaime@inalde.edu.co</a>.';
+      : 'No fue posible adjuntar el documento al presente correo. Por favor solicítelo directamente al participante o al grupo de participantes del equipo.';
     const lineaAdjuntoComite = tieneAdjunto
       ? 'Se adjunta el documento para los archivos del Comité.'
       : '<strong>No fue posible adjuntar el documento</strong> al presente correo (falla técnica al recuperarlo del almacenamiento). El archivo sigue disponible en la plataforma, en el detalle del anteproyecto correspondiente.';
