@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
 import {
   uploadTrabajoGradoFile,
-  getSignedUrlTrabajoGrado,
+  crearUrlProxyArchivo,
   downloadTrabajoGradoFile,
   extForMime,
   type TipoArchivoTrabajo,
@@ -437,12 +437,11 @@ router.get('/:id/archivo/:tipo', async (req: AuthenticatedRequest, res) => {
   const path = ant[COL_PATH[tipo]] as string | null;
   if (!path) return res.status(404).json({ error: 'ARCHIVO_NO_SUBIDO' });
 
-  try {
-    const url = await getSignedUrlTrabajoGrado(path, 300);
-    res.json({ url, expires_in: 300, mime: ant[COL_MIME[tipo]] ?? null });
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message ?? 'SIGN_URL_FAILED' });
-  }
+  const mime = (ant[COL_MIME[tipo]] as string | null) ?? 'application/octet-stream';
+  // Devolvemos URL en nuestro dominio (proxy con token efimero), nunca la
+  // URL firmada de Supabase Storage.
+  const url = crearUrlProxyArchivo(path, mime);
+  res.json({ url, expires_in: 300, mime });
 });
 
 export default router;

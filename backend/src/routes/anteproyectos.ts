@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
-import { getSignedUrlTrabajoGrado } from '../services/storage.js';
+import { crearUrlProxyArchivo } from '../services/storage.js';
 import { sendEmail } from '../services/email.js';
 import { decryptPII } from '../auth/crypto.js';
 
@@ -111,13 +111,14 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
   if (error) return res.status(500).json({ error: error.message });
   if (!data) return res.json({ anteproyecto: null });
 
-  // Adjuntar URLs firmadas (5 min) si hay archivos
+  // URLs proxy (5 min) hacia nuestro dominio — nunca exponemos la URL firmada
+  // de Supabase Storage al cliente.
   const ant: any = data;
   if (ant.archivo_anteproyecto_path) {
-    try { ant.archivo_anteproyecto_url = await getSignedUrlTrabajoGrado(ant.archivo_anteproyecto_path, 300); } catch { /* ignore */ }
+    ant.archivo_anteproyecto_url = crearUrlProxyArchivo(ant.archivo_anteproyecto_path, ant.archivo_anteproyecto_mime);
   }
   if (ant.archivo_proyecto_final_path) {
-    try { ant.archivo_proyecto_final_url = await getSignedUrlTrabajoGrado(ant.archivo_proyecto_final_path, 300); } catch { /* ignore */ }
+    ant.archivo_proyecto_final_url = crearUrlProxyArchivo(ant.archivo_proyecto_final_path, ant.archivo_proyecto_final_mime);
   }
 
   res.json({ anteproyecto: ant });

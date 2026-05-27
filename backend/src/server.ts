@@ -13,6 +13,7 @@ import equiposRouter from './routes/equipos.js';
 import participantesRouter from './routes/participantes.js';
 import anteproyectosRouter from './routes/anteproyectos.js';
 import trabajosGradoRouter from './routes/trabajos-grado.js';
+import archivosProxyRouter from './routes/archivos-proxy.js';
 import seleccionRouter from './routes/seleccion.js';
 import rolesRouter from './routes/roles.js';
 import cohortesRouter from './routes/cohortes.js';
@@ -39,6 +40,9 @@ const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 600 });
 const ciiuLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 1000 });
 
 app.use('/', healthRouter);
+// Proxy publico (auth via token efimero en query string) — antes de cualquier
+// router con requireAuth para que no se aplique el middleware global de auth.
+app.use('/api/archivos', archivosProxyRouter);
 app.use('/api/auth/verificar-cedula', sensitiveAuthLimiter);
 app.use('/api/auth/recovery', sensitiveAuthLimiter);
 app.use('/api/auth', authLimiter, authRouter);

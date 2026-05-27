@@ -1,6 +1,9 @@
+import jwt from 'jsonwebtoken';
 import { supabaseAdmin } from '../db/supabase.js';
+import { config } from '../config.js';
 
 const BUCKET = 'trabajos-grado';
+const ARCHIVO_TOKEN_TTL_SECONDS = 300;
 
 export type TipoArchivoTrabajo = 'anteproyecto' | 'proyecto-final';
 
@@ -44,6 +47,33 @@ export async function getSignedUrlTrabajoGrado(path: string, expiresIn = 300): P
 export async function deleteTrabajoGradoFile(path: string): Promise<void> {
   const { error } = await supabaseAdmin.storage.from(BUCKET).remove([path]);
   if (error) throw error;
+}
+
+/**
+ * Crea una URL en NUESTRO dominio para que el navegador pueda abrir el archivo
+ * en una pestaña nueva sin exponer la URL firmada de Supabase Storage. La URL
+ * incluye un JWT efimero (5 min) que firma el path; un endpoint publico de
+ * proxy (/api/archivos/stream) valida ese token y hace stream del archivo
+ * desde Supabase Storage al cliente.
+ */
+export function crearUrlProxyArchivo(path: string, mime: string | null | undefined): string {
+  const token = jwt.sign(
+    { p: path, m: mime ?? 'application/octet-stream' },
+    config.supabase.jwtSecret,
+    { algorithm: 'HS256', expiresIn: ARCHIVO_TOKEN_TTL_SECONDS },
+  );
+  return `/api/archivos/stream?t=${encodeURIComponent(token)}`;
+}
+
+/** Verifica un token emitido por `crearUrlProxyArchivo`. Lanza si invalido/expirado. */
+export function verificarTokenArchivo(token: string): { path: string; mime: string } {
+  const payload = jwt.verify(token, config.supabase.jwtSecret, {
+    algorithms: ['HS256'],
+  }) as jwt.JwtPayload;
+  const path = payload.p as string | undefined;
+  const mime = (payload.m as string | undefined) ?? 'application/octet-stream';
+  if (!path) throw new Error('TOKEN_INVALIDO');
+  return { path, mime };
 }
 
 /** Descarga el archivo del bucket privado a un Buffer (para adjuntar en emails). */
