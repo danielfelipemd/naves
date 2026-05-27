@@ -143,6 +143,21 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
         ${bloques}`;
     })();
 
+    // Pluralizacion: si el equipo presento mas de un proyecto BP, usamos plural
+    // ('los anteproyectos ... fueron cargados ... quedan registrados').
+    const nProyectos = args.bp?.proyectos.length ?? 1;
+    const plural = nProyectos > 1;
+    const tituloAnteproyecto = plural
+      ? 'Los anteproyectos de su equipo fueron cargados'
+      : 'El anteproyecto de su equipo fue cargado';
+    const cuerpoAnteproyecto = plural
+      ? 'Le confirmamos que los anteproyectos del equipo'
+      : 'Le confirmamos que el anteproyecto del equipo';
+    const verboAnteproyecto = plural ? 'fueron cargados' : 'fue cargado';
+    const cierreAnteproyecto = plural
+      ? 'Los anteproyectos quedan registrados de manera definitiva.'
+      : 'El anteproyecto queda registrado de manera definitiva.';
+
     for (const m of miembros) {
       let email = '';
       try { email = decryptPII(m.email_encriptado); } catch { continue; }
@@ -156,11 +171,11 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
         <div style="font-family: Arial, Helvetica, sans-serif; max-width: 620px; margin: 0 auto; color: #1a1a1a;">
           <div style="border-bottom: 3px solid #e30613; padding-bottom: 14px; margin-bottom: 22px;">
             <p style="color: #888; text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; margin: 0;">Confirmación de carga — Programa MBA</p>
-            <h2 style="color: #1a1a1a; margin: 6px 0 0 0; font-size: 22px;">El anteproyecto de su equipo fue cargado</h2>
+            <h2 style="color: #1a1a1a; margin: 6px 0 0 0; font-size: 22px;">${tituloAnteproyecto}</h2>
           </div>
           <p><strong>${m.nombre_completo}</strong>:</p>
-          <p>Reciba un cordial saludo. Le confirmamos que el anteproyecto del equipo
-          <strong>${equipoNombre}</strong> fue cargado en el sistema de trabajos de grado del
+          <p>Reciba un cordial saludo. ${cuerpoAnteproyecto}
+          <strong>${equipoNombre}</strong> ${verboAnteproyecto} en el sistema de trabajos de grado del
           MBA${cargador ? ` por ${cargador}` : ''}.${parrafoAdjunto}</p>
           <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
             <tr><td style="padding: 6px 0; color:#888; width: 40%;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
@@ -170,7 +185,7 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
             ${filaDireccion}
             <tr><td style="padding: 6px 0; color:#888;">Fecha y hora</td><td style="padding: 6px 0;"><strong>${fechaStr}</strong></td></tr>
           </table>
-          <p style="font-size: 13px; color:#555;">El anteproyecto queda registrado de manera definitiva.</p>
+          <p style="font-size: 13px; color:#555;">${cierreAnteproyecto}</p>
           ${seccionCronograma}
           <p style="margin-top: 22px;">Cordialmente,</p>
           <p style="margin: 4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
