@@ -320,8 +320,23 @@ export default function Anteproyecto() {
 
   async function enviar() {
     if (!anteId) return;
-    // Validar mínimo de hitos válidos por proyecto antes de enviar
+    // Validar que TODAS las filas de hitos esten completas. Si hay una fila
+    // visible con algun campo vacio, no se puede enviar (antes el frontend
+    // las filtraba silenciosamente y dejaba pasar el envio).
     for (const p of proyectos) {
+      for (const h of p.hitos ?? []) {
+        const faltan: string[] = [];
+        if (!h.descripcion) faltan.push('descripcion');
+        if (!h.fecha_inicio) faltan.push('fecha de inicio');
+        if (!h.fecha_fin) faltan.push('fecha de fin');
+        if (faltan.length) {
+          setMsg({
+            kind: 'err',
+            text: `El hito #${h.posicion} del proyecto "${p.nombre || `#${p.posicion}`}" está incompleto (falta: ${faltan.join(', ')}). Complétalo o elimina la fila antes de enviar.`,
+          });
+          return;
+        }
+      }
       const validos = (p.hitos ?? []).filter((h) => h.descripcion && h.fecha_inicio && h.fecha_fin).length;
       if (validos < MIN_HITOS) {
         setMsg({ kind: 'err', text: `El proyecto "${p.nombre || `#${p.posicion}`}" tiene ${validos} hito(s) completo(s). Necesitas al menos ${MIN_HITOS} hitos con descripción, fecha de inicio y fecha de fin.` });
