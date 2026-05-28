@@ -152,6 +152,10 @@ export default function Anteproyecto() {
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [envioConfirmacion, setEnvioConfirmacion] = useState<{ fechaEnvio: string; autoDefinitivo: boolean } | null>(null);
   const [autoSaveEstado, setAutoSaveEstado] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  // Refs para serializar guardados (auto + manual) y prevenir races contra
+  // el endpoint PUT que hace muchos delete/insert por debajo.
+  const savingRef = useRef(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ----- Carga inicial -----
   useEffect(() => { (async () => {
@@ -316,33 +320,57 @@ export default function Anteproyecto() {
     };
   }
 
+  function cancelAutoSaveTimer() {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+  }
+
   async function guardar() {
     if (!anteId) return;
+    if (savingRef.current) return; // ya hay un guardado en vuelo
+    cancelAutoSaveTimer();
+    savingRef.current = true;
     setBusy(true); setMsg(null);
     try {
-      await api.put(`/anteproyectos/${anteId}`, buildPayload());
+      // timeout 60s para esta ruta -- la PUT hace muchos round-trips a Supabase
+      // y un anteproyecto con 2 proyectos + 13 hitos + 3 miembros puede
+      // demorar mas que los 15s default de axios.
+      await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
       setMsg({ kind: 'ok', text: 'Borrador guardado.' });
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+      savingRef.current = false;
+    }
   }
 
   // Auto-guardado del borrador: 3 segundos despues del ultimo cambio en el
   // formulario. Asi, si la sesion se cae mientras el participante llena
   // (los tokens de Supabase expiran cada hora), no se pierde el progreso.
+  // Skip si ya hay un guardado (manual o auto) en vuelo -- evita race
+  // contra los delete/insert internos del PUT que dejaban el endpoint
+  // colgado cuando dos requests caian al mismo tiempo.
   useEffect(() => {
     if (!anteId || estado !== 'borrador' || loading) return;
     setAutoSaveEstado('idle');
-    const t = setTimeout(async () => {
+    cancelAutoSaveTimer();
+    autoSaveTimerRef.current = setTimeout(async () => {
+      if (savingRef.current) return;
+      savingRef.current = true;
       setAutoSaveEstado('saving');
       try {
-        await api.put(`/anteproyectos/${anteId}`, buildPayload());
+        await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
         setAutoSaveEstado('saved');
       } catch {
         setAutoSaveEstado('error');
+      } finally {
+        savingRef.current = false;
       }
     }, 3000);
-    return () => clearTimeout(t);
+    return cancelAutoSaveTimer;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proyectos, miembros, anteId, estado, loading]);
 
@@ -428,10 +456,16 @@ export default function Anteproyecto() {
       }
     }
     if (!confirm('Una vez enviado el anteproyecto NO podrá modificarse. ¿Continuar?')) return;
+    if (savingRef.current) {
+      setMsg({ kind: 'err', text: 'El sistema está guardando tu progreso. Espera un instante e inténtalo de nuevo.' });
+      return;
+    }
+    cancelAutoSaveTimer();
+    savingRef.current = true;
     setBusy(true); setMsg(null);
     try {
-      await api.put(`/anteproyectos/${anteId}`, buildPayload());
-      const r = await api.post(`/anteproyectos/${anteId}/enviar`);
+      await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
+      const r = await api.post(`/anteproyectos/${anteId}/enviar`, {}, { timeout: 60000 });
       setEstado('enviado');
       setEnvioConfirmacion({
         fechaEnvio: r.data?.fecha_envio ?? new Date().toISOString(),
@@ -439,7 +473,10 @@ export default function Anteproyecto() {
       });
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+      savingRef.current = false;
+    }
   }
 
   const readOnly = estado !== 'borrador';
