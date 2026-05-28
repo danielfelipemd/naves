@@ -160,6 +160,11 @@ export default function Anteproyecto() {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const periodicSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const localBackupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref que siempre apunta al buildPayload mas reciente. El setInterval del
+  // periodic save (deps minimas para que el cronometro no se resetee) lee de
+  // aqui en vez de capturar la closure inicial — si no, mandaria el state
+  // del primer render (proyectos vacios) cada 30 s.
+  const buildPayloadRef = useRef<() => unknown>(() => ({}));
 
   // Llave en localStorage para el borrador local del equipo. Sobrevive logout
   // y se restaura al volver a entrar si es mas reciente que lo del backend.
@@ -354,6 +359,10 @@ export default function Anteproyecto() {
       })),
     };
   }
+  // Mantenemos el ref apuntando al buildPayload mas reciente despues de cada
+  // render. El periodic save (setInterval) lo usa para evitar cerrar sobre el
+  // state inicial.
+  buildPayloadRef.current = buildPayload;
 
   function cancelAutoSaveTimer() {
     if (autoSaveTimerRef.current) {
@@ -400,7 +409,6 @@ export default function Anteproyecto() {
       try {
         await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
         setAutoSaveEstado('saved');
-        setLocalRecovered(false);
         // Si el backend confirmo, podemos borrar la copia local de respaldo.
         if (equipoId) {
           try { window.localStorage.removeItem(localKey(equipoId)); } catch { /* ignore */ }
@@ -445,7 +453,9 @@ export default function Anteproyecto() {
   // === Guardado periodico FORZADO al backend (cada 30s) ============
   // Cubre el caso del usuario que tipea continuamente sin parar 30s.
   // El debounce de arriba se resetea con cada tecla; este intervalo dispara
-  // si o si.
+  // si o si. Las deps son minimas a proposito (el cronometro no se reinicia
+  // con cada keystroke); el payload se lee de buildPayloadRef.current() para
+  // tomar siempre el state mas reciente sin recapturar la closure.
   useEffect(() => {
     if (!anteId || estado !== 'borrador' || loading) return;
     if (periodicSaveTimerRef.current) clearInterval(periodicSaveTimerRef.current);
@@ -454,9 +464,8 @@ export default function Anteproyecto() {
       savingRef.current = true;
       setAutoSaveEstado('saving');
       try {
-        await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
+        await api.put(`/anteproyectos/${anteId}`, buildPayloadRef.current(), { timeout: 60000 });
         setAutoSaveEstado('saved');
-        setLocalRecovered(false);
         if (equipoId) {
           try { window.localStorage.removeItem(localKey(equipoId)); } catch { /* ignore */ }
         }
@@ -469,7 +478,6 @@ export default function Anteproyecto() {
     return () => {
       if (periodicSaveTimerRef.current) clearInterval(periodicSaveTimerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anteId, estado, loading, equipoId]);
 
   async function enviar() {
@@ -671,12 +679,20 @@ export default function Anteproyecto() {
           {localRecovered && !readOnly && (
             <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-sm mb-6 flex items-start gap-3">
               <span className="text-lg leading-none">🔄</span>
-              <div>
+              <div className="flex-1">
                 <p className="font-semibold text-inalde-text">Recuperamos tu progreso del intento anterior</p>
                 <p className="text-inalde-gray mt-1">
                   Detectamos cambios guardados localmente que aún no se habían enviado al servidor. Los cargamos automáticamente para que no pierdas tu trabajo. Continúa donde quedaste y el sistema seguirá guardando.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setLocalRecovered(false)}
+                aria-label="Cerrar aviso de recuperación"
+                className="text-inalde-gray hover:text-inalde-red font-bold text-lg leading-none px-2"
+              >
+                ×
+              </button>
             </div>
           )}
 

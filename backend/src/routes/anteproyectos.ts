@@ -79,7 +79,10 @@ const hitoSchema = z.object({
 
 const proyectoSchema = z.object({
   posicion: z.number().int().min(1).max(2),
-  nombre: z.string().min(1).max(150),
+  // Permitimos nombre vacio en borrador (autoguardado dispara mientras el
+  // participante esta llenando). La validacion de "no vacio al enviar" vive
+  // en POST /:id/enviar.
+  nombre: z.string().max(150),
   tipo: z.enum(['emprendimiento', 'intraemprendimiento']),
   sector: z.string().max(100).optional(),
   ciiu: z.string().regex(/^\d{4}$/).optional(),
@@ -347,6 +350,17 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     .select('id, nombre, tipo, sector, ciiu, hitos ( posicion, descripcion, fecha_inicio, fecha_fin )')
     .eq('anteproyecto_id', req.params.id);
   if (!proyectos || proyectos.length === 0) return res.status(400).json({ error: 'NO_PROYECTOS' });
+
+  // Cada proyecto debe tener nombre antes de enviar. El borrador admite
+  // nombre vacio para que el autoguardado funcione mientras se escribe.
+  for (const p of proyectos as any[]) {
+    if (!p.nombre || !String(p.nombre).trim()) {
+      return res.status(400).json({
+        error: 'NOMBRE_PROYECTO_REQUERIDO',
+        mensaje: 'Cada proyecto debe tener un nombre antes de enviar.',
+      });
+    }
+  }
 
   // Mínimo 5 hitos completos (descripcion + ambas fechas) por proyecto
   for (const p of proyectos as any[]) {
