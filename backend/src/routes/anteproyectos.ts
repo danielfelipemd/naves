@@ -77,15 +77,17 @@ const hitoSchema = z.object({
   fecha_fin: z.string(),
 });
 
+// Permite '' (string vacio) para enums/regex: el autoguardado dispara mientras
+// el participante esta llenando y muchas veces los campos llegan a vacio en
+// transiciones de re-render. La validacion de "no vacio al enviar" vive en
+// POST /:id/enviar.
+const emptyToUndef = (v: unknown) => (v === '' ? undefined : v);
 const proyectoSchema = z.object({
   posicion: z.number().int().min(1).max(2),
-  // Permitimos nombre vacio en borrador (autoguardado dispara mientras el
-  // participante esta llenando). La validacion de "no vacio al enviar" vive
-  // en POST /:id/enviar.
   nombre: z.string().max(150),
-  tipo: z.enum(['emprendimiento', 'intraemprendimiento']),
+  tipo: z.preprocess(emptyToUndef, z.enum(['emprendimiento', 'intraemprendimiento']).optional()),
   sector: z.string().max(100).optional(),
-  ciiu: z.string().regex(/^\d{4}$/).optional(),
+  ciiu: z.preprocess(emptyToUndef, z.string().regex(/^\d{4}$/).optional()),
   canvas_cliente: z.string().max(1000).optional(),
   canvas_problema: z.string().max(1000).optional(),
   canvas_solucion: z.string().max(1000).optional(),
@@ -96,7 +98,7 @@ const proyectoSchema = z.object({
   canvas_actividades: z.string().max(300).optional(),
   canvas_socios: z.string().max(300).optional(),
   canvas_costos: z.string().max(300).optional(),
-  estado: z.enum(['idea', 'investigacion', 'prototipo', 'validacion', 'funcionamiento']).optional(),
+  estado: z.preprocess(emptyToUndef, z.enum(['idea', 'investigacion', 'prototipo', 'validacion', 'funcionamiento']).optional()),
   fuentes_primarias: z.string().max(300).optional(),
   fuentes_secundarias: z.string().max(300).optional(),
   hitos: z.array(hitoSchema).max(10),
@@ -351,13 +353,20 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     .eq('anteproyecto_id', req.params.id);
   if (!proyectos || proyectos.length === 0) return res.status(400).json({ error: 'NO_PROYECTOS' });
 
-  // Cada proyecto debe tener nombre antes de enviar. El borrador admite
-  // nombre vacio para que el autoguardado funcione mientras se escribe.
+  // Cada proyecto debe tener nombre y tipo antes de enviar. El borrador
+  // admite estos campos vacios para que el autoguardado funcione mientras
+  // se escribe.
   for (const p of proyectos as any[]) {
     if (!p.nombre || !String(p.nombre).trim()) {
       return res.status(400).json({
         error: 'NOMBRE_PROYECTO_REQUERIDO',
         mensaje: 'Cada proyecto debe tener un nombre antes de enviar.',
+      });
+    }
+    if (!p.tipo) {
+      return res.status(400).json({
+        error: 'TIPO_PROYECTO_REQUERIDO',
+        mensaje: `Elige el tipo (Emprendimiento / Intraemprendimiento) del proyecto "${p.nombre}".`,
       });
     }
   }
