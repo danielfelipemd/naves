@@ -7,15 +7,26 @@ import { buildSabanaPDF } from '../services/pdf.js';
 const router = Router();
 router.use(requireAuth());
 
-/**
- * POST /api/sabana/:cohorteId/generar
- * Solo super_admin. Construye snapshot consolidado de todos los proyectos de la cohorte.
- */
-router.post('/:cohorteId/generar', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
-  const { cohorteId } = req.params;
-  const { data: coh } = await supabaseAdmin.from('cohortes').select('id').eq('id', cohorteId).maybeSingle();
-  if (!coh) return res.status(404).json({ error: 'COHORTE_NOT_FOUND' });
+type SnapEntry = {
+  equipo_id: string;
+  equipo_nombre: string | null;
+  proyecto_id: string;
+  proyecto_nombre: string;
+  sector: string | null;
+  ciiu: string | null;
+  tipo: string | null;
+  estado_seleccion: string | null;
+  resumen: string;
+  miembros: Array<{ nombre: string; posicion: number }>;
+};
 
+/**
+ * Regenera el snapshot de la sabana para una cohorte. Lo invocan tanto
+ * el POST /:cohorteId/generar (admin manual) como POST /anteproyectos/:id/enviar
+ * (automatico al enviar un anteproyecto, para que la sabana este al dia
+ * sin que el admin tenga que tocar nada).
+ */
+export async function regenerarSabana(cohorteId: string): Promise<{ ok: true; proyectos: number } | { ok: false; error: string }> {
   const { data: equipos, error } = await supabaseAdmin
     .from('equipos')
     .select(`
@@ -30,22 +41,9 @@ router.post('/:cohorteId/generar', requireRole('super_admin'), async (req: Authe
       )
     `)
     .eq('cohorte_id', cohorteId);
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) return { ok: false, error: error.message };
 
-  type Snap = {
-    equipo_id: string;
-    equipo_nombre: string | null;
-    proyecto_id: string;
-    proyecto_nombre: string;
-    sector: string | null;
-    ciiu: string | null;
-    tipo: string | null;
-    estado_seleccion: string | null;
-    resumen: string;
-    miembros: Array<{ nombre: string; posicion: number }>;
-  };
-
-  const snapshot: Snap[] = [];
+  const snapshot: SnapEntry[] = [];
   for (const eq of equipos ?? []) {
     const ant = (eq.anteproyectos as any[])?.[0];
     if (!ant || ant.estado !== 'enviado') continue;
@@ -72,11 +70,27 @@ router.post('/:cohorteId/generar', requireRole('super_admin'), async (req: Authe
     }
   }
 
-  await supabaseAdmin
+  const { error: upErr } = await supabaseAdmin
     .from('sabanas_proyectos')
     .upsert({ cohorte_id: cohorteId, estado: 'generada', snapshot }, { onConflict: 'cohorte_id' });
+  if (upErr) return { ok: false, error: upErr.message };
+  return { ok: true, proyectos: snapshot.length };
+}
 
-  res.json({ cohorte_id: cohorteId, proyectos: snapshot.length, snapshot });
+/**
+ * POST /api/sabana/:cohorteId/generar
+ * Solo super_admin. Construye snapshot consolidado de todos los proyectos de la cohorte.
+ * Tambien se invoca automaticamente al enviar un anteproyecto (ver regenerarSabana).
+ */
+router.post('/:cohorteId/generar', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
+  const { cohorteId } = req.params;
+  const { data: coh } = await supabaseAdmin.from('cohortes').select('id').eq('id', cohorteId).maybeSingle();
+  if (!coh) return res.status(404).json({ error: 'COHORTE_NOT_FOUND' });
+
+  const result = await regenerarSabana(cohorteId);
+  if (!result.ok) return res.status(500).json({ error: result.error });
+
+  res.json({ cohorte_id: cohorteId, proyectos: result.proyectos });
 });
 
 /**

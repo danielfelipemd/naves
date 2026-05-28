@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
 import { crearUrlProxyArchivo } from '../services/storage.js';
 import { notificarRegistroAnteproyectoAParticipantes } from '../services/notificaciones-anteproyecto.js';
+import { regenerarSabana } from './sabana.js';
 
 const router = Router();
 router.use(requireAuth());
@@ -288,7 +289,7 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     .select(`
       id, equipo_id, estado,
       archivo_anteproyecto_path, archivo_proyecto_final_path,
-      equipos:equipos!inner ( tipo_trabajo_grado )
+      equipos:equipos!inner ( tipo_trabajo_grado, cohorte_id )
     `)
     .eq('id', req.params.id)
     .maybeSingle();
@@ -324,6 +325,12 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
       modalidad: modalidad as 'business_plan' | 'caso' | 'proyecto_investigacion' | null,
       fechaIso: fechaEnvio,
     });
+
+    // Regenerar el snapshot de la sabana de la cohorte para que el admin
+    // vea el equipo recien enviado sin tener que tocar "Generar" a mano.
+    const cohorteId = (ant.equipos as any)?.cohorte_id;
+    if (cohorteId) void regenerarSabana(cohorteId).catch(() => { /* best effort */ });
+
     return res.json({ ok: true, modalidad, fecha_envio: fechaEnvio });
   }
 
@@ -419,6 +426,11 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
       })),
     },
   });
+  // Regenerar el snapshot de la sabana de la cohorte para que el admin
+  // vea el equipo recien enviado sin tener que tocar "Generar" a mano.
+  const cohorteId = (ant.equipos as any)?.cohorte_id;
+  if (cohorteId) void regenerarSabana(cohorteId).catch(() => { /* best effort */ });
+
   res.json({
     ok: true,
     modalidad: 'business_plan',
