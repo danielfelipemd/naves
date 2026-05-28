@@ -152,10 +152,18 @@ export default function Anteproyecto() {
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [envioConfirmacion, setEnvioConfirmacion] = useState<{ fechaEnvio: string; autoDefinitivo: boolean } | null>(null);
   const [autoSaveEstado, setAutoSaveEstado] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [equipoId, setEquipoId] = useState<string | null>(null);
+  const [localRecovered, setLocalRecovered] = useState(false);
   // Refs para serializar guardados (auto + manual) y prevenir races contra
   // el endpoint PUT que hace muchos delete/insert por debajo.
   const savingRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const periodicSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const localBackupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Llave en localStorage para el borrador local del equipo. Sobrevive logout
+  // y se restaura al volver a entrar si es mas reciente que lo del backend.
+  function localKey(eqId: string) { return `naves-anteproyecto-draft-${eqId}`; }
 
   // ----- Carga inicial -----
   useEffect(() => { (async () => {
@@ -163,6 +171,8 @@ export default function Anteproyecto() {
     try {
       const eq = await api.get('/equipos/mi-equipo');
       if (!eq.data.equipo) { navigate('/equipo'); return; }
+      const eqId = eq.data.equipo.id;
+      setEquipoId(eqId);
       setEquipoNombre(eq.data.equipo.nombre_equipo ?? '');
       setBuscandoSocios(eq.data.equipo.buscando_socios ?? null);
       setBuscandoAsociacion(eq.data.equipo.buscando_asociacion_otro_proyecto ?? null);
@@ -188,12 +198,15 @@ export default function Anteproyecto() {
       ]);
       if (coh.data.cohorte) setCohorte(coh.data.cohorte);
 
+      // Datos del backend
+      let proyectosFromBackend: Proyecto[] | null = null;
+      let backendUpdatedAt = '';
       if (ant.data.anteproyecto) {
         setAnteId(ant.data.anteproyecto.id);
         setEstado(ant.data.anteproyecto.estado);
+        backendUpdatedAt = ant.data.anteproyecto.fecha_actualizacion ?? '';
         const ps: any[] = ant.data.anteproyecto.proyectos ?? [];
         if (ps.length) {
-          // Normalizar NULLs de la BD a strings vacíos para evitar `.trim()` sobre null
           const cleanProj = (p: any): Proyecto => {
             const base = emptyProyecto(p.posicion);
             const result: any = { ...base };
@@ -207,8 +220,30 @@ export default function Anteproyecto() {
               : base.hitos;
             return result as Proyecto;
           };
-          setProyectos(ps.sort((a, b) => a.posicion - b.posicion).map(cleanProj));
+          proyectosFromBackend = ps.sort((a, b) => a.posicion - b.posicion).map(cleanProj);
         }
+      }
+
+      // Revisar copia local: si es mas reciente que el backend, restaurar.
+      // Sobrevive logout / refresh / token expirado.
+      try {
+        const raw = window.localStorage.getItem(localKey(eqId));
+        if (raw) {
+          const local = JSON.parse(raw) as { savedAt: string; proyectos: Proyecto[]; buscandoSocios: boolean | null; buscandoAsociacion: boolean | null };
+          const localIsNewer = !backendUpdatedAt || (local.savedAt && local.savedAt > backendUpdatedAt);
+          if (localIsNewer && Array.isArray(local.proyectos) && local.proyectos.length > 0) {
+            setProyectos(local.proyectos);
+            if (local.buscandoSocios !== undefined) setBuscandoSocios(local.buscandoSocios);
+            if (local.buscandoAsociacion !== undefined) setBuscandoAsociacion(local.buscandoAsociacion);
+            setLocalRecovered(true);
+          } else if (proyectosFromBackend) {
+            setProyectos(proyectosFromBackend);
+          }
+        } else if (proyectosFromBackend) {
+          setProyectos(proyectosFromBackend);
+        }
+      } catch {
+        if (proyectosFromBackend) setProyectos(proyectosFromBackend);
       }
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
@@ -353,6 +388,7 @@ export default function Anteproyecto() {
   // Skip si ya hay un guardado (manual o auto) en vuelo -- evita race
   // contra los delete/insert internos del PUT que dejaban el endpoint
   // colgado cuando dos requests caian al mismo tiempo.
+  // Debounce CORTO (1s) para que la copia al backend se sienta inmediata.
   useEffect(() => {
     if (!anteId || estado !== 'borrador' || loading) return;
     setAutoSaveEstado('idle');
@@ -364,15 +400,77 @@ export default function Anteproyecto() {
       try {
         await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
         setAutoSaveEstado('saved');
+        setLocalRecovered(false);
+        // Si el backend confirmo, podemos borrar la copia local de respaldo.
+        if (equipoId) {
+          try { window.localStorage.removeItem(localKey(equipoId)); } catch { /* ignore */ }
+        }
       } catch {
         setAutoSaveEstado('error');
       } finally {
         savingRef.current = false;
       }
-    }, 3000);
+    }, 1000);
     return cancelAutoSaveTimer;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proyectos, miembros, anteId, estado, loading]);
+  }, [proyectos, miembros, anteId, estado, loading, equipoId, buscandoSocios, buscandoAsociacion]);
+
+  // === Copia LOCAL (localStorage) — sobrevive logout / refresh / token expirado ===
+  // Se escribe de manera SINCRONA en cada cambio del formulario. Si el backend
+  // falla o la sesion se cae, el usuario al volver a entrar restaura este
+  // backup automaticamente (ver useEffect de carga inicial).
+  useEffect(() => {
+    if (!equipoId || estado !== 'borrador' || loading) return;
+    // Debounce minimo (250ms) solo para no martillar localStorage en cada
+    // pulsacion. localStorage es sincrono y rapido, pero JSON.stringify de
+    // proyectos grandes vale evitar en cada keystroke.
+    if (localBackupTimerRef.current) clearTimeout(localBackupTimerRef.current);
+    localBackupTimerRef.current = setTimeout(() => {
+      try {
+        const snapshot = {
+          savedAt: new Date().toISOString(),
+          proyectos,
+          buscandoSocios,
+          buscandoAsociacion,
+        };
+        window.localStorage.setItem(localKey(equipoId), JSON.stringify(snapshot));
+      } catch { /* localStorage lleno / privado: best effort */ }
+    }, 250);
+    return () => {
+      if (localBackupTimerRef.current) clearTimeout(localBackupTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proyectos, buscandoSocios, buscandoAsociacion, equipoId, estado, loading]);
+
+  // === Guardado periodico FORZADO al backend (cada 30s) ============
+  // Cubre el caso del usuario que tipea continuamente sin parar 30s.
+  // El debounce de arriba se resetea con cada tecla; este intervalo dispara
+  // si o si.
+  useEffect(() => {
+    if (!anteId || estado !== 'borrador' || loading) return;
+    if (periodicSaveTimerRef.current) clearInterval(periodicSaveTimerRef.current);
+    periodicSaveTimerRef.current = setInterval(async () => {
+      if (savingRef.current) return;
+      savingRef.current = true;
+      setAutoSaveEstado('saving');
+      try {
+        await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
+        setAutoSaveEstado('saved');
+        setLocalRecovered(false);
+        if (equipoId) {
+          try { window.localStorage.removeItem(localKey(equipoId)); } catch { /* ignore */ }
+        }
+      } catch {
+        setAutoSaveEstado('error');
+      } finally {
+        savingRef.current = false;
+      }
+    }, 30000);
+    return () => {
+      if (periodicSaveTimerRef.current) clearInterval(periodicSaveTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anteId, estado, loading, equipoId]);
 
   async function enviar() {
     if (!anteId) return;
@@ -567,6 +665,18 @@ export default function Anteproyecto() {
           {readOnly && (
             <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-sm mb-6">
               Este anteproyecto ya fue enviado. Sólo puede modificarse desde el panel de administración.
+            </div>
+          )}
+
+          {localRecovered && !readOnly && (
+            <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-sm mb-6 flex items-start gap-3">
+              <span className="text-lg leading-none">🔄</span>
+              <div>
+                <p className="font-semibold text-inalde-text">Recuperamos tu progreso del intento anterior</p>
+                <p className="text-inalde-gray mt-1">
+                  Detectamos cambios guardados localmente que aún no se habían enviado al servidor. Los cargamos automáticamente para que no pierdas tu trabajo. Continúa donde quedaste y el sistema seguirá guardando.
+                </p>
+              </div>
             </div>
           )}
 
