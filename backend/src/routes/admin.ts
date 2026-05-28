@@ -10,6 +10,7 @@ import { buildAnteproyectoPDF } from '../services/pdf.js';
 import { sendEmail } from '../services/email.js';
 import { AREAS_AFINIDAD } from '../lib/areas.js';
 import { normalizeHeaderKey, findCol, cellStr, cellBool, buildTemplateXlsx } from '../lib/excel.js';
+import { copyPerfilParticipanteAMiembro } from './equipos.js';
 
 const AREAS_LOWER = new Map<string, string>(AREAS_AFINIDAD.map((a) => [a.toLowerCase(), a]));
 function matchAreas(raw: string[]): string[] {
@@ -1481,6 +1482,192 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
     profesores_fallados: profesoresFallados,
     fallos: fallos.slice(0, 20),
   });
+});
+
+// =====================================================================
+// GESTION DE EQUIPOS DESDE EL PANEL DEL SUPER_ADMIN
+// =====================================================================
+
+// GET /api/admin/equipos?cohorte_id=...
+// Lista equipos de la cohorte con sus miembros + datos de descifrado.
+router.get('/equipos', async (req, res) => {
+  const cohorteId = String(req.query.cohorte_id ?? '').trim();
+  if (!cohorteId) return res.status(400).json({ error: 'MISSING_COHORTE' });
+  const { data, error } = await supabaseAdmin
+    .from('equipos')
+    .select(`
+      id, nombre_equipo, cohorte_id, tipo_trabajo_grado, creador_id, fecha_creacion,
+      miembros_equipo (
+        id, posicion, perfil, fue_emprendedor,
+        participantes_lista ( id, nombre_completo, estado, perfil_completo_at )
+      ),
+      anteproyectos ( id, estado )
+    `)
+    .eq('cohorte_id', cohorteId)
+    .order('fecha_creacion', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ equipos: data ?? [] });
+});
+
+// GET /api/admin/equipos/:id
+// Detalle del equipo (igual que list pero un solo registro).
+router.get('/equipos/:id', async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('equipos')
+    .select(`
+      id, nombre_equipo, cohorte_id, tipo_trabajo_grado, creador_id, fecha_creacion,
+      miembros_equipo (
+        id, posicion, perfil, fue_emprendedor,
+        participantes_lista ( id, nombre_completo, estado, perfil_completo_at )
+      ),
+      anteproyectos ( id, estado )
+    `)
+    .eq('id', req.params.id)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: 'NOT_FOUND' });
+  res.json({ equipo: data });
+});
+
+// GET /api/admin/cohortes/:id/participantes-disponibles?modalidad=...
+// Lista participantes de la cohorte que tienen la modalidad indicada y no
+// estan en ningun equipo. Sirve para el dropdown "agregar miembro".
+router.get('/cohortes/:id/participantes-disponibles', async (req, res) => {
+  const modalidad = String(req.query.modalidad ?? '').trim();
+  if (!modalidad) return res.status(400).json({ error: 'MISSING_MODALIDAD' });
+
+  const { data: participantes } = await supabaseAdmin
+    .from('participantes_lista')
+    .select('id, nombre_completo, estado, perfil_completo_at')
+    .eq('cohorte_id', req.params.id)
+    .eq('tipo_trabajo_grado', modalidad)
+    .order('nombre_completo');
+
+  // Quitar los que ya estan en un equipo
+  const ids = (participantes ?? []).map((p) => p.id);
+  if (ids.length === 0) return res.json({ participantes: [] });
+  const { data: enEquipo } = await supabaseAdmin
+    .from('miembros_equipo')
+    .select('participante_id')
+    .in('participante_id', ids);
+  const ocupados = new Set((enEquipo ?? []).map((m: any) => m.participante_id));
+  res.json({
+    participantes: (participantes ?? []).filter((p) => !ocupados.has(p.id)),
+  });
+});
+
+// POST /api/admin/equipos/:id/agregar-miembro { participante_id }
+// El super_admin agrega un participante al equipo. Mismas reglas que el
+// flujo del participante (misma cohorte, misma modalidad, no estar en otro
+// equipo). Si el participante no completo perfil, NO bloqueamos al admin
+// pero copiamos lo que haya.
+const adminAgregarMiembroSchema = z.object({
+  participante_id: z.string().uuid(),
+});
+router.post('/equipos/:id/agregar-miembro', async (req, res) => {
+  const parsed = adminAgregarMiembroSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const { data: equipo } = await supabaseAdmin
+    .from('equipos').select('id, cohorte_id, tipo_trabajo_grado').eq('id', req.params.id).maybeSingle();
+  if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
+
+  const { data: target } = await supabaseAdmin
+    .from('participantes_lista')
+    .select('id, cohorte_id, tipo_trabajo_grado')
+    .eq('id', parsed.data.participante_id)
+    .maybeSingle();
+  if (!target) return res.status(404).json({ error: 'PARTICIPANT_NOT_FOUND' });
+  if (target.cohorte_id !== equipo.cohorte_id) return res.status(400).json({ error: 'COHORTE_MISMATCH' });
+  if (!target.tipo_trabajo_grado) return res.status(400).json({ error: 'TARGET_SIN_MODALIDAD' });
+  if (target.tipo_trabajo_grado !== equipo.tipo_trabajo_grado) {
+    return res.status(400).json({
+      error: 'MODALIDAD_MISMATCH',
+      equipo: equipo.tipo_trabajo_grado,
+      target: target.tipo_trabajo_grado,
+    });
+  }
+
+  const { data: alreadyIn } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', target.id).maybeSingle();
+  if (alreadyIn) return res.status(409).json({ error: 'ALREADY_IN_TEAM', equipo_id: alreadyIn.equipo_id });
+
+  // Tamaño max del equipo: 3 personas
+  const { count } = await supabaseAdmin
+    .from('miembros_equipo').select('id', { count: 'exact', head: true }).eq('equipo_id', req.params.id);
+  if ((count ?? 0) >= 3) return res.status(409).json({ error: 'TEAM_FULL', max: 3 });
+
+  // Calcular siguiente posicion libre (1, 2 o 3)
+  const { data: posiciones } = await supabaseAdmin
+    .from('miembros_equipo').select('posicion').eq('equipo_id', req.params.id);
+  const usadas = new Set((posiciones ?? []).map((p) => p.posicion));
+  let nuevaPos = 1;
+  while (usadas.has(nuevaPos)) nuevaPos++;
+
+  const { data: nuevoMiembro, error } = await supabaseAdmin
+    .from('miembros_equipo')
+    .insert({ equipo_id: req.params.id, participante_id: target.id, posicion: nuevaPos })
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  if (nuevoMiembro) await copyPerfilParticipanteAMiembro(target.id, nuevoMiembro.id);
+
+  // Quitar el flag de espera
+  await supabaseAdmin.from('participantes_lista')
+    .update({ esperando_equipo_at: null }).eq('id', target.id);
+
+  res.status(201).json({ miembro: nuevoMiembro });
+});
+
+// POST /api/admin/equipos/:id/remover-miembro { participante_id }
+// Quita un miembro del equipo. Si era el creador y quedan otros miembros,
+// promueve al siguiente (por posicion) como nuevo creador. Si era el ultimo,
+// el equipo queda vacio (el admin decidio mantenerlo asi).
+const adminRemoverMiembroSchema = z.object({
+  participante_id: z.string().uuid(),
+});
+router.post('/equipos/:id/remover-miembro', async (req, res) => {
+  const parsed = adminRemoverMiembroSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const { data: equipo } = await supabaseAdmin
+    .from('equipos').select('id, creador_id').eq('id', req.params.id).maybeSingle();
+  if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
+
+  const { data: miembro } = await supabaseAdmin
+    .from('miembros_equipo').select('id')
+    .eq('equipo_id', req.params.id).eq('participante_id', parsed.data.participante_id)
+    .maybeSingle();
+  if (!miembro) return res.status(404).json({ error: 'NOT_IN_TEAM' });
+
+  // Si el saliente era el creador, promover al miembro de menor posicion entre los restantes
+  if (equipo.creador_id === parsed.data.participante_id) {
+    const { data: restantes } = await supabaseAdmin
+      .from('miembros_equipo')
+      .select('participante_id, posicion')
+      .eq('equipo_id', req.params.id)
+      .neq('participante_id', parsed.data.participante_id)
+      .order('posicion');
+    const sucesor = (restantes ?? [])[0]?.participante_id;
+    if (sucesor) {
+      await supabaseAdmin.from('equipos').update({ creador_id: sucesor }).eq('id', req.params.id);
+    } else {
+      // No hay sucesor: dejamos el equipo sin creador (queda vacio).
+      // Importante: equipos.creador_id es NOT NULL, asi que no podemos
+      // hacer null. En su lugar dejamos el creador_id apuntando al que
+      // se va (huerfano funcional) — el equipo queda sin miembros pero
+      // mantiene el registro historico.
+    }
+  }
+
+  await supabaseAdmin.from('miembros_equipo').delete().eq('id', miembro.id);
+
+  // Si el equipo queda vacio, el participante removido recupera su flag de
+  // espera (puede volver a unirse a otro equipo).
+  await supabaseAdmin.from('participantes_lista')
+    .update({ esperando_equipo_at: new Date().toISOString() })
+    .eq('id', parsed.data.participante_id);
+
+  res.json({ ok: true });
 });
 
 export default router;

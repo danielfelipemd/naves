@@ -64,8 +64,10 @@ router.get('/mi-equipo', async (req: AuthenticatedRequest, res) => {
 /**
  * Copia el perfil emprendedor del participante a su fila en miembros_equipo.
  * Se invoca al crear equipo (con el creador) y al agregar miembros.
+ * Exportada para que admin.ts pueda reutilizarla al editar miembros desde
+ * el panel de super_admin.
  */
-async function copyPerfilParticipanteAMiembro(participanteId: string, miembroId: string): Promise<void> {
+export async function copyPerfilParticipanteAMiembro(participanteId: string, miembroId: string): Promise<void> {
   const { data: p } = await supabaseAdmin
     .from('participantes_lista')
     .select('perfil, fue_emprendedor, quiebra, aprendizajes_quiebra')

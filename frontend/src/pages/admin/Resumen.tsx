@@ -44,6 +44,11 @@ const SECTIONS: Section[] = [
     hint: (d) => `${d.antesEnviados} enviados`,
   },
   {
+    to: '/admin/equipos', icon: '👥',
+    title: 'Equipos',
+    desc: 'Edita los miembros de los equipos ya creados. Agrega o quita participantes de cada equipo.',
+  },
+  {
     to: '/admin/sabana', icon: '📑',
     title: 'Sábana de proyectos',
     desc: 'Vista consolidada por cohorte para la reunión de asignación. Genera, sugiere asignaciones y comunica a los equipos.',

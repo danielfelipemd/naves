@@ -20,6 +20,7 @@ import AdminParticipantes from './pages/admin/Participantes';
 import AdminProfesores from './pages/admin/Profesores';
 import AdminDirectores from './pages/admin/Directores';
 import AdminAnteproyectos from './pages/admin/Anteproyectos';
+import AdminEquipos from './pages/admin/Equipos';
 import AdminAnteproyectoDetail from './pages/admin/AnteproyectoDetail';
 import AdminSabana from './pages/admin/Sabana';
 import AdminSolicitudes from './pages/admin/Solicitudes';
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="directores" element={<AdminDirectores />} />
           <Route path="anteproyectos" element={<AdminAnteproyectos />} />
           <Route path="anteproyectos/:id" element={<AdminAnteproyectoDetail />} />
+          <Route path="equipos" element={<AdminEquipos />} />
           <Route path="sabana" element={<AdminSabana />} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
           <Route path="auditoria" element={<AdminAuditoria />} />
