@@ -173,6 +173,14 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
     .maybeSingle();
   if (!ant) return res.status(404).json({ error: 'NOT_FOUND' });
 
+  // GUARDRAIL: si el anteproyecto ya fue enviado, rechazamos el PUT. Esto
+  // protege contra autoguardados tardios que llegan despues del envio y
+  // podrian sobreescribir datos ya entregados. Es lo que permite quitar el
+  // bloqueo preventivo del boton "Enviar" en el frontend.
+  if (ant.estado !== 'borrador') {
+    return res.status(409).json({ error: 'ALREADY_SUBMITTED', estado: ant.estado });
+  }
+
   const { data: yoMiembro } = await supabaseAdmin
     .from('miembros_equipo')
     .select('equipo_id')

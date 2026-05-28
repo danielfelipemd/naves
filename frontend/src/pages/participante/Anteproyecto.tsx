@@ -542,10 +542,11 @@ export default function Anteproyecto() {
       }
     }
     if (!confirm('Una vez enviado el anteproyecto NO podrá modificarse. ¿Continuar?')) return;
-    if (savingRef.current) {
-      setMsg({ kind: 'err', text: 'El sistema está guardando tu progreso. Espera un instante e inténtalo de nuevo.' });
-      return;
-    }
+    // Cancelamos cualquier autoguardado debounced pendiente. Si hay uno en
+    // vuelo, NO lo esperamos: el PUT del envio incluye el state actual
+    // completo y el backend rechaza con 409 cualquier autoguardado tardio que
+    // llegue despues — antes mostrabamos un mensaje que obligaba al
+    // participante a refrescar la pagina.
     cancelAutoSaveTimer();
     savingRef.current = true;
     setBusy(true); setMsg(null);
