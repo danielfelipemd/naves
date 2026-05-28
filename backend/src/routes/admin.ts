@@ -1186,7 +1186,8 @@ router.get('/anteproyectos', async (req, res) => {
       archivo_anteproyecto_path, archivo_proyecto_final_path,
       anteproyecto_aprobado_at,
       equipos!inner ( id, nombre_equipo, cohorte_id, tipo_trabajo_grado,
-        director:directores ( id, nombre_completo ) ),
+        director:directores ( id, nombre_completo ),
+        miembros_equipo ( posicion, participantes_lista ( nombre_completo ) ) ),
       proyectos ( id, nombre, sector, estado_seleccion )
     `)
     .order('fecha_actualizacion', { ascending: false });

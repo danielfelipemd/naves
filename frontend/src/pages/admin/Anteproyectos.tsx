@@ -5,7 +5,12 @@ import { api } from '../../lib/api';
 interface Cohorte { id: string; etiqueta: string; }
 interface Item {
   id: string; estado: string; fecha_envio: string | null; fecha_actualizacion: string;
-  equipos: { id: string; nombre_equipo: string | null; cohorte_id: string };
+  equipos: {
+    id: string;
+    nombre_equipo: string | null;
+    cohorte_id: string;
+    miembros_equipo?: Array<{ posicion: number; participantes_lista: { nombre_completo: string } | null }>;
+  };
   proyectos: Array<{ id: string; nombre: string; sector: string | null; estado_seleccion: string }>;
 }
 
@@ -57,7 +62,7 @@ export default function AnteproyectosList() {
         <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-inalde-gray-bg text-left">
             <tr>
-              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Equipo</th>
+              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Integrantes</th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Cohorte</th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Proyectos</th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Estado</th>
@@ -68,7 +73,21 @@ export default function AnteproyectosList() {
             {items.map((it) => (
               <tr key={it.id} className="border-t border-inalde-gray-light hover:bg-inalde-gray-bg/40 cursor-pointer"
                 onClick={() => navigate(`/admin/anteproyectos/${it.id}`)}>
-                <td className="px-3 py-2 font-medium">{it.equipos.nombre_equipo ?? '(sin nombre)'}</td>
+                <td className="px-3 py-2">
+                  {(() => {
+                    const miembros = (it.equipos.miembros_equipo ?? [])
+                      .slice()
+                      .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
+                      .map((m) => m.participantes_lista?.nombre_completo)
+                      .filter(Boolean);
+                    if (!miembros.length) return <em className="text-inalde-gray">sin integrantes</em>;
+                    return (
+                      <ul className="text-xs leading-snug space-y-0.5">
+                        {miembros.map((n, i) => <li key={i}>{n}</li>)}
+                      </ul>
+                    );
+                  })()}
+                </td>
                 <td className="px-3 py-2 text-xs text-inalde-gray">{it.equipos.cohorte_id}</td>
                 <td className="px-3 py-2 text-xs">
                   {it.proyectos.map((p) => (
