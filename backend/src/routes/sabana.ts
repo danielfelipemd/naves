@@ -7,6 +7,15 @@ import { buildSabanaPDF } from '../services/pdf.js';
 const router = Router();
 router.use(requireAuth());
 
+// PostgREST devuelve la relacion equipos -> anteproyectos como OBJETO (no
+// array) porque anteproyectos.equipo_id es UNIQUE (relacion 1:1). El codigo
+// historico esperaba array; aceptamos ambas formas para no depender de
+// como infiera PostgREST la cardinalidad.
+function pickAnteproyecto(raw: unknown): any | undefined {
+  if (!raw) return undefined;
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
 type SnapEntry = {
   equipo_id: string;
   equipo_nombre: string | null;
@@ -45,7 +54,7 @@ export async function regenerarSabana(cohorteId: string): Promise<{ ok: true; pr
 
   const snapshot: SnapEntry[] = [];
   for (const eq of equipos ?? []) {
-    const ant = (eq.anteproyectos as any[])?.[0];
+    const ant = pickAnteproyecto(eq.anteproyectos);
     if (!ant || ant.estado !== 'enviado') continue;
     for (const p of (ant.proyectos as any[]) ?? []) {
       snapshot.push({
@@ -216,7 +225,7 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
 
     let proyectos: Proyecto[] = [];
     if (modalidad === 'business_plan') {
-      const ant = (eq.anteproyectos as any[])?.[0];
+      const ant = pickAnteproyecto(eq.anteproyectos);
       proyectos = ((ant?.proyectos ?? []) as any[])
         .filter((p) => p.estado_seleccion !== 'archivado')
         .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
