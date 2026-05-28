@@ -133,7 +133,7 @@ export default function AdminEquipos() {
                     {MODALIDAD_LABEL[eq.tipo_trabajo_grado] ?? eq.tipo_trabajo_grado}
                   </span>
                 </div>
-                <p className="text-xs text-inalde-gray mb-2">{eq.miembros_equipo.length} de 3 miembros{estadoAnte ? ` · anteproyecto ${estadoAnte}` : ''}</p>
+                <p className="text-xs text-inalde-gray mb-2">{eq.miembros_equipo.length} miembro{eq.miembros_equipo.length === 1 ? '' : 's'}{estadoAnte ? ` · anteproyecto ${estadoAnte}` : ''}</p>
                 <ul className="text-xs space-y-0.5">
                   {eq.miembros_equipo
                     .slice()
@@ -361,7 +361,7 @@ function DetalleEquipo({
     } finally { setBusy(false); }
   }
 
-  const tope3 = equipo.miembros_equipo.length >= 3;
+  const lleno = equipo.miembros_equipo.length >= 4;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
@@ -377,7 +377,7 @@ function DetalleEquipo({
 
         <div className="p-6 space-y-5">
           <div>
-            <h3 className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-2">Miembros ({equipo.miembros_equipo.length} de 3)</h3>
+            <h3 className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-2">Miembros ({equipo.miembros_equipo.length} de 4 máx.)</h3>
             <ul className="space-y-2">
               {equipo.miembros_equipo
                 .slice()
@@ -412,8 +412,8 @@ function DetalleEquipo({
 
           <div>
             <h3 className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-2">Agregar participante</h3>
-            {tope3 ? (
-              <p className="text-sm text-inalde-gray italic">El equipo ya alcanzó el máximo de 3 miembros.</p>
+            {lleno ? (
+              <p className="text-sm text-inalde-gray italic">El equipo ya alcanzó el máximo de 4 miembros.</p>
             ) : disponibles.length === 0 ? (
               <p className="text-sm text-inalde-gray italic">
                 No hay participantes disponibles en {MODALIDAD_LABEL[equipo.tipo_trabajo_grado]} (todos están en otro equipo o no han elegido modalidad).
