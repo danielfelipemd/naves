@@ -118,6 +118,44 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
 
+  // Logging temporal: dejamos rastro del payload de cada PUT en la auditoria
+  // para diagnosticar reportes de 'el canvas se guarda vacio'. Capturamos solo
+  // las longitudes de los canvas (no el contenido completo, para no inflar la
+  // tabla ni guardar PII en plano).
+  try {
+    const lengths = (parsed.data.proyectos ?? []).map((p, idx) => ({
+      idx,
+      nombre_len: (p.nombre || '').length,
+      cliente: (p.canvas_cliente || '').length,
+      problema: (p.canvas_problema || '').length,
+      solucion: (p.canvas_solucion || '').length,
+      canales: (p.canvas_canales || '').length,
+      relaciones: (p.canvas_relaciones || '').length,
+      ingresos: (p.canvas_ingresos || '').length,
+      recursos: (p.canvas_recursos || '').length,
+      actividades: (p.canvas_actividades || '').length,
+      socios: (p.canvas_socios || '').length,
+      costos: (p.canvas_costos || '').length,
+      fp: (p.fuentes_primarias || '').length,
+      fs: (p.fuentes_secundarias || '').length,
+      hitos: (p.hitos || []).length,
+    }));
+    await supabaseAdmin.from('auditoria').insert({
+      actor_tipo: 'participante',
+      actor_id: req.user!.participanteId ?? null,
+      accion: 'put_anteproyecto_payload',
+      entidad_tipo: 'anteproyecto',
+      entidad_id: req.params.id,
+      detalles: {
+        numero_proyectos: parsed.data.numero_proyectos,
+        numero_miembros: parsed.data.numero_miembros,
+        proyectos: lengths,
+        buscando_socios: parsed.data.buscando_socios ?? null,
+        buscando_asociacion: parsed.data.buscando_asociacion_otro_proyecto ?? null,
+      },
+    });
+  } catch { /* best effort, no bloquear el guardado */ }
+
   const pid = req.user!.participanteId;
   if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
 
