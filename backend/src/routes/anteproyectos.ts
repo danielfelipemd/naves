@@ -62,7 +62,8 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
 // payload; si llegan se aplican, si no, se respeta lo que ya hay en BD.
 const miembroSchema = z.object({
   participante_id: z.string().uuid(),
-  posicion: z.number().int().min(1).max(3),
+  // Tope 4: el super_admin puede crear equipos excepcionales de 4 personas.
+  posicion: z.number().int().min(1).max(4),
   fue_emprendedor: z.boolean().optional(),
   quiebra: z.enum(['nunca_despego', 'funcionamiento', 'vendido', 'quebro', 'na']).optional(),
   aprendizajes_quiebra: z.string().max(300).optional(),
@@ -106,7 +107,7 @@ const proyectoSchema = z.object({
 });
 
 const updateSchema = z.object({
-  numero_miembros: z.number().int().min(1).max(3),
+  numero_miembros: z.number().int().min(1).max(4),
   numero_proyectos: z.number().int().min(1).max(2),
   miembros: z.array(miembroSchema),
   proyectos: z.array(proyectoSchema).min(1).max(2),

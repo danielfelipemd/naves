@@ -39,6 +39,7 @@ export default function AdminEquipos() {
   const [loading, setLoading] = useState(false);
   const [filtro, setFiltro] = useState('');
   const [seleccionado, setSeleccionado] = useState<Equipo | null>(null);
+  const [crearAbierto, setCrearAbierto] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => { (async () => {
@@ -101,7 +102,7 @@ export default function AdminEquipos() {
         </div>
       )}
 
-      <div className="flex gap-3 mb-6 flex-wrap">
+      <div className="flex gap-3 mb-6 flex-wrap items-center">
         <select value={cohorte} onChange={(e) => setCohorte(e.target.value)} className="input-inalde !py-2">
           <option value="">Selecciona cohorte…</option>
           {cohortes.map((c) => <option key={c.id} value={c.id}>{c.etiqueta}</option>)}
@@ -109,6 +110,12 @@ export default function AdminEquipos() {
         <input value={filtro} onChange={(e) => setFiltro(e.target.value)}
           placeholder="Buscar por equipo o participante…"
           className="input-inalde !py-2 flex-1 min-w-[240px]" />
+        <button
+          onClick={() => cohorte && setCrearAbierto(true)}
+          disabled={!cohorte}
+          className="btn-inalde-primary !py-2 !px-4 !text-xs whitespace-nowrap disabled:opacity-40">
+          + Crear equipo
+        </button>
       </div>
 
       {loading ? <p className="text-inalde-gray">Cargando equipos…</p> :
@@ -159,7 +166,158 @@ export default function AdminEquipos() {
           onAgregado={() => refetchEquipo(seleccionado.id)}
         />
       )}
+
+      {crearAbierto && (
+        <CrearEquipoModal
+          cohorteId={cohorte}
+          onClose={() => setCrearAbierto(false)}
+          onCreado={async () => {
+            setCrearAbierto(false);
+            setMsg({ kind: 'ok', text: 'Equipo creado correctamente.' });
+            await cargarEquipos();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function CrearEquipoModal({
+  cohorteId, onClose, onCreado,
+}: {
+  cohorteId: string;
+  onClose: () => void;
+  onCreado: () => void;
+}) {
+  type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
+  const [modalidad, setModalidad] = useState<Modalidad>('business_plan');
+  const [nombreEquipo, setNombreEquipo] = useState('');
+  const [disponibles, setDisponibles] = useState<ParticipanteDisponible[]>([]);
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { (async () => {
+    setLoading(true); setError(null); setSeleccionados(new Set());
+    try {
+      const { data } = await api.get(
+        `/admin/cohortes/${cohorteId}/participantes-disponibles`,
+        { params: { modalidad } }
+      );
+      setDisponibles(data.participantes ?? []);
+    } catch (e: any) {
+      setError(formatBackendError(e));
+    } finally { setLoading(false); }
+  })(); }, [cohorteId, modalidad]);
+
+  function toggle(id: string) {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else if (next.size < 4) next.add(id);
+      return next;
+    });
+  }
+
+  async function crear() {
+    if (seleccionados.size === 0) return;
+    setBusy(true); setError(null);
+    try {
+      await api.post('/admin/equipos', {
+        cohorte_id: cohorteId,
+        modalidad,
+        nombre_equipo: nombreEquipo.trim() || null,
+        miembros_ids: Array.from(seleccionados),
+      });
+      onCreado();
+    } catch (e: any) {
+      setError(formatBackendError(e));
+    } finally { setBusy(false); }
+  }
+
+  const sel = seleccionados.size;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="border-b-[3px] border-inalde-red px-6 py-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="section-subtitle mb-1">Administración</p>
+            <h2 className="font-primary font-bold text-xl">Crear equipo</h2>
+            <p className="text-xs text-inalde-gray mt-1">Cohorte {cohorteId}</p>
+          </div>
+          <button onClick={onClose} className="text-inalde-gray hover:text-inalde-red text-lg">×</button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">Modalidad</label>
+            <select value={modalidad} onChange={(e) => setModalidad(e.target.value as Modalidad)} className="input-inalde !py-2 w-full">
+              <option value="business_plan">Business Plan</option>
+              <option value="caso">Caso</option>
+              <option value="proyecto_investigacion">Proyecto de Investigación</option>
+            </select>
+            <p className="text-[11px] text-inalde-gray mt-1">Solo verás participantes que hayan elegido esta modalidad y aún no pertenezcan a un equipo.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">Nombre del equipo (opcional)</label>
+            <input value={nombreEquipo} onChange={(e) => setNombreEquipo(e.target.value)}
+              placeholder="Ej: Los Disruptores"
+              className="input-inalde !py-2 w-full" />
+          </div>
+
+          <div>
+            <label className="block text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">
+              Miembros · {sel} seleccionado{sel === 1 ? '' : 's'} (máximo 4)
+            </label>
+            {loading ? (
+              <p className="text-sm text-inalde-gray italic">Cargando participantes disponibles…</p>
+            ) : disponibles.length === 0 ? (
+              <p className="text-sm text-inalde-gray italic">No hay participantes disponibles para esta modalidad en esta cohorte.</p>
+            ) : (
+              <div className="border border-inalde-gray-light rounded max-h-64 overflow-y-auto divide-y divide-inalde-gray-light">
+                {disponibles.map((p) => {
+                  const checked = seleccionados.has(p.id);
+                  const disabled = !checked && sel >= 4;
+                  return (
+                    <label
+                      key={p.id}
+                      className={`flex items-center gap-3 px-3 py-2 text-sm cursor-pointer ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-inalde-gray-bg/40'}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={disabled}
+                        onChange={() => toggle(p.id)} />
+                      <span className="flex-1">{p.nombre_completo}</span>
+                      {!p.perfil_completo_at && (
+                        <span className="text-[10px] text-inalde-gray italic">perfil pendiente</span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="rounded border-l-4 border-inalde-red bg-red-50 px-3 py-2 text-sm">{error}</div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={onClose}
+              className="px-4 py-2 rounded border border-inalde-gray text-inalde-text text-sm hover:border-inalde-red hover:text-inalde-red transition">
+              Cancelar
+            </button>
+            <button onClick={crear} disabled={busy || sel === 0}
+              className="btn-inalde-primary !py-2 !px-4 !text-sm disabled:opacity-40">
+              {busy ? 'Creando…' : `Crear equipo con ${sel} miembro${sel === 1 ? '' : 's'}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

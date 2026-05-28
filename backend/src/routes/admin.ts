@@ -1488,6 +1488,90 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
 // GESTION DE EQUIPOS DESDE EL PANEL DEL SUPER_ADMIN
 // =====================================================================
 
+// POST /api/admin/equipos
+// El super_admin crea un equipo nuevo seleccionando entre 1 y 4 participantes
+// que ya tengan modalidad fijada y NO esten en otro equipo. Mismas reglas
+// que el flujo normal salvo el tope (4 vs 3) -- usado como excepcion para
+// casos puntuales autorizados.
+const adminCrearEquipoSchema = z.object({
+  cohorte_id: z.string().min(1),
+  modalidad: z.enum(['business_plan', 'caso', 'proyecto_investigacion']),
+  nombre_equipo: z.string().max(120).optional().nullable(),
+  miembros_ids: z.array(z.string().uuid()).min(1).max(4),
+});
+router.post('/equipos', async (req, res) => {
+  const parsed = adminCrearEquipoSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  const { cohorte_id, modalidad, nombre_equipo, miembros_ids } = parsed.data;
+
+  // Verificar que todos los participantes existen, son de la cohorte, tienen
+  // la modalidad indicada y no estan en otro equipo.
+  const { data: participantes } = await supabaseAdmin
+    .from('participantes_lista')
+    .select('id, cohorte_id, tipo_trabajo_grado')
+    .in('id', miembros_ids);
+  if (!participantes || participantes.length !== miembros_ids.length) {
+    return res.status(404).json({ error: 'ALGUNO_NO_EXISTE' });
+  }
+  for (const p of participantes) {
+    if (p.cohorte_id !== cohorte_id) {
+      return res.status(400).json({ error: 'COHORTE_MISMATCH', participante_id: p.id });
+    }
+    if (p.tipo_trabajo_grado !== modalidad) {
+      return res.status(400).json({
+        error: 'MODALIDAD_MISMATCH',
+        participante_id: p.id,
+        modalidad_target: p.tipo_trabajo_grado,
+        modalidad_equipo: modalidad,
+      });
+    }
+  }
+  const { data: ocupados } = await supabaseAdmin
+    .from('miembros_equipo').select('participante_id').in('participante_id', miembros_ids);
+  if ((ocupados ?? []).length > 0) {
+    return res.status(409).json({
+      error: 'ALGUNO_EN_OTRO_EQUIPO',
+      participantes: (ocupados ?? []).map((m: any) => m.participante_id),
+    });
+  }
+
+  // Crear el equipo. El creador es el primero del listado (decision arbitraria
+  // del admin; despues puede transferirse via remover-miembro).
+  const { data: nuevoEquipo, error: errEq } = await supabaseAdmin
+    .from('equipos')
+    .insert({
+      cohorte_id,
+      tipo_trabajo_grado: modalidad,
+      creador_id: miembros_ids[0],
+      nombre_equipo: nombre_equipo?.trim() || null,
+    })
+    .select().single();
+  if (errEq || !nuevoEquipo) return res.status(500).json({ error: errEq?.message || 'ERROR_CREATE_TEAM' });
+
+  // Inscribir miembros con posicion ordenada
+  const filas = miembros_ids.map((pid, idx) => ({
+    equipo_id: nuevoEquipo.id, participante_id: pid, posicion: idx + 1,
+  }));
+  const { data: miembrosInsertados, error: errM } = await supabaseAdmin
+    .from('miembros_equipo').insert(filas).select('id, participante_id');
+  if (errM) {
+    // Rollback manual del equipo huerfano
+    await supabaseAdmin.from('equipos').delete().eq('id', nuevoEquipo.id);
+    return res.status(500).json({ error: errM.message });
+  }
+
+  // Copiar perfil emprendedor de cada participante a su fila de miembros_equipo
+  for (const m of miembrosInsertados ?? []) {
+    await copyPerfilParticipanteAMiembro(m.participante_id, m.id);
+  }
+
+  // Limpiar flag de espera de los participantes recien incorporados
+  await supabaseAdmin.from('participantes_lista')
+    .update({ esperando_equipo_at: null }).in('id', miembros_ids);
+
+  res.status(201).json({ equipo_id: nuevoEquipo.id, miembros: miembrosInsertados });
+});
+
 // GET /api/admin/equipos?cohorte_id=...
 // Lista equipos de la cohorte con sus miembros + datos de descifrado.
 router.get('/equipos', async (req, res) => {
@@ -1592,12 +1676,13 @@ router.post('/equipos/:id/agregar-miembro', async (req, res) => {
     .from('miembros_equipo').select('equipo_id').eq('participante_id', target.id).maybeSingle();
   if (alreadyIn) return res.status(409).json({ error: 'ALREADY_IN_TEAM', equipo_id: alreadyIn.equipo_id });
 
-  // Tamaño max del equipo: 3 personas
+  // Tamaño max del equipo: 4 personas (super_admin tiene la excepcion;
+  // el flujo del participante sigue topado en 3).
   const { count } = await supabaseAdmin
     .from('miembros_equipo').select('id', { count: 'exact', head: true }).eq('equipo_id', req.params.id);
-  if ((count ?? 0) >= 3) return res.status(409).json({ error: 'TEAM_FULL', max: 3 });
+  if ((count ?? 0) >= 4) return res.status(409).json({ error: 'TEAM_FULL', max: 4 });
 
-  // Calcular siguiente posicion libre (1, 2 o 3)
+  // Calcular siguiente posicion libre (1..4)
   const { data: posiciones } = await supabaseAdmin
     .from('miembros_equipo').select('posicion').eq('equipo_id', req.params.id);
   const usadas = new Set((posiciones ?? []).map((p) => p.posicion));
