@@ -168,9 +168,9 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
         proyectos ( id, posicion, nombre, sector, tipo, ciiu, canvas_problema, canvas_solucion, estado_seleccion )
       ),
       asignaciones_profesor (
-        profesores ( id, nombre_completo )
+        profesores:profesor_id ( id, nombre_completo )
       ),
-      directores ( id, nombre_completo )
+      directores:director_id ( id, nombre_completo )
     `)
     .eq('cohorte_id', cohorteId);
   if (error) return res.status(500).json({ error: error.message });
