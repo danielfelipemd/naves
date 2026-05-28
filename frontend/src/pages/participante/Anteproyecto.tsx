@@ -542,14 +542,12 @@ export default function Anteproyecto() {
       }
     }
     if (!confirm('Una vez enviado el anteproyecto NO podrá modificarse. ¿Continuar?')) return;
-
-    // El boton de enviar nunca se bloquea por el autoguardado. Si hay un
-    // PUT en vuelo, no importa: el backend serializa por anteproyecto y la
-    // ultima escritura gana — el PUT del envio siempre se hace inmediatamente
-    // antes del POST /enviar, garantizando que el state del cliente queda
-    // persistido. Si un autoguardado tardio llega despues del envio, el PUT
-    // del backend lo rechaza con 409 (estado ya = enviado).
+    if (savingRef.current) {
+      setMsg({ kind: 'err', text: 'El sistema está guardando tu progreso. Espera un instante e inténtalo de nuevo.' });
+      return;
+    }
     cancelAutoSaveTimer();
+    savingRef.current = true;
     setBusy(true); setMsg(null);
     try {
       await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });

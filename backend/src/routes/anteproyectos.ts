@@ -120,88 +120,106 @@ const updateSchema = z.object({
 });
 
 // === PUT /api/anteproyectos/:id (guardar borrador) ==========================
-// Optimizado para que el autoguardado sea rapido (~600-800 ms): el handler
-// hace muchos chequeos previos en PARALELO y los inserts de proyectos/hitos
-// en batch en vez de loops. Antes tomaba 2-3 s, lo que hacia que el front
-// se sintiera bloqueado entre keystrokes.
 router.put('/:id', async (req: AuthenticatedRequest, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
 
+  // Logging temporal: dejamos rastro del payload de cada PUT en la auditoria
+  // para diagnosticar reportes de 'el canvas se guarda vacio'. Capturamos solo
+  // las longitudes de los canvas (no el contenido completo, para no inflar la
+  // tabla ni guardar PII en plano).
+  try {
+    const lengths = (parsed.data.proyectos ?? []).map((p, idx) => ({
+      idx,
+      nombre_len: (p.nombre || '').length,
+      cliente: (p.canvas_cliente || '').length,
+      problema: (p.canvas_problema || '').length,
+      solucion: (p.canvas_solucion || '').length,
+      canales: (p.canvas_canales || '').length,
+      relaciones: (p.canvas_relaciones || '').length,
+      ingresos: (p.canvas_ingresos || '').length,
+      recursos: (p.canvas_recursos || '').length,
+      actividades: (p.canvas_actividades || '').length,
+      socios: (p.canvas_socios || '').length,
+      costos: (p.canvas_costos || '').length,
+      fp: (p.fuentes_primarias || '').length,
+      fs: (p.fuentes_secundarias || '').length,
+      hitos: (p.hitos || []).length,
+    }));
+    await supabaseAdmin.from('auditoria').insert({
+      actor_tipo: 'participante',
+      actor_id: req.user!.participanteId ?? null,
+      accion: 'put_anteproyecto_payload',
+      entidad_tipo: 'anteproyecto',
+      entidad_id: req.params.id,
+      detalles: {
+        numero_proyectos: parsed.data.numero_proyectos,
+        numero_miembros: parsed.data.numero_miembros,
+        proyectos: lengths,
+        buscando_socios: parsed.data.buscando_socios ?? null,
+        buscando_asociacion: parsed.data.buscando_asociacion_otro_proyecto ?? null,
+      },
+    });
+  } catch { /* best effort, no bloquear el guardado */ }
+
   const pid = req.user!.participanteId;
   if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
 
-  // === Cargar contexto en PARALELO ==========================================
-  // Antes eran 4 round-trips serializados (anteproyecto, miembro, cohorte,
-  // CIIUs). Ahora es un solo round-trip paralelo.
-  const ciiusToCheck = parsed.data.proyectos.map((p) => p.ciiu).filter(Boolean) as string[];
-  const [antRes, miembroRes, ciiusRes] = await Promise.all([
-    supabaseAdmin
-      .from('anteproyectos')
-      .select('id, equipo_id, estado, equipos!inner ( cohortes!inner ( fecha_limite_entrega_anteproyecto ) )')
-      .eq('id', req.params.id)
-      .maybeSingle(),
-    supabaseAdmin
-      .from('miembros_equipo')
-      .select('id, equipo_id')
-      .eq('participante_id', pid),
-    ciiusToCheck.length > 0
-      ? supabaseAdmin.from('codigos_ciiu').select('codigo').in('codigo', ciiusToCheck)
-      : Promise.resolve({ data: [] as Array<{ codigo: string }>, error: null }),
-  ]);
-
-  const ant = antRes.data;
+  // Verificar que el usuario es miembro del equipo dueño
+  const { data: ant } = await supabaseAdmin
+    .from('anteproyectos')
+    .select('id, equipo_id, estado')
+    .eq('id', req.params.id)
+    .maybeSingle();
   if (!ant) return res.status(404).json({ error: 'NOT_FOUND' });
 
-  // GUARDRAIL: un autoguardado tardio NO puede sobreescribir un anteproyecto
-  // ya enviado. Si el participante envio mientras un autosave estaba en
-  // vuelo, ese autosave llegara despues y debe rechazarse.
-  if (ant.estado !== 'borrador') {
-    return res.status(409).json({ error: 'ALREADY_SUBMITTED', estado: ant.estado });
-  }
+  const { data: yoMiembro } = await supabaseAdmin
+    .from('miembros_equipo')
+    .select('equipo_id')
+    .eq('equipo_id', ant.equipo_id)
+    .eq('participante_id', pid)
+    .maybeSingle();
+  if (!yoMiembro) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
 
-  const esMiembro = (miembroRes.data ?? []).some((m: any) => m.equipo_id === ant.equipo_id);
-  if (!esMiembro) {
-    return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
-  }
-
-  const limite = (ant.equipos as any)?.cohortes?.fecha_limite_entrega_anteproyecto;
+  // Verificar plazo
+  const { data: cohorte } = await supabaseAdmin
+    .from('equipos').select('cohortes(fecha_limite_entrega_anteproyecto)').eq('id', ant.equipo_id).maybeSingle();
+  const limite = (cohorte?.cohortes as any)?.fecha_limite_entrega_anteproyecto;
   if (limite && new Date() >= new Date(limite)) {
     return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA', fecha_limite: limite });
   }
 
-  const validSet = new Set(((ciiusRes.data ?? []) as Array<{ codigo: string }>).map((c) => c.codigo));
-  const invalid = ciiusToCheck.filter((c) => !validSet.has(c));
-  if (invalid.length) return res.status(400).json({ error: 'INVALID_CIIU', invalid });
+  // Verificar CIIUs válidos
+  const ciiusToCheck = parsed.data.proyectos.map((p) => p.ciiu).filter(Boolean) as string[];
+  if (ciiusToCheck.length) {
+    const { data: validCiius } = await supabaseAdmin
+      .from('codigos_ciiu').select('codigo').in('codigo', ciiusToCheck);
+    const validSet = new Set((validCiius ?? []).map((c) => c.codigo));
+    const invalid = ciiusToCheck.filter((c) => !validSet.has(c));
+    if (invalid.length) return res.status(400).json({ error: 'INVALID_CIIU', invalid });
+  }
 
-  // === Actualizar miembros (solo si el cliente envio cambios) ===============
-  // El frontend del Anteproyecto solo manda participante_id + posicion, no
-  // perfil ni emociones ni preocupaciones (eso ya quedo guardado en /mi-perfil).
-  // Saltamos todo el loop si no hay nada para escribir — antes era 2 round-
-  // trips por miembro de puro desperdicio.
-  const miembrosConCambios = parsed.data.miembros.filter((m) =>
-    m.fue_emprendedor !== undefined ||
-    m.perfil !== undefined ||
-    m.emociones !== undefined ||
-    m.preocupaciones !== undefined,
-  );
-  if (miembrosConCambios.length > 0) {
-    await Promise.all(miembrosConCambios.map(async (m) => {
-      const updateRow: Record<string, unknown> = {};
-      if (m.fue_emprendedor !== undefined) {
-        updateRow.fue_emprendedor = m.fue_emprendedor;
-        updateRow.quiebra = m.fue_emprendedor ? (m.quiebra ?? null) : null;
-        updateRow.aprendizajes_quiebra = m.fue_emprendedor ? (m.aprendizajes_quiebra ?? null) : null;
-      }
-      if (m.perfil !== undefined) updateRow.perfil = m.perfil;
-      if (Object.keys(updateRow).length) {
-        await supabaseAdmin.from('miembros_equipo').update(updateRow)
-          .eq('equipo_id', ant.equipo_id).eq('participante_id', m.participante_id);
-      }
-      if (m.emociones === undefined && m.preocupaciones === undefined) return;
-      const { data: row } = await supabaseAdmin
-        .from('miembros_equipo').select('id').eq('equipo_id', ant.equipo_id).eq('participante_id', m.participante_id).maybeSingle();
-      if (!row) return;
+  // === Actualizar miembros (perfil emprendedor) =============================
+  // El perfil ya viene cargado en miembros_equipo desde /mi-perfil. Solo
+  // sobreescribimos campos que el cliente envia explicitamente; los que no
+  // llegan se respetan tal cual estan en BD.
+  for (const m of parsed.data.miembros) {
+    const updateRow: Record<string, unknown> = {};
+    if (m.fue_emprendedor !== undefined) {
+      updateRow.fue_emprendedor = m.fue_emprendedor;
+      updateRow.quiebra = m.fue_emprendedor ? (m.quiebra ?? null) : null;
+      updateRow.aprendizajes_quiebra = m.fue_emprendedor ? (m.aprendizajes_quiebra ?? null) : null;
+    }
+    if (m.perfil !== undefined) updateRow.perfil = m.perfil;
+    if (Object.keys(updateRow).length) {
+      await supabaseAdmin.from('miembros_equipo').update(updateRow)
+        .eq('equipo_id', ant.equipo_id).eq('participante_id', m.participante_id);
+    }
+
+    const { data: row } = await supabaseAdmin
+      .from('miembros_equipo').select('id').eq('equipo_id', ant.equipo_id).eq('participante_id', m.participante_id).maybeSingle();
+    if (row) {
+      // Solo reescribir emociones/preocupaciones si el cliente las envio.
       if (m.emociones) {
         await supabaseAdmin.from('miembro_emociones').delete().eq('miembro_id', row.id);
         if (m.emociones.length) {
@@ -214,61 +232,46 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
           await supabaseAdmin.from('miembro_preocupaciones').insert(m.preocupaciones.map((preocupacion) => ({ miembro_id: row.id, preocupacion })));
         }
       }
-    }));
+    }
   }
 
-  // === Persistir flags de sabana y cargar existingProyectos en PARALELO ====
-  const equipoUpdate: Record<string, unknown> = {};
-  if (parsed.data.buscando_socios !== undefined) equipoUpdate.buscando_socios = parsed.data.buscando_socios;
-  if (parsed.data.buscando_asociacion_otro_proyecto !== undefined) equipoUpdate.buscando_asociacion_otro_proyecto = parsed.data.buscando_asociacion_otro_proyecto;
-  const [flagsRes, existingRes] = await Promise.all([
-    Object.keys(equipoUpdate).length
-      ? supabaseAdmin.from('equipos').update(equipoUpdate).eq('id', ant.equipo_id)
-      : Promise.resolve({ error: null }),
-    supabaseAdmin.from('proyectos').select('id, estado_seleccion').eq('anteproyecto_id', req.params.id),
-  ]);
-  if (flagsRes.error) return res.status(500).json({ error: flagsRes.error.message, paso: 'update equipos' });
+  // === Persistir flags de sábana en el equipo (si llegaron) =================
+  if (parsed.data.buscando_socios !== undefined || parsed.data.buscando_asociacion_otro_proyecto !== undefined) {
+    const patch: Record<string, unknown> = {};
+    if (parsed.data.buscando_socios !== undefined) patch.buscando_socios = parsed.data.buscando_socios;
+    if (parsed.data.buscando_asociacion_otro_proyecto !== undefined) patch.buscando_asociacion_otro_proyecto = parsed.data.buscando_asociacion_otro_proyecto;
+    if (Object.keys(patch).length) {
+      await supabaseAdmin.from('equipos').update(patch).eq('id', ant.equipo_id);
+    }
+  }
 
-  const existingProyectos = existingRes.data ?? [];
-  const eliminables = existingProyectos.filter((p) => p.estado_seleccion === 'pendiente_seleccion');
-
-  // === Reemplazar proyectos en BATCH =======================================
-  // Antes: 1 DELETE + N inserts proyecto + N inserts hitos = ~3-5 round-trips.
-  // Ahora: 1 DELETE + 1 BATCH INSERT proyectos + 1 BATCH INSERT hitos = 3.
+  // === Reemplazar proyectos + hitos =========================================
+  // Borrar proyectos existentes que estén en estado borrador (no podemos tocar 'definitivo' o 'archivado')
+  const { data: existingProyectos } = await supabaseAdmin
+    .from('proyectos')
+    .select('id, estado_seleccion')
+    .eq('anteproyecto_id', req.params.id);
+  const eliminables = (existingProyectos ?? []).filter((p) => p.estado_seleccion === 'pendiente_seleccion');
   if (eliminables.length) {
-    const { error } = await supabaseAdmin.from('proyectos').delete().in('id', eliminables.map((p) => p.id));
-    if (error) return res.status(500).json({ error: error.message, paso: 'delete proyectos' });
+    await supabaseAdmin.from('proyectos').delete().in('id', eliminables.map((p) => p.id));
   }
 
-  if (parsed.data.proyectos.length > 0) {
-    const proyectosToInsert = parsed.data.proyectos.map((p) => {
-      const { hitos: _hitos, ...proyectoData } = p;
-      return { ...proyectoData, anteproyecto_id: req.params.id };
-    });
-    const { data: newProjs, error: errProj } = await supabaseAdmin
+  // Insertar proyectos nuevos (con hitos)
+  for (const p of parsed.data.proyectos) {
+    const { hitos, ...proyectoData } = p;
+    const { data: newProj, error } = await supabaseAdmin
       .from('proyectos')
-      .insert(proyectosToInsert)
-      .select('id, posicion');
-    if (errProj) return res.status(500).json({ error: errProj.message, paso: 'insert proyectos' });
-
-    const allHitos: Array<{ proyecto_id: string; posicion: number; descripcion: string; fecha_inicio: string; fecha_fin: string }> = [];
-    for (const p of parsed.data.proyectos) {
-      const newProj = (newProjs ?? []).find((np) => np.posicion === p.posicion);
-      if (!newProj) continue;
-      for (const h of p.hitos) {
-        allHitos.push({ ...h, proyecto_id: newProj.id });
-      }
-    }
-    if (allHitos.length > 0) {
-      const { error: errHito } = await supabaseAdmin.from('hitos').insert(allHitos);
-      if (errHito) return res.status(500).json({ error: errHito.message, paso: 'insert hitos' });
+      .insert({ ...proyectoData, anteproyecto_id: req.params.id })
+      .select().single();
+    if (error) return res.status(500).json({ error: error.message, paso: 'insert proyecto' });
+    if (hitos.length) {
+      const hitosWithProj = hitos.map((h) => ({ ...h, proyecto_id: newProj.id }));
+      const { error: e2 } = await supabaseAdmin.from('hitos').insert(hitosWithProj);
+      if (e2) return res.status(500).json({ error: e2.message, paso: 'insert hitos' });
     }
   }
 
-  // === Marcar fecha de ultima edicion (fire-and-forget) ====================
-  // No bloqueamos la respuesta al cliente — el UPDATE de fecha es info
-  // metadata, no afecta lo que el participante ve al recargar.
-  void supabaseAdmin
+  await supabaseAdmin
     .from('anteproyectos')
     .update({ ultimo_editor_id: pid, fecha_actualizacion: new Date().toISOString() })
     .eq('id', req.params.id);
