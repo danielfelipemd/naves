@@ -371,26 +371,6 @@ export default function Anteproyecto() {
     }
   }
 
-  async function guardar() {
-    if (!anteId) return;
-    if (savingRef.current) return; // ya hay un guardado en vuelo
-    cancelAutoSaveTimer();
-    savingRef.current = true;
-    setBusy(true); setMsg(null);
-    try {
-      // timeout 60s para esta ruta -- la PUT hace muchos round-trips a Supabase
-      // y un anteproyecto con 2 proyectos + 13 hitos + 3 miembros puede
-      // demorar mas que los 15s default de axios.
-      await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
-      setMsg({ kind: 'ok', text: 'Borrador guardado.' });
-    } catch (e: any) {
-      setMsg({ kind: 'err', text: formatBackendError(e) });
-    } finally {
-      setBusy(false);
-      savingRef.current = false;
-    }
-  }
-
   // Auto-guardado del borrador: 3 segundos despues del ultimo cambio en el
   // formulario. Asi, si la sesion se cae mientras el participante llena
   // (los tokens de Supabase expiran cada hora), no se pierde el progreso.
@@ -879,12 +859,8 @@ export default function Anteproyecto() {
                 <span className="text-xs text-inalde-gray italic mr-1">
                   {autoSaveEstado === 'saving' && 'Guardando…'}
                   {autoSaveEstado === 'saved' && '✓ Guardado automáticamente'}
-                  {autoSaveEstado === 'error' && '⚠ No se pudo autoguardar — usa «Guardar borrador»'}
+                  {autoSaveEstado === 'error' && '⚠ Reintentando guardar…'}
                 </span>
-                <button onClick={guardar} disabled={busy}
-                  className="px-6 py-3 rounded border-2 border-inalde-gray text-inalde-text font-primary font-semibold hover:border-inalde-red hover:text-inalde-red transition">
-                  Guardar borrador
-                </button>
                 <button onClick={enviar} disabled={busy} className="btn-inalde-primary">
                   {busy ? 'Procesando…' : 'Enviar anteproyecto →'}
                 </button>
