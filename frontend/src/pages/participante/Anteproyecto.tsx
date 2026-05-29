@@ -1152,34 +1152,34 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
               const minInicio = prev ? (prev.fecha_inicio || prev.fecha_fin || undefined) : undefined;
               const prevFin = prev?.fecha_fin || undefined;
               const minFin = [h.fecha_inicio, prevFin].filter(Boolean).sort().at(-1) || undefined;
+              // No usamos el atributo `min` HTML5 porque al deshabilitar un mes
+              // entero el calendario nativo se queda "atascado" en algunos
+              // navegadores (no deja avanzar con las flechas). Permitimos que
+              // el usuario navegue y escriba lo que quiera; si la fecha rompe
+              // la cronología, lo avisamos con texto rojo debajo y al enviar
+              // el backend lo rechaza.
+              const inicioMal = !!(minInicio && h.fecha_inicio && h.fecha_inicio < minInicio);
+              const finMal = !!(minFin && h.fecha_fin && h.fecha_fin < minFin);
               return (
                 <>
                   <div className="w-full sm:w-44 shrink-0">
                     <Field label="Inicio">
-                      <input type="date" value={h.fecha_inicio} min={minInicio}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (minInicio && v && v < minInicio) {
-                            alert(`El hito #${h.posicion} no puede iniciar antes del hito #${h.posicion - 1} (${minInicio}).`);
-                            return;
-                          }
-                          onUpdateHito(hi, { fecha_inicio: v });
-                        }}
+                      <input type="date" value={h.fecha_inicio}
+                        onChange={(e) => onUpdateHito(hi, { fecha_inicio: e.target.value })}
                         className="input-inalde" />
+                      {inicioMal && (
+                        <p className="text-[11px] text-inalde-red mt-1">No puede ser anterior al hito #{h.posicion - 1}.</p>
+                      )}
                     </Field>
                   </div>
                   <div className="w-full sm:w-44 shrink-0">
                     <Field label="Fin">
-                      <input type="date" value={h.fecha_fin} min={minFin}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (minFin && v && v < minFin) {
-                            alert(`La fecha fin del hito #${h.posicion} no puede ser anterior al hito previo ni a su propio inicio.`);
-                            return;
-                          }
-                          onUpdateHito(hi, { fecha_fin: v });
-                        }}
+                      <input type="date" value={h.fecha_fin}
+                        onChange={(e) => onUpdateHito(hi, { fecha_fin: e.target.value })}
                         className="input-inalde" />
+                      {finMal && (
+                        <p className="text-[11px] text-inalde-red mt-1">No puede ser anterior al inicio ni al hito previo.</p>
+                      )}
                     </Field>
                   </div>
                 </>
