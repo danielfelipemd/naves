@@ -151,7 +151,6 @@ export default function Anteproyecto() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [envioConfirmacion, setEnvioConfirmacion] = useState<{ fechaEnvio: string; autoDefinitivo: boolean } | null>(null);
-  const [autoSaveEstado, setAutoSaveEstado] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [equipoId, setEquipoId] = useState<string | null>(null);
   const [localRecovered, setLocalRecovered] = useState(false);
   // Refs para serializar guardados (auto + manual) y prevenir races contra
@@ -380,21 +379,17 @@ export default function Anteproyecto() {
   // Debounce CORTO (1s) para que la copia al backend se sienta inmediata.
   useEffect(() => {
     if (!anteId || estado !== 'borrador' || loading) return;
-    setAutoSaveEstado('idle');
     cancelAutoSaveTimer();
     autoSaveTimerRef.current = setTimeout(async () => {
       if (savingRef.current) return;
       savingRef.current = true;
-      setAutoSaveEstado('saving');
       try {
         await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
-        setAutoSaveEstado('saved');
         // Si el backend confirmo, podemos borrar la copia local de respaldo.
         if (equipoId) {
           try { window.localStorage.removeItem(localKey(equipoId)); } catch { /* ignore */ }
         }
       } catch {
-        setAutoSaveEstado('error');
       } finally {
         savingRef.current = false;
       }
@@ -442,15 +437,12 @@ export default function Anteproyecto() {
     periodicSaveTimerRef.current = setInterval(async () => {
       if (savingRef.current) return;
       savingRef.current = true;
-      setAutoSaveEstado('saving');
       try {
         await api.put(`/anteproyectos/${anteId}`, buildPayloadRef.current(), { timeout: 60000 });
-        setAutoSaveEstado('saved');
         if (equipoId) {
           try { window.localStorage.removeItem(localKey(equipoId)); } catch { /* ignore */ }
         }
       } catch {
-        setAutoSaveEstado('error');
       } finally {
         savingRef.current = false;
       }
@@ -857,9 +849,7 @@ export default function Anteproyecto() {
               </button>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-inalde-gray italic mr-1">
-                  {autoSaveEstado === 'saving' && 'Guardando…'}
-                  {autoSaveEstado === 'saved' && '✓ Guardado automáticamente'}
-                  {autoSaveEstado === 'error' && '⚠ Reintentando guardar…'}
+                  Autoguardado activo
                 </span>
                 <button onClick={enviar} disabled={busy} className="btn-inalde-primary">
                   {busy ? 'Procesando…' : 'Enviar anteproyecto →'}
