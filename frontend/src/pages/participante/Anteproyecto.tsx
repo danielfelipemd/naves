@@ -542,17 +542,16 @@ export default function Anteproyecto() {
       }
     }
     if (!confirm('Una vez enviado el anteproyecto NO podrá modificarse. ¿Continuar?')) return;
-    // Cancelamos cualquier autoguardado debounced pendiente. Si hay uno en
-    // vuelo, NO lo esperamos: el PUT del envio incluye el state actual
-    // completo y el backend rechaza con 409 cualquier autoguardado tardio que
-    // llegue despues — antes mostrabamos un mensaje que obligaba al
-    // participante a refrescar la pagina.
+    // Envio AUTOSUFICIENTE: mandamos el payload completo del formulario
+    // directamente al POST /enviar. El backend lo persiste y marca como
+    // enviado en una sola llamada. Antes haciamos PUT + POST y si el PUT
+    // fallaba o tardaba mucho, el envio entero quedaba colgado y el
+    // participante quedaba sin saber si su trabajo se habia guardado.
     cancelAutoSaveTimer();
     savingRef.current = true;
     setBusy(true); setMsg(null);
     try {
-      await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
-      const r = await api.post(`/anteproyectos/${anteId}/enviar`, {}, { timeout: 60000 });
+      const r = await api.post(`/anteproyectos/${anteId}/enviar`, buildPayload(), { timeout: 60000 });
       setEstado('enviado');
       setEnvioConfirmacion({
         fechaEnvio: r.data?.fecha_envio ?? new Date().toISOString(),
