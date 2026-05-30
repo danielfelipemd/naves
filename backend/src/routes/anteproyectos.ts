@@ -142,71 +142,96 @@ async function persistirBorradorEnBD(params: {
 }): Promise<PersistResult> {
   const { anteId, equipoId, participanteId, payload } = params;
 
-  // === Actualizar miembros (perfil emprendedor) ============================
-  for (const m of payload.miembros) {
-    const updateRow: Record<string, unknown> = {};
-    if (m.fue_emprendedor !== undefined) {
-      updateRow.fue_emprendedor = m.fue_emprendedor;
-      updateRow.quiebra = m.fue_emprendedor ? (m.quiebra ?? null) : null;
-      updateRow.aprendizajes_quiebra = m.fue_emprendedor ? (m.aprendizajes_quiebra ?? null) : null;
-    }
-    if (m.perfil !== undefined) updateRow.perfil = m.perfil;
-    if (Object.keys(updateRow).length) {
-      await supabaseAdmin.from('miembros_equipo').update(updateRow)
-        .eq('equipo_id', equipoId).eq('participante_id', m.participante_id);
-    }
-    if (m.emociones === undefined && m.preocupaciones === undefined) continue;
-    const { data: row } = await supabaseAdmin
-      .from('miembros_equipo').select('id').eq('equipo_id', equipoId).eq('participante_id', m.participante_id).maybeSingle();
-    if (!row) continue;
-    if (m.emociones) {
-      await supabaseAdmin.from('miembro_emociones').delete().eq('miembro_id', row.id);
-      if (m.emociones.length) {
-        await supabaseAdmin.from('miembro_emociones').insert(m.emociones.map((emocion) => ({ miembro_id: row.id, emocion })));
+  // === Miembros (perfil emprendedor) — solo si el payload trae cambios =====
+  // El formulario de anteproyecto solo manda participante_id + posicion, asi
+  // que este loop normalmente queda no-op. Saltearlo evita 2 round-trips por
+  // miembro de puro desperdicio.
+  const miembrosConCambios = payload.miembros.filter((m) =>
+    m.fue_emprendedor !== undefined ||
+    m.perfil !== undefined ||
+    m.emociones !== undefined ||
+    m.preocupaciones !== undefined,
+  );
+  if (miembrosConCambios.length > 0) {
+    await Promise.all(miembrosConCambios.map(async (m) => {
+      const updateRow: Record<string, unknown> = {};
+      if (m.fue_emprendedor !== undefined) {
+        updateRow.fue_emprendedor = m.fue_emprendedor;
+        updateRow.quiebra = m.fue_emprendedor ? (m.quiebra ?? null) : null;
+        updateRow.aprendizajes_quiebra = m.fue_emprendedor ? (m.aprendizajes_quiebra ?? null) : null;
       }
-    }
-    if (m.preocupaciones) {
-      await supabaseAdmin.from('miembro_preocupaciones').delete().eq('miembro_id', row.id);
-      if (m.preocupaciones.length) {
-        await supabaseAdmin.from('miembro_preocupaciones').insert(m.preocupaciones.map((preocupacion) => ({ miembro_id: row.id, preocupacion })));
+      if (m.perfil !== undefined) updateRow.perfil = m.perfil;
+      if (Object.keys(updateRow).length) {
+        await supabaseAdmin.from('miembros_equipo').update(updateRow)
+          .eq('equipo_id', equipoId).eq('participante_id', m.participante_id);
       }
-    }
+      if (m.emociones === undefined && m.preocupaciones === undefined) return;
+      const { data: row } = await supabaseAdmin
+        .from('miembros_equipo').select('id').eq('equipo_id', equipoId).eq('participante_id', m.participante_id).maybeSingle();
+      if (!row) return;
+      if (m.emociones) {
+        await supabaseAdmin.from('miembro_emociones').delete().eq('miembro_id', row.id);
+        if (m.emociones.length) {
+          await supabaseAdmin.from('miembro_emociones').insert(m.emociones.map((emocion) => ({ miembro_id: row.id, emocion })));
+        }
+      }
+      if (m.preocupaciones) {
+        await supabaseAdmin.from('miembro_preocupaciones').delete().eq('miembro_id', row.id);
+        if (m.preocupaciones.length) {
+          await supabaseAdmin.from('miembro_preocupaciones').insert(m.preocupaciones.map((preocupacion) => ({ miembro_id: row.id, preocupacion })));
+        }
+      }
+    }));
   }
 
-  // === Flags de sabana en el equipo ========================================
-  if (payload.buscando_socios !== undefined || payload.buscando_asociacion_otro_proyecto !== undefined) {
-    const patch: Record<string, unknown> = {};
-    if (payload.buscando_socios !== undefined) patch.buscando_socios = payload.buscando_socios;
-    if (payload.buscando_asociacion_otro_proyecto !== undefined) patch.buscando_asociacion_otro_proyecto = payload.buscando_asociacion_otro_proyecto;
-    if (Object.keys(patch).length) {
-      await supabaseAdmin.from('equipos').update(patch).eq('id', equipoId);
-    }
-  }
+  // === Flags equipo + SELECT proyectos existentes en PARALELO =============
+  const equipoUpdate: Record<string, unknown> = {};
+  if (payload.buscando_socios !== undefined) equipoUpdate.buscando_socios = payload.buscando_socios;
+  if (payload.buscando_asociacion_otro_proyecto !== undefined) equipoUpdate.buscando_asociacion_otro_proyecto = payload.buscando_asociacion_otro_proyecto;
+  const [, existingRes] = await Promise.all([
+    Object.keys(equipoUpdate).length
+      ? supabaseAdmin.from('equipos').update(equipoUpdate).eq('id', equipoId)
+      : Promise.resolve(),
+    supabaseAdmin.from('proyectos').select('id, estado_seleccion').eq('anteproyecto_id', anteId),
+  ]);
+  const eliminables = ((existingRes?.data ?? []) as Array<{ id: string; estado_seleccion: string }>)
+    .filter((p) => p.estado_seleccion === 'pendiente_seleccion');
 
-  // === Reemplazar proyectos + hitos ========================================
-  // Borrar solo los pendientes_seleccion; nunca tocar definitivos ni archivados.
-  const { data: existingProyectos } = await supabaseAdmin
-    .from('proyectos')
-    .select('id, estado_seleccion')
-    .eq('anteproyecto_id', anteId);
-  const eliminables = (existingProyectos ?? []).filter((p) => p.estado_seleccion === 'pendiente_seleccion');
+  // === DELETE proyectos eliminables + BATCH INSERT proyectos nuevos =======
+  // Antes era 1 DELETE + N INSERTs serializados. Ahora 1 DELETE + 1 INSERT
+  // batch que devuelve los IDs nuevos, luego 1 INSERT batch global de hitos.
   if (eliminables.length) {
-    await supabaseAdmin.from('proyectos').delete().in('id', eliminables.map((p) => p.id));
+    const { error } = await supabaseAdmin.from('proyectos').delete().in('id', eliminables.map((p) => p.id));
+    if (error) return { ok: false, status: 500, body: { error: error.message, paso: 'delete proyectos' } };
   }
-  for (const p of payload.proyectos) {
-    const { hitos, ...proyectoData } = p;
-    const { data: newProj, error } = await supabaseAdmin
+
+  if (payload.proyectos.length > 0) {
+    const proyectosToInsert = payload.proyectos.map((p) => {
+      const { hitos: _hitos, ...proyectoData } = p;
+      return { ...proyectoData, anteproyecto_id: anteId };
+    });
+    const { data: newProjs, error: errProj } = await supabaseAdmin
       .from('proyectos')
-      .insert({ ...proyectoData, anteproyecto_id: anteId })
-      .select().single();
-    if (error) return { ok: false, status: 500, body: { error: error.message, paso: 'insert proyecto' } };
-    if (hitos.length) {
-      const hitosWithProj = hitos.map((h) => ({ ...h, proyecto_id: newProj.id }));
-      const { error: e2 } = await supabaseAdmin.from('hitos').insert(hitosWithProj);
-      if (e2) return { ok: false, status: 500, body: { error: e2.message, paso: 'insert hitos' } };
+      .insert(proyectosToInsert)
+      .select('id, posicion');
+    if (errProj) return { ok: false, status: 500, body: { error: errProj.message, paso: 'insert proyectos' } };
+
+    const allHitos: Array<{ proyecto_id: string; posicion: number; descripcion: string; fecha_inicio: string; fecha_fin: string }> = [];
+    for (const p of payload.proyectos) {
+      const newProj = (newProjs ?? []).find((np) => np.posicion === p.posicion);
+      if (!newProj) continue;
+      for (const h of p.hitos) {
+        allHitos.push({ ...h, proyecto_id: newProj.id });
+      }
+    }
+    if (allHitos.length > 0) {
+      const { error: errHito } = await supabaseAdmin.from('hitos').insert(allHitos);
+      if (errHito) return { ok: false, status: 500, body: { error: errHito.message, paso: 'insert hitos' } };
     }
   }
-  await supabaseAdmin
+
+  // === fecha_actualizacion (fire-and-forget, no bloquea) ==================
+  void supabaseAdmin
     .from('anteproyectos')
     .update({ ultimo_editor_id: participanteId, fecha_actualizacion: new Date().toISOString() })
     .eq('id', anteId);
@@ -222,12 +247,26 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
   const pid = req.user!.participanteId;
   if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
 
-  // Verificar que el anteproyecto existe y todavia es borrador
-  const { data: ant } = await supabaseAdmin
-    .from('anteproyectos')
-    .select('id, equipo_id, estado')
-    .eq('id', req.params.id)
-    .maybeSingle();
+  // === Cargar contexto en PARALELO =========================================
+  // Antes eran 4 round-trips serializados (anteproyecto, miembro, cohorte,
+  // CIIUs). Ahora todos al tiempo via Promise.all.
+  const ciiusToCheck = parsed.data.proyectos.map((p) => p.ciiu).filter(Boolean) as string[];
+  const [antRes, miembroRes, ciiusRes] = await Promise.all([
+    supabaseAdmin
+      .from('anteproyectos')
+      .select('id, equipo_id, estado, equipos!inner ( cohortes!inner ( fecha_limite_entrega_anteproyecto ) )')
+      .eq('id', req.params.id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('miembros_equipo')
+      .select('id, equipo_id')
+      .eq('participante_id', pid),
+    ciiusToCheck.length > 0
+      ? supabaseAdmin.from('codigos_ciiu').select('codigo').in('codigo', ciiusToCheck)
+      : Promise.resolve({ data: [] as Array<{ codigo: string }>, error: null }),
+  ]);
+
+  const ant = antRes.data;
   if (!ant) return res.status(404).json({ error: 'NOT_FOUND' });
 
   // GUARDRAIL: si el anteproyecto ya fue enviado, rechazamos el PUT. Esto
@@ -237,31 +276,17 @@ router.put('/:id', async (req: AuthenticatedRequest, res) => {
     return res.status(409).json({ error: 'ALREADY_SUBMITTED', estado: ant.estado });
   }
 
-  const { data: yoMiembro } = await supabaseAdmin
-    .from('miembros_equipo')
-    .select('equipo_id')
-    .eq('equipo_id', ant.equipo_id)
-    .eq('participante_id', pid)
-    .maybeSingle();
-  if (!yoMiembro) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
+  const esMiembro = (miembroRes.data ?? []).some((m: any) => m.equipo_id === ant.equipo_id);
+  if (!esMiembro) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
 
-  // Plazo
-  const { data: cohorte } = await supabaseAdmin
-    .from('equipos').select('cohortes(fecha_limite_entrega_anteproyecto)').eq('id', ant.equipo_id).maybeSingle();
-  const limite = (cohorte?.cohortes as any)?.fecha_limite_entrega_anteproyecto;
+  const limite = (ant.equipos as any)?.cohortes?.fecha_limite_entrega_anteproyecto;
   if (limite && new Date() >= new Date(limite)) {
     return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA', fecha_limite: limite });
   }
 
-  // CIIUs validos
-  const ciiusToCheck = parsed.data.proyectos.map((p) => p.ciiu).filter(Boolean) as string[];
-  if (ciiusToCheck.length) {
-    const { data: validCiius } = await supabaseAdmin
-      .from('codigos_ciiu').select('codigo').in('codigo', ciiusToCheck);
-    const validSet = new Set((validCiius ?? []).map((c) => c.codigo));
-    const invalid = ciiusToCheck.filter((c) => !validSet.has(c));
-    if (invalid.length) return res.status(400).json({ error: 'INVALID_CIIU', invalid });
-  }
+  const validSet = new Set(((ciiusRes.data ?? []) as Array<{ codigo: string }>).map((c) => c.codigo));
+  const invalid = ciiusToCheck.filter((c) => !validSet.has(c));
+  if (invalid.length) return res.status(400).json({ error: 'INVALID_CIIU', invalid });
 
   const result = await persistirBorradorEnBD({
     anteId: req.params.id,
@@ -278,22 +303,27 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
   const pid = req.user!.participanteId;
   if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
 
-  const { data: ant } = await supabaseAdmin
-    .from('anteproyectos')
-    .select(`
-      id, equipo_id, estado,
-      archivo_anteproyecto_path, archivo_proyecto_final_path,
-      equipos:equipos!inner ( tipo_trabajo_grado, cohorte_id )
-    `)
-    .eq('id', req.params.id)
-    .maybeSingle();
+  // Cargar anteproyecto + miembro en PARALELO (antes eran 2 round-trips
+  // serializados antes de cualquier trabajo real).
+  const [antRes, yoRes] = await Promise.all([
+    supabaseAdmin
+      .from('anteproyectos')
+      .select(`
+        id, equipo_id, estado,
+        archivo_anteproyecto_path, archivo_proyecto_final_path,
+        equipos:equipos!inner ( tipo_trabajo_grado, cohorte_id )
+      `)
+      .eq('id', req.params.id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('miembros_equipo').select('id, equipo_id').eq('participante_id', pid),
+  ]);
+  const ant = antRes.data;
   if (!ant) return res.status(404).json({ error: 'NOT_FOUND' });
   if (ant.estado !== 'borrador') return res.status(409).json({ error: 'ALREADY_SUBMITTED', estado: ant.estado });
 
-  // Soy miembro?
-  const { data: yo } = await supabaseAdmin
-    .from('miembros_equipo').select('id').eq('equipo_id', ant.equipo_id).eq('participante_id', pid).maybeSingle();
-  if (!yo) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
+  const esMiembro = (yoRes.data ?? []).some((m: any) => m.equipo_id === ant.equipo_id);
+  if (!esMiembro) return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
 
   const modalidad = (ant.equipos as any)?.tipo_trabajo_grado;
 
