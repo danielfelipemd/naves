@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
+import { setCachedToken } from './token';
 
 type AppRole = 'participante' | 'profesor' | 'super_admin' | null;
 
@@ -46,15 +47,24 @@ export const useAuth = create<AuthState>((set, get) => ({
   requierePerfil: false,
 
   init: async () => {
-    const { data } = await supabase.auth.getSession();
-    const user = data.session?.user ?? null;
+    // Timeout defensivo para getSession(): si Supabase Auth tiene latencia
+    // momentanea, no queremos que toda la app se quede en "cargando" mas de
+    // 5 s. Tras el timeout asumimos "sin sesion" y dejamos al usuario en el
+    // login — mejor eso que pantalla blanca infinita.
+    const sessionResult = await Promise.race([
+      supabase.auth.getSession().then((r) => r.data.session),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]).catch(() => null);
+
+    const user = sessionResult?.user ?? null;
     const role = roleFromUser(user);
+    setCachedToken(sessionResult?.access_token ?? null);
     let me = { requiereCambio: false, requierePerfil: false, nombre: null as string | null };
-    if (data.session) {
+    if (sessionResult) {
       me = await fetchMe();
     }
     set({
-      session: data.session,
+      session: sessionResult,
       user,
       role,
       nombre: me.nombre,
@@ -65,6 +75,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     supabase.auth.onAuthStateChange(async (_event, session) => {
       const u = session?.user ?? null;
       const r = roleFromUser(u);
+      setCachedToken(session?.access_token ?? null);
       set({ session, user: u, role: r });
       if (session) {
         const fl = await fetchMe();
@@ -103,6 +114,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     // Es mucho mas confiable: solo limpia el storage local. Si la red esta
     // mal, antes el signOut fallaba y el estado quedaba pegado.
     try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* ignore */ }
+    setCachedToken(null);
     // Limpiar estado SIEMPRE, ocurra lo que ocurra arriba.
     set({ session: null, user: null, role: null, nombre: null, requiereCambioClave: false, requierePerfil: false });
     // Hard redirect: garantiza que se llega a /login independientemente del

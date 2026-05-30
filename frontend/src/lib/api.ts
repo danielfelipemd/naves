@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { supabase } from './supabase';
+import { getCachedToken } from '../auth/token';
 
 const API_URL = (import.meta.env.VITE_API_URL as string) || '/api';
 
@@ -8,10 +8,13 @@ export const api = axios.create({
   timeout: 15000,
 });
 
-// Adjunta JWT del session de Supabase si existe
-api.interceptors.request.use(async (cfg) => {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+// Adjunta el JWT actual desde el cache sincrono. Antes haciamos
+//   `await supabase.auth.getSession()`
+// aqui en cada request, lo cual colgaba el frontend cuando Supabase Auth
+// tenia latencia o estaba refrescando el token. Ahora el store de auth
+// mantiene el cache vivo via onAuthStateChange + en el init().
+api.interceptors.request.use((cfg) => {
+  const token = getCachedToken();
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
   return cfg;
 });
