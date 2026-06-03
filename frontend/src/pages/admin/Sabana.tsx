@@ -78,9 +78,24 @@ export default function Sabana() {
   const [filtroBuscar, setFiltroBuscar] = useState('');
 
   useEffect(() => { (async () => {
-    // Solo cohortes activas en el dropdown de la sabana
-    setCohortes(((await api.get('/admin/cohortes')).data as Cohorte[]).filter((c) => c.activa));
-    setProfesores((await api.get('/admin/profesores')).data.filter((p: any) => p.activo));
+    // Reintento defensivo: el backend a veces devuelve 502/504 intermitentes;
+    // si la carga inicial de cohortes falla, el dropdown queda vacio para
+    // siempre. Hacemos 3 intentos con 800ms de espera antes de rendirnos.
+    async function getWithRetry<T>(path: string, attempts = 3): Promise<T | null> {
+      for (let i = 0; i < attempts; i++) {
+        try { return (await api.get(path)).data as T; }
+        catch (e: any) {
+          if (i < attempts - 1) await new Promise((r) => setTimeout(r, 800));
+        }
+      }
+      return null;
+    }
+    const [cohData, profData] = await Promise.all([
+      getWithRetry<Cohorte[]>('/admin/cohortes'),
+      getWithRetry<any[]>('/admin/profesores'),
+    ]);
+    if (cohData) setCohortes(cohData.filter((c) => c.activa));
+    if (profData) setProfesores(profData.filter((p: any) => p.activo));
   })(); }, []);
 
   async function load() {
