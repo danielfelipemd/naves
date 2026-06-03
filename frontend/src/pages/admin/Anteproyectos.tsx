@@ -121,21 +121,6 @@ export default function AnteproyectosList() {
           <option value="">Todas las cohortes</option>
           {cohortes.map((c) => <option key={c.id} value={c.id}>{c.etiqueta}</option>)}
         </select>
-        <select value={tipo} onChange={(e) => setTipo(e.target.value)} className="input-inalde !py-2">
-          <option value="">Todas las modalidades</option>
-          <option value="business_plan">Business Plan</option>
-          <option value="caso">Caso</option>
-          <option value="proyecto_investigacion">Proyecto de investigación</option>
-        </select>
-        <select value={estado} onChange={(e) => setEstado(e.target.value)} className="input-inalde !py-2">
-          <option value="">Todos los estados</option>
-          {estadosDisponibles.map((k) => <option key={k} value={k}>{ESTADO_LABELS[k]}</option>)}
-        </select>
-        {(tipo || estado) && (
-          <button onClick={() => { setTipo(''); setEstado(''); }} className="btn-inalde-ghost !py-2 !px-3 !text-xs">
-            Limpiar filtros
-          </button>
-        )}
       </div>
 
       {loading ? <p className="text-inalde-gray">Cargando…</p> : (
@@ -145,9 +130,23 @@ export default function AnteproyectosList() {
             <tr>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Integrantes</th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Cohorte</th>
-              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Modalidad</th>
+              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">
+                <select value={tipo} onChange={(e) => setTipo(e.target.value)} title="Filtrar por modalidad"
+                  className={`bg-transparent text-xs uppercase tracking-wider font-semibold cursor-pointer focus:outline-none ${tipo ? 'text-inalde-red' : 'text-inalde-gray'}`}>
+                  <option value="">Modalidad ▾</option>
+                  <option value="business_plan">Business Plan</option>
+                  <option value="caso">Caso</option>
+                  <option value="proyecto_investigacion">Proy. investigación</option>
+                </select>
+              </th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Proyectos</th>
-              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Estado</th>
+              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">
+                <select value={estado} onChange={(e) => setEstado(e.target.value)} title="Filtrar por estado"
+                  className={`bg-transparent text-xs uppercase tracking-wider font-semibold cursor-pointer focus:outline-none ${estado ? 'text-inalde-red' : 'text-inalde-gray'}`}>
+                  <option value="">Estado ▾</option>
+                  {estadosDisponibles.map((k) => <option key={k} value={k}>{ESTADO_LABELS[k]}</option>)}
+                </select>
+              </th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Última edición</th>
             </tr>
           </thead>
@@ -182,7 +181,7 @@ export default function AnteproyectosList() {
                 <td className="px-3 py-2 text-xs">
                   {it.proyectos.map((p) => (
                     <div key={p.id}>
-                      <span className={p.estado_seleccion === 'definitivo' ? 'text-inalde-red font-semibold' : p.estado_seleccion === 'archivado' ? 'text-inalde-gray line-through' : ''}>
+                      <span className={p.estado_seleccion === 'archivado' ? 'text-inalde-gray line-through' : 'text-inalde-text'}>
                         {p.nombre}
                       </span>
                     </div>
