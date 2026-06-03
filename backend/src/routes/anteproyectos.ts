@@ -231,10 +231,14 @@ async function persistirBorradorEnBD(params: {
   }
 
   // === fecha_actualizacion (fire-and-forget, no bloquea) ==================
-  void supabaseAdmin
-    .from('anteproyectos')
-    .update({ ultimo_editor_id: participanteId, fecha_actualizacion: new Date().toISOString() })
-    .eq('id', anteId);
+  // Capturamos el rechazo: un blip de red haría que esta promesa rechace y,
+  // sin catch, tumbaría el proceso (este helper corre en cada autoguardado).
+  Promise.resolve(
+    supabaseAdmin
+      .from('anteproyectos')
+      .update({ ultimo_editor_id: participanteId, fecha_actualizacion: new Date().toISOString() })
+      .eq('id', anteId)
+  ).catch((e) => console.warn('[fecha_actualizacion] update falló:', (e as Error)?.message));
 
   return { ok: true };
 }

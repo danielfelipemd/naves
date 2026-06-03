@@ -19,6 +19,19 @@ import rolesRouter from './routes/roles.js';
 import cohortesRouter from './routes/cohortes.js';
 import directoresRouter from './routes/directores.js';
 
+// === Red de seguridad del proceso ==========================================
+// Operaciones best-effort (notificaciones por correo, updates fire-and-forget a
+// Supabase) pueden RECHAZAR ante un blip de red. Sin estos handlers, una promesa
+// rechazada sin catch mata el proceso Node (comportamiento por defecto >=15) y
+// tumba TODO el backend (502 hasta que el contenedor reinicia). Logueamos el
+// problema y mantenemos el proceso vivo en vez de caer en un crash-loop.
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+});
+
 const app = express();
 
 app.use(helmet());
