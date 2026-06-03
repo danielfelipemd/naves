@@ -72,6 +72,7 @@ export default function AnteproyectosList() {
   const [cohorte, setCohorte] = useState('');
   const [tipo, setTipo] = useState('');
   const [estado, setEstado] = useState('');
+  const [sector, setSector] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -103,11 +104,17 @@ export default function AnteproyectosList() {
     return Object.keys(ESTADO_LABELS).filter((k) => set.has(k));
   }, [items]);
 
+  // Sectores presentes en los proyectos cargados (para el filtro de la columna)
+  const sectoresDisponibles = useMemo(() => {
+    return [...new Set(items.flatMap((it) => it.proyectos.map((p) => p.sector).filter(Boolean) as string[]))].sort();
+  }, [items]);
+
   const filtrados = useMemo(() => items.filter((it) => {
     if (tipo && it.equipos?.tipo_trabajo_grado !== tipo) return false;
     if (estado && estadoDisplay(it).key !== estado) return false;
+    if (sector && !it.proyectos.some((p) => p.sector === sector)) return false;
     return true;
-  }), [items, tipo, estado]);
+  }), [items, tipo, estado, sector]);
 
   return (
     <>
@@ -141,13 +148,19 @@ export default function AnteproyectosList() {
               </th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Proyectos</th>
               <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">
+                <select value={sector} onChange={(e) => setSector(e.target.value)} title="Filtrar por sector"
+                  className={`bg-transparent text-xs uppercase tracking-wider font-semibold cursor-pointer focus:outline-none ${sector ? 'text-inalde-red' : 'text-inalde-gray'}`}>
+                  <option value="">Sector ▾</option>
+                  {sectoresDisponibles.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </th>
+              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">
                 <select value={estado} onChange={(e) => setEstado(e.target.value)} title="Filtrar por estado"
                   className={`bg-transparent text-xs uppercase tracking-wider font-semibold cursor-pointer focus:outline-none ${estado ? 'text-inalde-red' : 'text-inalde-gray'}`}>
                   <option value="">Estado ▾</option>
                   {estadosDisponibles.map((k) => <option key={k} value={k}>{ESTADO_LABELS[k]}</option>)}
                 </select>
               </th>
-              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Última edición</th>
             </tr>
           </thead>
           <tbody>
@@ -187,10 +200,14 @@ export default function AnteproyectosList() {
                     </div>
                   ))}
                 </td>
+                <td className="px-3 py-2 text-xs text-inalde-gray">
+                  {it.proyectos.length
+                    ? it.proyectos.map((p) => <div key={p.id}>{p.sector || <span className="italic">—</span>}</div>)
+                    : <span className="italic">—</span>}
+                </td>
                 <td className="px-3 py-2">
                   <span className={`text-xs uppercase tracking-wider font-semibold ${est.cls}`}>{est.label}</span>
                 </td>
-                <td className="px-3 py-2 text-xs text-inalde-gray">{new Date(it.fecha_actualizacion).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</td>
               </tr>
               );
             })}
