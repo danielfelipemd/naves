@@ -55,7 +55,12 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 // 'profesor' tambien.
 router.use(requireAuth());
 
+// Endpoints GET que tambien puede consumir el profesor desde su panel.
+// /cohortes y /profesores son necesarios porque la pantalla de la Sábana
+// y la de Anteproyectos los usan para poblar el dropdown del filtro.
 const PROFESOR_OK_PATHS = [
+  /^\/cohortes$/,
+  /^\/profesores$/,
   /^\/anteproyectos$/,
   /^\/anteproyectos\/[^/]+$/,
   /^\/anteproyectos\/[^/]+\/pdf$/,
