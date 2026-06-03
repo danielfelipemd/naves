@@ -163,26 +163,55 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
   const profesorId = req.user!.profesorId;
   if (!isSuperAdmin && !profesorId) return res.status(403).json({ error: 'NO_PROFESOR_ID' });
 
-  // Equipos de la cohorte con miembros, anteproyecto+proyectos, asignacion de profesor
-  const { data: equipos, error } = await supabaseAdmin
+  // Antes haciamos un mega-SELECT con 4 niveles de embedding anidado que
+  // colgaba el backend (120s timeout consistente, aunque la misma query
+  // directa contra Supabase responde en <1s). Lo partimos en SELECTs
+  // mas chicos en paralelo + un join en memoria — total <1s.
+  const equiposRes = await supabaseAdmin
     .from('equipos')
-    .select(`
-      id, nombre_equipo, tipo_trabajo_grado, buscando_socios, buscando_asociacion_otro_proyecto,
-      miembros_equipo (
-        posicion,
-        participantes_lista ( nombre_completo )
-      ),
-      anteproyectos (
-        id, estado,
-        proyectos ( id, posicion, nombre, sector, tipo, ciiu, canvas_problema, canvas_solucion, estado_seleccion )
-      ),
-      asignaciones_profesor (
-        profesores:profesor_id ( id, nombre_completo )
-      ),
-      directores:director_id ( id, nombre_completo )
-    `)
+    .select('id, nombre_equipo, tipo_trabajo_grado, buscando_socios, buscando_asociacion_otro_proyecto, director_id, directores:director_id(id, nombre_completo)')
     .eq('cohorte_id', cohorteId);
-  if (error) return res.status(500).json({ error: error.message });
+  if (equiposRes.error) return res.status(500).json({ error: equiposRes.error.message });
+
+  const equipoIds = (equiposRes.data ?? []).map((e: any) => e.id);
+  const [miembrosRes, antesRes, asignacionesRes] = equipoIds.length === 0
+    ? [{ data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }]
+    : await Promise.all([
+        supabaseAdmin
+          .from('miembros_equipo')
+          .select('equipo_id, posicion, participantes_lista(nombre_completo)')
+          .in('equipo_id', equipoIds),
+        supabaseAdmin
+          .from('anteproyectos')
+          .select('id, equipo_id, estado, proyectos(id, posicion, nombre, sector, tipo, ciiu, canvas_problema, canvas_solucion, estado_seleccion)')
+          .in('equipo_id', equipoIds),
+        supabaseAdmin
+          .from('asignaciones_profesor')
+          .select('equipo_id, profesor_id, profesores:profesor_id(id, nombre_completo)')
+          .eq('cohorte_id', cohorteId),
+      ]);
+
+  // Indexar miembros, anteproyectos y asignaciones por equipo_id (join en memoria)
+  const miembrosPorEquipo = new Map<string, any[]>();
+  for (const m of (miembrosRes.data ?? []) as any[]) {
+    const arr = miembrosPorEquipo.get(m.equipo_id) ?? [];
+    arr.push(m);
+    miembrosPorEquipo.set(m.equipo_id, arr);
+  }
+  const antePorEquipo = new Map<string, any>();
+  for (const a of (antesRes.data ?? []) as any[]) {
+    antePorEquipo.set(a.equipo_id, a);
+  }
+  const asigPorEquipo = new Map<string, any>();
+  for (const a of (asignacionesRes.data ?? []) as any[]) {
+    asigPorEquipo.set(a.equipo_id, a);
+  }
+  const equipos = (equiposRes.data ?? []).map((e: any) => ({
+    ...e,
+    miembros_equipo: miembrosPorEquipo.get(e.id) ?? [],
+    anteproyectos: antePorEquipo.get(e.id) ?? null,
+    asignaciones_profesor: asigPorEquipo.get(e.id) ? [asigPorEquipo.get(e.id)] : [],
+  }));
 
   type Proyecto = {
     id: string;
