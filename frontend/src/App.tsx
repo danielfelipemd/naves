@@ -44,12 +44,24 @@ function CambiarClaveRoute() {
   return <CambiarClaveInicial />;
 }
 
+// Acceso al layout /admin: admite super_admin y profesor. Cada pantalla
+// individual decide su propia restriccion via SuperAdminOnly (ver abajo).
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { session, user, loading } = useAuth();
+  const { session, loading, role } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-inalde-gray">Cargando…</div>;
   if (!session) return <Navigate to="/login" replace />;
-  const isAdmin = (user?.app_metadata as any)?.es_super_admin === true;
-  if (!isAdmin) return <Navigate to="/" replace />;
+  if (role !== 'super_admin' && role !== 'profesor') return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+// Wrapper para las pantallas /admin/* que son exclusivas de super_admin
+// (cohortes, participantes, profesores, directores, equipos, auditoria,
+// roles-permisos, resumen). El profesor que llegue aqui es rebotado al
+// dashboard. Sabana, anteproyectos y solicitudes NO usan este wrapper
+// porque tambien son accesibles para profesor (con filtros backend).
+function SuperAdminOnly({ children }: { children: React.ReactNode }) {
+  const { role } = useAuth();
+  if (role !== 'super_admin') return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -75,18 +87,18 @@ export default function App() {
         <Route path="/profesor/seleccionar-proyectos" element={<ProtectedRoute><ProfesorSeleccionarProyectos /></ProtectedRoute>} />
 
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-          <Route index element={<AdminResumen />} />
-          <Route path="cohortes" element={<AdminCohortes />} />
-          <Route path="participantes" element={<AdminParticipantes />} />
-          <Route path="profesores" element={<AdminProfesores />} />
-          <Route path="directores" element={<AdminDirectores />} />
+          <Route index element={<SuperAdminOnly><AdminResumen /></SuperAdminOnly>} />
+          <Route path="cohortes" element={<SuperAdminOnly><AdminCohortes /></SuperAdminOnly>} />
+          <Route path="participantes" element={<SuperAdminOnly><AdminParticipantes /></SuperAdminOnly>} />
+          <Route path="profesores" element={<SuperAdminOnly><AdminProfesores /></SuperAdminOnly>} />
+          <Route path="directores" element={<SuperAdminOnly><AdminDirectores /></SuperAdminOnly>} />
           <Route path="anteproyectos" element={<AdminAnteproyectos />} />
           <Route path="anteproyectos/:id" element={<AdminAnteproyectoDetail />} />
-          <Route path="equipos" element={<AdminEquipos />} />
+          <Route path="equipos" element={<SuperAdminOnly><AdminEquipos /></SuperAdminOnly>} />
           <Route path="sabana" element={<AdminSabana />} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
-          <Route path="auditoria" element={<AdminAuditoria />} />
-          <Route path="roles-permisos" element={<AdminRolesPermisos />} />
+          <Route path="auditoria" element={<SuperAdminOnly><AdminAuditoria /></SuperAdminOnly>} />
+          <Route path="roles-permisos" element={<SuperAdminOnly><AdminRolesPermisos /></SuperAdminOnly>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

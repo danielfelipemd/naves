@@ -48,7 +48,29 @@ const areaEnum = z.enum(AREAS_AFINIDAD);
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-router.use(requireAuth(), requireRole('super_admin'));
+// Autenticacion a nivel router + chequeo de rol custom por path.
+// La mayoria del panel admin es exclusivo de super_admin. Algunas
+// pantallas (sabana, anteproyectos, solicitudes-desarchivado) tambien
+// las usa el profesor desde su dashboard, asi que esos paths permiten
+// 'profesor' tambien.
+router.use(requireAuth());
+
+const PROFESOR_OK_PATHS = [
+  /^\/anteproyectos$/,
+  /^\/anteproyectos\/[^/]+$/,
+  /^\/anteproyectos\/[^/]+\/pdf$/,
+  /^\/solicitudes-desarchivado$/,
+];
+
+router.use((req: AuthenticatedRequest, res, next) => {
+  const isSuperAdmin = !!req.user?.isSuperAdmin;
+  if (isSuperAdmin) return next();
+  // /sabana queda en otro router (sabana.ts) — no aplica aqui.
+  const isProfesorPath = PROFESOR_OK_PATHS.some((re) => re.test(req.path));
+  const role = req.user?.role;
+  if (isProfesorPath && role === 'profesor' && req.method === 'GET') return next();
+  return res.status(403).json({ error: 'FORBIDDEN' });
+});
 
 // =====================================================================
 // PARTICIPANTES — cargar Excel + crear usuarios Auth
