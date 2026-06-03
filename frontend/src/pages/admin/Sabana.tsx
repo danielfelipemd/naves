@@ -432,31 +432,31 @@ export default function Sabana() {
                 {/* Tabla */}
                 <div className="rounded-lg border border-inalde-gray-light overflow-hidden shadow-inalde-card bg-white w-fit max-w-full">
                   <div className="overflow-x-auto">
-                    <table className="text-sm w-[1442px] table-fixed border-collapse">
+                    <table className="text-sm w-[1240px] table-fixed border-collapse">
                       <colgroup>
-                        <col className="w-[44px]" />
-                        <col className="w-[170px]" />
-                        <col className="w-[190px]" />
-                        <col className="w-[90px]" />
-                        <col className="w-[70px]" />
-                        <col className="w-[460px]" />
-                        <col className="w-[64px]" />
-                        <col className="w-[64px]" />
-                        <col className="w-[120px]" />
-                        <col className="w-[170px]" />
+                        <col className="w-[40px]" />
+                        <col className="w-[150px]" />
+                        <col className="w-[160px]" />
+                        <col className="w-[80px]" />
+                        <col className="w-[58px]" />
+                        <col className="w-[420px]" />
+                        <col className="w-[54px]" />
+                        <col className="w-[54px]" />
+                        <col className="w-[104px]" />
+                        <col className="w-[150px]" />
                       </colgroup>
                       <thead>
                         <tr className="bg-gradient-to-b from-inalde-text to-[#2a2a2a]">
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">#</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Autores</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Proyecto(s)</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Sector</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">CIIU</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Problema · Solución</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-center" title="¿Está buscando socios?">Socios</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-center" title="¿Busca asociación con otro proyecto?">Asoc.</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Modalidad</th>
-                          <th className="px-3 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Profesor / Director</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">#</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Autores</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Proyecto(s)</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Sector</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">CIIU</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Problema · Solución</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-center" title="¿Está buscando socios?">Socios</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-center" title="¿Busca asociación con otro proyecto?">Asoc.</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Modalidad</th>
+                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Profesor / Director</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -469,7 +469,7 @@ export default function Sabana() {
                         ) : filtrados.map((f, idx) => (
                           <tr key={f.equipo_id}
                             className={`border-t border-inalde-gray-light/60 align-top transition ${idx % 2 === 0 ? 'bg-white' : 'bg-inalde-gray-bg/40'} hover:bg-inalde-red/5`}>
-                            <td className="px-3 py-3 align-top">
+                            <td className="px-2.5 py-3 align-top">
                               <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-inalde-text text-white text-xs font-bold font-mono">
                                 {idx + 1}
                               </span>
@@ -482,7 +482,7 @@ export default function Sabana() {
                                 </button>
                               )}
                             </td>
-                            <td className="px-3 py-3 align-top">
+                            <td className="px-2.5 py-3 align-top">
                               <p className="font-medium text-inalde-text truncate" title={f.autores}>
                                 {f.autores || <span className="italic text-inalde-gray font-normal">—</span>}
                               </p>
@@ -492,7 +492,7 @@ export default function Sabana() {
                                 </p>
                               )}
                             </td>
-                            <td className="px-3 py-3 align-top">
+                            <td className="px-2.5 py-3 align-top">
                               {f.proyectos.length > 1 ? (
                                 <div className="space-y-2">
                                   {f.proyectos.map((p, i) => (
@@ -508,7 +508,7 @@ export default function Sabana() {
                                 </p>
                               )}
                             </td>
-                            <td className="px-3 py-3 align-top text-inalde-gray text-xs">
+                            <td className="px-2.5 py-3 align-top text-inalde-gray text-xs">
                               {f.proyectos.length > 1 ? (
                                 <div className="space-y-2">
                                   {f.proyectos.map((p, i) => (
@@ -522,7 +522,7 @@ export default function Sabana() {
                                 f.proyectos[0]?.sector ?? <span className="italic">—</span>
                               )}
                             </td>
-                            <td className="px-3 py-3 align-top">
+                            <td className="px-2.5 py-3 align-top">
                               {f.proyectos.length > 1 ? (
                                 <div className="space-y-2">
                                   {f.proyectos.map((p, i) => (
@@ -536,7 +536,7 @@ export default function Sabana() {
                                 <span className="font-mono text-xs text-inalde-text">{f.proyectos[0]?.ciiu || <span className="italic text-inalde-gray">—</span>}</span>
                               )}
                             </td>
-                            <td className="px-3 py-3 align-top text-xs">
+                            <td className="px-2.5 py-3 align-top text-xs">
                               {f.proyectos.length > 1 ? (
                                 <div className="space-y-3">
                                   {f.proyectos.map((p, i) => (
@@ -569,7 +569,7 @@ export default function Sabana() {
                                 })()
                               )}
                             </td>
-                            <td className="px-3 py-3 text-center align-top">
+                            <td className="px-2.5 py-3 text-center align-top">
                               {isSuperAdmin ? (
                                 <select
                                   value={f.buscando_socios === null ? '' : f.buscando_socios ? 'si' : 'no'}
@@ -583,7 +583,7 @@ export default function Sabana() {
                                 <Pill value={f.buscando_socios} />
                               )}
                             </td>
-                            <td className="px-3 py-3 text-center align-top">
+                            <td className="px-2.5 py-3 text-center align-top">
                               {isSuperAdmin ? (
                                 <select
                                   value={f.buscando_asociacion === null ? '' : f.buscando_asociacion ? 'si' : 'no'}
@@ -597,13 +597,13 @@ export default function Sabana() {
                                 <Pill value={f.buscando_asociacion} />
                               )}
                             </td>
-                            <td className="px-3 py-3 align-top">
+                            <td className="px-2.5 py-3 align-top">
                               <ModalidadPill modalidad={f.modalidad} />
                               {f.modalidad === 'business_plan' && f.proyectos.some((p) => p.tipo === 'intraemprendimiento') && (
                                 <p className="text-[10px] uppercase tracking-wider text-inalde-gold font-semibold mt-1">Intraemprendimiento</p>
                               )}
                             </td>
-                            <td className="px-3 py-3 align-top">
+                            <td className="px-2.5 py-3 align-top">
                               {f.modalidad === 'business_plan' ? (
                                 isSuperAdmin ? (
                                   <select
