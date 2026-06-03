@@ -49,7 +49,7 @@ function ModalidadPill({ modalidad }: { modalidad: 'business_plan' | 'caso' | 'p
   const cfg = {
     business_plan:           { label: 'Business Plan',      cls: 'bg-inalde-red/10 text-inalde-red' },
     caso:                    { label: 'Caso',               cls: 'bg-inalde-gold/15 text-[#8a7530]' },
-    proyecto_investigacion:  { label: 'Proy. Investigación', cls: 'bg-blue-100 text-blue-800' },
+    proyecto_investigacion:  { label: 'Proy. Inv.', cls: 'bg-blue-100 text-blue-800' },
   } as const;
   const c = cfg[modalidad];
   return (
@@ -432,7 +432,7 @@ export default function Sabana() {
                 {/* Tabla */}
                 <div className="rounded-lg border border-inalde-gray-light overflow-hidden shadow-inalde-card bg-white w-fit max-w-full">
                   <div className="overflow-x-auto">
-                    <table className="text-sm w-[1240px] table-fixed border-collapse">
+                    <table className="text-sm w-[1326px] table-fixed border-collapse">
                       <colgroup>
                         <col className="w-[40px]" />
                         <col className="w-[150px]" />
@@ -442,8 +442,8 @@ export default function Sabana() {
                         <col className="w-[420px]" />
                         <col className="w-[54px]" />
                         <col className="w-[54px]" />
-                        <col className="w-[104px]" />
                         <col className="w-[150px]" />
+                        <col className="w-[160px]" />
                       </colgroup>
                       <thead>
                         <tr className="bg-gradient-to-b from-inalde-text to-[#2a2a2a]">
@@ -600,10 +600,10 @@ export default function Sabana() {
                             <td className="px-2.5 py-3 align-top">
                               <ModalidadPill modalidad={f.modalidad} />
                               {f.modalidad === 'business_plan' && f.proyectos.some((p) => p.tipo === 'intraemprendimiento') && (
-                                <p className="text-[10px] uppercase tracking-wider text-inalde-gold font-semibold mt-1">Intraemprendimiento</p>
+                                <p className="text-[9px] uppercase text-inalde-gold font-semibold mt-1 leading-tight break-words">Intraemprendimiento</p>
                               )}
                             </td>
-                            <td className="px-2.5 py-3 align-top">
+                            <td className="px-2.5 py-3 align-top break-words">
                               {f.modalidad === 'business_plan' ? (
                                 isSuperAdmin ? (
                                   <select
