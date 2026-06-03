@@ -531,7 +531,7 @@ export default function Sabana() {
                               )}
                             </td>
                             <td className="px-2.5 py-3 align-top text-xs">
-                              <div className="max-w-[480px] min-w-[300px]">
+                              <div className="max-w-[620px] min-w-[440px]">
                               {f.proyectos.length > 1 ? (
                                 <div className="space-y-3">
                                   {f.proyectos.map((p, i) => (
