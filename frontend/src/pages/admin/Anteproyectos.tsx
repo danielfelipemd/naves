@@ -26,6 +26,13 @@ const MODALIDAD_LABEL: Record<string, string> = {
   proyecto_investigacion: 'Proyecto de investigación',
 };
 
+// Orden de presentación en la tabla: BP → Caso → Proyecto de investigación
+const ORDEN_MODALIDAD: Record<string, number> = {
+  business_plan: 0,
+  caso: 1,
+  proyecto_investigacion: 2,
+};
+
 const MODALIDAD_CLS: Record<string, string> = {
   business_plan: 'bg-inalde-red/10 text-inalde-red',
   caso: 'bg-inalde-gold/15 text-[#8a7530]',
@@ -114,7 +121,9 @@ export default function AnteproyectosList() {
     if (estado && estadoDisplay(it).key !== estado) return false;
     if (sector && !it.proyectos.some((p) => p.sector === sector)) return false;
     return true;
-  }), [items, tipo, estado, sector]);
+  }).sort((a, b) =>
+    (ORDEN_MODALIDAD[a.equipos?.tipo_trabajo_grado] ?? 9) - (ORDEN_MODALIDAD[b.equipos?.tipo_trabajo_grado] ?? 9)
+  ), [items, tipo, estado, sector]);
 
   return (
     <>
