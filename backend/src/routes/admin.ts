@@ -1843,4 +1843,62 @@ router.post('/equipos/:id/remover-miembro', async (req, res) => {
   res.json({ ok: true });
 });
 
+// DELETE /api/admin/equipos/:id
+// Borra un equipo COMPLETO: anteproyecto + proyectos + hitos + miembros +
+// asignacion de profesor. Los participantes NO se borran: se liberan
+// (esperando_equipo_at) para volver al pool de la cohorte. Solo super_admin
+// (el middleware del router ya restringe a profesor a GETs puntuales).
+// Pensado para limpiar equipos/anteproyectos creados por error.
+router.delete('/equipos/:id', async (req, res) => {
+  const equipoId = req.params.id;
+
+  // 1. Cargar miembros y proyectos (via anteproyecto) ANTES de borrar.
+  const { data: equipo, error: errEq } = await supabaseAdmin
+    .from('equipos')
+    .select(`id, miembros_equipo ( participante_id ), anteproyectos ( id, proyectos ( id ) )`)
+    .eq('id', equipoId)
+    .maybeSingle();
+  if (errEq) return res.status(500).json({ error: errEq.message });
+  if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
+
+  const miembrosIds: string[] = (((equipo as any).miembros_equipo ?? []) as any[])
+    .map((m) => m.participante_id).filter(Boolean);
+  const antRaw = (equipo as any).anteproyectos;
+  const ant = Array.isArray(antRaw) ? antRaw[0] : antRaw;
+  const proyectoIds: string[] = (((ant?.proyectos ?? []) as any[]).map((p) => p.id)).filter(Boolean);
+
+  // 2. Quitar dependencias NO ACTION que bloquearian el delete en cascada.
+  if (proyectoIds.length) {
+    const { error } = await supabaseAdmin.from('solicitudes_desarchivado').delete().in('proyecto_id', proyectoIds);
+    if (error) return res.status(500).json({ error: error.message, paso: 'solicitudes_desarchivado' });
+  }
+  {
+    const { error } = await supabaseAdmin.from('asignaciones_profesor').delete().eq('equipo_id', equipoId);
+    if (error) return res.status(500).json({ error: error.message, paso: 'asignaciones_profesor' });
+  }
+  {
+    const { error } = await supabaseAdmin.from('historial_equipos').delete()
+      .or(`equipo_nuevo_id.eq.${equipoId},equipo_anterior_id.eq.${equipoId}`);
+    if (error) return res.status(500).json({ error: error.message, paso: 'historial_equipos' });
+  }
+  // Evitar el conflicto con la FK proyecto_definitivo_id (NO ACTION) durante el cascade.
+  {
+    const { error } = await supabaseAdmin.from('equipos').update({ proyecto_definitivo_id: null }).eq('id', equipoId);
+    if (error) return res.status(500).json({ error: error.message, paso: 'null proyecto_definitivo_id' });
+  }
+
+  // 3. Borrar el equipo -> cascada a anteproyectos -> proyectos -> hitos y miembros_equipo.
+  const { error: errDel } = await supabaseAdmin.from('equipos').delete().eq('id', equipoId);
+  if (errDel) return res.status(500).json({ error: errDel.message, paso: 'delete equipo' });
+
+  // 4. Liberar a los participantes: vuelven al pool de la cohorte.
+  if (miembrosIds.length) {
+    await supabaseAdmin.from('participantes_lista')
+      .update({ esperando_equipo_at: new Date().toISOString() })
+      .in('id', miembrosIds);
+  }
+
+  res.json({ ok: true, miembros_liberados: miembrosIds.length, proyectos_borrados: proyectoIds.length });
+});
+
 export default router;

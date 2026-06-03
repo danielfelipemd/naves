@@ -149,6 +149,18 @@ export default function Sabana() {
     }
   }
 
+  // Borrado completo del equipo (solo super_admin). Limpia equipos creados por error.
+  async function borrarEquipo(equipo_id: string, etiqueta: string) {
+    if (!confirm(`¿Borrar por completo "${etiqueta}"?\n\nSe eliminará el equipo, su anteproyecto, proyectos e hitos, y la asignación de profesor. Los participantes NO se borran: vuelven al pool de la cohorte para reasignarse.\n\nEsta acción es irreversible.`)) return;
+    try {
+      await api.delete(`/admin/equipos/${equipo_id}`);
+      setResumen((prev) => prev.filter((f) => f.equipo_id !== equipo_id));
+      setMsg({ kind: 'ok', text: 'Equipo borrado. Los participantes quedaron liberados.' });
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    }
+  }
+
   // Asignacion inline de profesor (solo super_admin, solo BP)
   async function asignarProfesor(equipo_id: string, profesor_id: string | null) {
     const prof = profesores.find((p) => p.id === profesor_id);
@@ -331,6 +343,11 @@ export default function Sabana() {
             const totalBP = contar('business_plan');
             const totalCaso = contar('caso');
             const totalPI = contar('proyecto_investigacion');
+            // Conteo de equipos asignados por profesor (para los chips informativos)
+            const porProfesor = resumen.reduce((acc, f) => {
+              if (f.profesor_asignado_nombre) acc.set(f.profesor_asignado_nombre, (acc.get(f.profesor_asignado_nombre) ?? 0) + 1);
+              return acc;
+            }, new Map<string, number>());
             return (
               <>
                 {/* Barra de filtros */}
@@ -359,21 +376,33 @@ export default function Sabana() {
                   </div>
                 </div>
 
+                {/* Conteo de equipos asignados por profesor */}
+                {porProfesor.size > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mb-3 -mt-1">
+                    <span className="text-[10px] uppercase tracking-wider text-inalde-gray font-semibold mr-1">Asignados por profesor:</span>
+                    {[...porProfesor.entries()].sort((a, b) => b[1] - a[1]).map(([nombre, n]) => (
+                      <span key={nombre} className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-inalde-gold/15 text-[#8a7530] border border-inalde-gold/30 whitespace-nowrap">
+                        {nombre} · {n}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 {/* Tabla */}
                 <div className="rounded-lg border border-inalde-gray-light overflow-hidden shadow-inalde-card bg-white">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm min-w-[1700px] table-fixed border-collapse">
                       <colgroup>
                         <col className="w-12" />
-                        <col className="w-[14%]" />
-                        <col className="w-[18%]" />
-                        <col className="w-[10%]" />
+                        <col className="w-[11%]" />
+                        <col className="w-[13%]" />
                         <col className="w-20" />
-                        <col className="w-[22%]" />
-                        <col className="w-20" />
-                        <col className="w-20" />
-                        <col className="w-32" />
-                        <col className="w-44" />
+                        <col className="w-16" />
+                        <col className="w-[34%]" />
+                        <col className="w-14" />
+                        <col className="w-14" />
+                        <col className="w-28" />
+                        <col className="w-40" />
                       </colgroup>
                       <thead>
                         <tr className="bg-gradient-to-b from-inalde-text to-[#2a2a2a]">
@@ -403,6 +432,14 @@ export default function Sabana() {
                               <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-inalde-text text-white text-xs font-bold font-mono">
                                 {f.numero}
                               </span>
+                              {isSuperAdmin && (
+                                <button
+                                  onClick={() => borrarEquipo(f.equipo_id, f.nombre_equipo || f.autores || `equipo #${f.numero}`)}
+                                  title="Borrar equipo completo"
+                                  className="block mt-2 text-inalde-gray hover:text-inalde-red transition text-sm leading-none">
+                                  🗑
+                                </button>
+                              )}
                             </td>
                             <td className="px-3 py-3 align-top">
                               <p className="font-medium text-inalde-text truncate" title={f.autores}>
@@ -521,6 +558,9 @@ export default function Sabana() {
                             </td>
                             <td className="px-3 py-3 align-top">
                               <ModalidadPill modalidad={f.modalidad} />
+                              {f.modalidad === 'business_plan' && f.proyectos.some((p) => p.tipo === 'intraemprendimiento') && (
+                                <p className="text-[10px] uppercase tracking-wider text-inalde-gold font-semibold mt-1">Intraemprendimiento</p>
+                              )}
                             </td>
                             <td className="px-3 py-3 align-top">
                               {f.modalidad === 'business_plan' ? (
