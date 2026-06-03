@@ -311,6 +311,19 @@ router.patch('/equipos/:equipoId', requireRole('super_admin'), async (req: Authe
     } else {
       // Asignar / reemplazar. Si super_admin no tiene profesor_id, usamos el profesor mismo como asignado_por.
       const asignadoPor = req.user!.profesorId ?? parsed.data.profesor_id;
+      // ¿Cambió el profesor respecto al ya asignado? Si es nuevo o distinto,
+      // se marca como pendiente de notificar (notificacion_enviada=false) para
+      // que el próximo "Comunicar" envíe el aviso. Si es el mismo profesor,
+      // preservamos el estado de notificación para no re-enviar correos.
+      const { data: prev, error: errPrev } = await supabaseAdmin
+        .from('asignaciones_profesor')
+        .select('profesor_id, notificacion_enviada, fecha_notificacion')
+        .eq('equipo_id', equipoId)
+        .maybeSingle();
+      // Si falla la lectura del estado previo, abortamos en vez de resetear
+      // notificacion_enviada por error y re-notificar una asignación ya enviada.
+      if (errPrev) return res.status(500).json({ error: errPrev.message });
+      const cambioProfesor = !prev || (prev as any).profesor_id !== parsed.data.profesor_id;
       const { error } = await supabaseAdmin
         .from('asignaciones_profesor')
         .upsert({
@@ -318,6 +331,8 @@ router.patch('/equipos/:equipoId', requireRole('super_admin'), async (req: Authe
           profesor_id: parsed.data.profesor_id,
           cohorte_id: (eq as any).cohorte_id,
           asignado_por: asignadoPor,
+          notificacion_enviada: cambioProfesor ? false : (prev as any).notificacion_enviada,
+          fecha_notificacion: cambioProfesor ? null : (prev as any).fecha_notificacion,
         }, { onConflict: 'equipo_id' });
       if (error) return res.status(500).json({ error: error.message });
     }

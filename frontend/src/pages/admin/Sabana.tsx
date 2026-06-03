@@ -184,11 +184,19 @@ export default function Sabana() {
   }
 
   async function comunicar() {
-    if (!confirm('Marcar la sábana como comunicada y notificar a los equipos? (envío SMTP real pendiente de configuración)')) return;
+    if (!confirm('Se enviarán correos reales solo a los proyectos con profesor asignado pendiente de notificar (nuevos o con profesor cambiado). Los equipos sin profesor y los ya notificados sin cambios no recibirán correo. Esta acción es irreversible. ¿Continuar?')) return;
     setBusy(true);
     try {
       const { data } = await api.post(`/admin/sabanas/${cohorte}/comunicar`);
-      setMsg({ kind: 'ok', text: data.nota ?? 'Comunicada.' });
+      if (data.nota) {
+        setMsg({ kind: 'ok', text: data.nota });
+      } else {
+        const fallados = (data.emails_fallados ?? 0) + (data.profesores_fallados ?? 0);
+        const base = `Comunicado: ${data.emails_enviados ?? 0} correos a participantes y ${data.profesores_notificados ?? 0} a profesores.`;
+        setMsg(fallados > 0
+          ? { kind: 'err', text: `${base} ${fallados} envío(s) fallaron y quedaron pendientes para reintentar.` }
+          : { kind: 'ok', text: base });
+      }
       await load();
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
@@ -227,10 +235,10 @@ export default function Sabana() {
             </button>
             {snapshot.length > 0 && (
               <>
-                <button onClick={sugerir} disabled={busy} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover">Sugerir asignaciones</button>
-                <button onClick={guardarAsignaciones} disabled={busy} className="text-xs font-semibold text-inalde-blue hover:text-inalde-red">Guardar asignaciones</button>
-                <button onClick={() => downloadFile(`/sabana/${cohorte}/pdf`, `sabana-${cohorte}.pdf`)} disabled={busy} className="text-xs font-semibold text-inalde-text hover:text-inalde-red">↓ PDF</button>
-                <button onClick={comunicar} disabled={busy} className="text-xs font-semibold text-inalde-gold hover:text-inalde-red">Comunicar →</button>
+                <button onClick={sugerir} disabled={busy} className="btn-inalde-ghost">Sugerir asignaciones</button>
+                <button onClick={guardarAsignaciones} disabled={busy} className="btn-inalde-secondary">Guardar asignaciones</button>
+                <button onClick={() => downloadFile(`/sabana/${cohorte}/pdf`, `sabana-${cohorte}.pdf`)} disabled={busy} className="btn-inalde-ghost">↓ PDF</button>
+                <button onClick={comunicar} disabled={busy} className="btn-inalde-danger">Comunicar →</button>
               </>
             )}
           </>

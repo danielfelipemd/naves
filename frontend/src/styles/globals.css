@@ -25,6 +25,43 @@
            disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
   }
 
+  /* Botón secundario — contorno azul (acciones reversibles: guardar, sugerir) */
+  .btn-inalde-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           font-primary font-semibold tracking-wider uppercase
+           text-xs px-4 py-2 rounded
+           bg-white border-2 border-inalde-gray-light text-inalde-text
+           transition-all duration-200
+           hover:border-inalde-blue hover:text-inalde-blue hover:-translate-y-0.5
+           focus:outline-none focus:ring-2 focus:ring-inalde-blue/40
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
+  /* Botón discreto — acciones inocuas (descargas, sugerencias) */
+  .btn-inalde-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           font-primary font-semibold tracking-wider uppercase
+           text-xs px-4 py-2 rounded
+           bg-inalde-gray-bg border-2 border-transparent text-inalde-gray
+           transition-all duration-200
+           hover:bg-inalde-gray-light hover:text-inalde-text hover:-translate-y-0.5
+           focus:outline-none focus:ring-2 focus:ring-inalde-gray/30
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
+  /* Botón de acción delicada — envío irreversible de correos (comunicar) */
+  .btn-inalde-danger {
+    @apply inline-flex items-center justify-center gap-2
+           font-primary font-semibold tracking-wider uppercase
+           text-xs px-5 py-2 rounded text-white
+           bg-gradient-to-br from-inalde-gold to-amber-700
+           shadow-inalde-card
+           transition-all duration-200
+           hover:-translate-y-0.5 hover:brightness-105
+           focus:outline-none focus:ring-2 focus:ring-inalde-gold/50
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
   /* Input estilo INALDE */
   .input-inalde {
     @apply w-full px-4 py-3 rounded border-2 border-inalde-gray-light

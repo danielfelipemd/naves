@@ -1328,13 +1328,33 @@ router.post('/sabanas/:cohorteId/asignar', async (req: AuthenticatedRequest, res
   if (!adminId) return res.status(403).json({ error: 'NO_PROFESOR_ID' });
 
   const { cohorteId } = req.params;
+
+  // Estado previo de cada equipo para detectar cambios de profesor: solo se
+  // marca como pendiente de notificar (notificacion_enviada=false) lo nuevo o
+  // lo que cambió de profesor; lo ya notificado sin cambios se preserva.
+  const equipoIds = parsed.data.asignaciones.map((a) => a.equipo_id);
+  const { data: previas, error: errPrev } = await supabaseAdmin
+    .from('asignaciones_profesor')
+    .select('equipo_id, profesor_id, notificacion_enviada, fecha_notificacion')
+    .in('equipo_id', equipoIds);
+  // Si no podemos leer el estado previo, abortamos: tratar todo como "cambio"
+  // resetearía notificacion_enviada y re-notificaría asignaciones ya enviadas.
+  if (errPrev) return res.status(500).json({ error: errPrev.message });
+  const prevMap = new Map((previas ?? []).map((p: any) => [p.equipo_id, p]));
+
   // upsert por equipo (un equipo solo puede tener un profesor)
-  const rows = parsed.data.asignaciones.map((a) => ({
-    equipo_id: a.equipo_id,
-    profesor_id: a.profesor_id,
-    cohorte_id: cohorteId,
-    asignado_por: adminId,
-  }));
+  const rows = parsed.data.asignaciones.map((a) => {
+    const prev: any = prevMap.get(a.equipo_id);
+    const cambioProfesor = !prev || prev.profesor_id !== a.profesor_id;
+    return {
+      equipo_id: a.equipo_id,
+      profesor_id: a.profesor_id,
+      cohorte_id: cohorteId,
+      asignado_por: adminId,
+      notificacion_enviada: cambioProfesor ? false : prev.notificacion_enviada,
+      fecha_notificacion: cambioProfesor ? null : prev.fecha_notificacion,
+    };
+  });
 
   const { error } = await supabaseAdmin
     .from('asignaciones_profesor')
@@ -1370,13 +1390,37 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
         )
       )
     `)
-    .eq('cohorte_id', cohorteId);
+    .eq('cohorte_id', cohorteId)
+    // Solo proyectos con profesor asignado PENDIENTE de notificar
+    // (recién asignados o con profesor cambiado). Los ya notificados sin
+    // cambios y los equipos SIN profesor (no tienen fila) quedan fuera.
+    .eq('notificacion_enviada', false);
   if (errAsign) return res.status(500).json({ error: errAsign.message });
+
+  if (!asignaciones || asignaciones.length === 0) {
+    // Marcar la sábana como comunicada igual (estado), pero sin enviar nada.
+    await supabaseAdmin
+      .from('sabanas_proyectos')
+      .update({ estado: 'comunicada', fecha_comunicacion: ahora })
+      .eq('cohorte_id', cohorteId);
+    return res.json({
+      ok: true,
+      emails_enviados: 0,
+      emails_fallados: 0,
+      profesores_notificados: 0,
+      profesores_fallados: 0,
+      fallos: [],
+      nota: 'No hay asignaciones nuevas o modificadas por comunicar. Solo se notifican los proyectos con profesor asignado pendiente.',
+    });
+  }
 
   // 2. Por cada asignación, enviar correo a cada participante del equipo
   let emailsEnviados = 0;
   let emailsFallados = 0;
   const fallos: Array<{ destinatario: string; razon: string }> = [];
+  // Asignaciones cuyo envío falló (a participantes o al profesor). NO se
+  // marcan como notificadas, para que un próximo "Comunicar" las reintente.
+  const asignacionConFallo = new Set<string>();
 
   for (const a of asignaciones ?? []) {
     const prof: any = a.profesores;
@@ -1392,7 +1436,7 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
       if (!p?.email_encriptado) continue;
       let realEmail: string;
       try { realEmail = decryptPII(p.email_encriptado); }
-      catch { emailsFallados++; fallos.push({ destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }); continue; }
+      catch { emailsFallados++; asignacionConFallo.add(a.id); fallos.push({ destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }); continue; }
 
       const html = `
         <div style="font-family:Roboto,Arial,sans-serif;color:#1a1a1a;max-width:540px;margin:0 auto">
@@ -1417,7 +1461,7 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
 
       const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
       if (r.ok) emailsEnviados++;
-      else { emailsFallados++; fallos.push({ destinatario: p.nombre_completo, razon: r.reason ?? 'UNKNOWN' }); }
+      else { emailsFallados++; asignacionConFallo.add(a.id); fallos.push({ destinatario: p.nombre_completo, razon: r.reason ?? 'UNKNOWN' }); }
     }
   }
 
@@ -1431,13 +1475,19 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
     porProfesor.get(prof.id)!.equipos.push(a.equipos);
   }
 
+  // El correo al profesor NO bloquea la marca de notificación de la asignación:
+  // si el SMTP está caído también falla el correo a participantes (que sí deja
+  // pendiente y reintenta). El único caso de fallo solo-profesor es un email
+  // inválido/corrupto —permanente— donde reintentar es inútil y reenviar a los
+  // participantes sería spam. Por eso aquí solo se reporta el fallo, no se marca
+  // la asignación como pendiente.
   let profesoresEnviados = 0;
   let profesoresFallados = 0;
   for (const { prof, equipos } of porProfesor.values()) {
     let profEmail = '';
     try { profEmail = decryptPII(prof.email_encriptado); }
-    catch { profesoresFallados++; continue; }
-    if (!profEmail) { profesoresFallados++; continue; }
+    catch { profesoresFallados++; fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: 'PII_DECRYPT_FAILED' }); continue; }
+    if (!profEmail) { profesoresFallados++; fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: 'EMAIL_VACIO' }); continue; }
 
     const filasEquipos = equipos.map((eq: any) => {
       const nombreEquipo = eq?.nombre_equipo || '(sin nombre)';
@@ -1489,18 +1539,28 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
 
     const r = await sendEmail(profEmail, `Equipos asignados — Cohorte ${cohorteId}`, html);
     if (r.ok) profesoresEnviados++;
-    else profesoresFallados++;
+    else { profesoresFallados++; fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: r.reason ?? 'UNKNOWN' }); }
   }
 
-  // 4. Marcar como comunicada en BD (independiente del resultado de emails)
+  // 4. Marcar como comunicada en BD (independiente del resultado de emails).
+  //    Solo marcamos como notificadas las asignaciones que SÍ procesamos
+  //    (las pendientes), no toda la cohorte, para no pisar el estado de
+  //    asignaciones futuras ni re-notificar lo ya enviado.
   await supabaseAdmin
     .from('sabanas_proyectos')
     .update({ estado: 'comunicada', fecha_comunicacion: ahora })
     .eq('cohorte_id', cohorteId);
-  await supabaseAdmin
-    .from('asignaciones_profesor')
-    .update({ notificacion_enviada: true, fecha_notificacion: ahora })
-    .eq('cohorte_id', cohorteId);
+  // Solo las asignaciones cuyos correos se enviaron sin fallos se marcan como
+  // notificadas. Las que fallaron quedan pendientes para reintentar.
+  const idsNotificadas = (asignaciones as any[])
+    .map((a) => a.id)
+    .filter((id) => !asignacionConFallo.has(id));
+  if (idsNotificadas.length) {
+    await supabaseAdmin
+      .from('asignaciones_profesor')
+      .update({ notificacion_enviada: true, fecha_notificacion: ahora })
+      .in('id', idsNotificadas);
+  }
 
   res.json({
     ok: true,
