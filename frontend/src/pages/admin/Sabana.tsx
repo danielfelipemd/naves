@@ -430,21 +430,9 @@ export default function Sabana() {
                 )}
 
                 {/* Tabla */}
-                <div className="rounded-lg border border-inalde-gray-light overflow-hidden shadow-inalde-card bg-white w-fit max-w-full">
-                  <div className="overflow-x-auto">
-                    <table className="text-sm w-[1326px] table-fixed border-collapse">
-                      <colgroup>
-                        <col className="w-[40px]" />
-                        <col className="w-[150px]" />
-                        <col className="w-[160px]" />
-                        <col className="w-[80px]" />
-                        <col className="w-[58px]" />
-                        <col className="w-[420px]" />
-                        <col className="w-[54px]" />
-                        <col className="w-[54px]" />
-                        <col className="w-[150px]" />
-                        <col className="w-[160px]" />
-                      </colgroup>
+                <div className="rounded-lg border border-inalde-gray-light overflow-x-auto shadow-inalde-card bg-white w-fit max-w-full">
+                  <div>
+                    <table className="text-sm border-collapse w-auto">
                       <thead>
                         <tr className="bg-gradient-to-b from-inalde-text to-[#2a2a2a]">
                           <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">#</th>
@@ -483,44 +471,50 @@ export default function Sabana() {
                               )}
                             </td>
                             <td className="px-2.5 py-3 align-top">
-                              <p className="font-medium text-inalde-text truncate" title={f.autores}>
-                                {f.autores || <span className="italic text-inalde-gray font-normal">—</span>}
-                              </p>
-                              {f.nombre_equipo && (
-                                <p className="text-[11px] text-inalde-gray uppercase tracking-wider mt-0.5 truncate" title={f.nombre_equipo}>
-                                  {f.nombre_equipo}
+                              <div className="max-w-[210px] min-w-[140px]">
+                                <p className="font-medium text-inalde-text break-words leading-snug" title={f.autores}>
+                                  {f.autores || <span className="italic text-inalde-gray font-normal">—</span>}
                                 </p>
-                              )}
+                                {f.nombre_equipo && (
+                                  <p className="text-[11px] text-inalde-gray uppercase tracking-wider mt-0.5 break-words" title={f.nombre_equipo}>
+                                    {f.nombre_equipo}
+                                  </p>
+                                )}
+                              </div>
                             </td>
                             <td className="px-2.5 py-3 align-top">
-                              {f.proyectos.length > 1 ? (
-                                <div className="space-y-2">
-                                  {f.proyectos.map((p, i) => (
-                                    <div key={p.id || i} className="bg-inalde-gold/5 border-l-[3px] border-inalde-gold rounded-sm pl-2.5 py-1.5">
-                                      <p className="text-[9px] uppercase tracking-wider text-inalde-gold font-bold mb-0.5">Proyecto {i + 1}</p>
-                                      <p className="font-medium text-inalde-text leading-tight" title={p.nombre}>{p.nombre}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="font-medium text-inalde-text leading-snug" title={f.proyectos[0]?.nombre}>
-                                  {f.proyectos[0]?.nombre ?? <span className="italic text-inalde-gray font-normal">—</span>}
-                                </p>
-                              )}
+                              <div className="max-w-[240px] min-w-[150px]">
+                                {f.proyectos.length > 1 ? (
+                                  <div className="space-y-2">
+                                    {f.proyectos.map((p, i) => (
+                                      <div key={p.id || i} className="bg-inalde-gold/5 border-l-[3px] border-inalde-gold rounded-sm pl-2.5 py-1.5">
+                                        <p className="text-[9px] uppercase tracking-wider text-inalde-gold font-bold mb-0.5">Proyecto {i + 1}</p>
+                                        <p className="font-medium text-inalde-text leading-tight break-words" title={p.nombre}>{p.nombre}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="font-medium text-inalde-text leading-snug break-words" title={f.proyectos[0]?.nombre}>
+                                    {f.proyectos[0]?.nombre ?? <span className="italic text-inalde-gray font-normal">—</span>}
+                                  </p>
+                                )}
+                              </div>
                             </td>
                             <td className="px-2.5 py-3 align-top text-inalde-gray text-xs">
-                              {f.proyectos.length > 1 ? (
-                                <div className="space-y-2">
-                                  {f.proyectos.map((p, i) => (
-                                    <div key={p.id || i} className="leading-tight">
-                                      <span className="text-[9px] uppercase tracking-wider text-inalde-gold font-bold">P{i + 1}</span>{' '}
-                                      {p.sector || <span className="italic">—</span>}
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                f.proyectos[0]?.sector ?? <span className="italic">—</span>
-                              )}
+                              <div className="max-w-[130px] break-words">
+                                {f.proyectos.length > 1 ? (
+                                  <div className="space-y-2">
+                                    {f.proyectos.map((p, i) => (
+                                      <div key={p.id || i} className="leading-tight">
+                                        <span className="text-[9px] uppercase tracking-wider text-inalde-gold font-bold">P{i + 1}</span>{' '}
+                                        {p.sector || <span className="italic">—</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  f.proyectos[0]?.sector ?? <span className="italic">—</span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-2.5 py-3 align-top">
                               {f.proyectos.length > 1 ? (
@@ -537,6 +531,7 @@ export default function Sabana() {
                               )}
                             </td>
                             <td className="px-2.5 py-3 align-top text-xs">
+                              <div className="max-w-[480px] min-w-[300px]">
                               {f.proyectos.length > 1 ? (
                                 <div className="space-y-3">
                                   {f.proyectos.map((p, i) => (
@@ -568,6 +563,7 @@ export default function Sabana() {
                                   );
                                 })()
                               )}
+                              </div>
                             </td>
                             <td className="px-2.5 py-3 text-center align-top">
                               {isSuperAdmin ? (
@@ -604,6 +600,7 @@ export default function Sabana() {
                               )}
                             </td>
                             <td className="px-2.5 py-3 align-top break-words">
+                              <div className="max-w-[200px] min-w-[150px]">
                               {f.modalidad === 'business_plan' ? (
                                 isSuperAdmin ? (
                                   <select
@@ -628,6 +625,7 @@ export default function Sabana() {
                                   </p>
                                 </div>
                               )}
+                              </div>
                             </td>
                           </tr>
                         ))}
