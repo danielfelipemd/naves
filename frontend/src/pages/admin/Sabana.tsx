@@ -255,15 +255,21 @@ export default function Sabana() {
         </div>
         {cohorte && (
           <>
-            <button onClick={generar} disabled={busy} className="btn-inalde-primary !py-2 !px-4 !text-xs">
-              {snapshot.length ? 'Regenerar' : 'Generar sábana'}
-            </button>
+            {/* Generar/Regenerar, Sugerir, Guardar y Comunicar son acciones de
+                super_admin (el backend las restringe). El profesor solo lee y
+                descarga PDF; por eso ocultamos esos botones para que no reciba
+                un 403 al clickear. */}
+            {isSuperAdmin && (
+              <button onClick={generar} disabled={busy} className="btn-inalde-primary !py-2 !px-4 !text-xs">
+                {snapshot.length ? 'Regenerar' : 'Generar sábana'}
+              </button>
+            )}
             {snapshot.length > 0 && (
               <>
-                <button onClick={sugerir} disabled={busy} className="btn-inalde-ghost">Sugerir asignaciones</button>
-                <button onClick={guardarAsignaciones} disabled={busy} className="btn-inalde-secondary">Guardar asignaciones</button>
+                {isSuperAdmin && <button onClick={sugerir} disabled={busy} className="btn-inalde-ghost">Sugerir asignaciones</button>}
+                {isSuperAdmin && <button onClick={guardarAsignaciones} disabled={busy} className="btn-inalde-secondary">Guardar asignaciones</button>}
                 <button onClick={() => downloadFile(`/sabana/${cohorte}/pdf`, `sabana-${cohorte}.pdf`)} disabled={busy} className="btn-inalde-ghost">↓ PDF</button>
-                <button onClick={comunicar} disabled={busy} className="btn-inalde-danger">Comunicar →</button>
+                {isSuperAdmin && <button onClick={comunicar} disabled={busy} className="btn-inalde-danger">Comunicar →</button>}
               </>
             )}
           </>
