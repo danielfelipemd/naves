@@ -74,6 +74,7 @@ export default function Sabana() {
   const [vista, setVista] = useState<'detalle' | 'resumen'>('resumen');
   const [resumen, setResumen] = useState<FilaResumen[]>([]);
   const [loadingResumen, setLoadingResumen] = useState(false);
+  const [errorResumen, setErrorResumen] = useState(false);
   const [filtroModalidad, setFiltroModalidad] = useState<'todas' | 'business_plan' | 'caso' | 'proyecto_investigacion'>('todas');
   const [filtroBuscar, setFiltroBuscar] = useState('');
 
@@ -115,14 +116,23 @@ export default function Sabana() {
   useEffect(() => { load(); loadResumen(); }, [cohorte]);
 
   async function loadResumen() {
-    if (!cohorte) { setResumen([]); return; }
-    setLoadingResumen(true);
-    try {
-      const { data } = await api.get(`/sabana/${cohorte}/resumen`);
-      setResumen((data?.filas ?? []) as FilaResumen[]);
-    } catch {
-      setResumen([]);
-    } finally { setLoadingResumen(false); }
+    if (!cohorte) { setResumen([]); setErrorResumen(false); return; }
+    setLoadingResumen(true); setErrorResumen(false);
+    // La respuesta del resumen es grande y el backend puede ir lento/saturado.
+    // Reintento defensivo (3 intentos, 800ms): sin esto, un fallo dejaba la
+    // tabla "vacia" con el mensaje enganoso "no tiene proyectos cargados".
+    for (let i = 0; i < 3; i++) {
+      try {
+        const { data } = await api.get(`/sabana/${cohorte}/resumen`);
+        setResumen((data?.filas ?? []) as FilaResumen[]);
+        setLoadingResumen(false);
+        return;
+      } catch {
+        if (i < 2) { await new Promise((r) => setTimeout(r, 800)); continue; }
+        setResumen([]); setErrorResumen(true);
+      }
+    }
+    setLoadingResumen(false);
   }
 
   // Edit-in-place de los flags (solo super_admin)
@@ -290,6 +300,12 @@ export default function Sabana() {
       {/* === Vista resumen: tabla tipo Base de Datos del CSV institucional === */}
       {vista === 'resumen' && cohorte ? (
         loadingResumen ? <p className="text-inalde-gray">Cargando resumen…</p> :
+          errorResumen ? (
+            <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm flex items-center justify-between gap-4">
+              <span>No se pudo cargar la tabla resumen (el servidor no respondió). No significa que esté vacía.</span>
+              <button onClick={() => loadResumen()} className="btn-inalde-ghost !py-1.5 !px-3 !text-xs whitespace-nowrap">Reintentar</button>
+            </div>
+          ) :
           resumen.length === 0 ? <p className="text-inalde-gray text-sm">Esta cohorte aún no tiene proyectos cargados.</p> : (() => {
             // Aplicar filtros
             const q = filtroBuscar.trim().toLowerCase();
