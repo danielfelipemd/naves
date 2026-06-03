@@ -115,6 +115,17 @@ export default function Sabana() {
 
   useEffect(() => { load(); loadResumen(); }, [cohorte]);
 
+  // Sincroniza el "Detalle por equipo" con las asignaciones persistidas de la
+  // tabla resumen: si un equipo ya tiene profesor asignado, el dropdown del
+  // detalle lo refleja. Conserva sugerencias locales aún no persistidas.
+  useEffect(() => {
+    setAsignaciones((prev) => {
+      const next = { ...prev };
+      for (const f of resumen) next[f.equipo_id] = f.profesor_asignado_id ?? prev[f.equipo_id] ?? '';
+      return next;
+    });
+  }, [resumen]);
+
   async function loadResumen() {
     if (!cohorte) { setResumen([]); setErrorResumen(false); return; }
     setLoadingResumen(true); setErrorResumen(false);
@@ -620,15 +631,14 @@ export default function Sabana() {
               <div key={eq.id} className="border border-inalde-gray-light rounded p-4">
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex-1">
-                    <h3 className="font-primary font-bold">{eq.nombre ?? '(equipo sin nombre)'}</h3>
-                    <p className="text-xs text-inalde-gray mt-1">
-                      {eq.miembros.sort((a, b) => a.posicion - b.posicion).map((m) => m.nombre).join(' · ')}
-                    </p>
+                    <h3 className="font-primary font-bold text-inalde-text">
+                      {eq.miembros.sort((a, b) => a.posicion - b.posicion).map((m) => m.nombre).join(' · ') || '(sin participantes)'}
+                    </h3>
                     <div className="mt-3 space-y-2">
                       {eq.proyectos.map((p) => (
                         <div key={p.proyecto_id} className="text-sm">
                           <p>
-                            <span className={`font-semibold ${p.estado_seleccion === 'definitivo' ? 'text-inalde-red' : p.estado_seleccion === 'archivado' ? 'text-inalde-gray line-through' : ''}`}>
+                            <span className={`font-semibold ${p.estado_seleccion === 'archivado' ? 'text-inalde-gray line-through' : 'text-inalde-text'}`}>
                               {p.proyecto_nombre}
                             </span>
                             {p.sector && <span className="text-xs text-inalde-gray ml-2">[{p.sector}]</span>}
@@ -641,14 +651,20 @@ export default function Sabana() {
                   </div>
                   <div className="w-56">
                     <label className="block text-xs uppercase tracking-wider text-inalde-gray mb-1">Profesor asignado</label>
-                    <select
-                      value={asignaciones[eq.id] ?? ''}
-                      onChange={(e) => setAsignaciones({ ...asignaciones, [eq.id]: e.target.value })}
-                      className="input-inalde !py-1 !text-sm"
-                    >
-                      <option value="">— Sin asignar —</option>
-                      {profesores.map((p) => <option key={p.id} value={p.id}>{p.nombre_completo}</option>)}
-                    </select>
+                    {isSuperAdmin ? (
+                      <select
+                        value={asignaciones[eq.id] ?? ''}
+                        onChange={(e) => asignarProfesor(eq.id, e.target.value || null)}
+                        className="input-inalde !py-1 !text-sm"
+                      >
+                        <option value="">— Sin asignar —</option>
+                        {profesores.map((p) => <option key={p.id} value={p.id}>{p.nombre_completo}</option>)}
+                      </select>
+                    ) : (
+                      <p className="text-sm text-inalde-text font-medium">
+                        {profesores.find((p) => p.id === asignaciones[eq.id])?.nombre_completo ?? <span className="italic text-inalde-gray font-normal">— Sin asignar —</span>}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
