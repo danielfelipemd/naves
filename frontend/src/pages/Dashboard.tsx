@@ -430,6 +430,19 @@ export default function Dashboard() {
                           sigue disponible si se necesita restaurar el acceso. */}
                     </div>
                   )}
+
+                  {/* Sábana de proyectos: vista de solo lectura de proyectos
+                      de la cohorte que están buscando socios. */}
+                  <div className="mt-6">
+                    <Link to="/sabana-proyectos" className="card-inalde-interactive flex items-center gap-5 p-6">
+                      <div className="text-4xl">🤝</div>
+                      <div className="flex-1">
+                        <h2 className="font-primary font-bold text-lg mb-1">Sábana de proyectos</h2>
+                        <p className="text-inalde-gray text-sm">Mira los proyectos de tu cohorte que están buscando socios. Vista de solo lectura.</p>
+                      </div>
+                      <span className="text-sm font-semibold text-inalde-red whitespace-nowrap">Entrar →</span>
+                    </Link>
+                  </div>
                 </>
               )}
             </>

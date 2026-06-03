@@ -137,6 +137,52 @@ router.post('/:cohorteId/sugerir-asignacion', requireRole('super_admin'), async 
 });
 
 /**
+ * GET /api/sabana/buscando-socios
+ * Vista de SOLO LECTURA para el participante: lista los equipos de SU cohorte
+ * que están buscando socios, con su(s) proyecto(s). No expone asignaciones de
+ * profesor ni nada editable. Debe ir ANTES de GET /:cohorteId para que la ruta
+ * no la capture como cohorteId="buscando-socios".
+ */
+router.get('/buscando-socios', async (req: AuthenticatedRequest, res) => {
+  const cohorteId = req.user!.cohorteId || String(req.query.cohorte ?? '').trim();
+  if (!cohorteId) return res.status(400).json({ error: 'NO_COHORTE' });
+
+  const { data: equipos, error } = await supabaseAdmin
+    .from('equipos')
+    .select(`
+      id, nombre_equipo,
+      miembros_equipo ( posicion, participantes_lista ( nombre_completo ) ),
+      anteproyectos ( estado, proyectos ( id, posicion, nombre, sector, ciiu, canvas_problema, canvas_solucion, estado_seleccion ) )
+    `)
+    .eq('cohorte_id', cohorteId)
+    .eq('buscando_socios', true);
+  if (error) return res.status(500).json({ error: error.message });
+
+  const filas = ((equipos as any[]) ?? []).map((eq) => {
+    const autores = ((eq.miembros_equipo as any[]) ?? [])
+      .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
+      .map((m) => m.participantes_lista?.nombre_completo)
+      .filter(Boolean)
+      .join(', ');
+    const ant = pickAnteproyecto(eq.anteproyectos);
+    const proyectos = (((ant?.proyectos ?? []) as any[]))
+      .filter((p) => p.estado_seleccion !== 'archivado')
+      .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
+      .map((p) => ({
+        id: p.id,
+        nombre: p.nombre || '(sin nombre)',
+        sector: p.sector ?? null,
+        ciiu: p.ciiu ?? null,
+        canvas_problema: p.canvas_problema ?? null,
+        canvas_solucion: p.canvas_solucion ?? null,
+      }));
+    return { equipo_id: eq.id, nombre_equipo: eq.nombre_equipo ?? null, autores, proyectos };
+  });
+
+  res.json({ cohorte_id: cohorteId, total: filas.length, filas });
+});
+
+/**
  * GET /api/sabana/:cohorteId
  * Profesores y super_admin pueden leer.
  */

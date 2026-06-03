@@ -12,6 +12,7 @@ import Anteproyecto from './pages/participante/Anteproyecto';
 import TrabajoGrado from './pages/participante/TrabajoGrado';
 import SeleccionDefinitivo from './pages/participante/SeleccionDefinitivo';
 import MiProfesor from './pages/participante/MiProfesor';
+import SabanaSocios from './pages/participante/SabanaSocios';
 import ProfesorSeleccionarProyectos from './pages/profesor/SeleccionarProyectos';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminResumen from './pages/admin/Resumen';
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="/trabajo-grado" element={<ProtectedRoute><TrabajoGrado /></ProtectedRoute>} />
         <Route path="/seleccion" element={<ProtectedRoute requierePerfilOk><SeleccionDefinitivo /></ProtectedRoute>} />
         <Route path="/mi-profesor" element={<ProtectedRoute><MiProfesor /></ProtectedRoute>} />
+        <Route path="/sabana-proyectos" element={<ProtectedRoute><SabanaSocios /></ProtectedRoute>} />
         <Route path="/profesor/seleccionar-proyectos" element={<ProtectedRoute><ProfesorSeleccionarProyectos /></ProtectedRoute>} />
 
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
