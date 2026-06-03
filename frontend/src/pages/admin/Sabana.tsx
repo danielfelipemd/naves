@@ -76,6 +76,7 @@ export default function Sabana() {
   const [loadingResumen, setLoadingResumen] = useState(false);
   const [errorResumen, setErrorResumen] = useState(false);
   const [filtroModalidad, setFiltroModalidad] = useState<'todas' | 'business_plan' | 'caso' | 'proyecto_investigacion'>('todas');
+  const [filtroAsignacion, setFiltroAsignacion] = useState<'todas' | 'asignados' | 'no_asignados'>('todas');
   const [filtroBuscar, setFiltroBuscar] = useState('');
 
   useEffect(() => { (async () => {
@@ -337,9 +338,13 @@ export default function Sabana() {
           ) :
           resumen.length === 0 ? <p className="text-inalde-gray text-sm">Esta cohorte aún no tiene proyectos cargados.</p> : (() => {
             // Aplicar filtros
+            // Un equipo está "asignado" si tiene profesor (BP) o director (caso/PI).
+            const esAsignado = (f: FilaResumen) => !!(f.profesor_asignado_id || f.director_asignado_nombre);
             const q = filtroBuscar.trim().toLowerCase();
             const filtrados = resumen.filter((f) => {
               if (filtroModalidad !== 'todas' && f.modalidad !== filtroModalidad) return false;
+              if (filtroAsignacion === 'asignados' && !esAsignado(f)) return false;
+              if (filtroAsignacion === 'no_asignados' && esAsignado(f)) return false;
               if (!q) return true;
               const hay = [
                 f.autores,
@@ -354,6 +359,8 @@ export default function Sabana() {
             const totalBP = contar('business_plan');
             const totalCaso = contar('caso');
             const totalPI = contar('proyecto_investigacion');
+            const totalAsignados = resumen.filter(esAsignado).length;
+            const totalNoAsignados = resumen.length - totalAsignados;
             // Conteo de equipos asignados por profesor (para los chips informativos)
             const porProfesor = resumen.reduce((acc, f) => {
               if (f.profesor_asignado_nombre) acc.set(f.profesor_asignado_nombre, (acc.get(f.profesor_asignado_nombre) ?? 0) + 1);
@@ -379,6 +386,25 @@ export default function Sabana() {
                       </button>
                     ))}
                   </div>
+
+                  <div className="w-px h-5 bg-inalde-gray-light" />
+
+                  {/* Filtro por estado de asignación */}
+                  <div className="flex gap-1">
+                    {([
+                      ['asignados', `Asignados · ${totalAsignados}`],
+                      ['no_asignados', `No asignados · ${totalNoAsignados}`],
+                    ] as const).map(([k, label]) => (
+                      <button key={k}
+                        onClick={() => setFiltroAsignacion(filtroAsignacion === k ? 'todas' : k)}
+                        className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${filtroAsignacion === k
+                          ? 'border-inalde-red bg-inalde-red text-white'
+                          : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="flex-1 min-w-[200px] ml-auto">
                     <input type="text" placeholder="Buscar autor, proyecto, sector, profesor…"
                       value={filtroBuscar}
