@@ -430,20 +430,20 @@ export default function Sabana() {
                 )}
 
                 {/* Tabla */}
-                <div className="rounded-lg border border-inalde-gray-light overflow-hidden shadow-inalde-card bg-white">
+                <div className="rounded-lg border border-inalde-gray-light overflow-hidden shadow-inalde-card bg-white w-fit max-w-full">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm min-w-[1700px] table-fixed border-collapse">
+                    <table className="text-sm w-[1442px] table-fixed border-collapse">
                       <colgroup>
-                        <col className="w-12" />
-                        <col className="w-[11%]" />
-                        <col className="w-[13%]" />
-                        <col className="w-20" />
-                        <col className="w-16" />
-                        <col className="w-[34%]" />
-                        <col className="w-14" />
-                        <col className="w-14" />
-                        <col className="w-28" />
-                        <col className="w-40" />
+                        <col className="w-[44px]" />
+                        <col className="w-[170px]" />
+                        <col className="w-[190px]" />
+                        <col className="w-[90px]" />
+                        <col className="w-[70px]" />
+                        <col className="w-[460px]" />
+                        <col className="w-[64px]" />
+                        <col className="w-[64px]" />
+                        <col className="w-[120px]" />
+                        <col className="w-[170px]" />
                       </colgroup>
                       <thead>
                         <tr className="bg-gradient-to-b from-inalde-text to-[#2a2a2a]">
