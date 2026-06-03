@@ -354,6 +354,10 @@ export default function Sabana() {
                 ...f.proyectos.map((p) => `${p.nombre} ${p.sector ?? ''}`),
               ].join(' ').toLowerCase();
               return hay.includes(q);
+            }).sort((a, b) => {
+              // Orden por modalidad: BP → Caso → Proyecto de investigación
+              const ord: Record<string, number> = { business_plan: 0, caso: 1, proyecto_investigacion: 2 };
+              return (ord[a.modalidad] ?? 9) - (ord[b.modalidad] ?? 9);
             });
             const contar = (m: string) => resumen.filter((f) => f.modalidad === m).length;
             const totalBP = contar('business_plan');
@@ -467,11 +471,11 @@ export default function Sabana() {
                             className={`border-t border-inalde-gray-light/60 align-top transition ${idx % 2 === 0 ? 'bg-white' : 'bg-inalde-gray-bg/40'} hover:bg-inalde-red/5`}>
                             <td className="px-3 py-3 align-top">
                               <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-inalde-text text-white text-xs font-bold font-mono">
-                                {f.numero}
+                                {idx + 1}
                               </span>
                               {isSuperAdmin && (
                                 <button
-                                  onClick={() => borrarEquipo(f.equipo_id, f.nombre_equipo || f.autores || `equipo #${f.numero}`)}
+                                  onClick={() => borrarEquipo(f.equipo_id, f.nombre_equipo || f.autores || `equipo #${idx + 1}`)}
                                   title="Borrar equipo completo"
                                   className="block mt-2 text-inalde-gray hover:text-inalde-red transition text-sm leading-none">
                                   🗑
