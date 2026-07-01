@@ -1662,7 +1662,7 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
       try { profEmail = decryptPII(prof.email_encriptado); } catch { continue; }
       if (!profEmail) continue;
       const html = htmlComunicadoProfesor(prof.nombre_completo, cohorteId, equipos);
-      await sendEmail(profEmail, `Equipos asignados — Cohorte ${cohorteId}`, html);
+      await sendEmail(profEmail, `Proyectos asignados — Cohorte ${cohorteId}`, html);
       await sleep(EMAIL_DELAY_MS);
     }
 
