@@ -1393,15 +1393,21 @@ function botonAccesoSistema(): string {
           <p style="text-align:center; font-size:11px; color:#888; margin:6px 0 0 0;">O ingresa en <a href="${PUBLIC_URL}" style="color:#e30613;">${PUBLIC_URL.replace(/^https?:\/\//, '')}</a></p>`;
 }
 
+// El embed de anteproyectos llega como OBJETO (relación 1:1) o como arreglo
+// según la consulta. Este helper devuelve los proyectos no archivados sin
+// importar la forma.
+function proyectosDeEquipo(equipo: any): any[] {
+  const raw = equipo?.anteproyectos;
+  const ant = Array.isArray(raw) ? raw[0] : raw;
+  return ((ant?.proyectos ?? []) as any[])
+    .filter((p) => p.estado_seleccion !== 'archivado')
+    .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0));
+}
+
 // Nombre del/los proyecto(s) del equipo para los correos (nunca el nombre del
 // equipo). Varios proyectos se unen con " / ".
 function nombreProyectoDeEquipo(equipo: any): string {
-  const nombres = (((equipo?.anteproyectos ?? [])[0]?.proyectos ?? []) as any[])
-    .filter((p) => p.estado_seleccion !== 'archivado')
-    .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
-    .map((p) => p.nombre)
-    .filter(Boolean);
-  return nombres.length ? nombres.join(' / ') : 'tu trabajo de grado';
+  return proyectosDeEquipo(equipo).map((p) => p.nombre).filter(Boolean).join(' / ');
 }
 
 // Plantillas de correo de "Comunicar" (reusadas por el envío masivo y el
@@ -1416,8 +1422,9 @@ function htmlComunicadoParticipante(nombreParticipante: string, nombreProyecto: 
             Te asignaron profesor de trabajo de grado
           </h2>
           <p>Hola <strong>${nombreParticipante}</strong>,</p>
-          <p>Tu proyecto <strong>${nombreProyecto}</strong>
-             tiene asignado al profesor <strong>${profesorNombre}</strong> para acompañar el trabajo de grado.</p>
+          <p>${nombreProyecto
+            ? `Tu proyecto <strong>${nombreProyecto}</strong> tiene asignado al profesor <strong>${profesorNombre}</strong>`
+            : `Se te asignó al profesor <strong>${profesorNombre}</strong>`} para acompañar el trabajo de grado.</p>
           <p style="margin-top:18pt">Próximos pasos:</p>
           <p style="margin:6pt 0">
             Coordinar la <strong>Reunión 1</strong> con tu profesor según el cronograma de la cohorte.
@@ -1437,9 +1444,7 @@ function htmlComunicadoProfesor(profesorNombre: string, cohorteId: string, equip
     const miembrosList = ((eq?.miembros_equipo ?? []) as any[])
       .map((m) => m.participantes_lista?.nombre_completo)
       .filter(Boolean);
-    const proyectos = (((eq?.anteproyectos ?? [])[0]?.proyectos ?? []) as any[])
-      .filter((p) => p.estado_seleccion !== 'archivado')
-      .sort((x, y) => (x.posicion ?? 0) - (y.posicion ?? 0));
+    const proyectos = proyectosDeEquipo(eq);
     const encabezado = proyectos.length
       ? proyectos.map((p) =>
           `<p style="margin:0 0 2px 0; font-weight:600; font-size:15px;">${p.nombre}${p.sector ? ` <span style="color:#888; font-weight:400; font-size:13px;">· ${p.sector}</span>` : ''}</p>`,
