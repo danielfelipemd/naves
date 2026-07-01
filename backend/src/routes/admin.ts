@@ -1468,8 +1468,8 @@ router.post('/sabanas/equipos/:equipoId/comunicar', async (req, res) => {
     .from('asignaciones_profesor')
     .select(`
       id, equipo_id, profesor_id,
-      profesores:profesores!inner ( id, nombre_completo, email_encriptado, booking_url ),
-      equipos:equipos!inner ( id, nombre_equipo, cohorte_id,
+      profesores:profesor_id!inner ( id, nombre_completo, email_encriptado, booking_url ),
+      equipos:equipo_id!inner ( id, nombre_equipo, cohorte_id,
         miembros_equipo ( participantes_lista ( id, nombre_completo, email_encriptado ) ),
         anteproyectos ( proyectos ( id, nombre, sector, estado_seleccion, posicion ) ) )
     `)
@@ -1550,8 +1550,8 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
     .from('asignaciones_profesor')
     .select(`
       id, equipo_id, profesor_id,
-      profesores:profesores!inner ( id, nombre_completo, email_encriptado, booking_url, areas_afinidad ),
-      equipos:equipos!inner (
+      profesores:profesor_id!inner ( id, nombre_completo, email_encriptado, booking_url, areas_afinidad ),
+      equipos:equipo_id!inner (
         id, nombre_equipo, cohorte_id, buscando_socios, buscando_asociacion_otro_proyecto,
         miembros_equipo (
           participantes_lista ( id, nombre_completo, email_encriptado )
