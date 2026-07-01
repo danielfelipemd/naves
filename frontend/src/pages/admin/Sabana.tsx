@@ -35,6 +35,7 @@ interface FilaResumen {
   profesor_asignado_id: string | null;
   profesor_asignado_nombre: string | null;
   director_asignado_nombre: string | null;
+  comunicado: boolean;
 }
 
 /** Pill SÍ / NO / — para celdas readonly */
@@ -77,6 +78,7 @@ export default function Sabana() {
   const [errorResumen, setErrorResumen] = useState(false);
   const [filtroModalidad, setFiltroModalidad] = useState<'todas' | 'business_plan' | 'caso' | 'proyecto_investigacion'>('todas');
   const [filtroAsignacion, setFiltroAsignacion] = useState<'todas' | 'asignados' | 'no_asignados'>('todas');
+  const [filtroComunicado, setFiltroComunicado] = useState<'todos' | 'comunicados' | 'pendientes'>('todos');
   const [filtroBuscar, setFiltroBuscar] = useState('');
 
   useEffect(() => { (async () => {
@@ -236,7 +238,9 @@ export default function Sabana() {
     if (!confirm('Se enviarán correos reales solo a los proyectos con profesor asignado pendiente de notificar (nuevos o con profesor cambiado). Los equipos sin profesor y los ya notificados sin cambios no recibirán correo. Esta acción es irreversible. ¿Continuar?')) return;
     setBusy(true);
     try {
-      const { data } = await api.post(`/admin/sabanas/${cohorte}/comunicar`);
+      // El envío masivo puede tardar (decenas de correos); ampliamos el timeout
+      // muy por encima del default de 15s para que no se corte a medias.
+      const { data } = await api.post(`/admin/sabanas/${cohorte}/comunicar`, undefined, { timeout: 120000 });
       if (data.nota) {
         setMsg({ kind: 'ok', text: data.nota });
       } else {
@@ -345,6 +349,8 @@ export default function Sabana() {
               if (filtroModalidad !== 'todas' && f.modalidad !== filtroModalidad) return false;
               if (filtroAsignacion === 'asignados' && !esAsignado(f)) return false;
               if (filtroAsignacion === 'no_asignados' && esAsignado(f)) return false;
+              if (filtroComunicado === 'comunicados' && !f.comunicado) return false;
+              if (filtroComunicado === 'pendientes' && !(f.profesor_asignado_id && !f.comunicado)) return false;
               if (!q) return true;
               const hay = [
                 f.autores,
@@ -365,6 +371,8 @@ export default function Sabana() {
             const totalPI = contar('proyecto_investigacion');
             const totalAsignados = resumen.filter(esAsignado).length;
             const totalNoAsignados = resumen.length - totalAsignados;
+            const totalComunicados = resumen.filter((f) => f.comunicado).length;
+            const totalPendientesComunicar = resumen.filter((f) => f.profesor_asignado_id && !f.comunicado).length;
             // Conteo de equipos asignados por profesor (para los chips informativos)
             const porProfesor = resumen.reduce((acc, f) => {
               if (f.profesor_asignado_nombre) acc.set(f.profesor_asignado_nombre, (acc.get(f.profesor_asignado_nombre) ?? 0) + 1);
@@ -403,6 +411,24 @@ export default function Sabana() {
                         onClick={() => setFiltroAsignacion(filtroAsignacion === k ? 'todas' : k)}
                         className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${filtroAsignacion === k
                           ? 'border-inalde-red bg-inalde-red text-white'
+                          : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="w-px h-5 bg-inalde-gray-light" />
+
+                  {/* Filtro por estado de comunicación (correo enviado) */}
+                  <div className="flex gap-1">
+                    {([
+                      ['comunicados', `Comunicados · ${totalComunicados}`],
+                      ['pendientes', `Sin comunicar · ${totalPendientesComunicar}`],
+                    ] as const).map(([k, label]) => (
+                      <button key={k}
+                        onClick={() => setFiltroComunicado(filtroComunicado === k ? 'todos' : k)}
+                        className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${filtroComunicado === k
+                          ? 'border-inalde-blue bg-inalde-blue text-white'
                           : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
                         {label}
                       </button>
@@ -623,6 +649,15 @@ export default function Sabana() {
                                   <p className="text-inalde-text font-medium">
                                     {f.director_asignado_nombre ?? <span className="italic text-inalde-gray font-normal">— Sin director —</span>}
                                   </p>
+                                </div>
+                              )}
+                              {f.modalidad === 'business_plan' && f.profesor_asignado_id && (
+                                <div className="mt-1.5">
+                                  {f.comunicado ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-700" title="Correo de asignación ya enviado a los participantes">✉️ Comunicado</span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-inalde-gold" title="Aún no se ha enviado el correo de asignación">⏳ Sin comunicar</span>
+                                  )}
                                 </div>
                               )}
                               </div>

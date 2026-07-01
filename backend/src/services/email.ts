@@ -32,12 +32,21 @@ export async function sendEmail(
     console.warn(`[email] SMTP not configured, would send to=${to} subject="${subject}"`);
     return { ok: false, reason: 'SMTP_NOT_CONFIGURED' };
   }
-  await t.sendMail({
-    from: config.smtp.from,
-    to,
-    subject,
-    html,
-    attachments: attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
-  });
-  return { ok: true };
+  // IMPORTANTE: nunca lanzar. Antes un fallo de SMTP (rechazo de un correo,
+  // límite de Zoho, timeout) lanzaba excepción y, en flujos masivos como
+  // "Comunicar", abortaba TODO el envío sin marcar nada. Ahora devolvemos
+  // {ok:false} y el llamador decide (contar fallo, reintentar luego).
+  try {
+    await t.sendMail({
+      from: config.smtp.from,
+      to,
+      subject,
+      html,
+      attachments: attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
+    });
+    return { ok: true };
+  } catch (e) {
+    console.warn(`[email] envío falló to=${to} subject="${subject}":`, (e as Error).message);
+    return { ok: false, reason: (e as Error).message };
+  }
 }

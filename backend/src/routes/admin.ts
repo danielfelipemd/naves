@@ -1369,6 +1369,22 @@ router.post('/sabanas/:cohorteId/asignar', async (req: AuthenticatedRequest, res
   res.json({ ok: true, asignadas: rows.length });
 });
 
+// Ejecuta tareas async con un límite de concurrencia. Se usa en el envío
+// masivo de "Comunicar": paralelizar (con tope) evita que el request tarde
+// varios minutos y haga timeout, sin saturar el SMTP.
+async function mapLimit<T>(items: Array<() => Promise<T>>, limit: number): Promise<T[]> {
+  const results: T[] = new Array(items.length);
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) || 1 }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      results[idx] = await items[idx]();
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
   const { cohorteId } = req.params;
   const ahora = new Date().toISOString();
@@ -1422,6 +1438,8 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
   // marcan como notificadas, para que un próximo "Comunicar" las reintente.
   const asignacionConFallo = new Set<string>();
 
+  type EnvioResult = { ok: boolean; asignacionId?: string; destinatario: string; razon?: string };
+  const tareasParticipantes: Array<() => Promise<EnvioResult>> = [];
   for (const a of asignaciones ?? []) {
     const prof: any = a.profesores;
     const equipo: any = a.equipos;
@@ -1434,11 +1452,12 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
     for (const m of miembros) {
       const p = m.participantes_lista;
       if (!p?.email_encriptado) continue;
-      let realEmail: string;
-      try { realEmail = decryptPII(p.email_encriptado); }
-      catch { emailsFallados++; asignacionConFallo.add(a.id); fallos.push({ destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }); continue; }
+      tareasParticipantes.push(async () => {
+        let realEmail: string;
+        try { realEmail = decryptPII(p.email_encriptado); }
+        catch { return { ok: false, asignacionId: a.id, destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }; }
 
-      const html = `
+        const html = `
         <div style="font-family:Roboto,Arial,sans-serif;color:#1a1a1a;max-width:540px;margin:0 auto">
           <h2 style="color:#e30613;border-bottom:3px solid #e30613;padding-bottom:8pt;margin-bottom:14pt">
             Te asignaron profesor de trabajo de grado
@@ -1459,9 +1478,17 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
           </p>
         </div>`;
 
-      const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
-      if (r.ok) emailsEnviados++;
-      else { emailsFallados++; asignacionConFallo.add(a.id); fallos.push({ destinatario: p.nombre_completo, razon: r.reason ?? 'UNKNOWN' }); }
+        const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
+        return { ok: r.ok, asignacionId: a.id, destinatario: p.nombre_completo, razon: r.ok ? undefined : (r.reason ?? 'UNKNOWN') };
+      });
+    }
+  }
+  for (const res of await mapLimit(tareasParticipantes, 5)) {
+    if (res.ok) emailsEnviados++;
+    else {
+      emailsFallados++;
+      if (res.asignacionId) asignacionConFallo.add(res.asignacionId);
+      fallos.push({ destinatario: res.destinatario, razon: res.razon ?? 'UNKNOWN' });
     }
   }
 
@@ -1483,11 +1510,13 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
   // la asignación como pendiente.
   let profesoresEnviados = 0;
   let profesoresFallados = 0;
+  const tareasProfesores: Array<() => Promise<EnvioResult>> = [];
   for (const { prof, equipos } of porProfesor.values()) {
+    tareasProfesores.push(async () => {
     let profEmail = '';
     try { profEmail = decryptPII(prof.email_encriptado); }
-    catch { profesoresFallados++; fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: 'PII_DECRYPT_FAILED' }); continue; }
-    if (!profEmail) { profesoresFallados++; fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: 'EMAIL_VACIO' }); continue; }
+    catch { return { ok: false, destinatario: prof?.nombre_completo ?? '(profesor)', razon: 'PII_DECRYPT_FAILED' }; }
+    if (!profEmail) { return { ok: false, destinatario: prof?.nombre_completo ?? '(profesor)', razon: 'EMAIL_VACIO' }; }
 
     const filasEquipos = equipos.map((eq: any) => {
       const nombreEquipo = eq?.nombre_equipo || '(sin nombre)';
@@ -1538,8 +1567,12 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
       </div>`;
 
     const r = await sendEmail(profEmail, `Equipos asignados — Cohorte ${cohorteId}`, html);
-    if (r.ok) profesoresEnviados++;
-    else { profesoresFallados++; fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: r.reason ?? 'UNKNOWN' }); }
+    return { ok: r.ok, destinatario: prof?.nombre_completo ?? '(profesor)', razon: r.ok ? undefined : (r.reason ?? 'UNKNOWN') };
+    });
+  }
+  for (const res of await mapLimit(tareasProfesores, 5)) {
+    if (res.ok) profesoresEnviados++;
+    else { profesoresFallados++; fallos.push({ destinatario: res.destinatario, razon: res.razon ?? 'UNKNOWN' }); }
   }
 
   // 4. Marcar como comunicada en BD (independiente del resultado de emails).

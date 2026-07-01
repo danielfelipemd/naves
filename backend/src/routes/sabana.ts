@@ -233,7 +233,7 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
           .in('equipo_id', equipoIds),
         supabaseAdmin
           .from('asignaciones_profesor')
-          .select('equipo_id, profesor_id, profesores:profesor_id(id, nombre_completo)')
+          .select('equipo_id, profesor_id, notificacion_enviada, profesores:profesor_id(id, nombre_completo)')
           .eq('cohorte_id', cohorteId),
       ]);
 
@@ -280,6 +280,7 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
     profesor_asignado_id: string | null;
     profesor_asignado_nombre: string | null;
     director_asignado_nombre: string | null;
+    comunicado: boolean;
   };
   const filas: Fila[] = [];
 
@@ -295,7 +296,8 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
       .filter(Boolean);
     const autores = miembros.join(', ');
     const modalidad = eq.tipo_trabajo_grado as string;
-    const asignacion = ((eq.asignaciones_profesor as any[]) ?? [])[0]?.profesores ?? null;
+    const asignacionRow = ((eq.asignaciones_profesor as any[]) ?? [])[0] ?? null;
+    const asignacion = asignacionRow?.profesores ?? null;
     const directorNombre = (eq.directores as any)?.nombre_completo ?? null;
 
     let proyectos: Proyecto[] = [];
@@ -339,6 +341,7 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
       profesor_asignado_id: asignacion?.id ?? null,
       profesor_asignado_nombre: asignacion?.nombre_completo ?? null,
       director_asignado_nombre: modalidad === 'business_plan' ? null : directorNombre,
+      comunicado: !!asignacionRow?.notificacion_enviada,
     });
   }
 
