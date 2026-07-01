@@ -1393,9 +1393,20 @@ function botonAccesoSistema(): string {
           <p style="text-align:center; font-size:11px; color:#888; margin:6px 0 0 0;">O ingresa en <a href="${PUBLIC_URL}" style="color:#e30613;">${PUBLIC_URL.replace(/^https?:\/\//, '')}</a></p>`;
 }
 
+// Nombre del/los proyecto(s) del equipo para los correos (nunca el nombre del
+// equipo). Varios proyectos se unen con " / ".
+function nombreProyectoDeEquipo(equipo: any): string {
+  const nombres = (((equipo?.anteproyectos ?? [])[0]?.proyectos ?? []) as any[])
+    .filter((p) => p.estado_seleccion !== 'archivado')
+    .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
+    .map((p) => p.nombre)
+    .filter(Boolean);
+  return nombres.length ? nombres.join(' / ') : 'tu trabajo de grado';
+}
+
 // Plantillas de correo de "Comunicar" (reusadas por el envío masivo y el
 // envío por equipo individual).
-function htmlComunicadoParticipante(nombreParticipante: string, nombreEquipo: string, profesorNombre: string, bookingUrl: string | null): string {
+function htmlComunicadoParticipante(nombreParticipante: string, nombreProyecto: string, profesorNombre: string, bookingUrl: string | null): string {
   const agenda = bookingUrl
     ? `<div style="text-align:center; margin:16pt 0 4pt;"><a href="${bookingUrl}" style="display:inline-block; background:#1a1a1a; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; padding:11px 26px; border-radius:6px;">Agendar la Reunión 1 con el profesor</a></div>`
     : '';
@@ -1405,8 +1416,8 @@ function htmlComunicadoParticipante(nombreParticipante: string, nombreEquipo: st
             Te asignaron profesor de trabajo de grado
           </h2>
           <p>Hola <strong>${nombreParticipante}</strong>,</p>
-          <p>El equipo <strong>${nombreEquipo}</strong>
-             tiene asignado el profesor <strong>${profesorNombre}</strong> para acompañar el trabajo de grado.</p>
+          <p>Tu proyecto <strong>${nombreProyecto}</strong>
+             tiene asignado al profesor <strong>${profesorNombre}</strong> para acompañar el trabajo de grado.</p>
           <p style="margin-top:18pt">Próximos pasos:</p>
           <p style="margin:6pt 0">
             Coordinar la <strong>Reunión 1</strong> con tu profesor según el cronograma de la cohorte.
@@ -1423,34 +1434,32 @@ function htmlComunicadoParticipante(nombreParticipante: string, nombreEquipo: st
 
 function htmlComunicadoProfesor(profesorNombre: string, cohorteId: string, equipos: any[]): string {
   const filasEquipos = equipos.map((eq: any) => {
-    const nombreEquipo = eq?.nombre_equipo || '(sin nombre)';
     const miembrosList = ((eq?.miembros_equipo ?? []) as any[])
       .map((m) => m.participantes_lista?.nombre_completo)
       .filter(Boolean);
     const proyectos = (((eq?.anteproyectos ?? [])[0]?.proyectos ?? []) as any[])
       .filter((p) => p.estado_seleccion !== 'archivado')
       .sort((x, y) => (x.posicion ?? 0) - (y.posicion ?? 0));
-    const proyectosHtml = proyectos.length
-      ? `<ul style="margin:4px 0 0 0; padding-left: 18px;">${proyectos.map((p) =>
-          `<li style="font-size:13px;"><strong>${p.nombre}</strong>${p.sector ? ` <span style="color:#888;">· ${p.sector}</span>` : ''}</li>`,
-        ).join('')}</ul>`
-      : '<p style="margin:4px 0 0 0; font-size:13px; color:#888; font-style:italic;">Aún sin proyectos cargados.</p>';
+    const encabezado = proyectos.length
+      ? proyectos.map((p) =>
+          `<p style="margin:0 0 2px 0; font-weight:600; font-size:15px;">${p.nombre}${p.sector ? ` <span style="color:#888; font-weight:400; font-size:13px;">· ${p.sector}</span>` : ''}</p>`,
+        ).join('')
+      : '<p style="margin:0; font-weight:600; font-size:15px; color:#888; font-style:italic;">Proyecto sin nombre</p>';
     return `
         <div style="border-left:3px solid #e30613; padding: 10px 14px; margin: 12px 0; background:#fafafa;">
-          <p style="margin:0; font-weight:600; font-size:15px;">${nombreEquipo}</p>
-          ${miembrosList.length ? `<p style="margin:4px 0 0 0; color:#555; font-size:12px;">${miembrosList.join(' · ')}</p>` : ''}
-          ${proyectosHtml}
+          ${encabezado}
+          ${miembrosList.length ? `<p style="margin:6px 0 0 0; color:#555; font-size:12px;">Integrantes: ${miembrosList.join(' · ')}</p>` : ''}
         </div>`;
   }).join('');
   return `
       <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto">
         <div style="border-bottom:3px solid #e30613; padding-bottom:14px; margin-bottom:22px;">
-          <p style="color:#888; text-transform:uppercase; letter-spacing:1.5px; font-size:11px; margin:0;">Asignación de equipos — Programa MBA</p>
-          <h2 style="color:#1a1a1a; margin:6px 0 0 0; font-size:22px;">Equipos asignados para acompañamiento</h2>
+          <p style="color:#888; text-transform:uppercase; letter-spacing:1.5px; font-size:11px; margin:0;">Asignación de proyectos — Programa MBA</p>
+          <h2 style="color:#1a1a1a; margin:6px 0 0 0; font-size:22px;">Proyectos asignados para acompañamiento</h2>
         </div>
         <p><strong>${profesorNombre}</strong>:</p>
         <p>Reciba un cordial saludo. Le informamos que la sábana de proyectos de la
-        cohorte <strong>${cohorteId}</strong> fue aprobada y los siguientes equipos quedaron
+        cohorte <strong>${cohorteId}</strong> fue aprobada y los siguientes proyectos quedaron
         bajo su acompañamiento como profesor de trabajo de grado:</p>
 
         ${filasEquipos}
@@ -1511,7 +1520,7 @@ router.post('/sabanas/equipos/:equipoId/comunicar', async (req, res) => {
       let realEmail: string;
       try { realEmail = decryptPII(p.email_encriptado); }
       catch { return { ok: false, destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }; }
-      const html = htmlComunicadoParticipante(p.nombre_completo, equipo?.nombre_equipo ?? '(sin nombre)', profesorNombre, bookingUrl);
+      const html = htmlComunicadoParticipante(p.nombre_completo, nombreProyectoDeEquipo(equipo), profesorNombre, bookingUrl);
       const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
       return { ok: r.ok, destinatario: p.nombre_completo, razon: r.ok ? undefined : (r.reason ?? 'UNKNOWN') };
     });
@@ -1527,7 +1536,7 @@ router.post('/sabanas/equipos/:equipoId/comunicar', async (req, res) => {
   try { profEmail = decryptPII(prof.email_encriptado); } catch { profEmail = ''; }
   if (profEmail) {
     const html = htmlComunicadoProfesor(prof.nombre_completo, equipo?.cohorte_id ?? '', [equipo]);
-    const r = await sendEmail(profEmail, `Equipo asignado — ${equipo?.nombre_equipo ?? 'Cohorte ' + (equipo?.cohorte_id ?? '')}`, html);
+    const r = await sendEmail(profEmail, `Proyecto asignado — ${nombreProyectoDeEquipo(equipo)}`, html);
     if (r.ok) profesorNotificado = true;
     else fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: r.reason ?? 'UNKNOWN' });
   } else {
@@ -1627,7 +1636,7 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
         let realEmail: string;
         try { realEmail = decryptPII(p.email_encriptado); }
         catch { falloEnEquipo = true; fallos.push({ destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }); continue; }
-        const html = htmlComunicadoParticipante(p.nombre_completo, equipo?.nombre_equipo ?? '(sin nombre)', profesorNombre, bookingUrl);
+        const html = htmlComunicadoParticipante(p.nombre_completo, nombreProyectoDeEquipo(equipo), profesorNombre, bookingUrl);
         const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
         if (r.ok) algunEnviado = true;
         else { falloEnEquipo = true; fallos.push({ destinatario: p.nombre_completo, razon: r.reason ?? 'UNKNOWN' }); }
