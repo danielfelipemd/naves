@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, downloadFile } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
@@ -71,6 +71,10 @@ export default function Sabana() {
   const [estadoSabana, setEstadoSabana] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [comunicandoEquipo, setComunicandoEquipo] = useState<string | null>(null);
+  const [equipoABorrar, setEquipoABorrar] = useState<{ id: string; etiqueta: string } | null>(null);
+  const [borrando, setBorrando] = useState(false);
+  const pollRef = useRef<number | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [vista, setVista] = useState<'detalle' | 'resumen'>('resumen');
   const [resumen, setResumen] = useState<FilaResumen[]>([]);
@@ -163,16 +167,37 @@ export default function Sabana() {
     }
   }
 
-  // Borrado completo del equipo (solo super_admin). Limpia equipos creados por error.
-  async function borrarEquipo(equipo_id: string, etiqueta: string) {
-    if (!confirm(`¿Borrar por completo "${etiqueta}"?\n\nSe eliminará el equipo, su anteproyecto, proyectos e hitos, y la asignación de profesor. Los participantes NO se borran: vuelven al pool de la cohorte para reasignarse.\n\nEsta acción es irreversible.`)) return;
+  // Borrado completo del equipo (solo super_admin): abre el modal de confirmación.
+  function borrarEquipo(equipo_id: string, etiqueta: string) {
+    setEquipoABorrar({ id: equipo_id, etiqueta });
+  }
+  async function confirmarBorrado() {
+    if (!equipoABorrar) return;
+    setBorrando(true);
     try {
-      await api.delete(`/admin/equipos/${equipo_id}`);
-      setResumen((prev) => prev.filter((f) => f.equipo_id !== equipo_id));
+      await api.delete(`/admin/equipos/${equipoABorrar.id}`);
+      setResumen((prev) => prev.filter((f) => f.equipo_id !== equipoABorrar.id));
       setMsg({ kind: 'ok', text: 'Equipo borrado. Los participantes quedaron liberados.' });
+      setEquipoABorrar(null);
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
-    }
+    } finally { setBorrando(false); }
+  }
+
+  // Comunicar UN solo equipo (envía el correo de ese proyecto en serie).
+  async function comunicarEquipo(equipo_id: string) {
+    setComunicandoEquipo(equipo_id); setMsg(null);
+    try {
+      const { data } = await api.post(`/admin/sabanas/equipos/${equipo_id}/comunicar`, undefined, { timeout: 60000 });
+      if (data?.comunicado) {
+        setResumen((prev) => prev.map((f) => f.equipo_id === equipo_id ? { ...f, comunicado: true } : f));
+        setMsg({ kind: 'ok', text: `Comunicado: ${data.emails_enviados ?? 0} correo(s) enviado(s) a los participantes.` });
+      } else {
+        setMsg({ kind: 'err', text: `No se pudo comunicar (fallaron ${data?.emails_fallados ?? 0} envío(s)). Intenta de nuevo.` });
+      }
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setComunicandoEquipo(null); }
   }
 
   // Asignacion inline de profesor (solo super_admin, solo BP)
@@ -235,26 +260,44 @@ export default function Sabana() {
   }
 
   async function comunicar() {
-    if (!confirm('Se enviarán correos reales solo a los proyectos con profesor asignado pendiente de notificar (nuevos o con profesor cambiado). Los equipos sin profesor y los ya notificados sin cambios no recibirán correo. Esta acción es irreversible. ¿Continuar?')) return;
-    setBusy(true);
+    if (!confirm('Se enviarán correos reales a los participantes de los proyectos con profesor asignado pendiente de notificar. Los correos salen en serie en segundo plano y cada fila se marca como "Comunicado" a medida que termina. ¿Continuar?')) return;
+    setBusy(true); setMsg(null);
     try {
-      // El envío masivo puede tardar (decenas de correos); ampliamos el timeout
-      // muy por encima del default de 15s para que no se corte a medias.
-      const { data } = await api.post(`/admin/sabanas/${cohorte}/comunicar`, undefined, { timeout: 120000 });
-      if (data.nota) {
+      const { data } = await api.post(`/admin/sabanas/${cohorte}/comunicar`, undefined, { timeout: 30000 });
+      if (data?.nota) {
         setMsg({ kind: 'ok', text: data.nota });
-      } else {
-        const fallados = (data.emails_fallados ?? 0) + (data.profesores_fallados ?? 0);
-        const base = `Comunicado: ${data.emails_enviados ?? 0} correos a participantes y ${data.profesores_notificados ?? 0} a profesores.`;
-        setMsg(fallados > 0
-          ? { kind: 'err', text: `${base} ${fallados} envío(s) fallaron y quedaron pendientes para reintentar.` }
-          : { kind: 'ok', text: base });
+      } else if (data?.iniciado) {
+        setMsg({ kind: 'ok', text: data.mensaje ?? 'Comunicación iniciada. Los correos se envían en segundo plano.' });
+        iniciarPollingComunicacion();
       }
-      await load();
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
   }
+
+  // Refresco progresivo: mientras el backend envía en segundo plano, recargamos
+  // el resumen en silencio (sin spinner) cada 5s; React solo re-renderiza las
+  // filas cuyo estado "comunicado" cambió — así cada línea se actualiza sola.
+  function iniciarPollingComunicacion() {
+    if (pollRef.current) return;
+    let ticks = 0;
+    pollRef.current = window.setInterval(async () => {
+      ticks++;
+      try {
+        const { data } = await api.get(`/sabana/${cohorte}/resumen`);
+        const filas = (data?.filas ?? []) as FilaResumen[];
+        setResumen(filas);
+        const pendientes = filas.some((f) => f.profesor_asignado_id && !f.comunicado);
+        if (!pendientes || ticks >= 84) { // hasta ~7 min
+          if (pollRef.current) { window.clearInterval(pollRef.current); pollRef.current = null; }
+          if (!pendientes) setMsg({ kind: 'ok', text: 'Comunicación completada: todos los equipos asignados quedaron comunicados.' });
+        }
+      } catch { /* reintenta en el próximo tick */ }
+    }, 5000);
+  }
+
+  // Limpia el intervalo al desmontar.
+  useEffect(() => () => { if (pollRef.current) window.clearInterval(pollRef.current); }, []);
 
   // Agrupar por equipo
   const equipos = snapshot.reduce((acc, item) => {
@@ -499,6 +542,14 @@ export default function Sabana() {
                                 {f.modalidad === 'business_plan' && f.profesor_asignado_id && (
                                   f.comunicado ? (
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-green-700 leading-none whitespace-nowrap" title="Correo de asignación ya enviado a los participantes">✉️ Comunicado</span>
+                                  ) : isSuperAdmin ? (
+                                    <button
+                                      onClick={() => comunicarEquipo(f.equipo_id)}
+                                      disabled={comunicandoEquipo === f.equipo_id}
+                                      title="Enviar ahora el correo de asignación a este equipo"
+                                      className="text-[10px] font-bold uppercase tracking-wider text-white bg-inalde-blue hover:bg-inalde-blue/90 rounded px-2 py-1 leading-none whitespace-nowrap disabled:opacity-50">
+                                      {comunicandoEquipo === f.equipo_id ? 'Enviando…' : 'Comunicar'}
+                                    </button>
                                   ) : (
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-inalde-gold leading-none whitespace-nowrap" title="Aún no se ha enviado el correo de asignación">⏳ Sin comunicar</span>
                                   )
@@ -734,6 +785,37 @@ export default function Sabana() {
             ))}
           </div>
         )
+      )}
+
+      {/* Modal de confirmación de borrado (in-app, no el confirm del navegador) */}
+      {equipoABorrar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={() => { if (!borrando) setEquipoABorrar(null); }}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="text-3xl">🗑️</div>
+              <div>
+                <h3 className="font-primary font-bold text-lg text-inalde-text">¿Borrar este proyecto por completo?</h3>
+                <p className="text-sm text-inalde-gray mt-1"><strong className="text-inalde-text">{equipoABorrar.etiqueta}</strong></p>
+              </div>
+            </div>
+            <p className="text-sm text-inalde-gray leading-relaxed mb-5">
+              Se eliminará el equipo, su anteproyecto, proyectos e hitos y la asignación de profesor.
+              Los participantes <strong>no se borran</strong>: vuelven al pool de la cohorte para reasignarse.
+              Esta acción es <strong className="text-inalde-red">irreversible</strong>.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setEquipoABorrar(null)} disabled={borrando}
+                className="px-4 py-2 rounded font-primary font-semibold text-xs uppercase tracking-wider border-2 border-inalde-gray-light text-inalde-gray hover:border-inalde-gray disabled:opacity-50">
+                Cancelar
+              </button>
+              <button onClick={confirmarBorrado} disabled={borrando}
+                className="px-4 py-2 rounded font-primary font-semibold text-xs uppercase tracking-wider bg-inalde-red text-white hover:bg-inalde-red/90 disabled:opacity-50">
+                {borrando ? 'Borrando…' : 'Sí, borrar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

@@ -32,6 +32,13 @@ export async function sendEmail(
     console.warn(`[email] SMTP not configured, would send to=${to} subject="${subject}"`);
     return { ok: false, reason: 'SMTP_NOT_CONFIGURED' };
   }
+  // Modo PRUEBA: si EMAIL_REDIRECT_TO está seteada, TODOS los correos se
+  // redirigen a esa única bandeja (con el destinatario real en el asunto) para
+  // poder probar flujos como "Comunicar" sin que lleguen a los participantes
+  // reales. Quitar la variable para envío normal.
+  const redirect = (process.env.EMAIL_REDIRECT_TO ?? '').trim();
+  const finalTo = redirect || to;
+  const finalSubject = redirect ? `[PRUEBA→${to}] ${subject}` : subject;
   // IMPORTANTE: nunca lanzar. Antes un fallo de SMTP (rechazo de un correo,
   // límite de Zoho, timeout) lanzaba excepción y, en flujos masivos como
   // "Comunicar", abortaba TODO el envío sin marcar nada. Ahora devolvemos
@@ -39,14 +46,14 @@ export async function sendEmail(
   try {
     await t.sendMail({
       from: config.smtp.from,
-      to,
-      subject,
+      to: finalTo,
+      subject: finalSubject,
       html,
       attachments: attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
     });
     return { ok: true };
   } catch (e) {
-    console.warn(`[email] envío falló to=${to} subject="${subject}":`, (e as Error).message);
+    console.warn(`[email] envío falló to=${finalTo} subject="${finalSubject}":`, (e as Error).message);
     return { ok: false, reason: (e as Error).message };
   }
 }

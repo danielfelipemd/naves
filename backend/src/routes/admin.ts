@@ -1369,21 +1369,176 @@ router.post('/sabanas/:cohorteId/asignar', async (req: AuthenticatedRequest, res
   res.json({ ok: true, asignadas: rows.length });
 });
 
-// Ejecuta tareas async con un límite de concurrencia. Se usa en el envío
-// masivo de "Comunicar": paralelizar (con tope) evita que el request tarde
-// varios minutos y haga timeout, sin saturar el SMTP.
-async function mapLimit<T>(items: Array<() => Promise<T>>, limit: number): Promise<T[]> {
-  const results: T[] = new Array(items.length);
-  let i = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) || 1 }, async () => {
-    while (i < items.length) {
-      const idx = i++;
-      results[idx] = await items[idx]();
-    }
-  });
-  await Promise.all(workers);
-  return results;
+function sleep(ms: number): Promise<void> { return new Promise((r) => setTimeout(r, ms)); }
+// Pausa entre correos (ms) para no gatillar los límites de rate/timeout de Zoho.
+const EMAIL_DELAY_MS = Number(process.env.EMAIL_DELAY_MS ?? 600);
+// Envía en SERIE, una tarea a la vez, con una pausa entre cada una.
+async function enviarEnSerie<T>(tareas: Array<() => Promise<T>>, delayMs = EMAIL_DELAY_MS): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < tareas.length; i++) {
+    out.push(await tareas[i]());
+    if (i < tareas.length - 1 && delayMs > 0) await sleep(delayMs);
+  }
+  return out;
 }
+
+// Plantillas de correo de "Comunicar" (reusadas por el envío masivo y el
+// envío por equipo individual).
+function htmlComunicadoParticipante(nombreParticipante: string, nombreEquipo: string, profesorNombre: string, bookingLine: string): string {
+  return `
+        <div style="font-family:Roboto,Arial,sans-serif;color:#1a1a1a;max-width:540px;margin:0 auto">
+          <h2 style="color:#e30613;border-bottom:3px solid #e30613;padding-bottom:8pt;margin-bottom:14pt">
+            Te asignaron profesor de trabajo de grado
+          </h2>
+          <p>Hola <strong>${nombreParticipante}</strong>,</p>
+          <p>El equipo <strong>${nombreEquipo}</strong>
+             tiene asignado el profesor <strong>${profesorNombre}</strong> para acompañar el trabajo de grado.</p>
+          <p style="margin-top:18pt">Próximos pasos:</p>
+          <p style="margin:6pt 0">
+            Coordinar la <strong>Reunión 1</strong> con tu profesor según el cronograma de la cohorte.
+            <strong>IMPORTANTE:</strong> solamente un miembro del equipo debe solicitar la cita
+            (aunque todos asistirán).
+          </p>
+          ${bookingLine}
+          <p style="font-size:9pt;color:#6b6b6b;margin-top:24pt">
+            NAVES — INALDE Business School · MBA<br>
+            Este es un mensaje automático del sistema; por favor no respondas a este correo.
+          </p>
+        </div>`;
+}
+
+function htmlComunicadoProfesor(profesorNombre: string, cohorteId: string, equipos: any[]): string {
+  const filasEquipos = equipos.map((eq: any) => {
+    const nombreEquipo = eq?.nombre_equipo || '(sin nombre)';
+    const miembrosList = ((eq?.miembros_equipo ?? []) as any[])
+      .map((m) => m.participantes_lista?.nombre_completo)
+      .filter(Boolean);
+    const proyectos = (((eq?.anteproyectos ?? [])[0]?.proyectos ?? []) as any[])
+      .filter((p) => p.estado_seleccion !== 'archivado')
+      .sort((x, y) => (x.posicion ?? 0) - (y.posicion ?? 0));
+    const proyectosHtml = proyectos.length
+      ? `<ul style="margin:4px 0 0 0; padding-left: 18px;">${proyectos.map((p) =>
+          `<li style="font-size:13px;"><strong>${p.nombre}</strong>${p.sector ? ` <span style="color:#888;">· ${p.sector}</span>` : ''}</li>`,
+        ).join('')}</ul>`
+      : '<p style="margin:4px 0 0 0; font-size:13px; color:#888; font-style:italic;">Aún sin proyectos cargados.</p>';
+    return `
+        <div style="border-left:3px solid #e30613; padding: 10px 14px; margin: 12px 0; background:#fafafa;">
+          <p style="margin:0; font-weight:600; font-size:15px;">${nombreEquipo}</p>
+          ${miembrosList.length ? `<p style="margin:4px 0 0 0; color:#555; font-size:12px;">${miembrosList.join(' · ')}</p>` : ''}
+          ${proyectosHtml}
+        </div>`;
+  }).join('');
+  return `
+      <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto">
+        <div style="border-bottom:3px solid #e30613; padding-bottom:14px; margin-bottom:22px;">
+          <p style="color:#888; text-transform:uppercase; letter-spacing:1.5px; font-size:11px; margin:0;">Asignación de equipos — Programa MBA</p>
+          <h2 style="color:#1a1a1a; margin:6px 0 0 0; font-size:22px;">Equipos asignados para acompañamiento</h2>
+        </div>
+        <p><strong>${profesorNombre}</strong>:</p>
+        <p>Reciba un cordial saludo. Le informamos que la sábana de proyectos de la
+        cohorte <strong>${cohorteId}</strong> fue aprobada y los siguientes equipos quedaron
+        bajo su acompañamiento como profesor de trabajo de grado:</p>
+
+        ${filasEquipos}
+
+        <p style="font-size:13px; color:#555; margin-top:18px;">
+          Por favor coordine la <strong>Reunión 1</strong> con cada equipo dentro de la ventana
+          establecida en el cronograma de la cohorte. Solamente un miembro de cada equipo
+          solicitará la cita en su agenda.
+        </p>
+        <p style="margin-top:18px;">Cordialmente,</p>
+        <p style="margin:4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
+        <hr style="border:none; border-top:1px solid #ddd; margin:24px 0 16px;"/>
+        <p style="font-size:11px; color:#888; line-height:1.5; margin:0;">
+          <strong>INALDE Business School</strong> — Programa MBA<br/>
+          Sistema de trabajos de grado. Este es un mensaje automático, por favor no responda a este correo.
+        </p>
+      </div>`;
+}
+
+// POST /api/admin/sabanas/equipos/:equipoId/comunicar
+// Comunica UN solo equipo (proyecto): envía el correo de asignación a sus
+// participantes + un correo al profesor sobre ese equipo. Marca la asignación
+// como notificada si TODOS los correos a participantes salieron bien.
+router.post('/sabanas/equipos/:equipoId/comunicar', async (req, res) => {
+  const equipoId = req.params.equipoId;
+  const ahora = new Date().toISOString();
+
+  const { data: a, error } = await supabaseAdmin
+    .from('asignaciones_profesor')
+    .select(`
+      id, equipo_id, profesor_id,
+      profesores:profesores!inner ( id, nombre_completo, email_encriptado, booking_url ),
+      equipos:equipos!inner ( id, nombre_equipo, cohorte_id,
+        miembros_equipo ( participantes_lista ( id, nombre_completo, email_encriptado ) ),
+        anteproyectos ( proyectos ( id, nombre, sector, estado_seleccion, posicion ) ) )
+    `)
+    .eq('equipo_id', equipoId)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!a) return res.status(404).json({ error: 'SIN_ASIGNACION', mensaje: 'Este equipo no tiene profesor asignado.' });
+
+  const prof: any = (a as any).profesores;
+  const equipo: any = (a as any).equipos;
+  const profesorNombre = prof?.nombre_completo ?? 'tu profesor';
+  const bookingLine = prof?.booking_url
+    ? `<p style="margin:12pt 0">Agenda del profesor: <a href="${prof.booking_url}">${prof.booking_url}</a></p>`
+    : '';
+
+  const fallos: Array<{ destinatario: string; razon: string }> = [];
+  let emailsEnviados = 0;
+  let emailsFallados = 0;
+  let algunFalloParticipante = false;
+
+  const tareas: Array<() => Promise<{ ok: boolean; destinatario: string; razon?: string }>> = [];
+  for (const m of ((equipo?.miembros_equipo ?? []) as any[])) {
+    const p = m.participantes_lista;
+    if (!p?.email_encriptado) continue;
+    tareas.push(async () => {
+      let realEmail: string;
+      try { realEmail = decryptPII(p.email_encriptado); }
+      catch { return { ok: false, destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }; }
+      const html = htmlComunicadoParticipante(p.nombre_completo, equipo?.nombre_equipo ?? '(sin nombre)', profesorNombre, bookingLine);
+      const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
+      return { ok: r.ok, destinatario: p.nombre_completo, razon: r.ok ? undefined : (r.reason ?? 'UNKNOWN') };
+    });
+  }
+  for (const r of await enviarEnSerie(tareas)) {
+    if (r.ok) emailsEnviados++;
+    else { emailsFallados++; algunFalloParticipante = true; fallos.push({ destinatario: r.destinatario, razon: r.razon ?? 'UNKNOWN' }); }
+  }
+
+  // Correo al profesor sobre este equipo (best effort, no bloquea la marca).
+  let profesorNotificado = false;
+  let profEmail = '';
+  try { profEmail = decryptPII(prof.email_encriptado); } catch { profEmail = ''; }
+  if (profEmail) {
+    const html = htmlComunicadoProfesor(prof.nombre_completo, equipo?.cohorte_id ?? '', [equipo]);
+    const r = await sendEmail(profEmail, `Equipo asignado — ${equipo?.nombre_equipo ?? 'Cohorte ' + (equipo?.cohorte_id ?? '')}`, html);
+    if (r.ok) profesorNotificado = true;
+    else fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: r.reason ?? 'UNKNOWN' });
+  } else {
+    fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: 'EMAIL_VACIO' });
+  }
+
+  // Marcar notificado solo si no falló ningún correo a participantes.
+  const comunicado = !algunFalloParticipante && emailsEnviados > 0;
+  if (comunicado) {
+    await supabaseAdmin
+      .from('asignaciones_profesor')
+      .update({ notificacion_enviada: true, fecha_notificacion: ahora })
+      .eq('id', (a as any).id);
+  }
+
+  res.json({
+    ok: true,
+    comunicado,
+    emails_enviados: emailsEnviados,
+    emails_fallados: emailsFallados,
+    profesor_notificado: profesorNotificado,
+    fallos: fallos.slice(0, 10),
+  });
+});
 
 router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
   const { cohorteId } = req.params;
@@ -1430,179 +1585,74 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
     });
   }
 
-  // 2. Por cada asignación, enviar correo a cada participante del equipo
-  let emailsEnviados = 0;
-  let emailsFallados = 0;
-  const fallos: Array<{ destinatario: string; razon: string }> = [];
-  // Asignaciones cuyo envío falló (a participantes o al profesor). NO se
-  // marcan como notificadas, para que un próximo "Comunicar" las reintente.
-  const asignacionConFallo = new Set<string>();
-
-  type EnvioResult = { ok: boolean; asignacionId?: string; destinatario: string; razon?: string };
-  const tareasParticipantes: Array<() => Promise<EnvioResult>> = [];
-  for (const a of asignaciones ?? []) {
-    const prof: any = a.profesores;
-    const equipo: any = a.equipos;
-    const profesorNombre = prof?.nombre_completo ?? 'tu profesor';
-    const bookingLine = prof?.booking_url
-      ? `<p style="margin:12pt 0">Agenda del profesor: <a href="${prof.booking_url}">${prof.booking_url}</a></p>`
-      : '';
-
-    const miembros = (equipo?.miembros_equipo ?? []) as Array<{ participantes_lista: any }>;
-    for (const m of miembros) {
-      const p = m.participantes_lista;
-      if (!p?.email_encriptado) continue;
-      tareasParticipantes.push(async () => {
-        let realEmail: string;
-        try { realEmail = decryptPII(p.email_encriptado); }
-        catch { return { ok: false, asignacionId: a.id, destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }; }
-
-        const html = `
-        <div style="font-family:Roboto,Arial,sans-serif;color:#1a1a1a;max-width:540px;margin:0 auto">
-          <h2 style="color:#e30613;border-bottom:3px solid #e30613;padding-bottom:8pt;margin-bottom:14pt">
-            Te asignaron profesor de trabajo de grado
-          </h2>
-          <p>Hola <strong>${p.nombre_completo}</strong>,</p>
-          <p>El equipo <strong>${equipo?.nombre_equipo ?? '(sin nombre)'}</strong>
-             tiene asignado el profesor <strong>${profesorNombre}</strong> para acompañar el trabajo de grado.</p>
-          <p style="margin-top:18pt">Próximos pasos:</p>
-          <p style="margin:6pt 0">
-            Coordinar la <strong>Reunión 1</strong> con tu profesor según el cronograma de la cohorte.
-            <strong>IMPORTANTE:</strong> solamente un miembro del equipo debe solicitar la cita
-            (aunque todos asistirán).
-          </p>
-          ${bookingLine}
-          <p style="font-size:9pt;color:#6b6b6b;margin-top:24pt">
-            NAVES — INALDE Business School · MBA<br>
-            Este es un mensaje automático del sistema; por favor no respondas a este correo.
-          </p>
-        </div>`;
-
-        const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
-        return { ok: r.ok, asignacionId: a.id, destinatario: p.nombre_completo, razon: r.ok ? undefined : (r.reason ?? 'UNKNOWN') };
-      });
-    }
-  }
-  for (const res of await mapLimit(tareasParticipantes, 5)) {
-    if (res.ok) emailsEnviados++;
-    else {
-      emailsFallados++;
-      if (res.asignacionId) asignacionConFallo.add(res.asignacionId);
-      fallos.push({ destinatario: res.destinatario, razon: res.razon ?? 'UNKNOWN' });
-    }
-  }
-
-  // 3. Email consolidado al profesor: un correo por profesor con la lista
-  //    completa de equipos/proyectos que le fueron asignados en esta cohorte.
-  const porProfesor = new Map<string, { prof: any; equipos: any[] }>();
-  for (const a of asignaciones ?? []) {
-    const prof: any = a.profesores;
-    if (!prof?.id) continue;
-    if (!porProfesor.has(prof.id)) porProfesor.set(prof.id, { prof, equipos: [] });
-    porProfesor.get(prof.id)!.equipos.push(a.equipos);
-  }
-
-  // El correo al profesor NO bloquea la marca de notificación de la asignación:
-  // si el SMTP está caído también falla el correo a participantes (que sí deja
-  // pendiente y reintenta). El único caso de fallo solo-profesor es un email
-  // inválido/corrupto —permanente— donde reintentar es inútil y reenviar a los
-  // participantes sería spam. Por eso aquí solo se reporta el fallo, no se marca
-  // la asignación como pendiente.
-  let profesoresEnviados = 0;
-  let profesoresFallados = 0;
-  const tareasProfesores: Array<() => Promise<EnvioResult>> = [];
-  for (const { prof, equipos } of porProfesor.values()) {
-    tareasProfesores.push(async () => {
-    let profEmail = '';
-    try { profEmail = decryptPII(prof.email_encriptado); }
-    catch { return { ok: false, destinatario: prof?.nombre_completo ?? '(profesor)', razon: 'PII_DECRYPT_FAILED' }; }
-    if (!profEmail) { return { ok: false, destinatario: prof?.nombre_completo ?? '(profesor)', razon: 'EMAIL_VACIO' }; }
-
-    const filasEquipos = equipos.map((eq: any) => {
-      const nombreEquipo = eq?.nombre_equipo || '(sin nombre)';
-      const miembrosList = ((eq?.miembros_equipo ?? []) as any[])
-        .map((m) => m.participantes_lista?.nombre_completo)
-        .filter(Boolean);
-      const proyectos = (((eq?.anteproyectos ?? [])[0]?.proyectos ?? []) as any[])
-        .filter((p) => p.estado_seleccion !== 'archivado')
-        .sort((x, y) => (x.posicion ?? 0) - (y.posicion ?? 0));
-      const proyectosHtml = proyectos.length
-        ? `<ul style="margin:4px 0 0 0; padding-left: 18px;">${proyectos.map((p) =>
-            `<li style="font-size:13px;"><strong>${p.nombre}</strong>${p.sector ? ` <span style="color:#888;">· ${p.sector}</span>` : ''}</li>`,
-          ).join('')}</ul>`
-        : '<p style="margin:4px 0 0 0; font-size:13px; color:#888; font-style:italic;">Aún sin proyectos cargados.</p>';
-      return `
-        <div style="border-left:3px solid #e30613; padding: 10px 14px; margin: 12px 0; background:#fafafa;">
-          <p style="margin:0; font-weight:600; font-size:15px;">${nombreEquipo}</p>
-          ${miembrosList.length ? `<p style="margin:4px 0 0 0; color:#555; font-size:12px;">${miembrosList.join(' · ')}</p>` : ''}
-          ${proyectosHtml}
-        </div>`;
-    }).join('');
-
-    const html = `
-      <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto">
-        <div style="border-bottom:3px solid #e30613; padding-bottom:14px; margin-bottom:22px;">
-          <p style="color:#888; text-transform:uppercase; letter-spacing:1.5px; font-size:11px; margin:0;">Asignación de equipos — Programa MBA</p>
-          <h2 style="color:#1a1a1a; margin:6px 0 0 0; font-size:22px;">Equipos asignados para acompañamiento</h2>
-        </div>
-        <p><strong>${prof.nombre_completo}</strong>:</p>
-        <p>Reciba un cordial saludo. Le informamos que la sábana de proyectos de la
-        cohorte <strong>${cohorteId}</strong> fue aprobada y los siguientes equipos quedaron
-        bajo su acompañamiento como profesor de trabajo de grado:</p>
-
-        ${filasEquipos}
-
-        <p style="font-size:13px; color:#555; margin-top:18px;">
-          Por favor coordine la <strong>Reunión 1</strong> con cada equipo dentro de la ventana
-          establecida en el cronograma de la cohorte. Solamente un miembro de cada equipo
-          solicitará la cita en su agenda.
-        </p>
-        <p style="margin-top:18px;">Cordialmente,</p>
-        <p style="margin:4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
-        <hr style="border:none; border-top:1px solid #ddd; margin:24px 0 16px;"/>
-        <p style="font-size:11px; color:#888; line-height:1.5; margin:0;">
-          <strong>INALDE Business School</strong> — Programa MBA<br/>
-          Sistema de trabajos de grado. Este es un mensaje automático, por favor no responda a este correo.
-        </p>
-      </div>`;
-
-    const r = await sendEmail(profEmail, `Equipos asignados — Cohorte ${cohorteId}`, html);
-    return { ok: r.ok, destinatario: prof?.nombre_completo ?? '(profesor)', razon: r.ok ? undefined : (r.reason ?? 'UNKNOWN') };
-    });
-  }
-  for (const res of await mapLimit(tareasProfesores, 5)) {
-    if (res.ok) profesoresEnviados++;
-    else { profesoresFallados++; fallos.push({ destinatario: res.destinatario, razon: res.razon ?? 'UNKNOWN' }); }
-  }
-
-  // 4. Marcar como comunicada en BD (independiente del resultado de emails).
-  //    Solo marcamos como notificadas las asignaciones que SÍ procesamos
-  //    (las pendientes), no toda la cohorte, para no pisar el estado de
-  //    asignaciones futuras ni re-notificar lo ya enviado.
-  await supabaseAdmin
-    .from('sabanas_proyectos')
-    .update({ estado: 'comunicada', fecha_comunicacion: ahora })
-    .eq('cohorte_id', cohorteId);
-  // Solo las asignaciones cuyos correos se enviaron sin fallos se marcan como
-  // notificadas. Las que fallaron quedan pendientes para reintentar.
-  const idsNotificadas = (asignaciones as any[])
-    .map((a) => a.id)
-    .filter((id) => !asignacionConFallo.has(id));
-  if (idsNotificadas.length) {
-    await supabaseAdmin
-      .from('asignaciones_profesor')
-      .update({ notificacion_enviada: true, fecha_notificacion: ahora })
-      .in('id', idsNotificadas);
-  }
-
+  // 2. Enviar en SEGUNDO PLANO, en serie y con pausa entre correos (evita los
+  //    límites de rate/timeout de Zoho) sin bloquear el request. Respondemos de
+  //    inmediato; el frontend refresca la tabla para ver el progreso (✉️).
   res.json({
     ok: true,
-    emails_enviados: emailsEnviados,
-    emails_fallados: emailsFallados,
-    profesores_notificados: profesoresEnviados,
-    profesores_fallados: profesoresFallados,
-    fallos: fallos.slice(0, 20),
+    iniciado: true,
+    total: asignaciones.length,
+    mensaje: `Comunicación iniciada para ${asignaciones.length} equipo(s). Los correos se envían en serie en segundo plano; la tabla se actualiza sola a medida que cada proyecto queda "Comunicado" (✉️).`,
   });
+
+  const fallos: Array<{ destinatario: string; razon: string }> = [];
+  void (async () => {
+    // 2a. Correos a participantes. Se marca CADA asignación como notificada
+    //     apenas TODOS sus participantes salieron OK, para que el botón de la
+    //     fila pase a "Comunicado" progresivamente.
+    for (const a of asignaciones) {
+      const prof: any = a.profesores;
+      const equipo: any = a.equipos;
+      const profesorNombre = prof?.nombre_completo ?? 'tu profesor';
+      const bookingLine = prof?.booking_url
+        ? `<p style="margin:12pt 0">Agenda del profesor: <a href="${prof.booking_url}">${prof.booking_url}</a></p>`
+        : '';
+      const miembros = (equipo?.miembros_equipo ?? []) as Array<{ participantes_lista: any }>;
+      let falloEnEquipo = false;
+      let algunEnviado = false;
+      for (const m of miembros) {
+        const p = m.participantes_lista;
+        if (!p?.email_encriptado) continue;
+        let realEmail: string;
+        try { realEmail = decryptPII(p.email_encriptado); }
+        catch { falloEnEquipo = true; fallos.push({ destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }); continue; }
+        const html = htmlComunicadoParticipante(p.nombre_completo, equipo?.nombre_equipo ?? '(sin nombre)', profesorNombre, bookingLine);
+        const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
+        if (r.ok) algunEnviado = true;
+        else { falloEnEquipo = true; fallos.push({ destinatario: p.nombre_completo, razon: r.reason ?? 'UNKNOWN' }); }
+        await sleep(EMAIL_DELAY_MS);
+      }
+      if (!falloEnEquipo && algunEnviado) {
+        await supabaseAdmin.from('asignaciones_profesor')
+          .update({ notificacion_enviada: true, fecha_notificacion: new Date().toISOString() })
+          .eq('id', a.id);
+      }
+    }
+
+    // 2b. Un correo consolidado por profesor (en serie con pausa).
+    const porProfesor = new Map<string, { prof: any; equipos: any[] }>();
+    for (const a of asignaciones) {
+      const prof: any = a.profesores;
+      if (!prof?.id) continue;
+      if (!porProfesor.has(prof.id)) porProfesor.set(prof.id, { prof, equipos: [] });
+      porProfesor.get(prof.id)!.equipos.push(a.equipos);
+    }
+    for (const { prof, equipos } of porProfesor.values()) {
+      let profEmail = '';
+      try { profEmail = decryptPII(prof.email_encriptado); } catch { continue; }
+      if (!profEmail) continue;
+      const html = htmlComunicadoProfesor(prof.nombre_completo, cohorteId, equipos);
+      await sendEmail(profEmail, `Equipos asignados — Cohorte ${cohorteId}`, html);
+      await sleep(EMAIL_DELAY_MS);
+    }
+
+    // 2c. Marcar la sábana como comunicada y cerrar el proceso en background.
+    await supabaseAdmin
+      .from('sabanas_proyectos')
+      .update({ estado: 'comunicada', fecha_comunicacion: new Date().toISOString() })
+      .eq('cohorte_id', cohorteId);
+    console.log(`[comunicar] cohorte=${cohorteId} completado en segundo plano. fallos=${fallos.length}`);
+  })();
 });
 
 // =====================================================================
