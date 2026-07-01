@@ -1414,7 +1414,6 @@ function htmlComunicadoParticipante(nombreParticipante: string, nombreEquipo: st
             (aunque todos asistirán).
           </p>
           ${agenda}
-          ${botonAccesoSistema()}
           <p style="font-size:9pt;color:#6b6b6b;margin-top:24pt">
             NAVES — INALDE Business School · MBA<br>
             Este es un mensaje automático del sistema; por favor no respondas a este correo.
