@@ -487,14 +487,23 @@ export default function Sabana() {
                               <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-inalde-text text-white text-xs font-bold font-mono">
                                 {idx + 1}
                               </span>
-                              {isSuperAdmin && (
-                                <button
-                                  onClick={() => borrarEquipo(f.equipo_id, f.nombre_equipo || f.autores || `equipo #${idx + 1}`)}
-                                  title="Borrar equipo completo"
-                                  className="block mt-2 text-inalde-gray hover:text-inalde-red transition text-sm leading-none">
-                                  🗑
-                                </button>
-                              )}
+                              <div className="flex items-center gap-2 mt-2">
+                                {isSuperAdmin && (
+                                  <button
+                                    onClick={() => borrarEquipo(f.equipo_id, f.nombre_equipo || f.autores || `equipo #${idx + 1}`)}
+                                    title="Borrar equipo completo"
+                                    className="text-inalde-gray hover:text-inalde-red transition text-sm leading-none">
+                                    🗑
+                                  </button>
+                                )}
+                                {f.modalidad === 'business_plan' && f.profesor_asignado_id && (
+                                  f.comunicado ? (
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-green-700 leading-none whitespace-nowrap" title="Correo de asignación ya enviado a los participantes">✉️ Comunicado</span>
+                                  ) : (
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-inalde-gold leading-none whitespace-nowrap" title="Aún no se ha enviado el correo de asignación">⏳ Sin comunicar</span>
+                                  )
+                                )}
+                              </div>
                             </td>
                             <td className="px-2.5 py-3 align-top">
                               <div className="max-w-[210px] min-w-[140px]">
@@ -649,15 +658,6 @@ export default function Sabana() {
                                   <p className="text-inalde-text font-medium">
                                     {f.director_asignado_nombre ?? <span className="italic text-inalde-gray font-normal">— Sin director —</span>}
                                   </p>
-                                </div>
-                              )}
-                              {f.modalidad === 'business_plan' && f.profesor_asignado_id && (
-                                <div className="mt-1.5">
-                                  {f.comunicado ? (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-700" title="Correo de asignación ya enviado a los participantes">✉️ Comunicado</span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-inalde-gold" title="Aún no se ha enviado el correo de asignación">⏳ Sin comunicar</span>
-                                  )}
                                 </div>
                               )}
                               </div>
