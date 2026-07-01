@@ -3,7 +3,6 @@ import multer from 'multer';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
 import crypto from 'node:crypto';
-import { config } from '../config.js';
 import { supabaseAdmin } from '../db/supabase.js';
 import { encryptPII, decryptPII, sha256Hex, syntheticEmailFromCedula } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
@@ -1383,14 +1382,15 @@ async function enviarEnSerie<T>(tareas: Array<() => Promise<T>>, delayMs = EMAIL
   return out;
 }
 
-// Botón CTA de acceso al sistema para los correos.
+// Botón CTA de acceso al sistema para los correos. Usa el dominio PÚBLICO
+// (no el interno de EasyPanel). Configurable con PUBLIC_URL.
+const PUBLIC_URL = (process.env.PUBLIC_URL ?? '').trim().replace(/\/$/, '') || 'https://naves-inalde.com';
 function botonAccesoSistema(): string {
-  if (!config.frontendUrl) return '';
   return `
           <div style="text-align:center; margin:24pt 0 8pt;">
-            <a href="${config.frontendUrl}" style="display:inline-block; background:#e30613; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; padding:11px 28px; border-radius:6px;">Ingresar al sistema</a>
+            <a href="${PUBLIC_URL}" style="display:inline-block; background:#e30613; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; padding:11px 28px; border-radius:6px;">Ingresar al sistema</a>
           </div>
-          <p style="text-align:center; font-size:11px; color:#888; margin:6px 0 0 0;">O ingresa en <a href="${config.frontendUrl}" style="color:#e30613;">${config.frontendUrl.replace(/^https?:\/\//, '')}</a></p>`;
+          <p style="text-align:center; font-size:11px; color:#888; margin:6px 0 0 0;">O ingresa en <a href="${PUBLIC_URL}" style="color:#e30613;">${PUBLIC_URL.replace(/^https?:\/\//, '')}</a></p>`;
 }
 
 // Plantillas de correo de "Comunicar" (reusadas por el envío masivo y el
