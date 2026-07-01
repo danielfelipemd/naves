@@ -3,6 +3,7 @@ import multer from 'multer';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
 import crypto from 'node:crypto';
+import { config } from '../config.js';
 import { supabaseAdmin } from '../db/supabase.js';
 import { encryptPII, decryptPII, sha256Hex, syntheticEmailFromCedula } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
@@ -1382,9 +1383,22 @@ async function enviarEnSerie<T>(tareas: Array<() => Promise<T>>, delayMs = EMAIL
   return out;
 }
 
+// Botón CTA de acceso al sistema para los correos.
+function botonAccesoSistema(): string {
+  if (!config.frontendUrl) return '';
+  return `
+          <div style="text-align:center; margin:24pt 0 8pt;">
+            <a href="${config.frontendUrl}" style="display:inline-block; background:#e30613; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; padding:11px 28px; border-radius:6px;">Ingresar al sistema</a>
+          </div>
+          <p style="text-align:center; font-size:11px; color:#888; margin:6px 0 0 0;">O ingresa en <a href="${config.frontendUrl}" style="color:#e30613;">${config.frontendUrl.replace(/^https?:\/\//, '')}</a></p>`;
+}
+
 // Plantillas de correo de "Comunicar" (reusadas por el envío masivo y el
 // envío por equipo individual).
-function htmlComunicadoParticipante(nombreParticipante: string, nombreEquipo: string, profesorNombre: string, bookingLine: string): string {
+function htmlComunicadoParticipante(nombreParticipante: string, nombreEquipo: string, profesorNombre: string, bookingUrl: string | null): string {
+  const agenda = bookingUrl
+    ? `<div style="text-align:center; margin:16pt 0 4pt;"><a href="${bookingUrl}" style="display:inline-block; background:#1a1a1a; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; padding:11px 26px; border-radius:6px;">Agendar la Reunión 1 con el profesor</a></div>`
+    : '';
   return `
         <div style="font-family:Roboto,Arial,sans-serif;color:#1a1a1a;max-width:540px;margin:0 auto">
           <h2 style="color:#e30613;border-bottom:3px solid #e30613;padding-bottom:8pt;margin-bottom:14pt">
@@ -1399,7 +1413,8 @@ function htmlComunicadoParticipante(nombreParticipante: string, nombreEquipo: st
             <strong>IMPORTANTE:</strong> solamente un miembro del equipo debe solicitar la cita
             (aunque todos asistirán).
           </p>
-          ${bookingLine}
+          ${agenda}
+          ${botonAccesoSistema()}
           <p style="font-size:9pt;color:#6b6b6b;margin-top:24pt">
             NAVES — INALDE Business School · MBA<br>
             Este es un mensaje automático del sistema; por favor no respondas a este correo.
@@ -1446,6 +1461,7 @@ function htmlComunicadoProfesor(profesorNombre: string, cohorteId: string, equip
           establecida en el cronograma de la cohorte. Solamente un miembro de cada equipo
           solicitará la cita en su agenda.
         </p>
+        ${botonAccesoSistema()}
         <p style="margin-top:18px;">Cordialmente,</p>
         <p style="margin:4px 0;"><strong>Programa MBA</strong><br/>INALDE Business School</p>
         <hr style="border:none; border-top:1px solid #ddd; margin:24px 0 16px;"/>
@@ -1481,9 +1497,7 @@ router.post('/sabanas/equipos/:equipoId/comunicar', async (req, res) => {
   const prof: any = (a as any).profesores;
   const equipo: any = (a as any).equipos;
   const profesorNombre = prof?.nombre_completo ?? 'tu profesor';
-  const bookingLine = prof?.booking_url
-    ? `<p style="margin:12pt 0">Agenda del profesor: <a href="${prof.booking_url}">${prof.booking_url}</a></p>`
-    : '';
+  const bookingUrl = prof?.booking_url ?? null;
 
   const fallos: Array<{ destinatario: string; razon: string }> = [];
   let emailsEnviados = 0;
@@ -1498,7 +1512,7 @@ router.post('/sabanas/equipos/:equipoId/comunicar', async (req, res) => {
       let realEmail: string;
       try { realEmail = decryptPII(p.email_encriptado); }
       catch { return { ok: false, destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }; }
-      const html = htmlComunicadoParticipante(p.nombre_completo, equipo?.nombre_equipo ?? '(sin nombre)', profesorNombre, bookingLine);
+      const html = htmlComunicadoParticipante(p.nombre_completo, equipo?.nombre_equipo ?? '(sin nombre)', profesorNombre, bookingUrl);
       const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
       return { ok: r.ok, destinatario: p.nombre_completo, razon: r.ok ? undefined : (r.reason ?? 'UNKNOWN') };
     });
@@ -1604,9 +1618,7 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
       const prof: any = a.profesores;
       const equipo: any = a.equipos;
       const profesorNombre = prof?.nombre_completo ?? 'tu profesor';
-      const bookingLine = prof?.booking_url
-        ? `<p style="margin:12pt 0">Agenda del profesor: <a href="${prof.booking_url}">${prof.booking_url}</a></p>`
-        : '';
+      const bookingUrl = prof?.booking_url ?? null;
       const miembros = (equipo?.miembros_equipo ?? []) as Array<{ participantes_lista: any }>;
       let falloEnEquipo = false;
       let algunEnviado = false;
@@ -1616,7 +1628,7 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
         let realEmail: string;
         try { realEmail = decryptPII(p.email_encriptado); }
         catch { falloEnEquipo = true; fallos.push({ destinatario: p.nombre_completo ?? '?', razon: 'PII_DECRYPT_FAILED' }); continue; }
-        const html = htmlComunicadoParticipante(p.nombre_completo, equipo?.nombre_equipo ?? '(sin nombre)', profesorNombre, bookingLine);
+        const html = htmlComunicadoParticipante(p.nombre_completo, equipo?.nombre_equipo ?? '(sin nombre)', profesorNombre, bookingUrl);
         const r = await sendEmail(realEmail, `Tu profesor de trabajo de grado: ${profesorNombre}`, html);
         if (r.ok) algunEnviado = true;
         else { falloEnEquipo = true; fallos.push({ destinatario: p.nombre_completo, razon: r.reason ?? 'UNKNOWN' }); }
