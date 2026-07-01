@@ -1409,9 +1409,6 @@ function proyectosDeEquipo(equipo: any): any[] {
 function nombresProyectosDeEquipo(equipo: any): string[] {
   return proyectosDeEquipo(equipo).map((p) => p.nombre).filter(Boolean);
 }
-function nombreProyectoDeEquipo(equipo: any): string {
-  return nombresProyectosDeEquipo(equipo).join(' / ');
-}
 
 // Plantillas de correo de "Comunicar" (reusadas por el envío masivo y el
 // envío por equipo individual).
@@ -1541,13 +1538,22 @@ router.post('/sabanas/equipos/:equipoId/comunicar', async (req, res) => {
     else { emailsFallados++; algunFalloParticipante = true; fallos.push({ destinatario: r.destinatario, razon: r.razon ?? 'UNKNOWN' }); }
   }
 
-  // Correo al profesor sobre este equipo (best effort, no bloquea la marca).
+  // Correo al profesor con su lista COMPLETA de proyectos de la cohorte (no solo
+  // este equipo), para que siempre sea completo. Best effort, no bloquea la marca.
   let profesorNotificado = false;
   let profEmail = '';
   try { profEmail = decryptPII(prof.email_encriptado); } catch { profEmail = ''; }
   if (profEmail) {
-    const html = htmlComunicadoProfesor(prof.nombre_completo, equipo?.cohorte_id ?? '', [equipo]);
-    const r = await sendEmail(profEmail, `Proyecto asignado — ${nombreProyectoDeEquipo(equipo)}`, html);
+    const { data: todas } = await supabaseAdmin
+      .from('asignaciones_profesor')
+      .select(`equipos:equipo_id!inner ( nombre_equipo,
+        miembros_equipo ( participantes_lista ( nombre_completo ) ),
+        anteproyectos ( proyectos ( id, nombre, sector, estado_seleccion, posicion ) ) )`)
+      .eq('cohorte_id', equipo?.cohorte_id ?? '')
+      .eq('profesor_id', (a as any).profesor_id);
+    const equiposDelProf = (todas as any[] | null)?.map((t) => t.equipos) ?? [equipo];
+    const html = htmlComunicadoProfesor(prof.nombre_completo, equipo?.cohorte_id ?? '', equiposDelProf);
+    const r = await sendEmail(profEmail, `Proyectos asignados — Cohorte ${equipo?.cohorte_id ?? ''}`, html);
     if (r.ok) profesorNotificado = true;
     else fallos.push({ destinatario: prof?.nombre_completo ?? '(profesor)', razon: r.reason ?? 'UNKNOWN' });
   } else {
@@ -1660,19 +1666,28 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
       }
     }
 
-    // 2b. Un correo consolidado por profesor (en serie con pausa).
-    const porProfesor = new Map<string, { prof: any; equipos: any[] }>();
-    for (const a of asignaciones) {
-      const prof: any = a.profesores;
-      if (!prof?.id) continue;
-      if (!porProfesor.has(prof.id)) porProfesor.set(prof.id, { prof, equipos: [] });
-      porProfesor.get(prof.id)!.equipos.push(a.equipos);
-    }
-    for (const { prof, equipos } of porProfesor.values()) {
+    // 2b. Correo consolidado por profesor — DESPUÉS de TODOS los participantes —
+    //     con la lista COMPLETA de sus proyectos de la cohorte (no solo los de
+    //     esta tanda), para que el profesor siempre reciba un correo completo.
+    const profesorIds = [...new Set((asignaciones as any[]).map((a) => a.profesor_id).filter(Boolean))];
+    for (const profId of profesorIds) {
+      const { data: todas } = await supabaseAdmin
+        .from('asignaciones_profesor')
+        .select(`
+          profesores:profesor_id!inner ( nombre_completo, email_encriptado ),
+          equipos:equipo_id!inner ( nombre_equipo,
+            miembros_equipo ( participantes_lista ( nombre_completo ) ),
+            anteproyectos ( proyectos ( id, nombre, sector, estado_seleccion, posicion ) ) )
+        `)
+        .eq('cohorte_id', cohorteId)
+        .eq('profesor_id', profId);
+      if (!todas || !todas.length) continue;
+      const prof: any = (todas[0] as any).profesores;
       let profEmail = '';
       try { profEmail = decryptPII(prof.email_encriptado); } catch { continue; }
       if (!profEmail) continue;
-      const html = htmlComunicadoProfesor(prof.nombre_completo, cohorteId, equipos);
+      const equiposDelProf = (todas as any[]).map((t) => t.equipos);
+      const html = htmlComunicadoProfesor(prof.nombre_completo, cohorteId, equiposDelProf);
       await sendEmail(profEmail, `Proyectos asignados — Cohorte ${cohorteId}`, html);
       await sleep(EMAIL_DELAY_MS);
     }
