@@ -13,6 +13,8 @@ import TrabajoGrado from './pages/participante/TrabajoGrado';
 import SeleccionDefinitivo from './pages/participante/SeleccionDefinitivo';
 import MiProfesor from './pages/participante/MiProfesor';
 import SabanaSocios from './pages/participante/SabanaSocios';
+import ConfirmarAsistencia from './pages/panelista/ConfirmarAsistencia';
+import AdminPanelistas from './pages/admin/Panelistas';
 import ProfesorSeleccionarProyectos from './pages/profesor/SeleccionarProyectos';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminResumen from './pages/admin/Resumen';
@@ -77,6 +79,7 @@ export default function App() {
         <Route path="/recovery" element={<Recovery />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/cambiar-clave-inicial" element={<CambiarClaveRoute />} />
+        <Route path="/panelista/confirmar" element={<ConfirmarAsistencia />} />
 
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/mi-perfil" element={<ProtectedRoute><MiPerfil /></ProtectedRoute>} />
@@ -98,6 +101,7 @@ export default function App() {
           <Route path="anteproyectos/:id" element={<AdminAnteproyectoDetail />} />
           <Route path="equipos" element={<SuperAdminOnly><AdminEquipos /></SuperAdminOnly>} />
           <Route path="sabana" element={<AdminSabana />} />
+          <Route path="panelistas" element={<SuperAdminOnly><AdminPanelistas /></SuperAdminOnly>} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
           <Route path="auditoria" element={<SuperAdminOnly><AdminAuditoria /></SuperAdminOnly>} />
           <Route path="roles-permisos" element={<SuperAdminOnly><AdminRolesPermisos /></SuperAdminOnly>} />

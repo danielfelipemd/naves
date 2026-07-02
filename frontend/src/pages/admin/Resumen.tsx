@@ -54,6 +54,11 @@ const SECTIONS: Section[] = [
     desc: 'Vista consolidada por cohorte para la reunión de asignación. Genera, sugiere asignaciones y comunica a los equipos.',
   },
   {
+    to: '/admin/panelistas', icon: '🧑‍⚖️',
+    title: 'Panelistas',
+    desc: 'Evaluadores externos por cohorte: jornadas de presentación, confirmación de asistencia por link y logística (transporte y comidas).',
+  },
+  {
     to: '/admin/solicitudes', icon: '📨',
     title: 'Solicitudes de desarchivado',
     desc: 'Aprueba o rechaza solicitudes de los equipos para retomar proyectos archivados.',
