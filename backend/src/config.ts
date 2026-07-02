@@ -35,4 +35,9 @@ export const config = {
   },
 
   frontendUrl: process.env.FRONTEND_URL ?? '',
+
+  anthropic: {
+    apiKey: process.env.ANTHROPIC_API_KEY ?? '',
+    model: process.env.ANTHROPIC_MODEL ?? 'claude-opus-4-8',
+  },
 };
