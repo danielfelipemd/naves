@@ -84,6 +84,10 @@ async function eventoNombre(cohorteId: string): Promise<string> {
   return (data as any)?.evento_nombre ?? 'NAVES';
 }
 
+// Estado de la IA — DEBE ir antes de '/admin/:cohorteId' (si no, ":cohorteId"
+// captura la palabra "estado-ia" y la ruta literal nunca se alcanza).
+router.get('/admin/estado-ia', ...soloAdmin, (_req, res) => res.json({ configurada: iaConfigurada() }));
+
 // GET /api/proyectos-db/admin/:cohorteId — base de datos interna
 router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
@@ -467,7 +471,5 @@ router.delete('/admin/proyecto/:proyectoId/asset', ...soloAdmin, async (req, res
   await supabaseAdmin.from('proyecto_contenido').upsert({ proyecto_id: proyectoId, [col]: null, updated_at: new Date().toISOString() }, { onConflict: 'proyecto_id' });
   res.json({ ok: true });
 });
-
-router.get('/admin/estado-ia', ...soloAdmin, (_req, res) => res.json({ configurada: iaConfigurada() }));
 
 export default router;
