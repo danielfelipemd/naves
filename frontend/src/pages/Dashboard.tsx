@@ -443,6 +443,18 @@ export default function Dashboard() {
                       <span className="text-sm font-semibold text-inalde-red whitespace-nowrap">Entrar →</span>
                     </Link>
                   </div>
+
+                  {/* Mi presentación: fecha/jornada/slot del equipo + .ics */}
+                  <div className="mt-6">
+                    <Link to="/mi-presentacion" className="card-inalde-interactive flex items-center gap-5 p-6">
+                      <div className="text-4xl">🗓️</div>
+                      <div className="flex-1">
+                        <h2 className="font-primary font-bold text-lg mb-1">Mi presentación</h2>
+                        <p className="text-inalde-gray text-sm">Consulta la fecha, jornada y hora en que presenta tu equipo, y agrégala a tu calendario.</p>
+                      </div>
+                      <span className="text-sm font-semibold text-inalde-red whitespace-nowrap">Entrar →</span>
+                    </Link>
+                  </div>
                 </>
               )}
             </>

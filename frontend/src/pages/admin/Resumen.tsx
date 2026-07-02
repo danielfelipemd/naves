@@ -64,6 +64,11 @@ const SECTIONS: Section[] = [
     desc: 'Asigna los proyectos a los slots de cada jornada: horarios calculados automáticamente, breaks por bloque y Excel de calificación para los panelistas.',
   },
   {
+    to: '/admin/proyectos-db', icon: '🗂️',
+    title: 'Base de datos de proyectos',
+    desc: 'Vista interna de los proyectos de la cohorte con su horario de presentación, sector, autores, resumen y post de LinkedIn. Exporta a Excel (comunicaciones + programación).',
+  },
+  {
     to: '/admin/solicitudes', icon: '📨',
     title: 'Solicitudes de desarchivado',
     desc: 'Aprueba o rechaza solicitudes de los equipos para retomar proyectos archivados.',
