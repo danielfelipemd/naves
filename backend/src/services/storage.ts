@@ -17,6 +17,39 @@ export function extForMime(mime: string): string | null {
   return MIME_TO_EXT[mime] ?? null;
 }
 
+// --- Assets de NAVES (Módulo F): logo + one pager por proyecto -----------
+const ASSET_MIME_TO_EXT: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+const EXT_TO_MIME: Record<string, string> = {
+  pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
+};
+export function extForAsset(mime: string): string | null { return ASSET_MIME_TO_EXT[mime] ?? null; }
+export function mimeFromPath(path: string): string {
+  const ext = (path.split('.').pop() ?? '').toLowerCase();
+  return EXT_TO_MIME[ext] ?? 'application/octet-stream';
+}
+
+export type TipoAssetNaves = 'logo' | 'one_pager';
+/** Sube un asset de proyecto (logo/one pager) al bucket privado y devuelve su path. */
+export async function uploadAssetNaves(
+  proyectoId: string, tipo: TipoAssetNaves, buffer: Buffer, mime: string,
+): Promise<{ path: string }> {
+  const ext = extForAsset(mime);
+  if (!ext) throw new Error('UNSUPPORTED_MIME');
+  const path = `naves/${proyectoId}/${tipo}.${ext}`;
+  const { error } = await supabaseAdmin.storage.from(BUCKET).upload(path, buffer, { contentType: mime, upsert: true });
+  if (error) throw error;
+  return { path };
+}
+export async function deleteAssetNaves(path: string): Promise<void> {
+  const { error } = await supabaseAdmin.storage.from(BUCKET).remove([path]);
+  if (error) throw error;
+}
+
 /**
  * Limpia un filename para usarlo como path en Supabase Storage: quita
  * diacríticos, reemplaza caracteres no seguros por '_', conserva extensión.

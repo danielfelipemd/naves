@@ -9,6 +9,7 @@ interface Proyecto {
   fecha: string | null; fecha_legible: string | null; jornada: number | null; slot: number | null;
   hora_inicio: string | null; hora_fin: string | null;
   resumen: string | null; linkedin: string | null; one_pager_url: string | null; logo_url: string | null;
+  tiene_one_pager: boolean; tiene_logo: boolean;
   contenido_aprobado: boolean;
 }
 
@@ -85,6 +86,24 @@ export default function ProyectosDB() {
       await api.put(`/proyectos-db/admin/proyecto/${p.proyecto_id}/contenido`, { resumen: edR, linkedin: edL, aprobado });
       setEditId(''); await load();
     } catch (e: any) { setErr(errorLegible(e)); }
+    finally { setBusy(''); }
+  }
+
+  async function subirAsset(p: Proyecto, tipo: 'logo' | 'one_pager', file: File) {
+    if (!p.proyecto_id) return;
+    setBusy(p.proyecto_id + tipo); setErr('');
+    try {
+      const fd = new FormData(); fd.append('archivo', file); fd.append('tipo', tipo);
+      await api.post(`/proyectos-db/admin/proyecto/${p.proyecto_id}/asset`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await load();
+    } catch (e: any) { setErr(errorLegible(e)); }
+    finally { setBusy(''); }
+  }
+  async function quitarAsset(p: Proyecto, tipo: 'logo' | 'one_pager') {
+    if (!p.proyecto_id || !confirm('¿Quitar este archivo?')) return;
+    setBusy(p.proyecto_id + tipo); setErr('');
+    try { await api.delete(`/proyectos-db/admin/proyecto/${p.proyecto_id}/asset?tipo=${tipo}`); await load(); }
+    catch (e: any) { setErr(errorLegible(e)); }
     finally { setBusy(''); }
   }
 
@@ -182,6 +201,26 @@ export default function ProyectosDB() {
                     )}
                   </div>
                 </div>
+
+                {/* Archivos: logo + one pager (Módulo F) */}
+                {p.proyecto_id && (
+                  <div className="flex flex-wrap items-center gap-3 mt-2 pt-2 border-t border-inalde-gray-light/60">
+                    {p.logo_url ? (
+                      <img src={p.logo_url} alt="logo" className="h-8 w-8 rounded object-contain bg-white border border-inalde-gray-light" />
+                    ) : <span className="text-[11px] text-inalde-gray/70">Sin logo</span>}
+                    <label className="text-[11px] font-semibold text-inalde-red cursor-pointer hover:underline">
+                      {busy === p.proyecto_id + 'logo' ? 'Subiendo…' : (p.tiene_logo ? 'Cambiar logo' : 'Subir logo')}
+                      <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) subirAsset(p, 'logo', f); e.target.value = ''; }} />
+                    </label>
+                    {p.tiene_logo && <button onClick={() => quitarAsset(p, 'logo')} className="text-[11px] text-inalde-gray hover:text-inalde-red">quitar</button>}
+                    <span className="text-inalde-gray-light">·</span>
+                    <label className="text-[11px] font-semibold text-inalde-red cursor-pointer hover:underline">
+                      {busy === p.proyecto_id + 'one_pager' ? 'Subiendo…' : (p.tiene_one_pager ? 'Cambiar One Pager' : 'Subir One Pager')}
+                      <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) subirAsset(p, 'one_pager', f); e.target.value = ''; }} />
+                    </label>
+                    {p.tiene_one_pager && <button onClick={() => quitarAsset(p, 'one_pager')} className="text-[11px] text-inalde-gray hover:text-inalde-red">quitar</button>}
+                  </div>
+                )}
 
                 {/* Editor / contenido */}
                 {editId === p.proyecto_id ? (

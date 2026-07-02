@@ -1,10 +1,19 @@
 import { Router } from 'express';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import multer from 'multer';
 import ExcelJS from 'exceljs';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { iaConfigurada, llamarClaude, extraerJSON } from '../services/ai.js';
+import { uploadAssetNaves, deleteAssetNaves, extForAsset, crearUrlProxyArchivo, mimeFromPath, type TipoAssetNaves } from '../services/storage.js';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+// URL servida de un asset: proxy con token efímero si está en Storage; si no, el enlace externo.
+function urlAsset(path: string | null, urlExterna: string | null): string | null {
+  if (path) return crearUrlProxyArchivo(path, mimeFromPath(path));
+  return urlExterna ?? null;
+}
 
 // Módulo C (Fase 2) — Base de datos interna de proyectos + portal del
 // participante (calendario de su presentación + .ics).
@@ -96,7 +105,10 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
       jornada: h?.jornada ?? null, slot: h?.slot ?? null,
       hora_inicio: h?.hora_inicio ?? null, hora_fin: h?.hora_fin ?? null,
       resumen: c?.resumen ?? null, linkedin: c?.linkedin ?? null,
-      one_pager_url: c?.one_pager_url ?? null, logo_url: c?.logo_url ?? null,
+      one_pager_url: urlAsset(c?.one_pager_path ?? null, c?.one_pager_url ?? null),
+      logo_url: urlAsset(c?.logo_path ?? null, c?.logo_url ?? null),
+      tiene_one_pager: !!(c?.one_pager_path || c?.one_pager_url),
+      tiene_logo: !!(c?.logo_path || c?.logo_url),
       contenido_aprobado: c?.aprobado ?? false,
     };
   }).sort((a, b) => {
@@ -410,6 +422,49 @@ router.put('/admin/proyecto/:proyectoId/contenido', ...soloAdmin, async (req, re
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
   const campos: Record<string, unknown> = { ...parsed.data };
   await guardarContenido(req.params.proyectoId, campos);
+  res.json({ ok: true });
+});
+
+// =====================================================================
+// Módulo F — Migración de archivos: subir logo / one pager a Storage
+// =====================================================================
+const LOGO_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const ONEPAGER_MIMES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']);
+
+// POST /admin/proyecto/:proyectoId/asset  (multipart: campo "archivo", body/query "tipo")
+router.post('/admin/proyecto/:proyectoId/asset', ...soloAdmin, upload.single('archivo'), async (req, res) => {
+  const proyectoId = req.params.proyectoId;
+  const tipo = ((req.body?.tipo ?? req.query.tipo) as string) as TipoAssetNaves;
+  if (tipo !== 'logo' && tipo !== 'one_pager') return res.status(400).json({ error: 'TIPO_INVALIDO' });
+  const file = (req as any).file as { buffer: Buffer; mimetype: string } | undefined;
+  if (!file) return res.status(400).json({ error: 'NO_FILE' });
+  const permitido = tipo === 'logo' ? LOGO_MIMES : ONEPAGER_MIMES;
+  if (!permitido.has(file.mimetype) || !extForAsset(file.mimetype)) return res.status(400).json({ error: 'MIME_INVALIDO', mime: file.mimetype });
+
+  // Verifica que el proyecto exista
+  const { data: p } = await supabaseAdmin.from('proyectos').select('id').eq('id', proyectoId).maybeSingle();
+  if (!p) return res.status(404).json({ error: 'PROYECTO_NO_ENCONTRADO' });
+
+  try {
+    const { path } = await uploadAssetNaves(proyectoId, tipo, file.buffer, file.mimetype);
+    const col = tipo === 'logo' ? 'logo_path' : 'one_pager_path';
+    await supabaseAdmin.from('proyecto_contenido').upsert({ proyecto_id: proyectoId, [col]: path, updated_at: new Date().toISOString() }, { onConflict: 'proyecto_id' });
+    res.json({ ok: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)) });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message ?? 'UPLOAD_ERROR' });
+  }
+});
+
+// DELETE /admin/proyecto/:proyectoId/asset?tipo=logo|one_pager
+router.delete('/admin/proyecto/:proyectoId/asset', ...soloAdmin, async (req, res) => {
+  const proyectoId = req.params.proyectoId;
+  const tipo = req.query.tipo as TipoAssetNaves;
+  if (tipo !== 'logo' && tipo !== 'one_pager') return res.status(400).json({ error: 'TIPO_INVALIDO' });
+  const col = tipo === 'logo' ? 'logo_path' : 'one_pager_path';
+  const { data: prev } = await supabaseAdmin.from('proyecto_contenido').select(col).eq('proyecto_id', proyectoId).maybeSingle();
+  const path = (prev as any)?.[col];
+  if (path) { try { await deleteAssetNaves(path); } catch { /* best-effort */ } }
+  await supabaseAdmin.from('proyecto_contenido').upsert({ proyecto_id: proyectoId, [col]: null, updated_at: new Date().toISOString() }, { onConflict: 'proyecto_id' });
   res.json({ ok: true });
 });
 
