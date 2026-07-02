@@ -59,6 +59,11 @@ const SECTIONS: Section[] = [
     desc: 'Evaluadores externos por cohorte: jornadas de presentación, confirmación de asistencia por link y logística (transporte y comidas).',
   },
   {
+    to: '/admin/programacion', icon: '📅',
+    title: 'Programación',
+    desc: 'Asigna los proyectos a los slots de cada jornada: horarios calculados automáticamente, breaks por bloque y Excel de calificación para los panelistas.',
+  },
+  {
     to: '/admin/solicitudes', icon: '📨',
     title: 'Solicitudes de desarchivado',
     desc: 'Aprueba o rechaza solicitudes de los equipos para retomar proyectos archivados.',

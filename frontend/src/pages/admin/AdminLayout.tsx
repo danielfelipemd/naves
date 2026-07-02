@@ -10,6 +10,7 @@ const sectionLabels: Record<string, string> = {
   equipos: 'Equipos',
   sabana: 'Sábana de proyectos',
   panelistas: 'Panelistas',
+  programacion: 'Programación',
   solicitudes: 'Solicitudes de desarchivado',
   auditoria: 'Auditoría',
   'roles-permisos': 'Roles y permisos',

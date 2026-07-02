@@ -15,6 +15,7 @@ import MiProfesor from './pages/participante/MiProfesor';
 import SabanaSocios from './pages/participante/SabanaSocios';
 import ConfirmarAsistencia from './pages/panelista/ConfirmarAsistencia';
 import AdminPanelistas from './pages/admin/Panelistas';
+import AdminProgramacion from './pages/admin/Programacion';
 import ProfesorSeleccionarProyectos from './pages/profesor/SeleccionarProyectos';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminResumen from './pages/admin/Resumen';
@@ -102,6 +103,7 @@ export default function App() {
           <Route path="equipos" element={<SuperAdminOnly><AdminEquipos /></SuperAdminOnly>} />
           <Route path="sabana" element={<AdminSabana />} />
           <Route path="panelistas" element={<SuperAdminOnly><AdminPanelistas /></SuperAdminOnly>} />
+          <Route path="programacion" element={<SuperAdminOnly><AdminProgramacion /></SuperAdminOnly>} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
           <Route path="auditoria" element={<SuperAdminOnly><AdminAuditoria /></SuperAdminOnly>} />
           <Route path="roles-permisos" element={<SuperAdminOnly><AdminRolesPermisos /></SuperAdminOnly>} />
