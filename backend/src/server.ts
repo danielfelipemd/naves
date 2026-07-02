@@ -15,6 +15,7 @@ import anteproyectosRouter from './routes/anteproyectos.js';
 import panelistasRouter from './routes/panelistas.js';
 import programacionRouter from './routes/programacion.js';
 import proyectosDbRouter from './routes/proyectos-db.js';
+import notificacionesRouter from './routes/notificaciones.js';
 import trabajosGradoRouter from './routes/trabajos-grado.js';
 import archivosProxyRouter from './routes/archivos-proxy.js';
 import seleccionRouter from './routes/seleccion.js';
@@ -71,6 +72,7 @@ app.use('/api/anteproyectos', anteproyectosRouter);
 app.use('/api/panelistas', panelistasRouter);
 app.use('/api/programacion', programacionRouter);
 app.use('/api/proyectos-db', proyectosDbRouter);
+app.use('/api/notificaciones', notificacionesRouter);
 app.use('/api/anteproyectos', trabajosGradoRouter);
 app.use('/api', seleccionRouter); // monta /equipos/:id/marcar-reunion-1, /equipos/:id/seleccionar-proyecto-definitivo, /proyectos/:id/solicitar-desarchivar, /admin/solicitudes-desarchivado/:id/(aprobar|rechazar)
 app.use('/api/admin/roles', rolesRouter);

@@ -204,6 +204,15 @@ function PanelistasTab({ cohorte, jornadas, panelistas, onChange, setMsg, busy, 
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setBusy(false); }
   }
+  async function recordatorios() {
+    if (!confirm('Se enviará un recordatorio a los panelistas ya invitados que aún no han confirmado. ¿Continuar?')) return;
+    setBusy(true);
+    try {
+      const { data } = await api.post(`/panelistas/admin/${cohorte}/recordatorios`);
+      setMsg({ kind: 'ok', text: `Recordatorio iniciado para ${data.total} panelista(s) sin confirmar.` });
+    } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
+    finally { setBusy(false); }
+  }
   async function borrar(id: string) {
     if (!confirm('¿Borrar este panelista?')) return;
     try { await api.delete(`/panelistas/admin/panelista/${id}`); onChange(); }
@@ -215,6 +224,7 @@ function PanelistasTab({ cohorte, jornadas, panelistas, onChange, setMsg, busy, 
       <div className="flex flex-wrap gap-2 mb-3">
         <button onClick={() => setShowAdd((s) => !s)} className="btn-inalde-secondary !py-2 !px-4 !text-xs">{showAdd ? 'Cancelar' : '+ Agregar panelista'}</button>
         <button onClick={enviarPendientes} disabled={busy} className="btn-inalde-primary !py-2 !px-4 !text-xs">Enviar a pendientes</button>
+        <button onClick={recordatorios} disabled={busy} className="btn-inalde-secondary !py-2 !px-4 !text-xs" title="A los invitados que aún no confirman">🔔 Recordar sin confirmar</button>
       </div>
 
       {showAdd && (
@@ -292,10 +302,30 @@ function PanelistasTab({ cohorte, jornadas, panelistas, onChange, setMsg, busy, 
 // ---- Resumen ----
 function ResumenTab({ cohorte }: { cohorte: string }) {
   const [data, setData] = useState<any>(null);
+  const [email, setEmail] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   useEffect(() => { (async () => { try { setData((await api.get(`/panelistas/admin/${cohorte}/resumen`)).data); } catch { setData(null); } })(); }, [cohorte]);
+
+  async function enviarResumen() {
+    if (!email.trim()) { setAviso({ kind: 'err', text: 'Indica un correo destino.' }); return; }
+    setEnviando(true); setAviso(null);
+    try {
+      await api.post(`/panelistas/admin/${cohorte}/resumen-logistico`, { email: email.trim() });
+      setAviso({ kind: 'ok', text: `Resumen logístico enviado a ${email.trim()}.` });
+    } catch (e: any) { setAviso({ kind: 'err', text: formatBackendError(e) }); }
+    finally { setEnviando(false); }
+  }
+
   if (!data) return <p className="text-inalde-gray">Cargando resumen…</p>;
   return (
     <div className="space-y-5">
+      <div className="bg-inalde-gray-bg/40 border border-inalde-gray-light rounded p-3 flex flex-wrap items-center gap-2">
+        <span className="text-sm text-inalde-gray">Enviar este resumen logístico por correo:</span>
+        <input type="email" placeholder="coordinador@inalde.edu.co" value={email} onChange={(e) => setEmail(e.target.value)} className="input-inalde !py-1.5 flex-1 min-w-[200px]" />
+        <button onClick={enviarResumen} disabled={enviando} className="btn-inalde-primary !py-1.5 !px-4 !text-xs disabled:opacity-50">{enviando ? 'Enviando…' : 'Enviar por correo'}</button>
+        {aviso && <span className={`text-xs w-full ${aviso.kind === 'ok' ? 'text-green-700' : 'text-inalde-red'}`}>{aviso.text}</span>}
+      </div>
       {data.por_jornada.map((jr: any) => (
         <div key={jr.jornada.numero} className="border border-inalde-gray-light rounded p-4">
           <h3 className="font-primary font-bold text-inalde-text">Jornada {jr.jornada.numero} · <span className="capitalize">{jr.jornada.fecha_legible}</span> {(jr.jornada.hora_inicio ?? '').slice(0, 5) && `· ${(jr.jornada.hora_inicio ?? '').slice(0, 5)}–${(jr.jornada.hora_fin ?? '').slice(0, 5)}`}</h3>

@@ -17,6 +17,16 @@ export default function Programacion() {
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [notificando, setNotificando] = useState(false);
+
+  async function notificar() {
+    setNotificando(true); setMsg(null);
+    try {
+      const { data } = await api.post(`/programacion/admin/${cohorte}/notificar`, {});
+      setMsg({ kind: 'ok', text: `Notificados ${data.notificados} participante(s) de ${data.equipos} equipo(s) programado(s).` });
+    } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
+    finally { setNotificando(false); }
+  }
 
   useEffect(() => { (async () => {
     setCohortes(((await api.get('/admin/cohortes')).data as Cohorte[]).filter((c) => c.activa));
@@ -78,7 +88,10 @@ export default function Programacion() {
           </select>
         </div>
         {cohorte && jornadas.length > 0 && (
-          <button onClick={() => downloadFile(`/programacion/admin/${cohorte}/excel`, `NAVES_Programacion_${cohorte}.xlsx`)} className="btn-inalde-secondary !py-2 !px-4 !text-xs">↓ Excel de calificación</button>
+          <>
+            <button onClick={() => downloadFile(`/programacion/admin/${cohorte}/excel`, `NAVES_Programacion_${cohorte}.xlsx`)} className="btn-inalde-secondary !py-2 !px-4 !text-xs">↓ Excel de calificación</button>
+            <button onClick={notificar} disabled={notificando} className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-50" title="Avisa a cada participante la fecha y hora de su presentación">{notificando ? 'Notificando…' : '🔔 Notificar a participantes'}</button>
+          </>
         )}
       </div>
 

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import ExcelJS from 'exceljs';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole } from '../auth/middleware.js';
+import { notificar, limpiarNotificaciones } from '../services/notify.js';
 
 // Módulo B (Fase 2) — Calendario / Programación de presentaciones.
 // Asigna equipos (proyectos) a slots por jornada y calcula los horarios.
@@ -19,6 +20,13 @@ const toHHMM = (min: number): string => {
   const h = Math.floor(min / 60), m = min % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
+const MESES_PROG = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const DIAS_PROG = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+function fechaLegibleProg(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay();
+  return `${DIAS_PROG[dow]} ${d} de ${MESES_PROG[m]} de ${y}`;
+}
 
 interface Config { expo: number; trans: number; foto: number; cierre: number; break_min: number; bloque: number; }
 interface Fila { tipo: string; slot?: number; equipo_id?: string | null; proyecto?: string; autores?: string; sector?: string; ini: number; fin: number; desc?: string; }
@@ -233,6 +241,57 @@ router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="NAVES_Programacion_${cohorteId}.xlsx"`);
   await wb.xlsx.write(res);
   res.end();
+});
+
+// POST /admin/:cohorteId/notificar — publica la programación: notifica a los
+// integrantes de cada equipo ya asignado la fecha/hora de su presentación.
+router.post('/admin/:cohorteId/notificar', ...soloAdmin, async (req, res) => {
+  const cohorteId = req.params.cohorteId;
+  const { data: jornadas } = await supabaseAdmin
+    .from('jornadas').select('id, numero, fecha').eq('cohorte_id', cohorteId);
+  const jById = new Map((jornadas ?? []).map((j: any) => [j.id, j]));
+  const ids = (jornadas ?? []).map((j: any) => j.id);
+  if (!ids.length) return res.json({ ok: true, notificados: 0, equipos: 0 });
+
+  const { data: slots } = await supabaseAdmin
+    .from('slot_presentacion').select('jornada_id, orden, equipo_id, hora_inicio, hora_fin').in('jornada_id', ids);
+  const asignados = (slots ?? []).filter((s: any) => s.equipo_id);
+  if (!asignados.length) return res.json({ ok: true, notificados: 0, equipos: 0 });
+
+  // Integrantes (auth_user_id) por equipo
+  const equipoIds = [...new Set(asignados.map((s: any) => s.equipo_id))];
+  const { data: miembros } = await supabaseAdmin
+    .from('miembros_equipo')
+    .select('equipo_id, participantes_lista(auth_user_id)')
+    .in('equipo_id', equipoIds as string[]);
+  const authsPorEquipo = new Map<string, string[]>();
+  for (const m of (miembros ?? []) as any[]) {
+    const auth = m.participantes_lista?.auth_user_id;
+    if (!auth) continue;
+    const arr = authsPorEquipo.get(m.equipo_id) ?? []; arr.push(auth); authsPorEquipo.set(m.equipo_id, arr);
+  }
+
+  const evento = (await getConfig(cohorteId)).evento_nombre ?? 'NAVES';
+  const items: Array<{ destinatario_auth_id: string; tipo: string; titulo: string; cuerpo: string; enlace: string }> = [];
+  const todosAuth: string[] = [];
+  for (const s of asignados as any[]) {
+    const j: any = jById.get(s.jornada_id); if (!j) continue;
+    const auths = authsPorEquipo.get(s.equipo_id) ?? [];
+    const fl = fechaLegibleProg(j.fecha);
+    for (const a of auths) {
+      todosAuth.push(a);
+      items.push({
+        destinatario_auth_id: a, tipo: 'presentacion_programada',
+        titulo: `Tu presentación de ${evento} quedó programada`,
+        cuerpo: `${fl} · Jornada ${j.numero}, slot ${s.orden} · ${String(s.hora_inicio).slice(0, 5)}–${String(s.hora_fin).slice(0, 5)}.`,
+        enlace: '/mi-presentacion',
+      });
+    }
+  }
+  // Evitar duplicados si se re-publica
+  await limpiarNotificaciones('presentacion_programada', [...new Set(todosAuth)]);
+  const n = await notificar(items);
+  res.json({ ok: true, notificados: n, equipos: equipoIds.length });
 });
 
 export default router;

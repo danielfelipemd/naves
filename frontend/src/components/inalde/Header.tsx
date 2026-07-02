@@ -1,3 +1,5 @@
+import { NotificationBell } from './NotificationBell';
+
 export function Header() {
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-white border-b border-inalde-gray-light shadow-sm">
@@ -23,6 +25,9 @@ export function Header() {
             </p>
           </div>
         </a>
+        <div className="ml-auto">
+          <NotificationBell />
+        </div>
       </div>
     </header>
   );
