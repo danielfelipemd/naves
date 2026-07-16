@@ -82,6 +82,8 @@ export function formatBackendError(e: any): string {
     YA_PUBLICADA: 'Esta programación ya estaba publicada.',
     SIN_JORNADAS: 'Esta cohorte todavía no tiene jornadas. Créalas en Panelistas → Jornadas.',
     SIN_PROYECTOS_ASIGNADOS: 'No hay ningún proyecto asignado. Publicar ahora dejaría la programación vacía y definitiva.',
+    JORNADAS_DERIVADAS: 'Las jornadas salen del cronograma de la cohorte (hitos 12 y 13). Cambia la fecha en Cohortes y se actualizará sola.',
+    HORA_FIN_ANTES_DE_INICIO: 'La hora de fin de la jornada tiene que ser posterior a la de inicio.',
     ROL_AREA_NO_EXISTE: 'Falta el rol de área en la base de datos. Avisa al equipo técnico.',
     ROL_ASIGNACION_FALLIDA: 'Se creó la cuenta pero no se le pudo asignar el rol. Asígnaselo en Roles y permisos.',
   };

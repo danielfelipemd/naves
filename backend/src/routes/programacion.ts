@@ -9,7 +9,7 @@ import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
 // El motor de escaleta vive en services/escaleta.ts: lo comparte la Programación
 // Interna (marketing, operaciones, asistente de programa), que debe ver
 // exactamente los mismos horarios que publica esta pantalla.
-import { toMin, toHHMM, fechaLegibleProg, computarJornada, getConfig, jornadaConSlots, programacionPublicadaAt, type Config } from '../services/escaleta.js';
+import { toMin, toHHMM, fechaLegibleProg, computarJornada, getConfig, jornadaConSlots, programacionPublicadaAt, sincronizarJornadasDesdeHitos, type Config } from '../services/escaleta.js';
 
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el
 // enlace externo. Mismo criterio que el Módulo C.
@@ -49,6 +49,10 @@ async function contenidoPorProyecto(proyIds: string[]): Promise<Map<string, any>
 // GET /api/programacion/admin/:cohorteId — estado completo
 router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
+  // Las jornadas se derivan del cronograma (hitos 12 y 13): al abrir la pantalla
+  // se crean si faltan y se realinean si la fecha del hito cambió. Así el admin
+  // nunca teclea una fecha que el sistema ya conoce.
+  await sincronizarJornadasDesdeHitos(cohorteId);
   const C = await getConfig(cohorteId);
   const pf = await proyectosFase2(cohorteId);
   const contenido = await contenidoPorProyecto([...pf.keys()]);
@@ -114,9 +118,14 @@ router.put('/admin/:cohorteId/config', ...soloAdmin, async (req, res) => {
 });
 
 // PUT jornada — config + asignación ordenada de proyectos, recalcula y persiste horarios
+// La FECHA no está aquí a propósito: sale del cronograma (hitos 12/13) y se
+// sincroniza sola. La hora sí, porque los hitos son DATE y la escaleta necesita
+// saber a qué hora arranca la primera presentación.
 const jornadaSchema = z.object({
   foto_inicial: z.boolean().optional(),
   intro_min: z.number().int().min(0).max(120).optional(),
+  hora_inicio: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  hora_fin: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   proyecto_ids: z.array(z.string().uuid()).optional(),
 });
 router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
@@ -135,6 +144,20 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
   const upd: Record<string, unknown> = {};
   if (parsed.data.foto_inicial !== undefined) upd.foto_inicial = parsed.data.foto_inicial;
   if (parsed.data.intro_min !== undefined) upd.intro_min = parsed.data.intro_min;
+  if (parsed.data.hora_inicio !== undefined) upd.hora_inicio = parsed.data.hora_inicio;
+  if (parsed.data.hora_fin !== undefined) upd.hora_fin = parsed.data.hora_fin;
+
+  // Una jornada que termina antes de empezar no es un capricho teórico: la de la
+  // cohorte de prueba tenía inicio 19:15 y fin 17:30. Nadie lo validaba.
+  if (upd.hora_inicio !== undefined || upd.hora_fin !== undefined) {
+    const { data: actual } = await supabaseAdmin.from('jornadas').select('hora_inicio, hora_fin').eq('id', jid).maybeSingle();
+    const ini = String(upd.hora_inicio ?? (actual as any)?.hora_inicio ?? '').slice(0, 5);
+    const fin = String(upd.hora_fin ?? (actual as any)?.hora_fin ?? '').slice(0, 5);
+    if (ini && fin && toMin(fin) <= toMin(ini)) {
+      return res.status(400).json({ error: 'HORA_FIN_ANTES_DE_INICIO', hora_inicio: ini, hora_fin: fin });
+    }
+  }
+
   if (Object.keys(upd).length) await supabaseAdmin.from('jornadas').update(upd).eq('id', jid);
 
   const { data: jornada } = await supabaseAdmin.from('jornadas').select('id, cohorte_id, hora_inicio, foto_inicial, intro_min, numero').eq('id', jid).maybeSingle();

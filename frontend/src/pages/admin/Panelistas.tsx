@@ -99,10 +99,10 @@ export default function Panelistas() {
 
       {!cohorte ? null : loading ? <p className="text-inalde-gray">Cargando…</p> : (
         <>
-          {vista === 'jornadas' && <JornadasTab cohorte={cohorte} jornadas={jornadas} onChange={load} setMsg={setMsg} />}
+          {vista === 'jornadas' && <JornadasTab jornadas={jornadas} />}
           {vista === 'panelistas' && (
             jornadas.length === 0
-              ? <p className="text-inalde-gray text-sm">Primero crea las <button className="text-inalde-red underline" onClick={() => setVista('jornadas')}>jornadas</button> de la cohorte.</p>
+              ? <p className="text-inalde-gray text-sm">Esta cohorte todavía no tiene <button className="text-inalde-red underline" onClick={() => setVista('jornadas')}>jornadas</button>: ponles fecha en el cronograma de la cohorte (hitos 12 y 13) y podrás asignar panelistas.</p>
               : <PanelistasTab cohorte={cohorte} jornadas={jornadas} panelistas={panelistas} onChange={load}
                   setMsg={setMsg} busy={busy} setBusy={setBusy} onEditLog={setEditLog} />
           )}
@@ -120,34 +120,22 @@ export default function Panelistas() {
 }
 
 // ---- Jornadas ----
-function JornadasTab({ cohorte, jornadas, onChange, setMsg }: { cohorte: string; jornadas: Jornada[]; onChange: () => void; setMsg: (m: any) => void }) {
-  const [form, setForm] = useState({ numero: String(jornadas.length + 1), fecha: '', hora_inicio: '', hora_fin: '' });
-  useEffect(() => { setForm((f) => ({ ...f, numero: String(jornadas.length + 1) })); }, [jornadas.length]);
-  async function agregar() {
-    if (!form.fecha) { setMsg({ kind: 'err', text: 'Indica la fecha de la jornada.' }); return; }
-    try {
-      await api.post(`/panelistas/admin/${cohorte}/jornadas`, {
-        numero: Number(form.numero), fecha: form.fecha,
-        hora_inicio: form.hora_inicio || null, hora_fin: form.hora_fin || null,
-      });
-      setForm({ numero: String(jornadas.length + 2), fecha: '', hora_inicio: '', hora_fin: '' });
-      onChange();
-    } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
-  }
-  async function borrar(id: string) {
-    if (!confirm('¿Borrar esta jornada?')) return;
-    try { await api.delete(`/panelistas/admin/jornada/${id}`); onChange(); }
-    catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
-  }
+// Solo lectura: las jornadas se derivan del cronograma de la cohorte (hitos 12 y
+// 13). Antes se tecleaban aquí, duplicando una fecha que el sistema ya conocía —
+// y que acabó sin coincidir con el cronograma.
+function JornadasTab({ jornadas }: { jornadas: Jornada[] }) {
   return (
     <div>
-      <div className="border border-inalde-gray-light rounded overflow-x-auto mb-4">
+      <p className="text-sm text-inalde-gray mb-3">
+        Las jornadas salen del cronograma de la cohorte: la jornada 1 del hito <strong>12 (Primera jornada presentaciones)</strong> y la 2 del hito <strong>13 (Segunda jornada presentaciones)</strong>.
+        Para cambiar una fecha, edítala en <strong>Cohortes</strong>. El horario se define en <strong>Programación</strong>.
+      </p>
+      <div className="border border-inalde-gray-light rounded overflow-x-auto">
         <table className="w-full text-sm min-w-[520px]">
           <thead className="bg-inalde-gray-bg text-left"><tr>
-            <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">#</th>
-            <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Fecha</th>
-            <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Horario</th>
-            <th className="px-3 py-2"></th>
+            <th scope="col" className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">#</th>
+            <th scope="col" className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Fecha</th>
+            <th scope="col" className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Horario</th>
           </tr></thead>
           <tbody>
             {jornadas.map((j) => (
@@ -155,19 +143,15 @@ function JornadasTab({ cohorte, jornadas, onChange, setMsg }: { cohorte: string;
                 <td className="px-3 py-2">Jornada {j.numero}</td>
                 <td className="px-3 py-2 capitalize">{diaSemana(j.fecha)} {fechaCorta(j.fecha)}</td>
                 <td className="px-3 py-2 text-inalde-gray">{(j.hora_inicio ?? '').slice(0, 5) || '—'} – {(j.hora_fin ?? '').slice(0, 5) || '—'}</td>
-                <td className="px-3 py-2 text-right"><button onClick={() => borrar(j.id)} className="text-inalde-gray hover:text-inalde-red text-sm">🗑</button></td>
               </tr>
             ))}
-            {jornadas.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center text-inalde-gray">Sin jornadas aún</td></tr>}
+            {jornadas.length === 0 && (
+              <tr><td colSpan={3} className="px-3 py-6 text-center text-inalde-gray">
+                Esta cohorte todavía no tiene fechas de presentaciones en su cronograma (hitos 12 y 13).
+              </td></tr>
+            )}
           </tbody>
         </table>
-      </div>
-      <div className="flex flex-wrap gap-2 items-end bg-inalde-gray-bg/40 border border-inalde-gray-light rounded p-3">
-        <div><label className="block text-[10px] uppercase text-inalde-gray mb-1">N°</label><input type="number" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} className="input-inalde !py-1.5 w-16" /></div>
-        <div><label className="block text-[10px] uppercase text-inalde-gray mb-1">Fecha</label><input type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} className="input-inalde !py-1.5" /></div>
-        <div><label className="block text-[10px] uppercase text-inalde-gray mb-1">Inicio</label><input type="time" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} className="input-inalde !py-1.5" /></div>
-        <div><label className="block text-[10px] uppercase text-inalde-gray mb-1">Fin</label><input type="time" value={form.hora_fin} onChange={(e) => setForm({ ...form, hora_fin: e.target.value })} className="input-inalde !py-1.5" /></div>
-        <button onClick={agregar} className="btn-inalde-primary !py-2 !px-4 !text-xs">Agregar jornada</button>
       </div>
     </div>
   );

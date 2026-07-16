@@ -5,7 +5,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { encryptPII, decryptPII, sha256Hex } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { sendEmail } from '../services/email.js';
-import { programacionPublicadaAt } from '../services/escaleta.js';
+import { sincronizarJornadasDesdeHitos } from '../services/escaleta.js';
 
 // Módulo A (Fase 2) — Panelistas / Evaluadores.
 // Portal público por token (confirmar asistencia + logística) + panel admin.
@@ -152,65 +152,31 @@ router.post('/portal/:token/confirmar', async (req, res) => {
 // =====================================================================
 
 // --- JORNADAS ---------------------------------------------------------
-const jornadaSchema = z.object({
-  numero: z.number().int().min(1).max(30),
-  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  hora_inicio: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
-  hora_fin: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
-});
-
 router.get('/admin/:cohorteId/jornadas', ...soloAdmin, async (req, res) => {
+  // Derivadas del cronograma: si el hito 12/13 ya tiene fecha y la jornada aún
+  // no existe, se crea aquí también. Si no, esta pantalla mostraría "sin
+  // jornadas" hasta que alguien abriera Programación, y el panelista no se
+  // podría asignar a nada.
+  await sincronizarJornadasDesdeHitos(req.params.cohorteId);
   res.json(await jornadasDeCohorte(req.params.cohorteId));
 });
 
-// Las jornadas se crean aquí, pero la programación de presentaciones cuelga de
-// ellas: borrar una jornada arrastra sus slots en cascada. Una vez publicada la
-// programación es definitiva, así que estas tres escrituras quedan cerradas —
-// si no, se podría demoler por aquí lo que la otra pantalla ya no deja tocar.
-async function jornadasBloqueadas(cohorteId: string, res: any): Promise<boolean> {
-  const at = await programacionPublicadaAt(cohorteId);
-  if (at) {
-    res.status(423).json({ error: 'PROGRAMACION_PUBLICADA', publicada_at: at });
-    return true;
-  }
-  return false;
-}
-
-async function cohorteDeJornada(jornadaId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin.from('jornadas').select('cohorte_id').eq('id', jornadaId).maybeSingle();
-  return (data as any)?.cohorte_id ?? null;
-}
-
-router.post('/admin/:cohorteId/jornadas', ...soloAdmin, async (req, res) => {
-  const parsed = jornadaSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
-  if (await jornadasBloqueadas(req.params.cohorteId, res)) return;
-  const { data, error } = await supabaseAdmin.from('jornadas').insert({
-    cohorte_id: req.params.cohorteId, ...parsed.data,
-  }).select().single();
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
-});
-
-router.put('/admin/jornada/:id', ...soloAdmin, async (req, res) => {
-  const parsed = jornadaSchema.partial().safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
-  const cohorteId = await cohorteDeJornada(req.params.id);
-  if (!cohorteId) return res.status(404).json({ error: 'NOT_FOUND' });
-  if (await jornadasBloqueadas(cohorteId, res)) return;
-  const { error } = await supabaseAdmin.from('jornadas').update(parsed.data).eq('id', req.params.id);
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ ok: true });
-});
-
-router.delete('/admin/jornada/:id', ...soloAdmin, async (req, res) => {
-  const cohorteId = await cohorteDeJornada(req.params.id);
-  if (!cohorteId) return res.status(404).json({ error: 'NOT_FOUND' });
-  if (await jornadasBloqueadas(cohorteId, res)) return;
-  const { error } = await supabaseAdmin.from('jornadas').delete().eq('id', req.params.id);
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ ok: true });
-});
+// Las jornadas YA NO se crean ni se editan aquí: se derivan del cronograma de la
+// cohorte (hitos 12 y 13) y se sincronizan al abrir Programación.
+//
+// Tenerlas también aquí era la causa raíz del desfase: la fecha de las
+// presentaciones vivía en el cronograma Y se tecleaba otra vez en esta pantalla,
+// sin que nada comprobara que coincidían. En la cohorte de prueba la jornada
+// acabó con la fecha del hito 11 (la reunión de preparación).
+//
+// Para cambiar la fecha se cambia el hito, en Cohortes. Esta pantalla las lee.
+const JORNADAS_DERIVADAS = {
+  error: 'JORNADAS_DERIVADAS',
+  detail: 'Las jornadas salen del cronograma de la cohorte (hitos 12 y 13). Cambia la fecha en Cohortes y se actualizará sola.',
+};
+router.post('/admin/:cohorteId/jornadas', ...soloAdmin, (_req, res) => res.status(409).json(JORNADAS_DERIVADAS));
+router.put('/admin/jornada/:id', ...soloAdmin, (_req, res) => res.status(409).json(JORNADAS_DERIVADAS));
+router.delete('/admin/jornada/:id', ...soloAdmin, (_req, res) => res.status(409).json(JORNADAS_DERIVADAS));
 
 // --- LISTADO DE PANELISTAS + STATS -----------------------------------
 router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {

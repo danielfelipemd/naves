@@ -10,7 +10,7 @@ interface Slot {
   resumen: string | null; linkedin: string | null; one_pager_url: string | null; logo_url: string | null;
 }
 interface Actividad { tipo: string; desc: string; hora_inicio: string; hora_fin: string; }
-interface Jornada { id: string; numero: number; fecha: string; fecha_legible?: string; hora_inicio: string | null; foto_inicial: boolean; intro_min: number; slots: Slot[]; actividades: Actividad[]; }
+interface Jornada { id: string; numero: number; fecha: string; fecha_legible?: string; hora_inicio: string | null; hora_fin: string | null; foto_inicial: boolean; intro_min: number; slots: Slot[]; actividades: Actividad[]; }
 interface Proyecto { proyecto_id: string; equipo_id: string; proyecto: string; autores: string; sector: string; asignado: boolean; }
 
 // Color estable por sector: mismo sector, mismo color en toda la tabla.
@@ -131,7 +131,7 @@ export default function Programacion() {
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }
 
-  async function guardarJornada(j: Jornada, cambios: { foto_inicial?: boolean; intro_min?: number; proyecto_ids?: string[] }) {
+  async function guardarJornada(j: Jornada, cambios: { foto_inicial?: boolean; intro_min?: number; hora_inicio?: string; hora_fin?: string; proyecto_ids?: string[] }) {
     try {
       await api.put(`/programacion/admin/jornada/${j.id}`, cambios);
       load();
@@ -210,19 +210,37 @@ export default function Programacion() {
           )}
 
           {jornadas.length === 0 ? (
-            <p className="text-inalde-gray text-sm">Esta cohorte no tiene jornadas. Créalas primero en <strong>Panelistas → Jornadas</strong>.</p>
+            <p className="text-inalde-gray text-sm">
+              Las jornadas salen del cronograma de la cohorte y esta todavía no tiene fechas de presentaciones.
+              Ponlas en <strong>Cohortes → Editar</strong>, en los hitos <strong>12 (Primera jornada presentaciones)</strong> y <strong>13 (Segunda jornada presentaciones)</strong>, y aparecerán aquí solas.
+            </p>
           ) : jornadas.map((j) => (
             <div key={j.id} className="border border-inalde-gray-light rounded-lg mb-5 overflow-hidden">
               <div className="bg-inalde-text text-white px-4 py-2.5 flex flex-wrap items-center gap-3">
                 <span className="font-primary font-extrabold tracking-widest uppercase text-sm"><span aria-hidden="true">📅 </span>Jornada {j.numero}</span>
-                <span className="text-white/70 text-sm capitalize">{j.fecha_legible ?? j.fecha} · inicio {(j.hora_inicio ?? '').slice(0, 5)}</span>
+                {/* La fecha no se edita: viene del cronograma (hito 12/13). */}
+                <span className="text-white/70 text-sm capitalize" title={`Del cronograma de la cohorte — hito ${j.numero === 1 ? '12' : '13'}. Para cambiarla, edita la cohorte.`}>
+                  {j.fecha_legible ?? j.fecha}
+                </span>
                 {publicada ? (
                   <span className="text-xs text-white/70 ml-auto">
-                    {j.foto_inicial ? 'Con foto inicial · ' : ''}Intro {j.intro_min} min
+                    {(j.hora_inicio ?? '').slice(0, 5)}–{(j.hora_fin ?? '').slice(0, 5)} · {j.foto_inicial ? 'con foto inicial · ' : ''}intro {j.intro_min} min
                   </span>
                 ) : (
                   <>
-                    <label className="text-xs flex items-center gap-1 ml-auto"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
+                    <label className="text-xs flex items-center gap-1 ml-auto">
+                      Inicio
+                      <input type="time" defaultValue={(j.hora_inicio ?? '').slice(0, 5)}
+                        onBlur={(e) => { if (e.target.value && e.target.value !== (j.hora_inicio ?? '').slice(0, 5)) guardarJornada(j, { hora_inicio: e.target.value }); }}
+                        className="text-inalde-text rounded px-1 py-0.5" />
+                    </label>
+                    <label className="text-xs flex items-center gap-1">
+                      Fin
+                      <input type="time" defaultValue={(j.hora_fin ?? '').slice(0, 5)}
+                        onBlur={(e) => { if (e.target.value && e.target.value !== (j.hora_fin ?? '').slice(0, 5)) guardarJornada(j, { hora_fin: e.target.value }); }}
+                        className="text-inalde-text rounded px-1 py-0.5" />
+                    </label>
+                    <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
                     <label className="text-xs flex items-center gap-1">Intro <input type="number" value={j.intro_min} min={0} onChange={(e) => guardarJornada(j, { intro_min: Number(e.target.value) })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
                   </>
                 )}

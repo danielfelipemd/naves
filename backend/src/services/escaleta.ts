@@ -59,6 +59,60 @@ export function computarJornada(inicioMin: number, foto: boolean, introMin: numb
   return filas;
 }
 
+// Las jornadas de presentación salen del cronograma de la cohorte: el hito 12
+// ("Primera jornada presentaciones (ANCLA)") y el 13 ("Segunda jornada
+// presentaciones"). Ver 08_cohorte_hitos.sql.
+const HITO_JORNADA: Array<{ posicion: number; numero: number }> = [
+  { posicion: 12, numero: 1 },
+  { posicion: 13, numero: 2 },
+];
+
+/**
+ * Alinea las jornadas de la cohorte con las fechas del cronograma.
+ *
+ * Antes la fecha de las presentaciones vivía en DOS sitios sin relación:
+ * `cohorte_hitos` (12/13), que se fija al crear la cohorte, y `jornadas`, que se
+ * tecleaba a mano en la pantalla de Panelistas. Nada comprobaba que coincidieran
+ * y de hecho no coincidían: en la cohorte de prueba la jornada quedó con la
+ * fecha del hito 11 (la reunión de preparación). Preguntar una fecha que el
+ * sistema ya conoce es pedirle al usuario que la teclee mal.
+ *
+ * Ahora el cronograma manda: la jornada sigue al hito. Solo se sincroniza si la
+ * programación NO está publicada — una vez publicada es definitiva y mover la
+ * fecha por detrás sería exactamente lo que el candado impide.
+ *
+ * La HORA no viene del cronograma (los hitos son DATE) y se conserva: es
+ * configuración del evento, no del calendario académico.
+ */
+export async function sincronizarJornadasDesdeHitos(cohorteId: string): Promise<void> {
+  if (await programacionPublicadaAt(cohorteId)) return;
+
+  const { data: hitos } = await supabaseAdmin
+    .from('cohorte_hitos').select('posicion, fecha')
+    .eq('cohorte_id', cohorteId)
+    .in('posicion', HITO_JORNADA.map((h) => h.posicion));
+  if (!hitos?.length) return;
+  const fechaDe = new Map((hitos as any[]).map((h) => [h.posicion, h.fecha]));
+
+  const { data: jornadas } = await supabaseAdmin
+    .from('jornadas').select('id, numero, fecha').eq('cohorte_id', cohorteId);
+  const jornadaDe = new Map((jornadas ?? []).map((j: any) => [j.numero, j]));
+
+  for (const { posicion, numero } of HITO_JORNADA) {
+    const fecha = fechaDe.get(posicion);
+    // Hito sin fecha: no hay jornada que derivar. No se borra la existente —
+    // podría tener proyectos ya asignados y borrarla los arrastraría en cascada.
+    if (!fecha) continue;
+
+    const j: any = jornadaDe.get(numero);
+    if (!j) {
+      await supabaseAdmin.from('jornadas').insert({ cohorte_id: cohorteId, numero, fecha });
+    } else if (j.fecha !== fecha) {
+      await supabaseAdmin.from('jornadas').update({ fecha }).eq('id', j.id);
+    }
+  }
+}
+
 // ¿Ya se publicó la programación de esta cohorte? Publicar es definitivo: a
 // partir de ahí nada que altere los horarios puede tocarse (31_publicar_programacion.sql).
 //
