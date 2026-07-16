@@ -4,7 +4,7 @@ import { Header } from '../../components/inalde/Header';
 import { api, downloadFile } from '../../lib/api';
 
 interface Presentacion {
-  en_equipo: boolean; programado?: boolean; evento?: string;
+  en_equipo: boolean; programado?: boolean; seleccion_pendiente?: boolean; evento?: string;
   proyecto?: string | null; sector?: string | null; autores?: string | null;
   fecha?: string; fecha_legible?: string; jornada?: number; slot?: number;
   hora_inicio?: string; hora_fin?: string;
@@ -44,6 +44,12 @@ export default function MiPresentacion() {
 
           {!data?.en_equipo ? (
             <p className="text-inalde-gray">Todavía no perteneces a un equipo, así que aún no hay una presentación asignada.</p>
+          ) : data.seleccion_pendiente ? (
+            <div className="rounded border-l-4 border-inalde-gold bg-inalde-gold/10 p-5">
+              <p className="text-inalde-text font-semibold mb-1">Primero elijan su proyecto definitivo</p>
+              <p className="text-sm text-inalde-gray">La presentación de {data.evento ?? 'NAVES'} se hace sobre el proyecto definitivo de su equipo. En cuanto quede elegido, la coordinación podrá programarlo y verás aquí la fecha y la hora.</p>
+              <button onClick={() => navigate('/seleccion')} className="text-sm font-semibold text-inalde-red hover:underline mt-3">Ir a la selección del proyecto definitivo →</button>
+            </div>
           ) : !data.programado ? (
             <div className="rounded border-l-4 border-inalde-gold bg-inalde-gold/10 p-5">
               <p className="text-inalde-text font-semibold mb-1">Tu presentación aún no está programada</p>

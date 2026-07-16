@@ -4,17 +4,18 @@ import { formatBackendError } from '../../lib/errors';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Config { evento_nombre: string; expo: number; trans: number; foto: number; cierre: number; break_min: number; bloque: number; }
-interface Slot { slot: number; equipo_id: string; proyecto: string; autores: string; sector: string; hora_inicio: string; hora_fin: string; }
+interface Slot { slot: number; proyecto_id: string; proyecto: string; autores: string; sector: string; hora_inicio: string; hora_fin: string; }
 interface Actividad { tipo: string; desc: string; hora_inicio: string; hora_fin: string; }
 interface Jornada { id: string; numero: number; fecha: string; hora_inicio: string | null; foto_inicial: boolean; intro_min: number; slots: Slot[]; actividades: Actividad[]; }
-interface Equipo { equipo_id: string; proyecto: string; autores: string; sector: string; asignado: boolean; }
+interface Proyecto { proyecto_id: string; equipo_id: string; proyecto: string; autores: string; sector: string; asignado: boolean; }
 
 export default function Programacion() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorte, setCohorte] = useState('');
   const [config, setConfig] = useState<Config | null>(null);
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
-  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [proyectos, setProyectos] = useState<Proyecto[]>([]);
+  const [sinDefinitivo, setSinDefinitivo] = useState(0);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [notificando, setNotificando] = useState(false);
@@ -23,7 +24,7 @@ export default function Programacion() {
     setNotificando(true); setMsg(null);
     try {
       const { data } = await api.post(`/programacion/admin/${cohorte}/notificar`, {});
-      setMsg({ kind: 'ok', text: `Notificados ${data.notificados} participante(s) de ${data.equipos} equipo(s) programado(s).` });
+      setMsg({ kind: 'ok', text: `Notificados ${data.notificados} participante(s) de ${data.proyectos} proyecto(s) programado(s).` });
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setNotificando(false); }
   }
@@ -33,11 +34,12 @@ export default function Programacion() {
   })(); }, []);
 
   async function load() {
-    if (!cohorte) { setConfig(null); setJornadas([]); setEquipos([]); return; }
+    if (!cohorte) { setConfig(null); setJornadas([]); setProyectos([]); return; }
     setLoading(true); setMsg(null);
     try {
       const { data } = await api.get(`/programacion/admin/${cohorte}`);
-      setConfig(data.config); setJornadas(data.jornadas ?? []); setEquipos(data.equipos ?? []);
+      setConfig(data.config); setJornadas(data.jornadas ?? []); setProyectos(data.proyectos ?? []);
+      setSinDefinitivo(data.equipos_sin_definitivo ?? 0);
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setLoading(false); }
   }
@@ -54,29 +56,29 @@ export default function Programacion() {
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }
 
-  async function guardarJornada(j: Jornada, cambios: { foto_inicial?: boolean; intro_min?: number; equipo_ids?: string[] }) {
+  async function guardarJornada(j: Jornada, cambios: { foto_inicial?: boolean; intro_min?: number; proyecto_ids?: string[] }) {
     try {
       await api.put(`/programacion/admin/jornada/${j.id}`, cambios);
       load();
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }
 
-  function idsDe(j: Jornada) { return j.slots.map((s) => s.equipo_id); }
-  function asignar(j: Jornada, equipoId: string) { guardarJornada(j, { equipo_ids: [...idsDe(j), equipoId] }); }
-  function quitar(j: Jornada, equipoId: string) { guardarJornada(j, { equipo_ids: idsDe(j).filter((x) => x !== equipoId) }); }
+  function idsDe(j: Jornada) { return j.slots.map((s) => s.proyecto_id); }
+  function asignar(j: Jornada, proyectoId: string) { guardarJornada(j, { proyecto_ids: [...idsDe(j), proyectoId] }); }
+  function quitar(j: Jornada, proyectoId: string) { guardarJornada(j, { proyecto_ids: idsDe(j).filter((x) => x !== proyectoId) }); }
   function mover(j: Jornada, idx: number, dir: -1 | 1) {
     const ids = idsDe(j); const ni = idx + dir; if (ni < 0 || ni >= ids.length) return;
-    [ids[idx], ids[ni]] = [ids[ni], ids[idx]]; guardarJornada(j, { equipo_ids: ids });
+    [ids[idx], ids[ni]] = [ids[ni], ids[idx]]; guardarJornada(j, { proyecto_ids: ids });
   }
 
-  const disponibles = equipos.filter((e) => !e.asignado);
+  const disponibles = proyectos.filter((e) => !e.asignado);
 
   return (
     <>
       <div className="border-b-[3px] border-inalde-red pb-4 mb-6">
         <p className="section-subtitle mb-1">Administración</p>
         <h1 className="section-title">Programación de presentaciones</h1>
-        <p className="text-sm text-inalde-gray mt-2">Asigna los proyectos a los slots de cada jornada. Los horarios se calculan automáticamente. Descarga el Excel de calificación para los panelistas.</p>
+        <p className="text-sm text-inalde-gray mt-2">Asigna los proyectos definitivos a los slots de cada jornada. Los horarios se calculan automáticamente. Descarga el Excel de calificación para los panelistas.</p>
       </div>
 
       <div className="flex flex-wrap gap-3 items-end mb-5">
@@ -133,7 +135,7 @@ export default function Programacion() {
                   </tr></thead>
                   <tbody>
                     {j.slots.map((s, idx) => (
-                      <tr key={s.equipo_id} className="border-b border-inalde-gray-light/50">
+                      <tr key={s.proyecto_id} className="border-b border-inalde-gray-light/50">
                         <td className="py-1.5"><span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-inalde-text text-white text-xs font-bold">{s.slot}</span></td>
                         <td className="py-1.5 font-mono text-xs text-inalde-text">{s.hora_inicio}–{s.hora_fin}</td>
                         <td className="py-1.5"><span className="font-medium text-inalde-text">{s.proyecto}</span>{s.sector && <span className="text-[11px] text-inalde-gray ml-1">· {s.sector}</span>}</td>
@@ -141,7 +143,7 @@ export default function Programacion() {
                         <td className="py-1.5 text-right whitespace-nowrap">
                           <button onClick={() => mover(j, idx, -1)} disabled={idx === 0} className="text-inalde-gray disabled:opacity-30 px-1">↑</button>
                           <button onClick={() => mover(j, idx, 1)} disabled={idx === j.slots.length - 1} className="text-inalde-gray disabled:opacity-30 px-1">↓</button>
-                          <button onClick={() => quitar(j, s.equipo_id)} className="text-inalde-gray hover:text-inalde-red px-1">✕</button>
+                          <button onClick={() => quitar(j, s.proyecto_id)} className="text-inalde-gray hover:text-inalde-red px-1">✕</button>
                         </td>
                       </tr>
                     ))}
@@ -155,7 +157,7 @@ export default function Programacion() {
                   <div className="mt-2">
                     <select onChange={(e) => { if (e.target.value) { asignar(j, e.target.value); e.target.value = ''; } }} className="input-inalde !py-1.5 text-sm">
                       <option value="">+ Agregar proyecto a esta jornada…</option>
-                      {disponibles.map((e) => <option key={e.equipo_id} value={e.equipo_id}>{e.proyecto} — {e.autores.slice(0, 40)}</option>)}
+                      {disponibles.map((e) => <option key={e.proyecto_id} value={e.proyecto_id}>{e.proyecto} — {e.autores.slice(0, 40)}</option>)}
                     </select>
                   </div>
                 )}
@@ -165,6 +167,11 @@ export default function Programacion() {
 
           {disponibles.length > 0 && (
             <p className="text-xs text-inalde-gray">Proyectos sin asignar a ninguna jornada: <strong>{disponibles.length}</strong></p>
+          )}
+          {sinDefinitivo > 0 && (
+            <p className="text-xs text-inalde-gray mt-1">
+              <strong>{sinDefinitivo}</strong> equipo(s) todavía no han elegido su proyecto definitivo, así que aún no son programables. Aparecerán aquí en cuanto hagan la selección.
+            </p>
           )}
         </>
       )}
