@@ -321,6 +321,14 @@ export default function Programacion() {
                       </tr>
                     ))}
                     {j.slots.length === 0 && <tr><td colSpan={9} className="py-3 text-center text-inalde-gray italic text-xs">Sin proyectos asignados</td></tr>}
+                    {/* Sin hora de inicio el servidor no calcula la escaleta: los
+                        horarios llegan como '--:--'. Se dice por qué, en vez de
+                        dejar al admin mirando guiones. */}
+                    {!j.hora_inicio && (
+                      <tr><td colSpan={9} className="px-4 py-3 text-xs text-inalde-text bg-inalde-gray-bg border-l-4 border-inalde-red">
+                        Esta jornada <strong>no tiene hora de inicio</strong>, así que no se pueden calcular los horarios. Ponle la hora de inicio arriba y se recalculan solos.
+                      </td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>

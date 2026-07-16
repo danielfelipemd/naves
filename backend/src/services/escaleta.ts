@@ -16,6 +16,9 @@ export const toMin = (hhmm: string | null): number => {
   return h * 60 + m;
 };
 export const toHHMM = (min: number): string => {
+  // Defensivo: un minuto negativo no es una hora, es un error de cálculo aguas
+  // arriba. Sin esto, Math.floor y % con negativos escupían cosas como "-1:-5".
+  if (!Number.isFinite(min) || min < 0) return '--:--';
   const h = Math.floor(min / 60), m = min % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
@@ -32,6 +35,18 @@ export function fechaLegibleProg(iso: string): string {
 // si hay foto/intro y la lista de equipos, devuelve las filas con horarios.
 export function computarJornada(inicioMin: number, foto: boolean, introMin: number, proyectos: Array<any>, slotBase: number, esUltimoDia: boolean, C: Config): Fila[] {
   const filas: Fila[] = [];
+  // Sin hora de inicio (toMin devuelve 0) no hay escaleta que calcular: la foto
+  // y la introducción se programan hacia atrás desde la 1ª presentación, así que
+  // partir de 0 daba horas negativas ("-1:-5"). No inventamos un horario: se
+  // devuelven los proyectos asignados sin hora, y la pantalla pide la hora.
+  const sinHora = inicioMin <= 0;
+  if (sinHora) {
+    proyectos.forEach((e, i) => filas.push({
+      tipo: 'proyecto', slot: slotBase + i, proyecto_id: e.proyecto_id,
+      proyecto: e.proyecto, autores: e.autores, sector: e.sector, ini: -1, fin: -1,
+    }));
+    return filas;
+  }
   // Foto + intro se programan HACIA ATRÁS, terminando justo antes del slot 1.
   let t = inicioMin - C.trans - introMin - (foto ? C.foto : 0);
   if (foto) { filas.push({ tipo: 'foto', desc: 'Toma de foto de grupo — Puerta principal', ini: t, fin: t + C.foto }); t += C.foto; }
