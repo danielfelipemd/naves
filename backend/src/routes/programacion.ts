@@ -5,6 +5,14 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole } from '../auth/middleware.js';
 import { notificar, limpiarNotificaciones } from '../services/notify.js';
 import { proyectosFase2, autoresAuthPorProyecto, contarEquiposSinDefinitivo, type ProyectoFase2 } from '../services/proyectos-fase2.js';
+import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
+
+// URL servida de un asset: proxy con token efímero si está en Storage; si no, el
+// enlace externo. Mismo criterio que el Módulo C.
+function urlAsset(path: string | null, urlExterna: string | null): string | null {
+  if (path) return crearUrlProxyArchivo(path, mimeFromPath(path));
+  return urlExterna ?? null;
+}
 
 // Módulo B (Fase 2) — Calendario / Programación de presentaciones.
 // Asigna PROYECTOS DEFINITIVOS a slots por jornada y calcula los horarios.
@@ -84,11 +92,20 @@ async function jornadaConSlots(jornada: any, C: Config, esUltimo: boolean, pf: M
   return { jornada, proyectos, filas };
 }
 
+// Contenido publicable (logo, one pager, resumen, post) por proyecto. Lo consume
+// la tabla de programación, que muestra la ficha completa de cada presentación.
+async function contenidoPorProyecto(proyIds: string[]): Promise<Map<string, any>> {
+  if (!proyIds.length) return new Map();
+  const { data } = await supabaseAdmin.from('proyecto_contenido').select('*').in('proyecto_id', proyIds);
+  return new Map((data ?? []).map((c: any) => [c.proyecto_id, c]));
+}
+
 // GET /api/programacion/admin/:cohorteId — estado completo
 router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const C = await getConfig(cohorteId);
   const pf = await proyectosFase2(cohorteId);
+  const contenido = await contenidoPorProyecto([...pf.keys()]);
   const { data: jornadas } = await supabaseAdmin
     .from('jornadas').select('id, numero, fecha, hora_inicio, hora_fin, foto_inicial, intro_min')
     .eq('cohorte_id', cohorteId).order('numero');
@@ -98,12 +115,19 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
     const jc = await jornadaConSlots((jornadas as any[])[i], C, i === (jornadas ?? []).length - 1, pf);
     jornadasOut.push({
       id: jc.jornada.id, numero: jc.jornada.numero, fecha: jc.jornada.fecha,
+      fecha_legible: fechaLegibleProg(jc.jornada.fecha),
       hora_inicio: jc.jornada.hora_inicio, hora_fin: jc.jornada.hora_fin,
       foto_inicial: jc.jornada.foto_inicial, intro_min: jc.jornada.intro_min,
-      slots: jc.filas.filter((f) => f.tipo === 'proyecto').map((f) => ({
-        slot: f.slot, proyecto_id: f.proyecto_id, proyecto: f.proyecto, autores: f.autores, sector: f.sector,
-        hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin),
-      })),
+      slots: jc.filas.filter((f) => f.tipo === 'proyecto').map((f) => {
+        const c = f.proyecto_id ? contenido.get(f.proyecto_id) : null;
+        return {
+          slot: f.slot, proyecto_id: f.proyecto_id, proyecto: f.proyecto, autores: f.autores, sector: f.sector,
+          hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin),
+          resumen: c?.resumen ?? null, linkedin: c?.linkedin ?? null,
+          one_pager_url: urlAsset(c?.one_pager_path ?? null, c?.one_pager_url ?? null),
+          logo_url: urlAsset(c?.logo_path ?? null, c?.logo_url ?? null),
+        };
+      }),
       actividades: jc.filas.filter((f) => f.tipo !== 'proyecto').map((f) => ({ tipo: f.tipo, desc: f.desc, hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin) })),
     });
   }

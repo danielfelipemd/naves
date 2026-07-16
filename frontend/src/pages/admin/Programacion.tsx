@@ -4,10 +4,38 @@ import { formatBackendError } from '../../lib/errors';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Config { evento_nombre: string; expo: number; trans: number; foto: number; cierre: number; break_min: number; bloque: number; }
-interface Slot { slot: number; proyecto_id: string; proyecto: string; autores: string; sector: string; hora_inicio: string; hora_fin: string; }
+interface Slot {
+  slot: number; proyecto_id: string; proyecto: string; autores: string; sector: string;
+  hora_inicio: string; hora_fin: string;
+  resumen: string | null; linkedin: string | null; one_pager_url: string | null; logo_url: string | null;
+}
 interface Actividad { tipo: string; desc: string; hora_inicio: string; hora_fin: string; }
-interface Jornada { id: string; numero: number; fecha: string; hora_inicio: string | null; foto_inicial: boolean; intro_min: number; slots: Slot[]; actividades: Actividad[]; }
+interface Jornada { id: string; numero: number; fecha: string; fecha_legible?: string; hora_inicio: string | null; foto_inicial: boolean; intro_min: number; slots: Slot[]; actividades: Actividad[]; }
 interface Proyecto { proyecto_id: string; equipo_id: string; proyecto: string; autores: string; sector: string; asignado: boolean; }
+
+// Color estable por sector: mismo sector, mismo color en toda la tabla. Tonos
+// oscuros de la paleta INALDE para que el texto blanco siempre contraste.
+const SECTOR_COLORS = ['#224d7c', '#1a4a6b', '#6b3f2a', '#3d5a3d', '#5a3d5a', '#7c4a22', '#2a4a4a', '#4a2a3d'];
+function colorSector(sector: string): string {
+  let h = 0;
+  for (let i = 0; i < sector.length; i++) h = (h * 31 + sector.charCodeAt(i)) >>> 0;
+  return SECTOR_COLORS[h % SECTOR_COLORS.length];
+}
+
+// Slots y actividades en una sola lista, en orden cronológico (como se vive la
+// jornada): foto e introducción arriba, breaks y cierre en su sitio.
+type Fila = { kind: 'proyecto'; idx: number; s: Slot } | { kind: 'actividad'; a: Actividad };
+function filasDe(j: Jornada): Fila[] {
+  const filas: Fila[] = [
+    ...j.slots.map((s, idx) => ({ kind: 'proyecto' as const, idx, s })),
+    ...j.actividades.map((a) => ({ kind: 'actividad' as const, a })),
+  ];
+  return filas.sort((x, y) => {
+    const hx = x.kind === 'proyecto' ? x.s.hora_inicio : x.a.hora_inicio;
+    const hy = y.kind === 'proyecto' ? y.s.hora_inicio : y.a.hora_inicio;
+    return hx.localeCompare(hy);
+  });
+}
 
 export default function Programacion() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
@@ -16,6 +44,15 @@ export default function Programacion() {
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [sinDefinitivo, setSinDefinitivo] = useState(0);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function copiar(id: string, texto: string) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopied(id);
+      setTimeout(() => setCopied((c) => (c === id ? null : c)), 2000);
+    } catch { setMsg({ kind: 'err', text: 'El navegador no permitió copiar al portapapeles.' }); }
+  }
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [notificando, setNotificando] = useState(false);
@@ -123,45 +160,86 @@ export default function Programacion() {
           ) : jornadas.map((j) => (
             <div key={j.id} className="border border-inalde-gray-light rounded-lg mb-5 overflow-hidden">
               <div className="bg-inalde-text text-white px-4 py-2.5 flex flex-wrap items-center gap-3">
-                <span className="font-primary font-bold">Jornada {j.numero}</span>
-                <span className="text-white/70 text-sm">{j.fecha} · inicio {(j.hora_inicio ?? '').slice(0, 5)}</span>
+                <span className="font-primary font-extrabold tracking-widest uppercase text-sm"><span aria-hidden="true">📅 </span>Jornada {j.numero}</span>
+                <span className="text-white/70 text-sm capitalize">{j.fecha_legible ?? j.fecha} · inicio {(j.hora_inicio ?? '').slice(0, 5)}</span>
                 <label className="text-xs flex items-center gap-1 ml-auto"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
                 <label className="text-xs flex items-center gap-1">Intro <input type="number" value={j.intro_min} min={0} onChange={(e) => guardarJornada(j, { intro_min: Number(e.target.value) })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
               </div>
-              <div className="p-3">
-                <table className="w-full text-sm">
-                  <thead><tr className="text-left text-[10px] uppercase tracking-wider text-inalde-gray border-b border-inalde-gray-light">
-                    <th className="py-1 w-12">Slot</th><th className="py-1 w-24">Horario</th><th className="py-1">Proyecto</th><th className="py-1">Autores</th><th className="py-1 w-24"></th>
-                  </tr></thead>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse bg-white">
+                  <thead>
+                    <tr className="bg-inalde-text text-white">
+                      {['Slot', 'Logo', 'Proyecto', 'Autores', 'Sector', 'One Pager', 'Post LinkedIn', 'Descargas', ''].map((h, i) => (
+                        <th key={i} scope="col" className="text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase whitespace-nowrap px-3 py-2.5">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
                   <tbody>
-                    {j.slots.map((s, idx) => (
-                      <tr key={s.proyecto_id} className="border-b border-inalde-gray-light/50">
-                        <td className="py-1.5"><span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-inalde-text text-white text-xs font-bold">{s.slot}</span></td>
-                        <td className="py-1.5 font-mono text-xs text-inalde-text">{s.hora_inicio}–{s.hora_fin}</td>
-                        <td className="py-1.5"><span className="font-medium text-inalde-text">{s.proyecto}</span>{s.sector && <span className="text-[11px] text-inalde-gray ml-1">· {s.sector}</span>}</td>
-                        <td className="py-1.5 text-xs text-inalde-gray">{s.autores}</td>
-                        <td className="py-1.5 text-right whitespace-nowrap">
-                          <button onClick={() => mover(j, idx, -1)} disabled={idx === 0} className="text-inalde-gray disabled:opacity-30 px-1">↑</button>
-                          <button onClick={() => mover(j, idx, 1)} disabled={idx === j.slots.length - 1} className="text-inalde-gray disabled:opacity-30 px-1">↓</button>
-                          <button onClick={() => quitar(j, s.proyecto_id)} className="text-inalde-gray hover:text-inalde-red px-1">✕</button>
+                    {filasDe(j).map((f) => f.kind === 'actividad' ? (
+                      <tr key={`act-${f.a.tipo}-${f.a.hora_inicio}`} className="bg-[#faf6f0]">
+                        <td colSpan={9} className="border-l-4 border-inalde-red px-4 py-3">
+                          <span className="font-primary font-extrabold text-[0.85rem] text-inalde-text">
+                            <span aria-hidden="true">🕐 </span>{f.a.hora_inicio} – {f.a.hora_fin} hrs. — {f.a.desc}
+                          </span>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={f.s.proyecto_id} className="border-b border-inalde-gray-light align-middle">
+                        <td className="w-[70px] text-center px-3 py-2.5">
+                          <strong className="font-primary text-inalde-text">{f.s.slot}</strong>
+                          <span className="block text-[0.7rem] text-inalde-gray mt-0.5 font-mono">{f.s.hora_inicio}–{f.s.hora_fin}</span>
+                        </td>
+                        <td className="w-[75px] text-center px-3 py-2.5">
+                          {f.s.logo_url
+                            ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[55px] max-h-[45px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
+                            : <span className="flex items-center justify-center w-[52px] h-[42px] mx-auto bg-inalde-gray-bg border border-inalde-gray-light font-primary font-extrabold text-[0.8rem] text-inalde-gray">{f.s.proyecto.slice(0, 2).toUpperCase()}</span>}
+                        </td>
+                        <td className="w-[120px] px-3 py-2.5 font-primary font-bold text-[0.85rem] text-inalde-text">{f.s.proyecto}</td>
+                        <td className="w-[190px] px-3 py-2.5 text-[0.78rem] text-inalde-gray">{f.s.autores}</td>
+                        <td className="w-[130px] px-3 py-2.5">
+                          {f.s.sector && (
+                            <span className="inline-block text-white rounded-[3px] px-2 py-0.5 font-primary font-bold text-[0.62rem] tracking-wider uppercase whitespace-nowrap" style={{ background: colorSector(f.s.sector) }}>{f.s.sector}</span>
+                          )}
+                        </td>
+                        <td className="w-[240px] px-3 py-2.5 text-[0.8rem] leading-relaxed">
+                          {f.s.resumen ?? <span className="text-inalde-gray italic">Sin resumen</span>}
+                          {f.s.one_pager_url && <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="block mt-1 font-primary font-bold text-[0.7rem] text-inalde-red hover:underline">Ver One Pager →</a>}
+                        </td>
+                        <td className="w-[260px] px-3 py-2.5">
+                          {f.s.linkedin ? (
+                            <>
+                              <div className="text-[0.76rem] leading-relaxed text-inalde-text mb-1.5">{f.s.linkedin}</div>
+                              <button onClick={() => copiar(f.s.proyecto_id, f.s.linkedin!)}
+                                className={`font-primary font-bold text-[0.63rem] tracking-wider uppercase border px-2 py-1 transition-colors ${copied === f.s.proyecto_id ? 'bg-[#1a6b3c] text-white border-[#1a6b3c]' : 'border-inalde-gray-light text-inalde-gray hover:bg-inalde-text hover:text-white hover:border-inalde-text'}`}>
+                                {copied === f.s.proyecto_id ? '✓ Copiado' : 'Copiar'}
+                              </button>
+                            </>
+                          ) : <span className="text-[0.76rem] text-inalde-gray italic">Sin post</span>}
+                        </td>
+                        <td className="w-[130px] px-3 py-2.5">
+                          {f.s.logo_url && <a href={f.s.logo_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-[#f0f4f8] text-inalde-blue border border-inalde-blue hover:bg-inalde-blue hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>Logo</a>}
+                          {f.s.one_pager_url && <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-[#fff5f5] text-inalde-red border border-inalde-red hover:bg-inalde-red hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>One Pager</a>}
+                          {!f.s.logo_url && !f.s.one_pager_url && <span className="text-[0.7rem] text-inalde-gray italic">—</span>}
+                        </td>
+                        <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                          <button onClick={() => mover(j, f.idx, -1)} disabled={f.idx === 0} aria-label={`Subir ${f.s.proyecto}`} className="text-inalde-gray disabled:opacity-30 px-1">↑</button>
+                          <button onClick={() => mover(j, f.idx, 1)} disabled={f.idx === j.slots.length - 1} aria-label={`Bajar ${f.s.proyecto}`} className="text-inalde-gray disabled:opacity-30 px-1">↓</button>
+                          <button onClick={() => quitar(j, f.s.proyecto_id)} aria-label={`Quitar ${f.s.proyecto} de la jornada`} className="text-inalde-gray hover:text-inalde-red px-1">✕</button>
                         </td>
                       </tr>
                     ))}
-                    {j.slots.length === 0 && <tr><td colSpan={5} className="py-3 text-center text-inalde-gray italic text-xs">Sin proyectos asignados</td></tr>}
-                    {j.actividades.filter((a) => a.tipo === 'cierre' || a.tipo === 'break').map((a, i) => (
-                      <tr key={'act' + i} className="bg-inalde-gold/10"><td></td><td className="py-1 font-mono text-[11px] text-inalde-gray">{a.hora_inicio}–{a.hora_fin}</td><td colSpan={3} className="py-1 text-[11px] text-inalde-gray italic">{a.desc}</td></tr>
-                    ))}
+                    {j.slots.length === 0 && <tr><td colSpan={9} className="py-3 text-center text-inalde-gray italic text-xs">Sin proyectos asignados</td></tr>}
                   </tbody>
                 </table>
-                {disponibles.length > 0 && (
-                  <div className="mt-2">
-                    <select onChange={(e) => { if (e.target.value) { asignar(j, e.target.value); e.target.value = ''; } }} className="input-inalde !py-1.5 text-sm">
-                      <option value="">+ Agregar proyecto a esta jornada…</option>
-                      {disponibles.map((e) => <option key={e.proyecto_id} value={e.proyecto_id}>{e.proyecto} — {e.autores.slice(0, 40)}</option>)}
-                    </select>
-                  </div>
-                )}
               </div>
+              {disponibles.length > 0 && (
+                <div className="p-3">
+                  <select onChange={(e) => { if (e.target.value) { asignar(j, e.target.value); e.target.value = ''; } }} className="input-inalde !py-1.5 text-sm">
+                    <option value="">+ Agregar proyecto a esta jornada…</option>
+                    {disponibles.map((e) => <option key={e.proyecto_id} value={e.proyecto_id}>{e.proyecto} — {e.autores.slice(0, 40)}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           ))}
 
