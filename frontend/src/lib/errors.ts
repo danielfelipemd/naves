@@ -50,7 +50,7 @@ export function formatBackendError(e: any): string {
     ALREADY_IN_TEAM: 'Ese participante ya está en un equipo.',
     ALREADY_SET: 'Tu modalidad ya está fijada; no se puede cambiar.',
     INVALID_CIIU: 'Uno o varios códigos CIIU no son válidos.',
-    INVALID_MIME: 'El tipo de archivo no es válido. Usa PDF (anteproyecto) o PDF/Word (proyecto final).',
+    INVALID_MIME: 'El tipo de archivo no es válido. El anteproyecto y el proyecto final se cargan en PDF.',
     FILE_TOO_LARGE: 'El archivo supera el tamaño máximo de 25 MB.',
     POSITION_TAKEN: 'Esa posición ya está ocupada por otro miembro.',
     COHORTE_MISMATCH: 'El participante pertenece a otra cohorte.',
@@ -72,6 +72,18 @@ export function formatBackendError(e: any): string {
     DIRECTOR_NO_SELECCIONADO: 'Selecciona a la dirección antes de cargar el anteproyecto.',
     ARCHIVO_NO_SUBIDO: 'Aún no se ha cargado ese archivo.',
     TIPO_TRABAJO_GRADO_INMUTABLE: 'Tu modalidad ya está fijada y no se puede cambiar.',
+    // --- Programación de presentaciones ---
+    PROYECTO_NO_PROGRAMABLE: 'Ese proyecto no se puede programar: no es el proyecto definitivo de ningún equipo de la cohorte.',
+    PROYECTO_DUPLICADO: 'Ese proyecto ya está en esta jornada.',
+    PROYECTO_YA_PROGRAMADO: 'Ese proyecto ya está programado en otra jornada. Un proyecto se presenta una sola vez en todo el evento.',
+    SLOTS_DELETE_FAILED: 'No pudimos reorganizar la jornada. Recarga la página y verifica el orden antes de continuar.',
+    SLOTS_INSERT_FAILED: 'No pudimos guardar el orden de la jornada. Recarga la página: puede haber quedado sin horarios.',
+    PROGRAMACION_PUBLICADA: 'La programación ya se publicó y es definitiva: no se puede modificar.',
+    YA_PUBLICADA: 'Esta programación ya estaba publicada.',
+    SIN_JORNADAS: 'Esta cohorte todavía no tiene jornadas. Créalas en Panelistas → Jornadas.',
+    SIN_PROYECTOS_ASIGNADOS: 'No hay ningún proyecto asignado. Publicar ahora dejaría la programación vacía y definitiva.',
+    ROL_AREA_NO_EXISTE: 'Falta el rol de área en la base de datos. Avisa al equipo técnico.',
+    ROL_ASIGNACION_FALLIDA: 'Se creó la cuenta pero no se le pudo asignar el rol. Asígnaselo en Roles y permisos.',
   };
 
   if (data?.error && codeMessages[data.error]) {

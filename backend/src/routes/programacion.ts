@@ -6,6 +6,10 @@ import { requireAuth, requireRole } from '../auth/middleware.js';
 import { notificar, limpiarNotificaciones } from '../services/notify.js';
 import { proyectosFase2, autoresAuthPorProyecto, contarEquiposSinDefinitivo, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
+// El motor de escaleta vive en services/escaleta.ts: lo comparte la Programación
+// Interna (marketing, operaciones, asistente de programa), que debe ver
+// exactamente los mismos horarios que publica esta pantalla.
+import { toMin, toHHMM, fechaLegibleProg, computarJornada, getConfig, jornadaConSlots, programacionPublicadaAt, type Config } from '../services/escaleta.js';
 
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el
 // enlace externo. Mismo criterio que el Módulo C.
@@ -22,74 +26,16 @@ function urlAsset(path: string | null, urlExterna: string | null): string | null
 const router = Router();
 const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
 
-const toMin = (hhmm: string | null): number => {
-  if (!hhmm) return 0;
-  const [h, m] = hhmm.slice(0, 5).split(':').map(Number);
-  return h * 60 + m;
-};
-const toHHMM = (min: number): string => {
-  const h = Math.floor(min / 60), m = min % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-const MESES_PROG = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const DIAS_PROG = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-function fechaLegibleProg(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  const dow = new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay();
-  return `${DIAS_PROG[dow]} ${d} de ${MESES_PROG[m]} de ${y}`;
-}
-
-interface Config { expo: number; trans: number; foto: number; cierre: number; break_min: number; bloque: number; }
-interface Fila { tipo: string; slot?: number; proyecto_id?: string | null; proyecto?: string; autores?: string; sector?: string; ini: number; fin: number; desc?: string; }
-
-// Porta construirDia del prototipo: dado la hora de inicio (1ª presentación),
-// si hay foto/intro y la lista de equipos, devuelve las filas con horarios.
-function computarJornada(inicioMin: number, foto: boolean, introMin: number, proyectos: Array<any>, slotBase: number, esUltimoDia: boolean, C: Config): Fila[] {
-  const filas: Fila[] = [];
-  // Foto + intro se programan HACIA ATRÁS, terminando justo antes del slot 1.
-  let t = inicioMin - C.trans - introMin - (foto ? C.foto : 0);
-  if (foto) { filas.push({ tipo: 'foto', desc: 'Toma de foto de grupo — Puerta principal', ini: t, fin: t + C.foto }); t += C.foto; }
-  filas.push({ tipo: 'intro', desc: 'Introducción', ini: t, fin: t + introMin }); t += introMin;
-  t += C.trans; // t == inicioMin
-  const total = proyectos.length;
-  for (let i = 0; i < total; i++) {
-    const e = proyectos[i];
-    filas.push({ tipo: 'proyecto', slot: slotBase + i, proyecto_id: e.proyecto_id, proyecto: e.proyecto, autores: e.autores, sector: e.sector, ini: t, fin: t + C.expo });
-    t += C.expo;
-    const count = i + 1;
-    const finBloque = count % C.bloque === 0;
-    const ultimo = i === total - 1;
-    if (finBloque || ultimo) {
-      t += C.trans;
-      if (ultimo) {
-        filas.push({ tipo: 'cierre', desc: (esUltimoDia ? 'Evaluación y Cierre' : 'Cierre de jornada') + ' — Toma de foto', ini: t, fin: t + C.cierre }); t += C.cierre;
-      } else {
-        filas.push({ tipo: 'break', desc: 'Break — Toma de foto', ini: t, fin: t + C.break_min }); t += C.break_min; t += C.trans;
-      }
-    } else {
-      t += C.trans;
-    }
+// Guarda de escritura. Sin esto, "publicar" no significaría nada: el admin
+// seguiría reordenando y las áreas verían cambiar bajo sus pies una
+// programación que se les presentó como definitiva.
+async function bloqueadaSiPublicada(cohorteId: string, res: any): Promise<boolean> {
+  const at = await programacionPublicadaAt(cohorteId);
+  if (at) {
+    res.status(423).json({ error: 'PROGRAMACION_PUBLICADA', publicada_at: at });
+    return true;
   }
-  return filas;
-}
-
-async function getConfig(cohorteId: string): Promise<Config & { evento_nombre: string }> {
-  const { data } = await supabaseAdmin.from('programacion_config').select('*').eq('cohorte_id', cohorteId).maybeSingle();
-  const c: any = data ?? {};
-  return {
-    evento_nombre: c.evento_nombre ?? 'NAVES',
-    expo: c.expo_min ?? 20, trans: c.trans_min ?? 5, foto: c.foto_min ?? 10,
-    cierre: c.cierre_min ?? 20, break_min: c.break_min ?? 30, bloque: c.bloque ?? 5,
-  };
-}
-
-// Estado completo de una jornada (filas calculadas).
-async function jornadaConSlots(jornada: any, C: Config, esUltimo: boolean, pf: Map<string, ProyectoFase2>) {
-  const { data: slots } = await supabaseAdmin
-    .from('slot_presentacion').select('orden, proyecto_id').eq('jornada_id', jornada.id).order('orden');
-  const proyectos = (slots ?? []).map((s: any) => ({ ...(pf.get(s.proyecto_id) ?? { proyecto: '(sin asignar)', autores: '', sector: '' }), proyecto_id: s.proyecto_id }));
-  const filas = computarJornada(toMin(jornada.hora_inicio), !!jornada.foto_inicial, jornada.intro_min ?? 0, proyectos, 1, esUltimo, C);
-  return { jornada, proyectos, filas };
+  return false;
 }
 
 // Contenido publicable (logo, one pager, resumen, post) por proyecto. Lo consume
@@ -143,6 +89,7 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   res.json({
     cohorte_id: cohorteId, config: C, jornadas: jornadasOut, proyectos: proyectosDisponibles,
     equipos_sin_definitivo: await contarEquiposSinDefinitivo(cohorteId),
+    publicada_at: await programacionPublicadaAt(cohorteId),
   });
 });
 
@@ -159,6 +106,7 @@ const configSchema = z.object({
 router.put('/admin/:cohorteId/config', ...soloAdmin, async (req, res) => {
   const parsed = configSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  if (await bloqueadaSiPublicada(req.params.cohorteId, res)) return;
   const { error } = await supabaseAdmin.from('programacion_config')
     .upsert({ cohorte_id: req.params.cohorteId, ...parsed.data, updated_at: new Date().toISOString() }, { onConflict: 'cohorte_id' });
   if (error) return res.status(500).json({ error: error.message });
@@ -175,6 +123,14 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
   const parsed = jornadaSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
   const jid = req.params.jornadaId;
+
+  // Resolver la jornada ANTES de escribir: el candado de publicación es por
+  // cohorte y solo se conoce a través de ella. Si actualizáramos primero (como
+  // se hacía), una programación ya publicada admitiría cambios de foto/intro
+  // aunque después rechazáramos la reasignación de proyectos.
+  const { data: jornadaPrev } = await supabaseAdmin.from('jornadas').select('cohorte_id').eq('id', jid).maybeSingle();
+  if (!jornadaPrev) return res.status(404).json({ error: 'NOT_FOUND' });
+  if (await bloqueadaSiPublicada((jornadaPrev as any).cohorte_id, res)) return;
 
   const upd: Record<string, unknown> = {};
   if (parsed.data.foto_inicial !== undefined) upd.foto_inicial = parsed.data.foto_inicial;
@@ -266,21 +222,78 @@ router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   res.end();
 });
 
-// POST /admin/:cohorteId/notificar — publica la programación: notifica a los
-// integrantes del equipo de cada proyecto ya asignado la fecha/hora de su
-// presentación.
+/**
+ * POST /admin/:cohorteId/publicar — el punto de no retorno.
+ *
+ * Marca la programación como definitiva: a partir de aquí no la edita nadie (ni
+ * el admin), y solo a partir de aquí la ven marketing, operaciones y el
+ * asistente de programa. Además notifica a los participantes.
+ *
+ * No hay endpoint inverso: despublicar exige entrar a la base de datos a mano,
+ * y esa fricción es intencionada.
+ */
+router.post('/admin/:cohorteId/publicar', ...soloAdmin, async (req: any, res) => {
+  const cohorteId = req.params.cohorteId;
+
+  const ya = await programacionPublicadaAt(cohorteId);
+  if (ya) return res.status(409).json({ error: 'YA_PUBLICADA', publicada_at: ya });
+
+  // Publicar una programación vacía la congelaría vacía, para siempre y sin
+  // vuelta atrás. Es justo el error que el candado haría irreparable.
+  const { data: jornadas } = await supabaseAdmin.from('jornadas').select('id').eq('cohorte_id', cohorteId);
+  const ids = (jornadas ?? []).map((j: any) => j.id);
+  if (!ids.length) return res.status(400).json({ error: 'SIN_JORNADAS' });
+  const { data: slots } = await supabaseAdmin
+    .from('slot_presentacion').select('id, proyecto_id').in('jornada_id', ids);
+  if (!(slots ?? []).some((s: any) => s.proyecto_id)) return res.status(400).json({ error: 'SIN_PROYECTOS_ASIGNADOS' });
+
+  // El candado ANTES de notificar: si el correo falla, la programación ya quedó
+  // publicada y se puede reintentar la notificación. Al revés, habríamos avisado
+  // a todo el mundo de algo que aún era editable.
+  const { error } = await supabaseAdmin.from('programacion_config').upsert({
+    cohorte_id: cohorteId,
+    publicada_at: new Date().toISOString(),
+    publicada_por: req.user?.sub ?? null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'cohorte_id' });
+  if (error) return res.status(500).json({ error: 'PUBLICAR_FALLIDO', detail: error.message });
+
+  // A partir de aquí ya está publicada: pase lo que pase con los avisos, la
+  // respuesta no puede decir que falló. Si la notificación se cae, se reintenta
+  // con "Reenviar aviso" — el candado ya está puesto y es lo irreversible.
+  try {
+    const n = await notificarProgramacion(cohorteId);
+    return res.json({ ok: true, publicada: true, ...n });
+  } catch (e: any) {
+    return res.json({
+      ok: true, publicada: true, notificados: 0, proyectos: 0,
+      aviso: 'La programación quedó publicada, pero no se pudo enviar el aviso a los participantes. Usa "Reenviar aviso".',
+      detail: String(e?.message ?? e),
+    });
+  }
+});
+
+// POST /admin/:cohorteId/notificar — reenvía el aviso de la programación a los
+// integrantes de cada proyecto asignado. Publicar ya notifica; esto existe para
+// reenviar si hace falta.
 router.post('/admin/:cohorteId/notificar', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
+  const r = await notificarProgramacion(cohorteId);
+  res.json({ ok: true, ...r });
+});
+
+// Notifica a cada integrante la fecha/hora de la presentación de su proyecto.
+async function notificarProgramacion(cohorteId: string): Promise<{ notificados: number; proyectos: number }> {
   const { data: jornadas } = await supabaseAdmin
     .from('jornadas').select('id, numero, fecha').eq('cohorte_id', cohorteId);
   const jById = new Map((jornadas ?? []).map((j: any) => [j.id, j]));
   const ids = (jornadas ?? []).map((j: any) => j.id);
-  if (!ids.length) return res.json({ ok: true, notificados: 0, proyectos: 0 });
+  if (!ids.length) return { notificados: 0, proyectos: 0 };
 
   const { data: slots } = await supabaseAdmin
     .from('slot_presentacion').select('jornada_id, orden, proyecto_id, hora_inicio, hora_fin').in('jornada_id', ids);
   const asignados = (slots ?? []).filter((s: any) => s.proyecto_id);
-  if (!asignados.length) return res.json({ ok: true, notificados: 0, proyectos: 0 });
+  if (!asignados.length) return { notificados: 0, proyectos: 0 };
 
   // Integrantes (auth_user_id) del equipo dueño de cada proyecto programado.
   const pf = await proyectosFase2(cohorteId);
@@ -306,10 +319,10 @@ router.post('/admin/:cohorteId/notificar', ...soloAdmin, async (req, res) => {
       });
     }
   }
-  // Evitar duplicados si se re-publica
+  // Evitar duplicados si se reenvía
   await limpiarNotificaciones('presentacion_programada', [...new Set(todosAuth)]);
   const n = await notificar(items);
-  res.json({ ok: true, notificados: n, proyectos: proyectoIds.length });
-});
+  return { notificados: n, proyectos: proyectoIds.length };
+}
 
 export default router;

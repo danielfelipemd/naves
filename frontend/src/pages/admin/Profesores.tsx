@@ -15,20 +15,32 @@ interface Profesor {
   email: string;
   es_super_admin: boolean;
   activo: boolean;
+  tipo?: 'profesor' | 'area';
   booking_url: string | null;
   areas_afinidad: string[];
   ultimo_login: string | null;
 }
+
+// Usuarios de área: entran al sistema solo para consultar la Programación
+// Interna. Viven en esta pantalla porque comparten el login por correo con los
+// profesores, pero NO dirigen trabajos de grado (no salen en la sábana).
+const ROLES_AREA = [
+  { valor: 'marketing', etiqueta: 'Marketing' },
+  { valor: 'operaciones', etiqueta: 'Operaciones' },
+  { valor: 'asistente_programa', etiqueta: 'Asistente de programa' },
+] as const;
+type RolArea = (typeof ROLES_AREA)[number]['valor'];
+const etiquetaArea = (v: string) => ROLES_AREA.find((r) => r.valor === v)?.etiqueta ?? v;
 
 export default function Profesores() {
   const [profesores, setProfesores] = useState<Profesor[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState<{
     nombre_completo: string; email: string; password: string;
-    es_super_admin: boolean; booking_url: string; areas_afinidad: string[];
+    es_super_admin: boolean; rol_area: '' | RolArea; booking_url: string; areas_afinidad: string[];
   }>({
     nombre_completo: '', email: '', password: '',
-    es_super_admin: false, booking_url: '', areas_afinidad: [],
+    es_super_admin: false, rol_area: '', booking_url: '', areas_afinidad: [],
   });
   const [editing, setEditing] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<Profesor> & { password?: string }>({});
@@ -104,14 +116,24 @@ export default function Profesores() {
   async function crear() {
     setBusy(true); setMsg(null);
     try {
-      const payload = {
-        ...form,
-        booking_url: form.booking_url || null,
-      };
+      const esArea = !!form.rol_area;
+      // Un usuario de área no dirige trabajos de grado: el booking y las áreas
+      // de afinidad son campos de docente y no se envían.
+      const payload = esArea
+        ? {
+            nombre_completo: form.nombre_completo, email: form.email, password: form.password,
+            rol_area: form.rol_area, es_super_admin: false,
+          }
+        : { ...form, rol_area: undefined, booking_url: form.booking_url || null };
       await api.post('/admin/profesores', payload);
-      setMsg({ kind: 'ok', text: `Profesor ${form.nombre_completo} creado.` });
+      setMsg({
+        kind: 'ok',
+        text: esArea
+          ? `${form.nombre_completo} creado como ${etiquetaArea(form.rol_area)}. Ya puede entrar y consultar la Programación Interna.`
+          : `Profesor ${form.nombre_completo} creado.`,
+      });
       setShowNew(false);
-      setForm({ nombre_completo: '', email: '', password: '', es_super_admin: false, booking_url: '', areas_afinidad: [] });
+      setForm({ nombre_completo: '', email: '', password: '', es_super_admin: false, rol_area: '', booking_url: '', areas_afinidad: [] });
       await load();
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
@@ -241,8 +263,21 @@ export default function Profesores() {
 
       {showNew && (
         <fieldset className="border border-inalde-gray-light rounded p-5 mb-6">
-          <legend className="px-2 text-sm font-primary font-semibold text-inalde-red">Nuevo profesor</legend>
+          <legend className="px-2 text-sm font-primary font-semibold text-inalde-red">{form.rol_area ? 'Nuevo usuario de área' : 'Nuevo profesor'}</legend>
           <div className="grid sm:grid-cols-2 gap-4 mt-2">
+            <div className="sm:col-span-2">
+              <Field label="Tipo de usuario">
+                <select value={form.rol_area} onChange={(e) => setForm({ ...form, rol_area: e.target.value as '' | RolArea, es_super_admin: false })} className="input-inalde">
+                  <option value="">Profesor (dirige trabajos de grado)</option>
+                  {ROLES_AREA.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta} (solo consulta la Programación Interna)</option>)}
+                </select>
+              </Field>
+              {form.rol_area && (
+                <p className="text-xs text-inalde-gray mt-1">
+                  Entrará al sistema únicamente para consultar y descargar la Programación Interna del evento. No dirige trabajos de grado ni aparece en la sábana de proyectos.
+                </p>
+              )}
+            </div>
             <Field label="Nombre completo">
               <input type="text" value={form.nombre_completo} onChange={(e) => setForm({ ...form, nombre_completo: e.target.value })} className="input-inalde" />
             </Field>
@@ -252,15 +287,19 @@ export default function Profesores() {
             <Field label="Clave temporal">
               <input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="input-inalde" placeholder="Min 8 chars, mayúscula, minúscula, número" />
             </Field>
-            <Field label="Booking URL (opcional)">
-              <input type="url" value={form.booking_url} onChange={(e) => setForm({ ...form, booking_url: e.target.value })} className="input-inalde" placeholder="https://calendly.com/..." />
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="Áreas de afinidad">
-                <AreasPicker value={form.areas_afinidad} onChange={(next) => setForm({ ...form, areas_afinidad: next })} />
-              </Field>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
+            {!form.rol_area && (
+              <>
+                <Field label="Booking URL (opcional)">
+                  <input type="url" value={form.booking_url} onChange={(e) => setForm({ ...form, booking_url: e.target.value })} className="input-inalde" placeholder="https://calendly.com/..." />
+                </Field>
+                <div className="sm:col-span-2">
+                  <Field label="Áreas de afinidad">
+                    <AreasPicker value={form.areas_afinidad} onChange={(next) => setForm({ ...form, areas_afinidad: next })} />
+                  </Field>
+                </div>
+              </>
+            )}
+            <label className={`flex items-center gap-2 text-sm ${form.rol_area ? 'hidden' : ''}`}>
               <input type="checkbox" checked={form.es_super_admin} onChange={(e) => setForm({ ...form, es_super_admin: e.target.checked })} />
               Es administrador (puede gestionar todo el sistema)
             </label>
@@ -366,9 +405,13 @@ export default function Profesores() {
                 <td className="px-3 py-2">
                   {p.es_super_admin
                     ? <span className="text-xs uppercase tracking-wider font-semibold text-inalde-red">Administrador</span>
-                    : <span className="text-xs text-inalde-gray">Profesor</span>}
+                    : p.tipo === 'area'
+                      ? <span className="text-xs uppercase tracking-wider font-semibold text-inalde-blue">Área</span>
+                      : <span className="text-xs text-inalde-gray">Profesor</span>}
                 </td>
-                <td className="px-3 py-2 text-xs text-inalde-gray">{p.areas_afinidad.join(', ') || '—'}</td>
+                <td className="px-3 py-2 text-xs text-inalde-gray">
+                  {p.tipo === 'area' ? <span className="italic">Programación Interna</span> : (p.areas_afinidad.join(', ') || '—')}
+                </td>
                 <td className="px-3 py-2">
                   <span className={`text-xs uppercase tracking-wider font-semibold ${p.activo ? 'text-inalde-blue' : 'text-inalde-gray'}`}>
                     {p.activo ? 'Activo' : 'Inactivo'}

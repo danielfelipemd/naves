@@ -109,7 +109,10 @@ router.post('/:cohorteId/generar', requireRole('super_admin'), async (req: Authe
 router.post('/:cohorteId/sugerir-asignacion', requireRole('super_admin'), async (req, res) => {
   const { cohorteId } = req.params;
   const [{ data: profesores }, { data: sabana }] = await Promise.all([
-    supabaseAdmin.from('profesores').select('id, nombre_completo, areas_afinidad').eq('activo', true),
+    // tipo='profesor': el staff de área (marketing, operaciones, asistente de
+    // programa) vive en esta misma tabla para reutilizar el login, pero no
+    // dirige trabajos de grado y no puede aparecer como director asignable.
+    supabaseAdmin.from('profesores').select('id, nombre_completo, areas_afinidad').eq('activo', true).eq('tipo', 'profesor'),
     supabaseAdmin.from('sabanas_proyectos').select('snapshot').eq('cohorte_id', cohorteId).maybeSingle(),
   ]);
 

@@ -57,6 +57,12 @@ export default function Programacion() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [notificando, setNotificando] = useState(false);
+  const [publicadaAt, setPublicadaAt] = useState<string | null>(null);
+  const [publicando, setPublicando] = useState(false);
+
+  // Publicada = definitiva. Deja de ser editable aquí y pasa a ser visible para
+  // marketing, operaciones y el asistente de programa.
+  const publicada = !!publicadaAt;
 
   async function notificar() {
     setNotificando(true); setMsg(null);
@@ -65,6 +71,36 @@ export default function Programacion() {
       setMsg({ kind: 'ok', text: `Notificados ${data.notificados} participante(s) de ${data.proyectos} proyecto(s) programado(s).` });
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setNotificando(false); }
+  }
+
+  async function publicar() {
+    // Doble confirmación a propósito: es irreversible y no hay botón para
+    // deshacerlo. Escribir PUBLICAR obliga a leer lo que va a pasar.
+    const asignados = jornadas.reduce((n, j) => n + j.slots.length, 0);
+    const aviso = [
+      'Vas a PUBLICAR la programación. Esto es definitivo:',
+      '',
+      `· Quedan fijos ${asignados} proyecto(s) en ${jornadas.length} jornada(s).`,
+      '· No podrás reordenar, agregar ni quitar proyectos nunca más.',
+      '· No podrás cambiar los tiempos del evento ni las jornadas.',
+      '· Marketing, operaciones y el asistente de programa la verán de inmediato.',
+      '· Se notificará a los participantes.',
+      '',
+      'No hay forma de deshacerlo desde el sistema.',
+      '',
+      'Escribe PUBLICAR para confirmar:',
+    ].join('\n');
+    if (prompt(aviso) !== 'PUBLICAR') return;
+
+    setPublicando(true); setMsg(null);
+    try {
+      const { data } = await api.post(`/programacion/admin/${cohorte}/publicar`, {});
+      setMsg(data.aviso
+        ? { kind: 'err', text: data.aviso }
+        : { kind: 'ok', text: `Programación publicada. Notificados ${data.notificados} participante(s) de ${data.proyectos} proyecto(s). Ya es visible para marketing, operaciones y el asistente de programa.` });
+      load();
+    } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
+    finally { setPublicando(false); }
   }
 
   useEffect(() => { (async () => {
@@ -78,6 +114,7 @@ export default function Programacion() {
       const { data } = await api.get(`/programacion/admin/${cohorte}`);
       setConfig(data.config); setJornadas(data.jornadas ?? []); setProyectos(data.proyectos ?? []);
       setSinDefinitivo(data.equipos_sin_definitivo ?? 0);
+      setPublicadaAt(data.publicada_at ?? null);
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setLoading(false); }
   }
@@ -130,16 +167,32 @@ export default function Programacion() {
         {cohorte && jornadas.length > 0 && (
           <>
             <button onClick={() => downloadFile(`/programacion/admin/${cohorte}/excel`, `NAVES_Programacion_${cohorte}.xlsx`)} className="btn-inalde-secondary !py-2 !px-4 !text-xs">↓ Excel de calificación</button>
-            <button onClick={notificar} disabled={notificando} className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-50" title="Avisa a cada participante la fecha y hora de su presentación">{notificando ? 'Notificando…' : '🔔 Notificar a participantes'}</button>
+            <button onClick={notificar} disabled={notificando} className="btn-inalde-secondary !py-2 !px-4 !text-xs disabled:opacity-50" title="Reenvía a cada participante la fecha y hora de su presentación">{notificando ? 'Notificando…' : '🔔 Reenviar aviso'}</button>
+            {!publicada && (
+              <button onClick={publicar} disabled={publicando || !jornadas.some((j) => j.slots.length > 0)} className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-50"
+                title="Deja la programación definitiva y la hace visible para marketing, operaciones y el asistente de programa">
+                {publicando ? 'Publicando…' : '🔒 Publicar programación'}
+              </button>
+            )}
           </>
         )}
       </div>
+
+      {publicada && (
+        <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-sm mb-5">
+          <p className="font-semibold text-inalde-text mb-0.5"><span aria-hidden="true">🔒 </span>Programación publicada — definitiva</p>
+          <p className="text-inalde-gray">
+            Se publicó el {new Date(publicadaAt!).toLocaleString('es-CO')}. Ya no se puede modificar: ni el orden, ni los tiempos, ni las jornadas.
+            Marketing, operaciones y el asistente de programa la están viendo en su Programación Interna.
+          </p>
+        </div>
+      )}
 
       {msg && <div className={`rounded border-l-4 px-4 py-3 text-sm mb-5 ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>{msg.text}</div>}
 
       {!cohorte ? null : loading ? <p className="text-inalde-gray">Cargando…</p> : (
         <>
-          {config && (
+          {config && !publicada && (
             <div className="bg-inalde-gray-bg/40 border border-inalde-gray-light rounded p-3 mb-5">
               <h3 className="text-xs font-primary font-semibold uppercase tracking-wider text-inalde-gray mb-2">Tiempos del evento (minutos)</h3>
               <div className="flex flex-wrap gap-3 items-end">
@@ -163,8 +216,16 @@ export default function Programacion() {
               <div className="bg-inalde-text text-white px-4 py-2.5 flex flex-wrap items-center gap-3">
                 <span className="font-primary font-extrabold tracking-widest uppercase text-sm"><span aria-hidden="true">📅 </span>Jornada {j.numero}</span>
                 <span className="text-white/70 text-sm capitalize">{j.fecha_legible ?? j.fecha} · inicio {(j.hora_inicio ?? '').slice(0, 5)}</span>
-                <label className="text-xs flex items-center gap-1 ml-auto"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
-                <label className="text-xs flex items-center gap-1">Intro <input type="number" value={j.intro_min} min={0} onChange={(e) => guardarJornada(j, { intro_min: Number(e.target.value) })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
+                {publicada ? (
+                  <span className="text-xs text-white/70 ml-auto">
+                    {j.foto_inicial ? 'Con foto inicial · ' : ''}Intro {j.intro_min} min
+                  </span>
+                ) : (
+                  <>
+                    <label className="text-xs flex items-center gap-1 ml-auto"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
+                    <label className="text-xs flex items-center gap-1">Intro <input type="number" value={j.intro_min} min={0} onChange={(e) => guardarJornada(j, { intro_min: Number(e.target.value) })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
+                  </>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse bg-white">
@@ -223,9 +284,13 @@ export default function Programacion() {
                           {!f.s.logo_url && !f.s.one_pager_url && <span className="text-[0.7rem] text-inalde-gray italic">—</span>}
                         </td>
                         <td className="px-2 py-2.5 text-right whitespace-nowrap">
-                          <button onClick={() => mover(j, f.idx, -1)} disabled={f.idx === 0} aria-label={`Subir ${f.s.proyecto}`} className="text-inalde-gray disabled:opacity-30 px-1">↑</button>
-                          <button onClick={() => mover(j, f.idx, 1)} disabled={f.idx === j.slots.length - 1} aria-label={`Bajar ${f.s.proyecto}`} className="text-inalde-gray disabled:opacity-30 px-1">↓</button>
-                          <button onClick={() => quitar(j, f.s.proyecto_id)} aria-label={`Quitar ${f.s.proyecto} de la jornada`} className="text-inalde-gray hover:text-inalde-red px-1">✕</button>
+                          {!publicada && (
+                            <>
+                              <button onClick={() => mover(j, f.idx, -1)} disabled={f.idx === 0} aria-label={`Subir ${f.s.proyecto}`} className="text-inalde-gray disabled:opacity-30 px-1">↑</button>
+                              <button onClick={() => mover(j, f.idx, 1)} disabled={f.idx === j.slots.length - 1} aria-label={`Bajar ${f.s.proyecto}`} className="text-inalde-gray disabled:opacity-30 px-1">↓</button>
+                              <button onClick={() => quitar(j, f.s.proyecto_id)} aria-label={`Quitar ${f.s.proyecto} de la jornada`} className="text-inalde-gray hover:text-inalde-red px-1">✕</button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -233,7 +298,7 @@ export default function Programacion() {
                   </tbody>
                 </table>
               </div>
-              {disponibles.length > 0 && (
+              {disponibles.length > 0 && !publicada && (
                 <div className="p-3">
                   <select onChange={(e) => { if (e.target.value) { asignar(j, e.target.value); e.target.value = ''; } }} className="input-inalde !py-1.5 text-sm">
                     <option value="">+ Agregar proyecto a esta jornada…</option>

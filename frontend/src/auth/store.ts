@@ -4,7 +4,14 @@ import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
 import { setCachedToken } from './token';
 
-type AppRole = 'participante' | 'profesor' | 'super_admin' | null;
+// Roles de área: staff interno (marketing, operaciones, asistente de programa)
+// que solo consulta la Programación Interna. Tienen app_role propio para que no
+// hereden el acceso del profesor al panel de administración.
+export const ROLES_AREA = ['marketing', 'operaciones', 'asistente_programa'] as const;
+export type RolArea = (typeof ROLES_AREA)[number];
+export type AppRole = 'participante' | 'profesor' | 'super_admin' | RolArea | null;
+
+export const esRolArea = (r: AppRole): r is RolArea => !!r && (ROLES_AREA as readonly string[]).includes(r);
 
 interface AuthState {
   session: Session | null;
@@ -23,6 +30,7 @@ interface AuthState {
 function roleFromUser(user: User | null): AppRole {
   const r = user?.app_metadata?.app_role as string | undefined;
   if (r === 'participante' || r === 'profesor' || r === 'super_admin') return r;
+  if (r && (ROLES_AREA as readonly string[]).includes(r)) return r as RolArea;
   return null;
 }
 

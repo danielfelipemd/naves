@@ -871,7 +871,7 @@ router.delete('/cohortes/:id', async (req, res) => {
 router.get('/profesores', async (_req, res) => {
   const { data, error } = await supabaseAdmin
     .from('profesores')
-    .select('id, auth_user_id, nombre_completo, email_encriptado, es_super_admin, activo, booking_url, areas_afinidad, ultimo_login, fecha_creacion')
+    .select('id, auth_user_id, nombre_completo, email_encriptado, es_super_admin, activo, tipo, booking_url, areas_afinidad, ultimo_login, fecha_creacion')
     .order('nombre_completo');
   if (error) return res.status(500).json({ error: error.message });
   const out = (data ?? []).map((p: any) => {
@@ -883,26 +883,39 @@ router.get('/profesores', async (_req, res) => {
   res.json(out);
 });
 
+// rol_area convierte el alta en "staff interno" en vez de docente: entra al
+// sistema con login por correo (por eso vive en `profesores`), pero su app_role
+// es el del área y NO aparece como director asignable en la sábana.
+const rolAreaEnum = z.enum(['marketing', 'operaciones', 'asistente_programa']);
+
 const createProfSchema = z.object({
   nombre_completo: z.string().min(2).max(150),
   email: z.string().email(),
   password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/\d/),
   es_super_admin: z.boolean().default(false),
+  rol_area: rolAreaEnum.optional(),
   booking_url: z.string().url().optional().nullable(),
   areas_afinidad: z.array(areaEnum).default([]),
+}).refine((d) => !(d.rol_area && d.es_super_admin), {
+  message: 'Un usuario de área no puede ser administrador',
+  path: ['rol_area'],
 });
+
 router.post('/profesores', async (req, res) => {
   const parsed = createProfSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
-  const { nombre_completo, email, password, es_super_admin, booking_url, areas_afinidad } = parsed.data;
+  const { nombre_completo, email, password, es_super_admin, rol_area, booking_url, areas_afinidad } = parsed.data;
   const supabaseUrl = process.env.SUPABASE_URL!;
   const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  const appRole = rol_area ?? 'profesor';
+  const tipo = rol_area ? 'area' : 'profesor';
 
   // crear auth user
   const createResp = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
     method: 'POST',
     headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, email_confirm: true, app_metadata: { app_role: 'profesor', es_super_admin } }),
+    body: JSON.stringify({ email, password, email_confirm: true, app_metadata: { app_role: appRole, es_super_admin } }),
   });
   if (!createResp.ok) {
     return res.status(400).json({ error: 'AUTH_USER_CREATE_FAILED', detail: await createResp.text() });
@@ -917,8 +930,9 @@ router.post('/profesores', async (req, res) => {
     email_hash: sha256Hex(email),
     es_super_admin,
     activo: true,
+    tipo,
     booking_url: booking_url ?? null,
-    areas_afinidad,
+    areas_afinidad: rol_area ? [] : areas_afinidad,
   }).select().single();
   if (error) return res.status(500).json({ error: error.message });
 
@@ -926,8 +940,19 @@ router.post('/profesores', async (req, res) => {
   await fetch(`${supabaseUrl}/auth/v1/admin/users/${authUser.id}`, {
     method: 'PUT',
     headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ app_metadata: { app_role: 'profesor', es_super_admin, profesor_id: prof.id } }),
+    body: JSON.stringify({ app_metadata: { app_role: appRole, es_super_admin, profesor_id: prof.id } }),
   });
+
+  // El permiso de la Programación Interna cuelga del rol RBAC, no del app_role.
+  // Sin esta asignación el usuario entraría y no vería absolutamente nada, y el
+  // admin no tendría forma de saber por qué: lo damos aquí en vez de exigir un
+  // segundo paso manual en Roles y permisos.
+  if (rol_area) {
+    const { data: rol } = await supabaseAdmin.from('roles').select('id').eq('nombre', rol_area).maybeSingle();
+    if (!rol) return res.status(500).json({ error: 'ROL_AREA_NO_EXISTE', detail: `Falta el rol '${rol_area}' (migración 30_programacion_interna.sql)` });
+    const { error: errRol } = await supabaseAdmin.from('usuario_roles').insert({ auth_user_id: authUser.id, rol_id: rol.id });
+    if (errRol) return res.status(500).json({ error: 'ROL_ASIGNACION_FALLIDA', detail: errRol.message });
+  }
 
   res.status(201).json({ profesor: prof });
 });

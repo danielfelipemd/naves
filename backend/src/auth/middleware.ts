@@ -3,10 +3,18 @@ import jwt from 'jsonwebtoken';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { config } from '../config.js';
 
+// Roles de área (Programación Interna). Se guardan como app_role propio, y NO
+// como 'profesor', a propósito: admin.ts deja pasar cualquier GET de un profesor
+// a /api/admin/*, así que reetiquetarlos como profesor les abriría el panel.
+// Con su propio app_role, requireRole('profesor'|'super_admin') los rechaza y su
+// acceso depende solo del permiso programacion_interna.ver.
+export type RolArea = 'marketing' | 'operaciones' | 'asistente_programa';
+export type AppRole = 'participante' | 'profesor' | 'super_admin' | RolArea;
+
 export interface AuthenticatedRequest extends Request {
   user?: {
     sub: string;
-    role: 'participante' | 'profesor' | 'super_admin';
+    role: AppRole;
     participanteId?: string;
     profesorId?: string;
     cohorteId?: string;
@@ -73,7 +81,7 @@ export function requireAuth() {
   };
 }
 
-export function requireRole(...roles: Array<'participante' | 'profesor' | 'super_admin'>) {
+export function requireRole(...roles: AppRole[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
     if (!roles.includes(req.user.role) && !req.user.isSuperAdmin) {

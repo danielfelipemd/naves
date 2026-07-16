@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { encryptPII, decryptPII, sha256Hex } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { sendEmail } from '../services/email.js';
+import { programacionPublicadaAt } from '../services/escaleta.js';
 
 // Módulo A (Fase 2) — Panelistas / Evaluadores.
 // Portal público por token (confirmar asistencia + logística) + panel admin.
@@ -162,9 +163,28 @@ router.get('/admin/:cohorteId/jornadas', ...soloAdmin, async (req, res) => {
   res.json(await jornadasDeCohorte(req.params.cohorteId));
 });
 
+// Las jornadas se crean aquí, pero la programación de presentaciones cuelga de
+// ellas: borrar una jornada arrastra sus slots en cascada. Una vez publicada la
+// programación es definitiva, así que estas tres escrituras quedan cerradas —
+// si no, se podría demoler por aquí lo que la otra pantalla ya no deja tocar.
+async function jornadasBloqueadas(cohorteId: string, res: any): Promise<boolean> {
+  const at = await programacionPublicadaAt(cohorteId);
+  if (at) {
+    res.status(423).json({ error: 'PROGRAMACION_PUBLICADA', publicada_at: at });
+    return true;
+  }
+  return false;
+}
+
+async function cohorteDeJornada(jornadaId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin.from('jornadas').select('cohorte_id').eq('id', jornadaId).maybeSingle();
+  return (data as any)?.cohorte_id ?? null;
+}
+
 router.post('/admin/:cohorteId/jornadas', ...soloAdmin, async (req, res) => {
   const parsed = jornadaSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  if (await jornadasBloqueadas(req.params.cohorteId, res)) return;
   const { data, error } = await supabaseAdmin.from('jornadas').insert({
     cohorte_id: req.params.cohorteId, ...parsed.data,
   }).select().single();
@@ -175,12 +195,18 @@ router.post('/admin/:cohorteId/jornadas', ...soloAdmin, async (req, res) => {
 router.put('/admin/jornada/:id', ...soloAdmin, async (req, res) => {
   const parsed = jornadaSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  const cohorteId = await cohorteDeJornada(req.params.id);
+  if (!cohorteId) return res.status(404).json({ error: 'NOT_FOUND' });
+  if (await jornadasBloqueadas(cohorteId, res)) return;
   const { error } = await supabaseAdmin.from('jornadas').update(parsed.data).eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
 
 router.delete('/admin/jornada/:id', ...soloAdmin, async (req, res) => {
+  const cohorteId = await cohorteDeJornada(req.params.id);
+  if (!cohorteId) return res.status(404).json({ error: 'NOT_FOUND' });
+  if (await jornadasBloqueadas(cohorteId, res)) return;
   const { error } = await supabaseAdmin.from('jornadas').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });

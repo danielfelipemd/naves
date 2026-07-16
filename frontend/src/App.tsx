@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './auth/store';
+import { useAuth, esRolArea } from './auth/store';
+import ProgramacionInterna from './pages/ProgramacionInterna';
 import Login from './pages/auth/Login';
 import Recovery from './pages/auth/Recovery';
 import ResetPassword from './pages/auth/ResetPassword';
@@ -34,12 +35,25 @@ import AdminAuditoria from './pages/admin/Auditoria';
 import AdminRolesPermisos from './pages/admin/RolesPermisos';
 
 function ProtectedRoute({ children, requierePerfilOk = false }: { children: React.ReactNode; requierePerfilOk?: boolean }) {
-  const { session, loading, requiereCambioClave, requierePerfil } = useAuth();
+  const { session, loading, role, requiereCambioClave, requierePerfil } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-inalde-gray">Cargando…</div>;
   if (!session) return <Navigate to="/login" replace />;
   if (requiereCambioClave) return <Navigate to="/cambiar-clave-inicial" replace />;
+  // El staff de área no es participante: el dashboard y las pantallas de equipo
+  // no significan nada para ellos. Su sistema es la Programación Interna.
+  if (esRolArea(role)) return <Navigate to="/programacion-interna" replace />;
   if (requierePerfilOk && requierePerfil) return <Navigate to="/mi-perfil" replace />;
   return <>{children}</>;
+}
+
+// Programación Interna: el staff de área y, para poder verificar lo que publica,
+// el super_admin. El backend manda igual (permiso programacion_interna.ver).
+function ProgramacionInternaRoute() {
+  const { session, loading, role } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-inalde-gray">Cargando…</div>;
+  if (!session) return <Navigate to="/login" replace />;
+  if (!esRolArea(role) && role !== 'super_admin') return <Navigate to="/" replace />;
+  return <ProgramacionInterna />;
 }
 
 function CambiarClaveRoute() {
@@ -93,6 +107,7 @@ export default function App() {
         <Route path="/mi-profesor" element={<ProtectedRoute><MiProfesor /></ProtectedRoute>} />
         <Route path="/sabana-proyectos" element={<ProtectedRoute><SabanaSocios /></ProtectedRoute>} />
         <Route path="/mi-presentacion" element={<ProtectedRoute><MiPresentacion /></ProtectedRoute>} />
+        <Route path="/programacion-interna" element={<ProgramacionInternaRoute />} />
         <Route path="/profesor/seleccionar-proyectos" element={<ProtectedRoute><ProfesorSeleccionarProyectos /></ProtectedRoute>} />
 
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
