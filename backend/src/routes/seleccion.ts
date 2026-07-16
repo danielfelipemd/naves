@@ -13,6 +13,7 @@ async function fetchEquipoConCohorte(equipoId: string) {
     .from('equipos')
     .select(`
       id, cohorte_id, creador_id, reunion_1_marcada_por, reunion_1_fecha_marcado, proyecto_definitivo_id,
+      reunion_1_profesor_at,
       cohortes ( fecha_reunion_1, fecha_limite_seleccion_definitivo )
     `)
     .eq('id', equipoId)
@@ -95,11 +96,15 @@ router.post('/equipos/:id/seleccionar-proyecto-definitivo', async (req: Authenti
   const fechas = equipo.cohortes as any;
   const ahoraD = new Date();
   // Reunión 1 marca el momento desde el que el creador puede elegir el definitivo.
-  if (fechas?.fecha_reunion_1 && ahoraD < new Date(fechas.fecha_reunion_1)) {
+  // Si el profesor ya registró en la sábana que tuvo la Reunión 1 con ESTE equipo,
+  // esa marca manda sobre la fecha general de la cohorte: la reunión ya ocurrió,
+  // así que no tiene sentido hacerlos esperar a una fecha de calendario.
+  const profesorMarcoReunion1 = !!(equipo as any).reunion_1_profesor_at;
+  if (!profesorMarcoReunion1 && fechas?.fecha_reunion_1 && ahoraD < new Date(fechas.fecha_reunion_1)) {
     return res.status(403).json({
       error: 'TOO_EARLY',
       fecha_reunion_1: fechas.fecha_reunion_1,
-      mensaje: 'Aún no puedes elegir el proyecto definitivo. Espera a que pase la Reunión 1.',
+      mensaje: 'Aún no puedes elegir el proyecto definitivo. Espera a que pase la Reunión 1 o a que tu profesor la registre.',
     });
   }
   if (fechas?.fecha_limite_seleccion_definitivo && ahoraD > new Date(fechas.fecha_limite_seleccion_definitivo)) {

@@ -18,6 +18,7 @@ interface Equipo {
   cohorte_id: string;
   proyecto_definitivo_id: string | null;
   fecha_seleccion_definitivo: string | null;
+  reunion_1_profesor_at: string | null;
 }
 interface Cohorte {
   fecha_reunion_1: string | null;
@@ -119,7 +120,11 @@ export default function SeleccionDefinitivo() {
           {estadoAnte !== 'borrador' && proyectos.length > 1 && !yaSeleccionado && (() => {
             const esCreador = !!(meParticipanteId && equipo?.creador_id === meParticipanteId);
             const fechaR1 = cohorte?.fecha_reunion_1 ? new Date(cohorte.fecha_reunion_1) : null;
-            const yaPasoR1 = !fechaR1 || new Date() >= fechaR1;
+            // Si el profesor ya registró la Reunión 1 con este equipo, se abre la
+            // selección aunque la fecha general de la cohorte no haya llegado:
+            // la reunión ya ocurrió. Debe coincidir con la regla del servidor.
+            const profesorMarcoR1 = !!equipo?.reunion_1_profesor_at;
+            const yaPasoR1 = profesorMarcoR1 || !fechaR1 || new Date() >= fechaR1;
             return (
             <>
               <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 mb-6">
@@ -134,7 +139,12 @@ export default function SeleccionDefinitivo() {
                 </p>
                 {esCreador && !yaPasoR1 && fechaR1 && (
                   <p className="text-xs text-inalde-gray mt-2 italic">
-                    Disponible a partir del {fechaR1.toLocaleDateString('es-CO', { dateStyle: 'medium' })}.
+                    Disponible a partir del {fechaR1.toLocaleDateString('es-CO', { dateStyle: 'medium' })}, o antes si tu profesor registra que ya tuvieron la Reunión 1.
+                  </p>
+                )}
+                {esCreador && profesorMarcoR1 && (
+                  <p className="text-xs text-inalde-red font-semibold mt-2">
+                    Tu profesor registró que ya tuvieron la Reunión 1: ya puedes elegir.
                   </p>
                 )}
               </div>
