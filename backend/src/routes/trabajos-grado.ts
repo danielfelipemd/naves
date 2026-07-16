@@ -26,12 +26,10 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
+// Ambos entregables van en PDF, y solo PDF: un Word se ve distinto en cada
+// equipo que lo abre, así que no sirve como versión de entrega.
 const MIME_ANTEPROYECTO = new Set(['application/pdf']);
-const MIME_PROYECTO_FINAL = new Set([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword',
-]);
+const MIME_PROYECTO_FINAL = new Set(['application/pdf']);
 
 const COL_PATH: Record<TipoArchivoTrabajo, string> = {
   'anteproyecto': 'archivo_anteproyecto_path',

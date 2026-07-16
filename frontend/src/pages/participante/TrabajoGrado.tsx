@@ -32,24 +32,16 @@ interface Anteproyecto {
   };
 }
 
+// Los dos entregables van en PDF, y solo PDF (el backend rechaza el resto).
 const MIME_ANTEPROYECTO_ACCEPT = '.pdf,application/pdf';
-const MIME_PROYECTO_FINAL_ACCEPT =
-  '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const MIME_PROYECTO_FINAL_ACCEPT = '.pdf,application/pdf';
 
-const MIME_ANTEPROYECTO_SET = new Set(['application/pdf']);
-const MIME_PROYECTO_FINAL_SET = new Set([
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-]);
+const MIME_PDF_SET = new Set(['application/pdf']);
 
-function aceptaMime(tipo: 'anteproyecto' | 'proyecto-final', file: File): boolean {
-  const set = tipo === 'anteproyecto' ? MIME_ANTEPROYECTO_SET : MIME_PROYECTO_FINAL_SET;
-  if (file.type) return set.has(file.type);
+function aceptaMime(_tipo: 'anteproyecto' | 'proyecto-final', file: File): boolean {
+  if (file.type) return MIME_PDF_SET.has(file.type);
   // Fallback por extension si el SO no manda mime
-  const ext = file.name.toLowerCase().split('.').pop();
-  if (tipo === 'anteproyecto') return ext === 'pdf';
-  return ext === 'pdf' || ext === 'doc' || ext === 'docx';
+  return file.name.toLowerCase().split('.').pop() === 'pdf';
 }
 
 const TITULO_MODALIDAD: Record<Modalidad, string> = {
@@ -125,12 +117,10 @@ function DropZone(props: {
       <p className="text-sm text-inalde-text font-medium">
         {subiendoEste ? 'Cargando…' : 'Arrastra el archivo aquí o haz clic para seleccionarlo'}
       </p>
-      <p className="text-xs text-inalde-gray mt-1">
-        {tipo === 'anteproyecto' ? 'PDF · máximo 25 MB' : 'PDF o Word · máximo 25 MB'}
-      </p>
+      <p className="text-xs text-inalde-gray mt-1">PDF · máximo 25 MB</p>
       {errMime && (
         <p className="text-xs text-inalde-red mt-2">
-          El tipo de archivo no es válido. {tipo === 'anteproyecto' ? 'Solo PDF.' : 'Solo PDF o Word.'}
+          El tipo de archivo no es válido. Solo PDF.
         </p>
       )}
     </div>
@@ -429,7 +419,7 @@ export default function TrabajoGrado() {
           <p className="text-inalde-gray mb-8 text-sm">
             {esCasoOPI
               ? <>Carga el <strong>anteproyecto</strong> en PDF. Tamaño máximo: 25 MB.</>
-              : <>Carga aquí tu <strong>proyecto final</strong> en PDF o Word. Tamaño máximo: 25 MB.</>}
+              : <>Carga aquí tu <strong>proyecto final</strong> en PDF. Tamaño máximo: 25 MB.</>}
           </p>
 
           {/* === Bloque 1: Anteproyecto (solo caso/PI) ====================
@@ -477,7 +467,7 @@ export default function TrabajoGrado() {
           {/* === Bloque 2: Proyecto final ================================= */}
           <div className={`border rounded p-5 mb-8 ${proyectoHabilitado ? 'border-inalde-gray-light' : 'border-inalde-gray-light bg-inalde-gray-bg/30'}`}>
             <div className="flex items-start justify-between gap-3 mb-2">
-              <h2 className="font-primary font-bold text-base">Proyecto final (PDF o Word)</h2>
+              <h2 className="font-primary font-bold text-base">Proyecto final (PDF)</h2>
               {!proyectoHabilitado && <span className="text-xs" aria-hidden="true">🔒</span>}
             </div>
 
