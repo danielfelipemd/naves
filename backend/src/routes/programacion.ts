@@ -4,7 +4,7 @@ import ExcelJS from 'exceljs';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole } from '../auth/middleware.js';
 import { notificar, limpiarNotificaciones } from '../services/notify.js';
-import { proyectosFase2, autoresAuthPorProyecto, contarEquiposSinDefinitivo, type ProyectoFase2 } from '../services/proyectos-fase2.js';
+import { proyectosFase2, autoresAuthPorProyecto, contarEquiposSinProyectoFinal, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
 // El motor de escaleta vive en services/escaleta.ts: lo comparte la Programación
 // Interna (marketing, operaciones, asistente de programa), que debe ver
@@ -88,7 +88,7 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
 
   res.json({
     cohorte_id: cohorteId, config: C, jornadas: jornadasOut, proyectos: proyectosDisponibles,
-    equipos_sin_definitivo: await contarEquiposSinDefinitivo(cohorteId),
+    equipos_sin_proyecto_final: await contarEquiposSinProyectoFinal(cohorteId),
     publicada_at: await programacionPublicadaAt(cohorteId),
   });
 });

@@ -44,7 +44,7 @@ export default function Programacion() {
   const [config, setConfig] = useState<Config | null>(null);
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
-  const [sinDefinitivo, setSinDefinitivo] = useState(0);
+  const [sinProyectoFinal, setSinProyectoFinal] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
 
   async function copiar(id: string, texto: string) {
@@ -113,7 +113,7 @@ export default function Programacion() {
     try {
       const { data } = await api.get(`/programacion/admin/${cohorte}`);
       setConfig(data.config); setJornadas(data.jornadas ?? []); setProyectos(data.proyectos ?? []);
-      setSinDefinitivo(data.equipos_sin_definitivo ?? 0);
+      setSinProyectoFinal(data.equipos_sin_proyecto_final ?? 0);
       setPublicadaAt(data.publicada_at ?? null);
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setLoading(false); }
@@ -254,7 +254,7 @@ export default function Programacion() {
                         <td className="w-[75px] text-center px-3 py-2.5">
                           {f.s.logo_url
                             ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[55px] max-h-[45px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
-                            : <span className="flex items-center justify-center w-[52px] h-[42px] mx-auto bg-inalde-gray-bg border border-inalde-gray-light font-primary font-extrabold text-[0.8rem] text-inalde-gray">{f.s.proyecto.slice(0, 2).toUpperCase()}</span>}
+                            : <span className="text-[0.7rem] text-inalde-gray italic">Sin logo</span>}
                         </td>
                         <td className="w-[120px] px-3 py-2.5 font-primary font-bold text-[0.85rem] text-inalde-text">{f.s.proyecto}</td>
                         <td className="w-[190px] px-3 py-2.5 text-[0.78rem] text-inalde-gray">{f.s.autores}</td>
@@ -312,9 +312,9 @@ export default function Programacion() {
           {disponibles.length > 0 && (
             <p className="text-xs text-inalde-gray">Proyectos sin asignar a ninguna jornada: <strong>{disponibles.length}</strong></p>
           )}
-          {sinDefinitivo > 0 && (
+          {sinProyectoFinal > 0 && (
             <p className="text-xs text-inalde-gray mt-1">
-              <strong>{sinDefinitivo}</strong> equipo(s) todavía no han elegido su proyecto definitivo, así que aún no son programables. Aparecerán aquí en cuanto hagan la selección.
+              <strong>{sinProyectoFinal}</strong> equipo(s) todavía no han entregado su proyecto final, así que aún no son programables. Aparecerán aquí en cuanto lo carguen.
             </p>
           )}
         </>
