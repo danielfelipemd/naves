@@ -13,9 +13,10 @@ interface Actividad { tipo: string; desc: string; hora_inicio: string; hora_fin:
 interface Jornada { id: string; numero: number; fecha: string; fecha_legible?: string; hora_inicio: string | null; foto_inicial: boolean; intro_min: number; slots: Slot[]; actividades: Actividad[]; }
 interface Proyecto { proyecto_id: string; equipo_id: string; proyecto: string; autores: string; sector: string; asignado: boolean; }
 
-// Color estable por sector: mismo sector, mismo color en toda la tabla. Tonos
-// oscuros de la paleta INALDE para que el texto blanco siempre contraste.
-const SECTOR_COLORS = ['#224d7c', '#1a4a6b', '#6b3f2a', '#3d5a3d', '#5a3d5a', '#7c4a22', '#2a4a4a', '#4a2a3d'];
+// Color estable por sector: mismo sector, mismo color en toda la tabla.
+// Solo tokens del sistema (tailwind.config.ts): azul, dorado, texto y rojo
+// oscuro. Los cuatro son oscuros, así que el texto blanco siempre contrasta.
+const SECTOR_COLORS = ['#224d7c', '#9f885f', '#1a1a1a', '#cc292b'];
 function colorSector(sector: string): string {
   let h = 0;
   for (let i = 0; i < sector.length; i++) h = (h * 31 + sector.charCodeAt(i)) >>> 0;
@@ -176,7 +177,7 @@ export default function Programacion() {
                   </thead>
                   <tbody>
                     {filasDe(j).map((f) => f.kind === 'actividad' ? (
-                      <tr key={`act-${f.a.tipo}-${f.a.hora_inicio}`} className="bg-[#faf6f0]">
+                      <tr key={`act-${f.a.tipo}-${f.a.hora_inicio}`} className="bg-inalde-gray-bg">
                         <td colSpan={9} className="border-l-4 border-inalde-red px-4 py-3">
                           <span className="font-primary font-extrabold text-[0.85rem] text-inalde-text">
                             <span aria-hidden="true">🕐 </span>{f.a.hora_inicio} – {f.a.hora_fin} hrs. — {f.a.desc}
@@ -210,15 +211,15 @@ export default function Programacion() {
                             <>
                               <div className="text-[0.76rem] leading-relaxed text-inalde-text mb-1.5">{f.s.linkedin}</div>
                               <button onClick={() => copiar(f.s.proyecto_id, f.s.linkedin!)}
-                                className={`font-primary font-bold text-[0.63rem] tracking-wider uppercase border px-2 py-1 transition-colors ${copied === f.s.proyecto_id ? 'bg-[#1a6b3c] text-white border-[#1a6b3c]' : 'border-inalde-gray-light text-inalde-gray hover:bg-inalde-text hover:text-white hover:border-inalde-text'}`}>
+                                className={`font-primary font-bold text-[0.63rem] tracking-wider uppercase border px-2 py-1 transition-colors ${copied === f.s.proyecto_id ? 'bg-inalde-blue text-white border-inalde-blue' : 'border-inalde-gray-light text-inalde-gray hover:bg-inalde-text hover:text-white hover:border-inalde-text'}`}>
                                 {copied === f.s.proyecto_id ? '✓ Copiado' : 'Copiar'}
                               </button>
                             </>
                           ) : <span className="text-[0.76rem] text-inalde-gray italic">Sin post</span>}
                         </td>
                         <td className="w-[130px] px-3 py-2.5">
-                          {f.s.logo_url && <a href={f.s.logo_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-[#f0f4f8] text-inalde-blue border border-inalde-blue hover:bg-inalde-blue hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>Logo</a>}
-                          {f.s.one_pager_url && <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-[#fff5f5] text-inalde-red border border-inalde-red hover:bg-inalde-red hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>One Pager</a>}
+                          {f.s.logo_url && <a href={f.s.logo_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-blue border border-inalde-blue hover:bg-inalde-blue hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>Logo</a>}
+                          {f.s.one_pager_url && <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-red border border-inalde-red hover:bg-inalde-red hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>One Pager</a>}
                           {!f.s.logo_url && !f.s.one_pager_url && <span className="text-[0.7rem] text-inalde-gray italic">—</span>}
                         </td>
                         <td className="px-2 py-2.5 text-right whitespace-nowrap">
