@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth } from '../auth/middleware.js';
 import { requirePermission } from '../auth/permissions.js';
 import { decryptPII } from '../auth/crypto.js';
-import { escaletaDeCohorte, toHHMM, programacionPublicadaAt, type Fila, type JornadaEscaleta } from '../services/escaleta.js';
+import { escaletaDeCohorte, toHHMM, type Fila, type JornadaEscaleta } from '../services/escaleta.js';
 
 // Programación Interna (Fase 2) — lo que marketing, operaciones y el asistente
 // de programa necesitan para saber qué actividad les toca. Solo lectura.
@@ -22,17 +22,40 @@ import { escaletaDeCohorte, toHHMM, programacionPublicadaAt, type Fila, type Jor
 const router = Router();
 router.use(requireAuth(), requirePermission('programacion_interna.ver'));
 
-// La gente de área no pertenece a una cohorte (no hay cohorte_id en su JWT), así
-// que la vista es siempre la cohorte activa. Si hubiera varias marcadas activas,
-// gana la que empieza más tarde.
-async function cohorteActiva(): Promise<{ id: string; etiqueta: string } | null> {
-  const { data } = await supabaseAdmin
+/**
+ * La cohorte que ven las áreas. No pertenecen a ninguna (no hay cohorte_id en su
+ * JWT), así que hay que resolverla.
+ *
+ * Se resuelve por PROGRAMACIÓN PUBLICADA, no por "la cohorte activa más
+ * reciente": puede haber varias cohortes marcadas activas a la vez (hoy conviven
+ * una real y una de pruebas), y esa heurística eligiría por fecha de inicio, que
+ * no tiene nada que ver con qué evento se está montando. Con esta regla lo que
+ * ven las áreas depende de un acto explícito del admin —publicar— y no de un
+ * campo que alguien dejó marcado.
+ *
+ * Si hubiera varias publicadas, gana la última publicada.
+ */
+async function cohorteDeLasAreas(): Promise<{ id: string; etiqueta: string; publicada_at: string } | null> {
+  const { data: configs } = await supabaseAdmin
+    .from('programacion_config')
+    .select('cohorte_id, publicada_at')
+    .not('publicada_at', 'is', null)
+    .order('publicada_at', { ascending: false });
+  if (!configs?.length) return null;
+
+  // Solo cohortes activas: una publicada de un evento ya cerrado no debe
+  // reaparecer si alguien vuelve a activar algo.
+  const { data: cohortes } = await supabaseAdmin
     .from('cohortes').select('id, etiqueta')
     .eq('activa', true)
-    .order('fecha_inicio', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data as any) ?? null;
+    .in('id', configs.map((c: any) => c.cohorte_id));
+  const activas = new Map((cohortes ?? []).map((c: any) => [c.id, c.etiqueta]));
+
+  for (const c of configs as any[]) {
+    const etiqueta = activas.get(c.cohorte_id);
+    if (etiqueta) return { id: c.cohorte_id, etiqueta, publicada_at: c.publicada_at };
+  }
+  return null;
 }
 
 function filaPublica(f: Fila) {
@@ -169,21 +192,13 @@ async function armarProgramacion(cohorteId: string) {
  * `publicada_at` y no "¿hay slots?".
  */
 router.get('/', async (_req, res) => {
-  const cohorte = await cohorteActiva();
-  if (!cohorte) return res.json({ publicada: false, motivo: 'SIN_COHORTE_ACTIVA', jornadas: [] });
-
-  const publicadaAt = await programacionPublicadaAt(cohorte.id);
-  if (!publicadaAt) {
-    return res.json({
-      publicada: false, motivo: 'NO_PUBLICADA',
-      cohorte: cohorte.etiqueta, jornadas: [],
-    });
-  }
+  const cohorte = await cohorteDeLasAreas();
+  if (!cohorte) return res.json({ publicada: false, motivo: 'NO_PUBLICADA', jornadas: [] });
 
   const { evento_nombre, jornadas } = await armarProgramacion(cohorte.id);
   res.json({
     publicada: true,
-    publicada_at: publicadaAt,
+    publicada_at: cohorte.publicada_at,
     evento_nombre,
     cohorte: cohorte.etiqueta,
     jornadas: jornadas.map((j) => ({
@@ -202,9 +217,8 @@ router.get('/', async (_req, res) => {
  * Dos hojas por jornada: la escaleta y la lista de panelistas con su logística.
  */
 router.get('/excel', async (_req, res) => {
-  const cohorte = await cohorteActiva();
-  if (!cohorte) return res.status(404).json({ error: 'SIN_COHORTE_ACTIVA' });
-  if (!(await programacionPublicadaAt(cohorte.id))) return res.status(404).json({ error: 'PROGRAMACION_NO_PUBLICADA' });
+  const cohorte = await cohorteDeLasAreas();
+  if (!cohorte) return res.status(404).json({ error: 'PROGRAMACION_NO_PUBLICADA' });
 
   const { evento_nombre, jornadas } = await armarProgramacion(cohorte.id);
   if (!jornadas.length) return res.status(404).json({ error: 'PROGRAMACION_NO_PUBLICADA' });
