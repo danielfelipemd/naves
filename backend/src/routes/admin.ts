@@ -1777,6 +1777,20 @@ router.post('/equipos', async (req, res) => {
     return res.status(500).json({ error: errM.message });
   }
 
+  // Crear el anteproyecto en borrador — IGUAL que el flujo del participante
+  // (POST /api/equipos). Falto durante mucho tiempo aqui: los equipos creados
+  // desde el panel nacian sin anteproyecto y sus miembros quedaban atrapados
+  // (el formulario cargaba sin id, el autoguardado no subia nada y "Enviar"
+  // no hacia nada). Se verifica el error y se revierte para no dejar el equipo
+  // a medias.
+  const { error: errAnte } = await supabaseAdmin
+    .from('anteproyectos')
+    .insert({ equipo_id: nuevoEquipo.id, ultimo_editor_id: miembros_ids[0] });
+  if (errAnte) {
+    await supabaseAdmin.from('equipos').delete().eq('id', nuevoEquipo.id); // miembros caen por cascade
+    return res.status(500).json({ error: 'ANTEPROYECTO_CREATE_FAILED', detail: errAnte.message });
+  }
+
   // Copiar perfil emprendedor de cada participante a su fila de miembros_equipo
   for (const m of miembrosInsertados ?? []) {
     await copyPerfilParticipanteAMiembro(m.participante_id, m.id);
