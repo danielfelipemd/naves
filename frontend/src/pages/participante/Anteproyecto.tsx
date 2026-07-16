@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 // Bloquea pegar y arrastrar texto en cualquier input. Por integridad académica.
 const noPasteProps = {
@@ -632,9 +632,13 @@ export default function Anteproyecto() {
 
       {/* Progress bar fija arriba */}
       <div className="fixed top-[140px] inset-x-0 z-40 px-4">
-        <div className="max-w-[1100px] mx-auto h-1.5 bg-inalde-gray-light/80 backdrop-blur rounded-full overflow-hidden shadow">
+        <div className="max-w-[1100px] mx-auto h-1.5 bg-inalde-gray-light/80 backdrop-blur rounded-full overflow-hidden shadow"
+          role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}
+          aria-label="Progreso del anteproyecto">
           <div
-            className="h-full bg-gradient-to-r from-inalde-red via-inalde-red-hover to-inalde-gold transition-all duration-300"
+            // transition-[width] en vez de transition-all (solo animamos el ancho)
+            // y sin animación si el usuario pidió menos movimiento.
+            className="h-full bg-gradient-to-r from-inalde-red via-inalde-red-hover to-inalde-gold transition-[width] duration-300 motion-reduce:transition-none"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -854,8 +858,11 @@ export default function Anteproyecto() {
             </fieldset>
           </div>
 
+          {/* Errores de validación del envío: hay que anunciarlos (el usuario
+              acaba de pulsar "Enviar" y el foco sigue en el botón). */}
           {msg && (
-            <div className={`mt-8 rounded border-l-4 px-4 py-3 text-sm whitespace-pre-line ${
+            <div role={msg.kind === 'err' ? 'alert' : 'status'} aria-live="polite"
+              className={`mt-8 rounded border-l-4 px-4 py-3 text-sm whitespace-pre-line ${
               msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'
             }`}>{msg.text}</div>
           )}
@@ -865,18 +872,19 @@ export default function Anteproyecto() {
               <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
                 ← Dashboard
               </button>
-              <div className="flex items-center gap-3">
-                {/* Indicador REAL del guardado (antes era un texto fijo que no
-                    verificaba nada). Si el servidor no responde hay que decirlo. */}
+              {/* Indicador REAL del guardado (antes era un texto fijo que no
+                  verificaba nada). Si el servidor no responde hay que decirlo.
+                  aria-live: es una actualización asíncrona, hay que anunciarla. */}
+              <div className="flex items-center gap-3" aria-live="polite">
                 {saveState.kind === 'error' ? (
                   <span className="text-xs font-semibold text-inalde-red mr-1" title="Tu trabajo sigue respaldado en este navegador">
-                    ⚠ No se pudo guardar en el servidor — reintentando
+                    <span aria-hidden="true">⚠ </span>No se pudo guardar en el servidor — reintentando
                   </span>
                 ) : saveState.kind === 'saving' ? (
                   <span className="text-xs text-inalde-gray italic mr-1">Guardando…</span>
                 ) : saveState.kind === 'saved' ? (
                   <span className="text-xs text-inalde-blue mr-1">
-                    ✓ Guardado {new Date(saveState.at!).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    <span aria-hidden="true">✓ </span>Guardado {new Date(saveState.at!).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}
                   </span>
                 ) : (
                   <span className="text-xs text-inalde-gray italic mr-1">Autoguardado activo</span>
@@ -909,17 +917,30 @@ function SectionHeader({ n, title }: { n: number; title: string }) {
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   const safeLabel = (label ?? '').trim();
   const esPregunta = /^¿/.test(safeLabel) || /\?$/.test(safeLabel);
+  // La etiqueta debe quedar ASOCIADA al control: antes eran hermanos sueltos
+  // (sin htmlFor ni <label> envolvente), así que hacer clic en la etiqueta no
+  // enfocaba el campo y un lector de pantalla no lo anunciaba. No podemos
+  // envolver con <label> porque algunos controles traen su propio botón dentro
+  // (TextareaWithCounter), lo que sería HTML inválido: usamos htmlFor + id.
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const control = isValidElement(children)
+    ? cloneElement(children as React.ReactElement<any>, {
+        id,
+        ...(hint ? { 'aria-describedby': hintId } : {}),
+      })
+    : children;
   return (
     <div className="mt-4">
-      <label className={`block font-primary font-semibold mb-1 ${
+      <label htmlFor={id} className={`block font-primary font-semibold mb-1 ${
         esPregunta
           ? 'text-sm text-inalde-red'
           : 'text-xs tracking-wider uppercase text-inalde-gray'
       }`}>
         {label}
       </label>
-      {hint && <p className="text-xs text-inalde-gray italic mb-2">{hint}</p>}
-      {children}
+      {hint && <p id={hintId} className="text-xs text-inalde-gray italic mb-2">{hint}</p>}
+      {control}
     </div>
   );
 }
@@ -941,8 +962,10 @@ function RadioGroup({ value, onChange, options }: {
   );
 }
 
-function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder }: {
+function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder, id, 'aria-describedby': ariaDescribedBy }: {
   value: string; onChange: (v: string) => void; max: number; rows?: number; placeholder?: string;
+  // Los recibe de <Field> para que la etiqueta quede asociada al textarea.
+  id?: string; 'aria-describedby'?: string;
 }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -999,11 +1022,13 @@ function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder }: {
 
   return (
     <div>
-      <textarea ref={taRef} value={value} maxLength={max} rows={rows} placeholder={placeholder}
+      <textarea id={id} aria-describedby={ariaDescribedBy} ref={taRef} value={value} maxLength={max} rows={rows} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
+        // Bloqueo de pegar: decisión deliberada de integridad académica de INALDE.
         onPaste={(e) => { e.preventDefault(); alert('Por integridad académica, no se permite pegar texto. Escribe tu propia respuesta.'); }}
         onDrop={(e) => e.preventDefault()}
+        autoComplete="off"
         className="input-inalde resize-none" />
       <div className="flex justify-between items-center mt-1 gap-3">
         <button type="button" onClick={insertBullet}
@@ -1129,17 +1154,26 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
           const isManual = manualHitos.has(hi) || (h.descripcion !== '' && !matchesPreset);
           const dropdownValue = isManual ? '__custom__' : (matchesPreset ? h.descripcion : '');
           const otherDescs = new Set(proyecto.hitos.filter((_, oi) => oi !== hi).map((o) => o.descripcion));
+          // Id estable y único (no podemos usar useId dentro del map).
+          const hitoId = `hito-p${proyecto.posicion}-${hi}`;
           return (
           <div key={hi} className="flex flex-wrap sm:flex-nowrap items-end gap-3 p-4 rounded bg-inalde-gray-bg/40 border-l-[3px] border-inalde-gold">
             <div className="w-12 shrink-0 text-center pt-7 text-inalde-gray font-bold">#{h.posicion}</div>
 
             <div className="flex-1 min-w-[200px]">
-              <Field label="Hito">
+              {/* Aquí NO usamos <Field>: su id caería en el <div> contenedor y el
+                  htmlFor apuntaría a un elemento no enfocable. Id explícito
+                  (único por proyecto + fila) directo sobre el control. */}
+              <div className="mt-4">
+                <label htmlFor={hitoId} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">
+                  Hito
+                </label>
                 {isManual ? (
                   <div className="flex gap-2 items-stretch">
-                    <input type="text" value={h.descripcion} maxLength={100}
+                    <input id={hitoId} type="text" value={h.descripcion} maxLength={100}
                       placeholder="Describe tu hito (ej. Validación con 20 clientes)"
                       autoFocus={!h.descripcion}
+                      autoComplete="off"
                       onChange={(e) => onUpdateHito(hi, { descripcion: e.target.value })}
                       className="input-inalde flex-1" {...noPasteProps} />
                     <button type="button"
@@ -1148,7 +1182,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
                       className="text-xs text-inalde-gray hover:text-inalde-red px-3 border border-inalde-gray-light rounded">↩</button>
                   </div>
                 ) : (
-                  <select value={dropdownValue}
+                  <select id={hitoId} value={dropdownValue}
                     onChange={(e) => {
                       const v = e.target.value;
                       if (v === '__custom__') {
@@ -1174,7 +1208,7 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
                     <option value="__custom__">+ Otro (manual)…</option>
                   </select>
                 )}
-              </Field>
+              </div>
             </div>
 
             {(() => {

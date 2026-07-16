@@ -4,13 +4,16 @@ import { api } from '../../lib/api';
 interface Props {
   value: string;
   onChange: (codigo: string) => void;
+  // Los inyecta <Field> para asociar la etiqueta con el input de búsqueda.
+  id?: string;
+  'aria-describedby'?: string;
 }
 
 interface Option { codigo: string; descripcion: string; seccion: string; }
 
 let cache: Option[] | null = null;
 
-export function CiiuPicker({ value, onChange }: Props) {
+export function CiiuPicker({ value, onChange, id, 'aria-describedby': ariaDescribedBy }: Props) {
   const [query, setQuery] = useState('');
   const [all, setAll] = useState<Option[]>(cache ?? []);
   const [open, setOpen] = useState(false);
@@ -59,12 +62,16 @@ export function CiiuPicker({ value, onChange }: Props) {
   return (
     <div ref={wrapRef} className="relative">
       <input
+        id={id}
+        aria-describedby={ariaDescribedBy}
         type="text"
         value={open ? query : selectedLabel}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => { setOpen(true); setQuery(''); }}
         placeholder={loading ? 'Cargando códigos…' : 'Haz click y elige de la lista, o busca por código o descripción'}
         className="input-inalde"
+        autoComplete="off"
+        spellCheck={false}
         disabled={loading}
       />
       {open && (

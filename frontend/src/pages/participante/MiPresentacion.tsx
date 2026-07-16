@@ -80,7 +80,7 @@ export default function MiPresentacion() {
               {data.autores && <p className="text-xs text-inalde-gray mb-6">Integrantes: {data.autores}</p>}
 
               <button onClick={agregarCalendario} disabled={bajando} className="btn-inalde-primary inline-flex disabled:opacity-60">
-                {bajando ? 'Generando…' : '🗓 Agregar a mi calendario'}
+                {bajando ? 'Generando…' : <><span aria-hidden="true">🗓 </span>Agregar a mi calendario</>}
               </button>
               <p className="text-[11px] text-inalde-gray mt-2">Descarga un archivo <code>.ics</code> compatible con Google Calendar, Apple Calendar y Outlook. Incluye un recordatorio el día anterior.</p>
             </>

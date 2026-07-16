@@ -43,7 +43,7 @@ export default function ConfirmarAsistencia() {
       <main className="max-w-[680px] mx-auto px-4 py-8">
         {loading ? <p className="text-inalde-gray">Cargando…</p> :
           error ? (
-            <div className="bg-white rounded-lg shadow-inalde-card p-6 border-l-4 border-inalde-red">
+            <div role="alert" className="bg-white rounded-lg shadow-inalde-card p-6 border-l-4 border-inalde-red">
               <h1 className="font-primary font-bold text-lg mb-1">No pudimos abrir tu enlace</h1>
               <p className="text-sm text-inalde-gray">{error}</p>
               <p className="text-sm text-inalde-gray mt-2">Si crees que es un error, escríbele al coordinador del programa para que te reenvíe el enlace.</p>
@@ -60,8 +60,8 @@ export default function ConfirmarAsistencia() {
               </div>
 
               {confirmado && (
-                <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-sm mb-5">
-                  ✓ Ya registramos tu confirmación. Puedes actualizar tus datos cuando quieras con el botón de abajo.
+                <div role="status" className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-sm mb-5">
+                  <span aria-hidden="true">✓ </span>Ya registramos tu confirmación. Puedes actualizar tus datos cuando quieras con el botón de abajo.
                 </div>
               )}
 
