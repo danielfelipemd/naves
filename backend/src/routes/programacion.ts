@@ -4,9 +4,12 @@ import ExcelJS from 'exceljs';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole } from '../auth/middleware.js';
 import { notificar, limpiarNotificaciones } from '../services/notify.js';
+import { proyectosFase2, autoresAuthPorProyecto, contarEquiposSinDefinitivo, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 
 // Módulo B (Fase 2) — Calendario / Programación de presentaciones.
-// Asigna equipos (proyectos) a slots por jornada y calcula los horarios.
+// Asigna PROYECTOS DEFINITIVOS a slots por jornada y calcula los horarios.
+// La Fase 2 va después de la selección: un equipo que aún no eligió su proyecto
+// definitivo no es programable (ver datosProyectos).
 
 const router = Router();
 const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
@@ -29,21 +32,21 @@ function fechaLegibleProg(iso: string): string {
 }
 
 interface Config { expo: number; trans: number; foto: number; cierre: number; break_min: number; bloque: number; }
-interface Fila { tipo: string; slot?: number; equipo_id?: string | null; proyecto?: string; autores?: string; sector?: string; ini: number; fin: number; desc?: string; }
+interface Fila { tipo: string; slot?: number; proyecto_id?: string | null; proyecto?: string; autores?: string; sector?: string; ini: number; fin: number; desc?: string; }
 
 // Porta construirDia del prototipo: dado la hora de inicio (1ª presentación),
 // si hay foto/intro y la lista de equipos, devuelve las filas con horarios.
-function computarJornada(inicioMin: number, foto: boolean, introMin: number, equipos: Array<any>, slotBase: number, esUltimoDia: boolean, C: Config): Fila[] {
+function computarJornada(inicioMin: number, foto: boolean, introMin: number, proyectos: Array<any>, slotBase: number, esUltimoDia: boolean, C: Config): Fila[] {
   const filas: Fila[] = [];
   // Foto + intro se programan HACIA ATRÁS, terminando justo antes del slot 1.
   let t = inicioMin - C.trans - introMin - (foto ? C.foto : 0);
   if (foto) { filas.push({ tipo: 'foto', desc: 'Toma de foto de grupo — Puerta principal', ini: t, fin: t + C.foto }); t += C.foto; }
   filas.push({ tipo: 'intro', desc: 'Introducción', ini: t, fin: t + introMin }); t += introMin;
   t += C.trans; // t == inicioMin
-  const total = equipos.length;
+  const total = proyectos.length;
   for (let i = 0; i < total; i++) {
-    const e = equipos[i];
-    filas.push({ tipo: 'proyecto', slot: slotBase + i, equipo_id: e.equipo_id, proyecto: e.proyecto, autores: e.autores, sector: e.sector, ini: t, fin: t + C.expo });
+    const e = proyectos[i];
+    filas.push({ tipo: 'proyecto', slot: slotBase + i, proyecto_id: e.proyecto_id, proyecto: e.proyecto, autores: e.autores, sector: e.sector, ini: t, fin: t + C.expo });
     t += C.expo;
     const count = i + 1;
     const finBloque = count % C.bloque === 0;
@@ -62,30 +65,6 @@ function computarJornada(inicioMin: number, foto: boolean, introMin: number, equ
   return filas;
 }
 
-// Datos de presentación de cada equipo de la cohorte (proyecto + autores + sector).
-function pickAnte(raw: any) { return Array.isArray(raw) ? raw[0] : raw; }
-async function datosEquipos(cohorteId: string): Promise<Map<string, { proyecto: string; autores: string; sector: string }>> {
-  const { data } = await supabaseAdmin
-    .from('equipos')
-    .select('id, nombre_equipo, miembros_equipo(posicion, participantes_lista(nombre_completo)), anteproyectos(proyectos(nombre, sector, estado_seleccion, posicion))')
-    .eq('cohorte_id', cohorteId);
-  const map = new Map<string, { proyecto: string; autores: string; sector: string }>();
-  for (const e of (data ?? []) as any[]) {
-    const autores = ((e.miembros_equipo ?? []) as any[])
-      .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
-      .map((m) => m.participantes_lista?.nombre_completo).filter(Boolean).join(', ');
-    const proyectos = ((pickAnte(e.anteproyectos)?.proyectos ?? []) as any[])
-      .filter((p) => p.estado_seleccion !== 'archivado')
-      .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0));
-    map.set(e.id, {
-      proyecto: proyectos.map((p) => p.nombre).filter(Boolean).join(' / ') || (e.nombre_equipo ?? '(sin proyecto)'),
-      autores,
-      sector: proyectos[0]?.sector ?? '',
-    });
-  }
-  return map;
-}
-
 async function getConfig(cohorteId: string): Promise<Config & { evento_nombre: string }> {
   const { data } = await supabaseAdmin.from('programacion_config').select('*').eq('cohorte_id', cohorteId).maybeSingle();
   const c: any = data ?? {};
@@ -97,47 +76,50 @@ async function getConfig(cohorteId: string): Promise<Config & { evento_nombre: s
 }
 
 // Estado completo de una jornada (filas calculadas).
-async function jornadaConSlots(jornada: any, C: Config, esUltimo: boolean, eq: Map<string, any>) {
+async function jornadaConSlots(jornada: any, C: Config, esUltimo: boolean, pf: Map<string, ProyectoFase2>) {
   const { data: slots } = await supabaseAdmin
-    .from('slot_presentacion').select('orden, equipo_id').eq('jornada_id', jornada.id).order('orden');
-  const equipos = (slots ?? []).map((s: any) => ({ equipo_id: s.equipo_id, ...(eq.get(s.equipo_id) ?? { proyecto: '(sin asignar)', autores: '', sector: '' }) }));
-  const filas = computarJornada(toMin(jornada.hora_inicio), !!jornada.foto_inicial, jornada.intro_min ?? 0, equipos, 1, esUltimo, C);
-  return { jornada, equipos, filas };
+    .from('slot_presentacion').select('orden, proyecto_id').eq('jornada_id', jornada.id).order('orden');
+  const proyectos = (slots ?? []).map((s: any) => ({ ...(pf.get(s.proyecto_id) ?? { proyecto: '(sin asignar)', autores: '', sector: '' }), proyecto_id: s.proyecto_id }));
+  const filas = computarJornada(toMin(jornada.hora_inicio), !!jornada.foto_inicial, jornada.intro_min ?? 0, proyectos, 1, esUltimo, C);
+  return { jornada, proyectos, filas };
 }
 
 // GET /api/programacion/admin/:cohorteId — estado completo
 router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const C = await getConfig(cohorteId);
-  const eq = await datosEquipos(cohorteId);
+  const pf = await proyectosFase2(cohorteId);
   const { data: jornadas } = await supabaseAdmin
     .from('jornadas').select('id, numero, fecha, hora_inicio, hora_fin, foto_inicial, intro_min')
     .eq('cohorte_id', cohorteId).order('numero');
 
   const jornadasOut = [];
   for (let i = 0; i < (jornadas ?? []).length; i++) {
-    const jc = await jornadaConSlots((jornadas as any[])[i], C, i === (jornadas ?? []).length - 1, eq);
+    const jc = await jornadaConSlots((jornadas as any[])[i], C, i === (jornadas ?? []).length - 1, pf);
     jornadasOut.push({
       id: jc.jornada.id, numero: jc.jornada.numero, fecha: jc.jornada.fecha,
       hora_inicio: jc.jornada.hora_inicio, hora_fin: jc.jornada.hora_fin,
       foto_inicial: jc.jornada.foto_inicial, intro_min: jc.jornada.intro_min,
       slots: jc.filas.filter((f) => f.tipo === 'proyecto').map((f) => ({
-        slot: f.slot, equipo_id: f.equipo_id, proyecto: f.proyecto, autores: f.autores, sector: f.sector,
+        slot: f.slot, proyecto_id: f.proyecto_id, proyecto: f.proyecto, autores: f.autores, sector: f.sector,
         hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin),
       })),
       actividades: jc.filas.filter((f) => f.tipo !== 'proyecto').map((f) => ({ tipo: f.tipo, desc: f.desc, hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin) })),
     });
   }
 
-  // Equipos disponibles (todos los de la cohorte, con marca de asignado)
+  // Proyectos programables: los definitivos de la cohorte, con marca de asignado.
   const { data: slotsAll } = await supabaseAdmin
-    .from('slot_presentacion').select('equipo_id, jornada_id')
+    .from('slot_presentacion').select('proyecto_id, jornada_id')
     .in('jornada_id', (jornadas ?? []).map((j: any) => j.id));
-  const asignados = new Set((slotsAll ?? []).map((s: any) => s.equipo_id).filter(Boolean));
-  const equiposDisponibles = [...eq.entries()].map(([id, d]) => ({ equipo_id: id, ...d, asignado: asignados.has(id) }))
+  const asignados = new Set((slotsAll ?? []).map((s: any) => s.proyecto_id).filter(Boolean));
+  const proyectosDisponibles = [...pf.values()].map((d) => ({ ...d, asignado: asignados.has(d.proyecto_id) }))
     .sort((a, b) => a.proyecto.localeCompare(b.proyecto));
 
-  res.json({ cohorte_id: cohorteId, config: C, jornadas: jornadasOut, equipos: equiposDisponibles });
+  res.json({
+    cohorte_id: cohorteId, config: C, jornadas: jornadasOut, proyectos: proyectosDisponibles,
+    equipos_sin_definitivo: await contarEquiposSinDefinitivo(cohorteId),
+  });
 });
 
 // PUT config
@@ -159,11 +141,11 @@ router.put('/admin/:cohorteId/config', ...soloAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
-// PUT jornada — config + asignación ordenada de equipos, recalcula y persiste horarios
+// PUT jornada — config + asignación ordenada de proyectos, recalcula y persiste horarios
 const jornadaSchema = z.object({
   foto_inicial: z.boolean().optional(),
   intro_min: z.number().int().min(0).max(120).optional(),
-  equipo_ids: z.array(z.string().uuid()).optional(),
+  proyecto_ids: z.array(z.string().uuid()).optional(),
 });
 router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
   const parsed = jornadaSchema.safeParse(req.body);
@@ -178,11 +160,20 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
   const { data: jornada } = await supabaseAdmin.from('jornadas').select('id, cohorte_id, hora_inicio, foto_inicial, intro_min, numero').eq('id', jid).maybeSingle();
   if (!jornada) return res.status(404).json({ error: 'NOT_FOUND' });
 
-  if (parsed.data.equipo_ids !== undefined) {
+  if (parsed.data.proyecto_ids !== undefined) {
     const C = await getConfig((jornada as any).cohorte_id);
-    const eq = await datosEquipos((jornada as any).cohorte_id);
-    const equipos = parsed.data.equipo_ids.map((id) => ({ equipo_id: id, ...(eq.get(id) ?? { proyecto: '', autores: '', sector: '' }) }));
-    const filas = computarJornada(toMin((jornada as any).hora_inicio), !!(jornada as any).foto_inicial, (jornada as any).intro_min ?? 0, equipos, 1, false, C);
+    const pf = await proyectosFase2((jornada as any).cohorte_id);
+
+    // Solo se programan proyectos definitivos de esta cohorte. Un id ajeno o de
+    // un equipo que aún no eligió definitivo entraría como slot fantasma (sin
+    // nombre ni autores), así que se rechaza en vez de guardarlo.
+    const ajenos = parsed.data.proyecto_ids.filter((id) => !pf.has(id));
+    if (ajenos.length) return res.status(400).json({ error: 'PROYECTO_NO_PROGRAMABLE', proyecto_ids: ajenos });
+    const repetidos = parsed.data.proyecto_ids.length !== new Set(parsed.data.proyecto_ids).size;
+    if (repetidos) return res.status(400).json({ error: 'PROYECTO_DUPLICADO' });
+
+    const proyectos = parsed.data.proyecto_ids.map((id) => pf.get(id)!);
+    const filas = computarJornada(toMin((jornada as any).hora_inicio), !!(jornada as any).foto_inicial, (jornada as any).intro_min ?? 0, proyectos, 1, false, C);
     const slots = filas.filter((f) => f.tipo === 'proyecto');
     // Reemplazar slots de la jornada. OJO: es un borrar-y-reinsertar; si el
     // insert falla y no lo miramos, la jornada queda SIN horario y el admin
@@ -191,10 +182,14 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
     if (errDel) return res.status(500).json({ error: 'SLOTS_DELETE_FAILED', detail: errDel.message });
     if (slots.length) {
       const { error: errIns } = await supabaseAdmin.from('slot_presentacion').insert(slots.map((f) => ({
-        jornada_id: jid, orden: f.slot, equipo_id: f.equipo_id ?? null,
+        jornada_id: jid, orden: f.slot, proyecto_id: f.proyecto_id ?? null,
         hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin),
       })));
-      if (errIns) return res.status(500).json({ error: 'SLOTS_INSERT_FAILED', detail: errIns.message });
+      if (errIns) {
+        // uq_slot_proyecto: el proyecto ya está programado en OTRA jornada.
+        if (errIns.code === '23505') return res.status(409).json({ error: 'PROYECTO_YA_PROGRAMADO', detail: errIns.message });
+        return res.status(500).json({ error: 'SLOTS_INSERT_FAILED', detail: errIns.message });
+      }
     }
   }
   res.json({ ok: true });
@@ -204,7 +199,7 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
 router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const C = await getConfig(cohorteId);
-  const eq = await datosEquipos(cohorteId);
+  const pf = await proyectosFase2(cohorteId);
   const { data: jornadas } = await supabaseAdmin
     .from('jornadas').select('id, numero, fecha, hora_inicio, foto_inicial, intro_min')
     .eq('cohorte_id', cohorteId).order('numero');
@@ -218,7 +213,7 @@ router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
 
   for (let i = 0; i < (jornadas ?? []).length; i++) {
     const j: any = (jornadas as any[])[i];
-    const jc = await jornadaConSlots(j, C, i === (jornadas ?? []).length - 1, eq);
+    const jc = await jornadaConSlots(j, C, i === (jornadas ?? []).length - 1, pf);
     const ws = wb.addWorksheet((`J${j.numero} ${fechaLegible(j.fecha)}`).slice(0, 31), { views: [{ showGridLines: false }] });
     ws.columns = [{ width: 8 }, { width: 11 }, { width: 11 }, { width: 30 }, { width: 40 }, { width: 16 }, { width: 16 }, { width: 14 }] as any;
     ws.addRow([`${C.evento_nombre} — Hoja de calificación del panelista`]); ws.mergeCells('A1:H1'); ws.getCell('A1').font = { bold: true, size: 14 };
@@ -248,39 +243,34 @@ router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
 });
 
 // POST /admin/:cohorteId/notificar — publica la programación: notifica a los
-// integrantes de cada equipo ya asignado la fecha/hora de su presentación.
+// integrantes del equipo de cada proyecto ya asignado la fecha/hora de su
+// presentación.
 router.post('/admin/:cohorteId/notificar', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const { data: jornadas } = await supabaseAdmin
     .from('jornadas').select('id, numero, fecha').eq('cohorte_id', cohorteId);
   const jById = new Map((jornadas ?? []).map((j: any) => [j.id, j]));
   const ids = (jornadas ?? []).map((j: any) => j.id);
-  if (!ids.length) return res.json({ ok: true, notificados: 0, equipos: 0 });
+  if (!ids.length) return res.json({ ok: true, notificados: 0, proyectos: 0 });
 
   const { data: slots } = await supabaseAdmin
-    .from('slot_presentacion').select('jornada_id, orden, equipo_id, hora_inicio, hora_fin').in('jornada_id', ids);
-  const asignados = (slots ?? []).filter((s: any) => s.equipo_id);
-  if (!asignados.length) return res.json({ ok: true, notificados: 0, equipos: 0 });
+    .from('slot_presentacion').select('jornada_id, orden, proyecto_id, hora_inicio, hora_fin').in('jornada_id', ids);
+  const asignados = (slots ?? []).filter((s: any) => s.proyecto_id);
+  if (!asignados.length) return res.json({ ok: true, notificados: 0, proyectos: 0 });
 
-  // Integrantes (auth_user_id) por equipo
-  const equipoIds = [...new Set(asignados.map((s: any) => s.equipo_id))];
-  const { data: miembros } = await supabaseAdmin
-    .from('miembros_equipo')
-    .select('equipo_id, participantes_lista(auth_user_id)')
-    .in('equipo_id', equipoIds as string[]);
-  const authsPorEquipo = new Map<string, string[]>();
-  for (const m of (miembros ?? []) as any[]) {
-    const auth = m.participantes_lista?.auth_user_id;
-    if (!auth) continue;
-    const arr = authsPorEquipo.get(m.equipo_id) ?? []; arr.push(auth); authsPorEquipo.set(m.equipo_id, arr);
-  }
+  // Integrantes (auth_user_id) del equipo dueño de cada proyecto programado.
+  const pf = await proyectosFase2(cohorteId);
+  const proyectoIds = [...new Set(asignados.map((s: any) => s.proyecto_id))] as string[];
+  const authsPorProyecto = await autoresAuthPorProyecto(
+    proyectoIds.map((id) => pf.get(id)).filter(Boolean) as ProyectoFase2[],
+  );
 
   const evento = (await getConfig(cohorteId)).evento_nombre ?? 'NAVES';
   const items: Array<{ destinatario_auth_id: string; tipo: string; titulo: string; cuerpo: string; enlace: string }> = [];
   const todosAuth: string[] = [];
   for (const s of asignados as any[]) {
     const j: any = jById.get(s.jornada_id); if (!j) continue;
-    const auths = authsPorEquipo.get(s.equipo_id) ?? [];
+    const auths = authsPorProyecto.get(s.proyecto_id) ?? [];
     const fl = fechaLegibleProg(j.fecha);
     for (const a of auths) {
       todosAuth.push(a);
@@ -295,7 +285,7 @@ router.post('/admin/:cohorteId/notificar', ...soloAdmin, async (req, res) => {
   // Evitar duplicados si se re-publica
   await limpiarNotificaciones('presentacion_programada', [...new Set(todosAuth)]);
   const n = await notificar(items);
-  res.json({ ok: true, notificados: n, equipos: equipoIds.length });
+  res.json({ ok: true, notificados: n, proyectos: proyectoIds.length });
 });
 
 export default router;

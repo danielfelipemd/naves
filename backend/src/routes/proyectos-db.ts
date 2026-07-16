@@ -7,6 +7,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { iaConfigurada, llamarClaude, extraerJSON } from '../services/ai.js';
 import { uploadAssetNaves, deleteAssetNaves, extForAsset, crearUrlProxyArchivo, mimeFromPath, type TipoAssetNaves } from '../services/storage.js';
+import { proyectosFase2, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el enlace externo.
@@ -17,6 +18,8 @@ function urlAsset(path: string | null, urlExterna: string | null): string | null
 
 // Módulo C (Fase 2) — Base de datos interna de proyectos + portal del
 // participante (calendario de su presentación + .ics).
+// La unidad es el PROYECTO DEFINITIVO: un equipo que aún no eligió no aparece
+// aquí (ver services/proyectos-fase2).
 
 const router = Router();
 const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
@@ -30,36 +33,12 @@ function fechaLegible(iso: string): string {
   return `${DIAS[dow]} ${d} de ${MESES[m]} de ${y}`;
 }
 
-// --- Datos de proyecto por equipo (proyecto definitivo o primero no archivado)
-function pickAnte(raw: any) { return Array.isArray(raw) ? raw[0] : raw; }
-interface EqInfo { equipo_id: string; proyecto_id: string | null; proyecto: string; autores: string; sector: string; }
-async function equiposDeCohorte(cohorteId: string): Promise<EqInfo[]> {
-  const { data } = await supabaseAdmin
-    .from('equipos')
-    .select('id, nombre_equipo, proyecto_definitivo_id, miembros_equipo(posicion, participantes_lista(nombre_completo)), anteproyectos(proyectos(id, nombre, sector, estado_seleccion, posicion))')
-    .eq('cohorte_id', cohorteId);
-  const out: EqInfo[] = [];
-  for (const e of (data ?? []) as any[]) {
-    const autores = ((e.miembros_equipo ?? []) as any[])
-      .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
-      .map((m) => m.participantes_lista?.nombre_completo).filter(Boolean).join(', ');
-    const proyectos = ((pickAnte(e.anteproyectos)?.proyectos ?? []) as any[])
-      .filter((p) => p.estado_seleccion !== 'archivado')
-      .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0));
-    const def = e.proyecto_definitivo_id ? proyectos.find((p) => p.id === e.proyecto_definitivo_id) : null;
-    const elegido = def ?? proyectos[0] ?? null;
-    out.push({
-      equipo_id: e.id,
-      proyecto_id: elegido?.id ?? null,
-      proyecto: proyectos.map((p) => p.nombre).filter(Boolean).join(' / ') || (e.nombre_equipo ?? '(sin proyecto)'),
-      sector: elegido?.sector ?? '',
-      autores,
-    });
-  }
-  return out;
+// --- Proyectos definitivos de la cohorte (los únicos que entran a la Fase 2)
+async function proyectosDeCohorte(cohorteId: string): Promise<ProyectoFase2[]> {
+  return [...(await proyectosFase2(cohorteId)).values()];
 }
 
-// --- Horario por equipo (de slot_presentacion + jornadas)
+// --- Horario por proyecto (de slot_presentacion + jornadas)
 interface Horario { fecha: string; jornada: number; slot: number; hora_inicio: string; hora_fin: string; }
 async function horariosDeCohorte(cohorteId: string): Promise<Map<string, Horario>> {
   const { data: jornadas } = await supabaseAdmin
@@ -69,12 +48,12 @@ async function horariosDeCohorte(cohorteId: string): Promise<Map<string, Horario
   const map = new Map<string, Horario>();
   if (!ids.length) return map;
   const { data: slots } = await supabaseAdmin
-    .from('slot_presentacion').select('jornada_id, orden, equipo_id, hora_inicio, hora_fin').in('jornada_id', ids);
+    .from('slot_presentacion').select('jornada_id, orden, proyecto_id, hora_inicio, hora_fin').in('jornada_id', ids);
   for (const s of (slots ?? []) as any[]) {
-    if (!s.equipo_id) continue;
+    if (!s.proyecto_id) continue;
     const j: any = jById.get(s.jornada_id);
     if (!j) continue;
-    map.set(s.equipo_id, { fecha: j.fecha, jornada: j.numero, slot: s.orden, hora_inicio: hhmm(s.hora_inicio), hora_fin: hhmm(s.hora_fin) });
+    map.set(s.proyecto_id, { fecha: j.fecha, jornada: j.numero, slot: s.orden, hora_inicio: hhmm(s.hora_inicio), hora_fin: hhmm(s.hora_fin) });
   }
   return map;
 }
@@ -91,18 +70,18 @@ router.get('/admin/estado-ia', ...soloAdmin, (_req, res) => res.json({ configura
 // GET /api/proyectos-db/admin/:cohorteId — base de datos interna
 router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
-  const [equipos, horarios, evento] = await Promise.all([
-    equiposDeCohorte(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId),
+  const [proyectos, horarios, evento] = await Promise.all([
+    proyectosDeCohorte(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId),
   ]);
-  const proyIds = equipos.map((e) => e.proyecto_id).filter(Boolean) as string[];
+  const proyIds = proyectos.map((e) => e.proyecto_id);
   let contenido = new Map<string, any>();
   if (proyIds.length) {
     const { data } = await supabaseAdmin.from('proyecto_contenido').select('*').in('proyecto_id', proyIds);
     contenido = new Map((data ?? []).map((c: any) => [c.proyecto_id, c]));
   }
-  const rows = equipos.map((e) => {
-    const h = horarios.get(e.equipo_id) ?? null;
-    const c = e.proyecto_id ? contenido.get(e.proyecto_id) : null;
+  const rows = proyectos.map((e) => {
+    const h = horarios.get(e.proyecto_id) ?? null;
+    const c = contenido.get(e.proyecto_id) ?? null;
     return {
       equipo_id: e.equipo_id, proyecto_id: e.proyecto_id, proyecto: e.proyecto, autores: e.autores, sector: e.sector,
       fecha: h?.fecha ?? null, fecha_legible: h ? fechaLegible(h.fecha) : null,
@@ -130,10 +109,10 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
 // GET /api/proyectos-db/admin/:cohorteId/excel — 2 hojas: Proyectos + Programación
 router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
-  const [equipos, horarios, evento] = await Promise.all([
-    equiposDeCohorte(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId),
+  const [proyectos, horarios, evento] = await Promise.all([
+    proyectosDeCohorte(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId),
   ]);
-  const proyIds = equipos.map((e) => e.proyecto_id).filter(Boolean) as string[];
+  const proyIds = proyectos.map((e) => e.proyecto_id);
   let contenido = new Map<string, any>();
   if (proyIds.length) {
     const { data } = await supabaseAdmin.from('proyecto_contenido').select('*').in('proyecto_id', proyIds);
@@ -150,8 +129,8 @@ router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   ws1.columns = [{ width: 24 }, { width: 42 }, { width: 22 }, { width: 60 }, { width: 90 }] as any;
   const h1 = ws1.addRow(['Proyecto', 'Autores', 'Sector', 'Resumen', 'Post LinkedIn']);
   h1.eachCell((c) => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = fill(NEGRO); c.alignment = { vertical: 'middle', wrapText: true }; c.border = borde; });
-  for (const e of equipos) {
-    const c = e.proyecto_id ? contenido.get(e.proyecto_id) : null;
+  for (const e of proyectos) {
+    const c = contenido.get(e.proyecto_id) ?? null;
     const r = ws1.addRow([e.proyecto, e.autores, e.sector, c?.resumen ?? '', c?.linkedin ?? '']);
     r.alignment = { vertical: 'top', wrapText: true };
     r.eachCell({ includeEmpty: true }, (cell) => { cell.border = borde; });
@@ -162,7 +141,7 @@ router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   ws2.columns = [{ width: 30 }, { width: 10 }, { width: 8 }, { width: 12 }, { width: 12 }, { width: 24 }, { width: 42 }, { width: 22 }] as any;
   const h2 = ws2.addRow(['Fecha', 'Jornada', 'Slot', 'Hora inicio', 'Hora fin', 'Proyecto', 'Autores', 'Sector']);
   h2.eachCell((c) => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = fill(NEGRO); c.alignment = { vertical: 'middle', wrapText: true, horizontal: 'center' }; c.border = borde; });
-  const programados = equipos.map((e) => ({ e, h: horarios.get(e.equipo_id) })).filter((x) => x.h)
+  const programados = proyectos.map((e) => ({ e, h: horarios.get(e.proyecto_id) })).filter((x) => x.h)
     .sort((a, b) => a.h!.fecha === b.h!.fecha ? a.h!.slot - b.h!.slot : a.h!.fecha.localeCompare(b.h!.fecha));
   let fechaActual = '';
   for (const { e, h } of programados) {
@@ -187,33 +166,45 @@ router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
 // Portal del participante — su presentación
 // =====================================================================
 
-async function miEquipoId(req: AuthenticatedRequest): Promise<string | null> {
+// Equipo del participante autenticado, con su cohorte y su proyecto definitivo.
+interface MiEquipo { equipo_id: string; cohorte_id: string; proyecto_definitivo_id: string | null; }
+async function miEquipo(req: AuthenticatedRequest): Promise<MiEquipo | null> {
   const pid = req.user?.participanteId;
   if (!pid) return null;
-  const { data } = await supabaseAdmin.from('miembros_equipo').select('equipo_id').eq('participante_id', pid).maybeSingle();
-  return (data as any)?.equipo_id ?? null;
+  const { data: m } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).maybeSingle();
+  const equipoId = (m as any)?.equipo_id;
+  if (!equipoId) return null;
+  const { data: eq } = await supabaseAdmin
+    .from('equipos').select('cohorte_id, proyecto_definitivo_id').eq('id', equipoId).maybeSingle();
+  if (!(eq as any)?.cohorte_id) return null;
+  return {
+    equipo_id: equipoId,
+    cohorte_id: (eq as any).cohorte_id,
+    proyecto_definitivo_id: (eq as any).proyecto_definitivo_id ?? null,
+  };
 }
 
-// Resuelve la presentación (o null si aún no está programada)
-async function miPresentacion(equipoId: string, cohorteId: string) {
-  const [equipos, horarios, evento] = await Promise.all([
-    equiposDeCohorte(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId),
+// Resuelve la presentación del proyecto definitivo (h == null si aún no está programada)
+async function miPresentacion(proyectoId: string, cohorteId: string) {
+  const [pf, horarios, evento] = await Promise.all([
+    proyectosFase2(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId),
   ]);
-  const info = equipos.find((e) => e.equipo_id === equipoId) ?? null;
-  const h = horarios.get(equipoId) ?? null;
-  return { evento, info, h };
+  return { evento, info: pf.get(proyectoId) ?? null, h: horarios.get(proyectoId) ?? null };
 }
 
 router.get('/mi-presentacion', requireAuth(), async (req: AuthenticatedRequest, res) => {
-  const equipoId = await miEquipoId(req);
-  if (!equipoId) return res.json({ en_equipo: false });
-  const { data: eq } = await supabaseAdmin.from('equipos').select('cohorte_id').eq('id', equipoId).maybeSingle();
-  const cohorteId = (eq as any)?.cohorte_id;
-  if (!cohorteId) return res.json({ en_equipo: false });
-  const { evento, info, h } = await miPresentacion(equipoId, cohorteId);
-  if (!h) return res.json({ en_equipo: true, programado: false, evento, proyecto: info?.proyecto ?? null, autores: info?.autores ?? null });
+  const eq = await miEquipo(req);
+  if (!eq) return res.json({ en_equipo: false });
+  // Sin proyecto definitivo el equipo todavía no entró a la Fase 2: no hay nada
+  // que presentar hasta que se haga la selección.
+  if (!eq.proyecto_definitivo_id) {
+    return res.json({ en_equipo: true, programado: false, seleccion_pendiente: true, evento: await eventoNombre(eq.cohorte_id) });
+  }
+  const { evento, info, h } = await miPresentacion(eq.proyecto_definitivo_id, eq.cohorte_id);
+  if (!h) return res.json({ en_equipo: true, programado: false, seleccion_pendiente: false, evento, proyecto: info?.proyecto ?? null, autores: info?.autores ?? null });
   res.json({
-    en_equipo: true, programado: true, evento,
+    en_equipo: true, programado: true, seleccion_pendiente: false, evento,
     proyecto: info?.proyecto ?? null, sector: info?.sector ?? null, autores: info?.autores ?? null,
     fecha: h.fecha, fecha_legible: fechaLegible(h.fecha), jornada: h.jornada, slot: h.slot,
     hora_inicio: h.hora_inicio, hora_fin: h.hora_fin,
@@ -231,15 +222,13 @@ function icsStampUTC(fecha: string, hhmmStr: string): string {
 function icsEscape(s: string): string { return s.replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n'); }
 
 router.get('/mi-presentacion/ics', requireAuth(), async (req: AuthenticatedRequest, res) => {
-  const equipoId = await miEquipoId(req);
-  if (!equipoId) return res.status(404).json({ error: 'SIN_EQUIPO' });
-  const { data: eq } = await supabaseAdmin.from('equipos').select('cohorte_id').eq('id', equipoId).maybeSingle();
-  const cohorteId = (eq as any)?.cohorte_id;
-  if (!cohorteId) return res.status(404).json({ error: 'SIN_EQUIPO' });
-  const { evento, info, h } = await miPresentacion(equipoId, cohorteId);
+  const eq = await miEquipo(req);
+  if (!eq) return res.status(404).json({ error: 'SIN_EQUIPO' });
+  if (!eq.proyecto_definitivo_id) return res.status(409).json({ error: 'SELECCION_PENDIENTE' });
+  const { evento, info, h } = await miPresentacion(eq.proyecto_definitivo_id, eq.cohorte_id);
   if (!h) return res.status(409).json({ error: 'NO_PROGRAMADO' });
 
-  const uid = `naves-${equipoId}-${h.fecha}@inalde`;
+  const uid = `naves-${eq.proyecto_definitivo_id}-${h.fecha}@inalde`;
   const dtstart = icsStampUTC(h.fecha, h.hora_inicio);
   const dtend = icsStampUTC(h.fecha, h.hora_fin || h.hora_inicio);
   const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -294,7 +283,8 @@ async function fuenteProyecto(proyectoId: string): Promise<Fuente | null> {
       .from('anteproyectos')
       .select('equipos(miembros_equipo(posicion, participantes_lista(nombre_completo)))')
       .eq('id', proy.anteproyecto_id).maybeSingle();
-    const eq = pickAnte((ante as any)?.equipos);
+    const raw = (ante as any)?.equipos;
+    const eq = Array.isArray(raw) ? raw[0] : raw;
     autores = ((eq?.miembros_equipo ?? []) as any[])
       .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
       .map((m) => m.participantes_lista?.nombre_completo).filter(Boolean).join(', ');
@@ -400,8 +390,7 @@ router.post('/admin/proyecto/:proyectoId/generar-contenido', ...soloAdmin, async
 // POST generar TODOS los faltantes/cambiados de una cohorte (serial, con pausa)
 router.post('/admin/:cohorteId/generar-todo', ...soloAdmin, async (req, res) => {
   if (!iaConfigurada()) return res.status(503).json({ error: 'IA_NO_CONFIGURADA', message: 'Falta configurar ANTHROPIC_API_KEY en el servidor.' });
-  const equipos = await equiposDeCohorte(req.params.cohorteId);
-  const proyIds = equipos.map((e) => e.proyecto_id).filter(Boolean) as string[];
+  const proyIds = (await proyectosDeCohorte(req.params.cohorteId)).map((e) => e.proyecto_id);
   const { data: existentes } = await supabaseAdmin.from('proyecto_contenido').select('proyecto_id, source_sha256, aprobado, resumen').in('proyecto_id', proyIds.length ? proyIds : ['00000000-0000-0000-0000-000000000000']);
   const prevMap = new Map((existentes ?? []).map((c: any) => [c.proyecto_id, c]));
 
