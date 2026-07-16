@@ -153,7 +153,7 @@ export default function Programacion() {
       <div className="border-b-[3px] border-inalde-red pb-4 mb-6">
         <p className="section-subtitle mb-1">Administración</p>
         <h1 className="section-title">Programación de presentaciones</h1>
-        <p className="text-sm text-inalde-gray mt-2">Asigna los proyectos definitivos a los slots de cada jornada. Los horarios se calculan automáticamente. Descarga el Excel de calificación para los panelistas.</p>
+        <p className="text-sm text-inalde-gray mt-2">Asigna a los slots de cada jornada los proyectos que ya entregaron su proyecto final: son los únicos que se presentan. Los horarios se calculan automáticamente. Descarga el Excel de calificación para los panelistas.</p>
       </div>
 
       <div className="flex flex-wrap gap-3 items-end mb-5">

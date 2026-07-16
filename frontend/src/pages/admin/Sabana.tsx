@@ -36,6 +36,8 @@ interface FilaResumen {
   profesor_asignado_nombre: string | null;
   director_asignado_nombre: string | null;
   comunicado: boolean;
+  reunion_1: boolean;
+  reunion_2: boolean;
 }
 
 /** Pill SÍ / NO / — para celdas readonly */
@@ -63,6 +65,7 @@ function ModalidadPill({ modalidad }: { modalidad: 'business_plan' | 'caso' | 'p
 export default function Sabana() {
   const role = useAuth((s) => s.role);
   const isSuperAdmin = useAuth((s) => (s.user?.app_metadata as any)?.es_super_admin === true) || role === 'super_admin';
+  const miProfesorId = useAuth((s) => (s.user?.app_metadata as any)?.profesor_id as string | undefined);
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorte, setCohorte] = useState('');
   const [snapshot, setSnapshot] = useState<Item[]>([]);
@@ -72,6 +75,7 @@ export default function Sabana() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [comunicandoEquipo, setComunicandoEquipo] = useState<string | null>(null);
+  const [marcandoReunion, setMarcandoReunion] = useState<string | null>(null);
   const [equipoABorrar, setEquipoABorrar] = useState<{ id: string; etiqueta: string } | null>(null);
   const [borrando, setBorrando] = useState(false);
   const pollRef = useRef<number | null>(null);
@@ -185,6 +189,20 @@ export default function Sabana() {
   }
 
   // Comunicar UN solo equipo (envía el correo de ese proyecto en serie).
+  // El profesor registra que ya tuvo la Reunión 1 / 2 con el equipo. Optimista:
+  // se pinta al instante y se revierte si el servidor la rechaza.
+  async function marcarReunion(equipo_id: string, n: 1 | 2, marcada: boolean) {
+    const campo = n === 1 ? 'reunion_1' : 'reunion_2';
+    setMarcandoReunion(`${equipo_id}-${n}`); setMsg(null);
+    setResumen((prev) => prev.map((f) => f.equipo_id === equipo_id ? { ...f, [campo]: marcada } : f));
+    try {
+      await api.patch(`/sabana/equipos/${equipo_id}/reunion`, { reunion: n, marcada });
+    } catch (e: any) {
+      setResumen((prev) => prev.map((f) => f.equipo_id === equipo_id ? { ...f, [campo]: !marcada } : f));
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setMarcandoReunion(null); }
+  }
+
   async function comunicarEquipo(equipo_id: string) {
     setComunicandoEquipo(equipo_id); setMsg(null);
     try {
@@ -554,6 +572,30 @@ export default function Sabana() {
                                     <span className="text-[10px] font-bold uppercase tracking-wider text-inalde-gold leading-none whitespace-nowrap" title="Aún no se ha enviado el correo de asignación">⏳ Sin comunicar</span>
                                   )
                                 )}
+                              </div>
+                              {/* Reuniones: las marca el profesor del equipo (o el
+                                  super_admin). Los participantes las ven en su
+                                  sábana, pero en solo lectura. */}
+                              <div className="mt-2 space-y-1">
+                                {([1, 2] as const).map((n) => {
+                                  const marcada = n === 1 ? f.reunion_1 : f.reunion_2;
+                                  const puede = isSuperAdmin || f.profesor_asignado_id === miProfesorId;
+                                  return (
+                                    <label key={n} className={`flex items-center gap-1.5 ${puede ? 'cursor-pointer' : 'cursor-default'}`}
+                                      title={puede ? `Marcar que ya tuviste la Reunión ${n} con este equipo` : 'Solo el profesor asignado puede marcarla'}>
+                                      <input
+                                        type="checkbox"
+                                        checked={marcada}
+                                        disabled={!puede || marcandoReunion === `${f.equipo_id}-${n}`}
+                                        onChange={(e) => marcarReunion(f.equipo_id, n, e.target.checked)}
+                                        className="accent-inalde-red w-3.5 h-3.5 disabled:opacity-40"
+                                      />
+                                      <span className={`text-[10px] font-bold uppercase tracking-wider leading-none whitespace-nowrap ${marcada ? 'text-inalde-red' : 'text-inalde-gray'}`}>
+                                        Reunión {n}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
                               </div>
                             </td>
                             <td className="px-2.5 py-3 align-top">

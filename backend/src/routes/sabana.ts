@@ -153,7 +153,7 @@ router.get('/buscando-socios', async (req: AuthenticatedRequest, res) => {
   const { data: equipos, error } = await supabaseAdmin
     .from('equipos')
     .select(`
-      id, nombre_equipo,
+      id, nombre_equipo, reunion_1_profesor_at, reunion_2_profesor_at,
       miembros_equipo ( posicion, participantes_lista ( nombre_completo ) ),
       anteproyectos ( estado, proyectos ( id, posicion, nombre, sector, ciiu, canvas_problema, canvas_solucion, estado_seleccion ) )
     `)
@@ -179,7 +179,12 @@ router.get('/buscando-socios', async (req: AuthenticatedRequest, res) => {
         canvas_problema: p.canvas_problema ?? null,
         canvas_solucion: p.canvas_solucion ?? null,
       }));
-    return { equipo_id: eq.id, nombre_equipo: eq.nombre_equipo ?? null, autores, proyectos };
+    return {
+      equipo_id: eq.id, nombre_equipo: eq.nombre_equipo ?? null, autores, proyectos,
+      // Solo lectura para el participante: lo marca su profesor.
+      reunion_1: !!eq.reunion_1_profesor_at,
+      reunion_2: !!eq.reunion_2_profesor_at,
+    };
   });
 
   res.json({ cohorte_id: cohorteId, total: filas.length, filas });
@@ -218,7 +223,7 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
   // mas chicos en paralelo + un join en memoria — total <1s.
   const equiposRes = await supabaseAdmin
     .from('equipos')
-    .select('id, nombre_equipo, tipo_trabajo_grado, buscando_socios, buscando_asociacion_otro_proyecto, director_id, directores:director_id(id, nombre_completo)')
+    .select('id, nombre_equipo, tipo_trabajo_grado, buscando_socios, buscando_asociacion_otro_proyecto, director_id, reunion_1_profesor_at, reunion_2_profesor_at, directores:director_id(id, nombre_completo)')
     .eq('cohorte_id', cohorteId);
   if (equiposRes.error) return res.status(500).json({ error: equiposRes.error.message });
 
@@ -284,6 +289,8 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
     profesor_asignado_nombre: string | null;
     director_asignado_nombre: string | null;
     comunicado: boolean;
+    reunion_1: boolean;
+    reunion_2: boolean;
   };
   const filas: Fila[] = [];
 
@@ -345,6 +352,8 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
       profesor_asignado_nombre: asignacion?.nombre_completo ?? null,
       director_asignado_nombre: modalidad === 'business_plan' ? null : directorNombre,
       comunicado: !!asignacionRow?.notificacion_enviada,
+      reunion_1: !!eq.reunion_1_profesor_at,
+      reunion_2: !!eq.reunion_2_profesor_at,
     });
   }
 
@@ -364,6 +373,45 @@ const patchEquipoSchema = z.object({
   // profesor_id null = quitar asignacion. Solo aplica para equipos BP.
   profesor_id: z.string().uuid().nullable().optional(),
 });
+// PATCH /api/sabana/equipos/:equipoId/reunion — el profesor registra si ya tuvo
+// la Reunión 1 / 2 con el equipo. Marca propia del profesor: NO toca
+// reunion_1_marcada_por (del participante), que es la que desbloquea la
+// selección del definitivo.
+const reunionSchema = z.object({
+  reunion: z.union([z.literal(1), z.literal(2)]),
+  marcada: z.boolean(),
+});
+router.patch('/equipos/:equipoId/reunion', requireRole('profesor', 'super_admin'), async (req: AuthenticatedRequest, res) => {
+  const parsed = reunionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+
+  const isSuperAdmin = !!req.user!.isSuperAdmin;
+  const profesorId = req.user!.profesorId;
+  if (!isSuperAdmin && !profesorId) return res.status(403).json({ error: 'NO_PROFESOR_ID' });
+
+  const { data: eq } = await supabaseAdmin
+    .from('equipos').select('id').eq('id', req.params.equipoId).maybeSingle();
+  if (!eq) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
+
+  // Un profesor solo marca los equipos que tiene asignados; el super_admin, todos.
+  if (!isSuperAdmin) {
+    const { data: asig } = await supabaseAdmin
+      .from('asignaciones_profesor').select('profesor_id').eq('equipo_id', req.params.equipoId).maybeSingle();
+    if ((asig as any)?.profesor_id !== profesorId) {
+      return res.status(403).json({ error: 'NO_ES_TU_EQUIPO', mensaje: 'Solo puedes marcar las reuniones de los equipos que tienes asignados.' });
+    }
+  }
+
+  const n = parsed.data.reunion;
+  const patch = parsed.data.marcada
+    ? { [`reunion_${n}_profesor_at`]: new Date().toISOString(), [`reunion_${n}_profesor_id`]: profesorId ?? null }
+    : { [`reunion_${n}_profesor_at`]: null, [`reunion_${n}_profesor_id`]: null };
+
+  const { error } = await supabaseAdmin.from('equipos').update(patch).eq('id', req.params.equipoId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true, reunion: n, marcada: parsed.data.marcada });
+});
+
 router.patch('/equipos/:equipoId', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
   const parsed = patchEquipoSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });

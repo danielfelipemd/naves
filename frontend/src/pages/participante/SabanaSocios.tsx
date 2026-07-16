@@ -17,6 +17,8 @@ interface Fila {
   nombre_equipo: string | null;
   autores: string;
   proyectos: Proyecto[];
+  reunion_1: boolean;
+  reunion_2: boolean;
 }
 
 /**
@@ -102,6 +104,18 @@ export default function SabanaSocios() {
                       <tr key={f.equipo_id} className={`border-t border-inalde-gray-light/60 align-top ${idx % 2 === 0 ? 'bg-white' : 'bg-inalde-gray-bg/40'}`}>
                         <td className="px-2.5 py-3 align-top">
                           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-inalde-text text-white text-xs font-bold font-mono">{idx + 1}</span>
+                          {/* Reuniones: las marca el profesor. Aquí solo se leen. */}
+                          <div className="mt-2 space-y-1">
+                            {([1, 2] as const).map((n) => {
+                              const marcada = n === 1 ? f.reunion_1 : f.reunion_2;
+                              return (
+                                <p key={n} className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider leading-none whitespace-nowrap ${marcada ? 'text-inalde-red' : 'text-inalde-gray'}`}>
+                                  <span aria-hidden="true">{marcada ? '☑' : '☐'}</span>
+                                  Reunión {n}
+                                </p>
+                              );
+                            })}
+                          </div>
                         </td>
                         <td className="px-2.5 py-3 align-top">
                           <div className="max-w-[210px] min-w-[140px]">
