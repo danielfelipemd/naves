@@ -924,7 +924,16 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   // (TextareaWithCounter), lo que sería HTML inválido: usamos htmlFor + id.
   const id = useId();
   const hintId = `${id}-hint`;
-  const control = isValidElement(children)
+  // Solo podemos inyectar el id si hay UN único elemento hijo. Si son varios
+  // (p.ej. un input + un mensaje condicional), children es un array: en ese
+  // caso NO ponemos htmlFor, porque apuntaría a un id inexistente y la etiqueta
+  // quedaría rota en silencio (justo lo que pasó con "Inicio"/"Fin"). Ese caso
+  // se resuelve con un id explícito en el sitio de uso.
+  const puedeAsociar = isValidElement(children);
+  if (!puedeAsociar && import.meta.env.DEV) {
+    console.warn(`[Field] "${safeLabel}": varios hijos; pon el id a mano en el control.`);
+  }
+  const control = puedeAsociar
     ? cloneElement(children as React.ReactElement<any>, {
         id,
         ...(hint ? { 'aria-describedby': hintId } : {}),
@@ -932,7 +941,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     : children;
   return (
     <div className="mt-4">
-      <label htmlFor={id} className={`block font-primary font-semibold mb-1 ${
+      <label {...(puedeAsociar ? { htmlFor: id } : {})} className={`block font-primary font-semibold mb-1 ${
         esPregunta
           ? 'text-sm text-inalde-red'
           : 'text-xs tracking-wider uppercase text-inalde-gray'
@@ -1226,25 +1235,35 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
               const finMal = !!(minFin && h.fecha_fin && h.fecha_fin < minFin);
               return (
                 <>
+                  {/* Aquí tampoco sirve <Field>: lleva DOS hijos (el input y el
+                      aviso condicional), así que children es un array y el id no
+                      se puede inyectar. Id explícito + el error enlazado con
+                      aria-describedby para que sí se anuncie. */}
                   <div className="w-full sm:w-44 shrink-0">
-                    <Field label="Inicio">
-                      <input type="date" value={h.fecha_inicio}
+                    <div className="mt-4">
+                      <label htmlFor={`${hitoId}-ini`} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">Inicio</label>
+                      <input id={`${hitoId}-ini`} type="date" value={h.fecha_inicio}
+                        aria-invalid={inicioMal || undefined}
+                        aria-describedby={inicioMal ? `${hitoId}-ini-err` : undefined}
                         onChange={(e) => onUpdateHito(hi, { fecha_inicio: e.target.value })}
                         className="input-inalde" />
                       {inicioMal && (
-                        <p className="text-[11px] text-inalde-red mt-1">No puede ser anterior al hito #{h.posicion - 1}.</p>
+                        <p id={`${hitoId}-ini-err`} className="text-[11px] text-inalde-red mt-1">No puede ser anterior al hito #{h.posicion - 1}.</p>
                       )}
-                    </Field>
+                    </div>
                   </div>
                   <div className="w-full sm:w-44 shrink-0">
-                    <Field label="Fin">
-                      <input type="date" value={h.fecha_fin}
+                    <div className="mt-4">
+                      <label htmlFor={`${hitoId}-fin`} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">Fin</label>
+                      <input id={`${hitoId}-fin`} type="date" value={h.fecha_fin}
+                        aria-invalid={finMal || undefined}
+                        aria-describedby={finMal ? `${hitoId}-fin-err` : undefined}
                         onChange={(e) => onUpdateHito(hi, { fecha_fin: e.target.value })}
                         className="input-inalde" />
                       {finMal && (
-                        <p className="text-[11px] text-inalde-red mt-1">No puede ser anterior al inicio ni al hito previo.</p>
+                        <p id={`${hitoId}-fin-err`} className="text-[11px] text-inalde-red mt-1">No puede ser anterior al inicio ni al hito previo.</p>
                       )}
-                    </Field>
+                    </div>
                   </div>
                 </>
               );
