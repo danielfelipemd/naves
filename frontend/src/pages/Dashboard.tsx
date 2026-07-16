@@ -407,16 +407,17 @@ export default function Dashboard() {
                     <div className="grid sm:grid-cols-2 gap-6">
                       {modalidad === 'business_plan' && (
                         proyectoDefinitivoNombre ? (
-                          // Ya hay proyecto definitivo: card desactivada (sin link)
-                          // mostrando cual quedo seleccionado.
-                          <div className="card-inalde-interactive flex flex-col gap-3 opacity-70 cursor-default pointer-events-none">
-                            <div className="text-3xl">✅</div>
+                          // Elegido el definitivo, esta card deja de ser un aviso y
+                          // pasa a ser la entrada al módulo de proyecto: es el
+                          // momento en que se habilita el cargue del proyecto final.
+                          <Link to="/trabajo-grado" className="card-inalde-interactive flex flex-col gap-3">
+                            <div className="text-3xl" aria-hidden="true">✅</div>
                             <h2 className="font-primary font-bold text-lg">Proyecto definitivo</h2>
                             <p className="text-inalde-gray text-sm">
-                              El proyecto <strong className="text-inalde-text">{proyectoDefinitivoNombre}</strong> fue definido como definitivo.
+                              El proyecto <strong className="text-inalde-text">{proyectoDefinitivoNombre}</strong> fue definido como definitivo. Ya puedes cargar tu proyecto final.
                             </p>
-                            <span className="text-xs font-semibold text-inalde-gray uppercase tracking-wider">Ya resuelto</span>
-                          </div>
+                            <span className="text-sm font-semibold text-inalde-red">Cargar proyecto final →</span>
+                          </Link>
                         ) : (
                           <Link to="/seleccion" className="card-inalde-interactive flex flex-col gap-3">
                             <div className="text-3xl">✅</div>

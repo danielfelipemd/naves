@@ -427,10 +427,16 @@ export default function TrabajoGrado() {
           )}
 
           <p className="text-inalde-gray mb-8 text-sm">
-            Carga el <strong>anteproyecto</strong> en PDF. Tamaño máximo: 25 MB.
+            {esCasoOPI
+              ? <>Carga el <strong>anteproyecto</strong> en PDF. Tamaño máximo: 25 MB.</>
+              : <>Carga aquí tu <strong>proyecto final</strong> en PDF o Word. Tamaño máximo: 25 MB.</>}
           </p>
 
-          {/* === Bloque 1: Anteproyecto =================================== */}
+          {/* === Bloque 1: Anteproyecto (solo caso/PI) ====================
+              El Business Plan hace su anteproyecto por formulario, no por
+              archivo: mostrarle esta zona de carga lo llevaba a un error
+              MODALIDAD_NO_USA_ARCHIVOS del servidor. */}
+          {esCasoOPI && (
           <div className="border border-inalde-gray-light rounded p-5 mb-5">
             <h2 className="font-primary font-bold text-base mb-2">Anteproyecto (PDF)</h2>
             {antSubido ? (
@@ -466,6 +472,7 @@ export default function TrabajoGrado() {
               </>
             )}
           </div>
+          )}
 
           {/* === Bloque 2: Proyecto final ================================= */}
           <div className={`border rounded p-5 mb-8 ${proyectoHabilitado ? 'border-inalde-gray-light' : 'border-inalde-gray-light bg-inalde-gray-bg/30'}`}>
