@@ -206,8 +206,23 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
       pos++;
     }
 
-    // Crear anteproyecto en borrador
-    await supabaseAdmin.from('anteproyectos').insert({ equipo_id: equipo.id, ultimo_editor_id: pid });
+    // Crear anteproyecto en borrador.
+    // OJO: este insert DEBE verificarse. Cuando su error se ignoraba, el equipo
+    // quedaba creado pero sin anteproyecto: el formulario cargaba con anteId
+    // null, el autoguardado no subía nada (solo el respaldo local) y "Enviar"
+    // no hacía nada. Si falla aquí, deshacemos el equipo para no dejar al
+    // participante en un estado roto e irrecuperable.
+    const { error: eAnte } = await supabaseAdmin
+      .from('anteproyectos')
+      .insert({ equipo_id: equipo.id, ultimo_editor_id: pid });
+    if (eAnte) {
+      console.error('[equipos.crear] falló crear anteproyecto, revirtiendo equipo:', eAnte.message);
+      await supabaseAdmin.from('equipos').delete().eq('id', equipo.id);
+      return res.status(500).json({
+        error: 'ANTEPROYECTO_CREATE_FAILED',
+        mensaje: 'No se pudo inicializar el anteproyecto del equipo. Intenta crear el equipo de nuevo.',
+      });
+    }
 
     res.status(201).json({ equipo });
   } catch (e: any) {

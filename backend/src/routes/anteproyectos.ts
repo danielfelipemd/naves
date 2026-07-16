@@ -22,9 +22,7 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
 
   if (!miembro) return res.json({ anteproyecto: null });
 
-  const { data, error } = await supabaseAdmin
-    .from('anteproyectos')
-    .select(`
+  const SELECT_ANTE = `
       *,
       equipos:equipos!inner (
         id, tipo_trabajo_grado, director_id, director_asignado_at,
@@ -34,11 +32,33 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
         *,
         hitos ( id, posicion, descripcion, fecha_inicio, fecha_fin )
       )
-    `)
+    `;
+
+  let { data, error } = await supabaseAdmin
+    .from('anteproyectos')
+    .select(SELECT_ANTE)
     .eq('equipo_id', miembro.equipo_id)
     .maybeSingle();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  // AUTO-REPARACIÓN: todo equipo debe tener su anteproyecto en borrador (se crea
+  // junto con el equipo). Si falta —porque aquel insert falló alguna vez— el
+  // participante quedaba atrapado: el formulario cargaba sin id, el autoguardado
+  // no persistía nada y "Enviar" no hacía nada. Lo creamos aquí y seguimos.
+  // Es idempotente: equipo_id es UNIQUE, así que una carrera entre dos miembros
+  // solo deja una fila (el segundo insert falla y releemos).
+  if (!data) {
+    console.warn(`[mi-anteproyecto] equipo ${miembro.equipo_id} sin anteproyecto; creando`);
+    await supabaseAdmin.from('anteproyectos').insert({ equipo_id: miembro.equipo_id, ultimo_editor_id: pid });
+    const reread = await supabaseAdmin
+      .from('anteproyectos')
+      .select(SELECT_ANTE)
+      .eq('equipo_id', miembro.equipo_id)
+      .maybeSingle();
+    if (reread.error) return res.status(500).json({ error: reread.error.message });
+    data = reread.data;
+  }
   if (!data) return res.json({ anteproyecto: null });
 
   // URLs proxy (5 min) hacia nuestro dominio — nunca exponemos la URL firmada

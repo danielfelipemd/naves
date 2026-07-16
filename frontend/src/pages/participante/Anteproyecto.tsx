@@ -453,7 +453,12 @@ export default function Anteproyecto() {
   }, [anteId, estado, loading, equipoId]);
 
   async function enviar() {
-    if (!anteId) return;
+    // Nunca salir en silencio: si no hay anteproyecto cargado, el botón parecía
+    // no hacer nada y el participante quedaba sin saber si se envió.
+    if (!anteId) {
+      setMsg({ kind: 'err', text: 'No se pudo cargar tu anteproyecto. Recarga la página e inténtalo de nuevo; si sigue igual, avisa a la coordinación.' });
+      return;
+    }
     // Flags de sábana: el equipo debe contestar SI/NO antes de enviar.
     if (buscandoSocios === null) {
       setMsg({ kind: 'err', text: 'Indica si tu equipo está buscando socios (SÍ o NO) en la sección "Información del equipo".' });
