@@ -153,6 +153,11 @@ export default function Anteproyecto() {
   const [envioConfirmacion, setEnvioConfirmacion] = useState<{ fechaEnvio: string; autoDefinitivo: boolean } | null>(null);
   const [equipoId, setEquipoId] = useState<string | null>(null);
   const [localRecovered, setLocalRecovered] = useState(false);
+  // Estado REAL del guardado contra el servidor. Antes la pantalla mostraba un
+  // "Autoguardado activo" fijo que no verificaba nada: si el guardado fallaba
+  // (o ni siquiera corría), el participante seguía escribiendo convencido de
+  // que su trabajo estaba a salvo. Ahora el indicador refleja la realidad.
+  const [saveState, setSaveState] = useState<{ kind: 'idle' | 'saving' | 'saved' | 'error'; at?: string }>({ kind: 'idle' });
   // Refs para serializar guardados (auto + manual) y prevenir races contra
   // el endpoint PUT que hace muchos delete/insert por debajo.
   const savingRef = useRef(false);
@@ -383,13 +388,18 @@ export default function Anteproyecto() {
     autoSaveTimerRef.current = setTimeout(async () => {
       if (savingRef.current) return;
       savingRef.current = true;
+      setSaveState({ kind: 'saving' });
       try {
         await api.put(`/anteproyectos/${anteId}`, buildPayload(), { timeout: 60000 });
         // Si el backend confirmo, podemos borrar la copia local de respaldo.
         if (equipoId) {
           try { window.localStorage.removeItem(localKey(equipoId)); } catch { /* ignore */ }
         }
+        setSaveState({ kind: 'saved', at: new Date().toISOString() });
       } catch {
+        // Nunca en silencio: el respaldo local sigue intacto, pero hay que
+        // decirle al participante que su trabajo NO está en el servidor.
+        setSaveState({ kind: 'error' });
       } finally {
         savingRef.current = false;
       }
@@ -437,12 +447,15 @@ export default function Anteproyecto() {
     periodicSaveTimerRef.current = setInterval(async () => {
       if (savingRef.current) return;
       savingRef.current = true;
+      setSaveState({ kind: 'saving' });
       try {
         await api.put(`/anteproyectos/${anteId}`, buildPayloadRef.current(), { timeout: 60000 });
         if (equipoId) {
           try { window.localStorage.removeItem(localKey(equipoId)); } catch { /* ignore */ }
         }
+        setSaveState({ kind: 'saved', at: new Date().toISOString() });
       } catch {
+        setSaveState({ kind: 'error' });
       } finally {
         savingRef.current = false;
       }
@@ -853,9 +866,21 @@ export default function Anteproyecto() {
                 ← Dashboard
               </button>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-inalde-gray italic mr-1">
-                  Autoguardado activo
-                </span>
+                {/* Indicador REAL del guardado (antes era un texto fijo que no
+                    verificaba nada). Si el servidor no responde hay que decirlo. */}
+                {saveState.kind === 'error' ? (
+                  <span className="text-xs font-semibold text-inalde-red mr-1" title="Tu trabajo sigue respaldado en este navegador">
+                    ⚠ No se pudo guardar en el servidor — reintentando
+                  </span>
+                ) : saveState.kind === 'saving' ? (
+                  <span className="text-xs text-inalde-gray italic mr-1">Guardando…</span>
+                ) : saveState.kind === 'saved' ? (
+                  <span className="text-xs text-inalde-blue mr-1">
+                    ✓ Guardado {new Date(saveState.at!).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </span>
+                ) : (
+                  <span className="text-xs text-inalde-gray italic mr-1">Autoguardado activo</span>
+                )}
                 <button onClick={enviar} disabled={busy} className="btn-inalde-primary">
                   {busy ? 'Procesando…' : 'Enviar anteproyecto →'}
                 </button>

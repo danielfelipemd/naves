@@ -52,9 +52,15 @@ router.post('/', async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
 
   if (parsed.data.permisos.length) {
-    await supabaseAdmin.from('rol_permisos').insert(
+    // Si esto falla en silencio queda un rol creado que NO otorga nada, y el
+    // admin lo ve como correcto. Revertimos el rol para no dejarlo a medias.
+    const { error: errPerm } = await supabaseAdmin.from('rol_permisos').insert(
       parsed.data.permisos.map((p) => ({ rol_id: rol.id, permiso_code: p })),
     );
+    if (errPerm) {
+      await supabaseAdmin.from('roles').delete().eq('id', rol.id);
+      return res.status(500).json({ error: 'ROL_PERMISOS_FAILED', detail: errPerm.message });
+    }
   }
   res.status(201).json({ rol });
 });
@@ -72,15 +78,22 @@ router.put('/:id', async (req, res) => {
   if (!rol) return res.status(404).json({ error: 'NOT_FOUND' });
 
   if (parsed.data.descripcion !== undefined) {
-    await supabaseAdmin.from('roles').update({ descripcion: parsed.data.descripcion }).eq('id', req.params.id);
+    const { error } = await supabaseAdmin.from('roles').update({ descripcion: parsed.data.descripcion }).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: 'ROL_UPDATE_FAILED', detail: error.message });
   }
   if (parsed.data.permisos !== undefined) {
-    // reemplazar lista de permisos
-    await supabaseAdmin.from('rol_permisos').delete().eq('rol_id', req.params.id);
+    // Reemplazar lista de permisos: es un borrar-y-reinsertar sobre PERMISOS.
+    // Si el borrado pasa y el insert falla en silencio, el rol se queda SIN
+    // permisos y todos sus usuarios pierden acceso creyendo el admin que
+    // guardó. Si falla el borrado y pasa el insert, quedan vivos permisos que
+    // el admin acaba de revocar. Verificamos ambos pasos.
+    const { error: errDel } = await supabaseAdmin.from('rol_permisos').delete().eq('rol_id', req.params.id);
+    if (errDel) return res.status(500).json({ error: 'ROL_PERMISOS_FAILED', paso: 'borrar', detail: errDel.message });
     if (parsed.data.permisos.length) {
-      await supabaseAdmin.from('rol_permisos').insert(
+      const { error: errIns } = await supabaseAdmin.from('rol_permisos').insert(
         parsed.data.permisos.map((p) => ({ rol_id: req.params.id, permiso_code: p })),
       );
+      if (errIns) return res.status(500).json({ error: 'ROL_PERMISOS_FAILED', paso: 'insertar', detail: errIns.message });
     }
     // Invalidar cache de TODOS los usuarios con este rol
     const { data: users } = await supabaseAdmin.from('usuario_roles').select('auth_user_id').eq('rol_id', req.params.id);
@@ -168,15 +181,21 @@ router.post('/usuarios/asignar', async (req: any, res) => {
   const parsed = assignRolesSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
 
-  await supabaseAdmin.from('usuario_roles').delete().eq('auth_user_id', parsed.data.auth_user_id);
+  // Borrar-y-reinsertar sobre los ROLES de un usuario. Si el borrado pasa y el
+  // insert falla en silencio, el usuario se queda SIN ningún rol (queda fuera).
+  // Si el borrado falla y el insert pasa, sobreviven roles que el admin acaba
+  // de quitar (p.ej. un super_admin revocado que sigue vivo). Verificar ambos.
+  const { error: errDel } = await supabaseAdmin.from('usuario_roles').delete().eq('auth_user_id', parsed.data.auth_user_id);
+  if (errDel) return res.status(500).json({ error: 'ROLES_ASIGNAR_FAILED', paso: 'borrar', detail: errDel.message });
   if (parsed.data.roles.length) {
-    await supabaseAdmin.from('usuario_roles').insert(
+    const { error: errIns } = await supabaseAdmin.from('usuario_roles').insert(
       parsed.data.roles.map((rol_id) => ({
         auth_user_id: parsed.data.auth_user_id,
         rol_id,
         asignado_por: req.user?.sub ?? null,
       })),
     );
+    if (errIns) return res.status(500).json({ error: 'ROLES_ASIGNAR_FAILED', paso: 'insertar', detail: errIns.message });
   }
   invalidateUserPermisos(parsed.data.auth_user_id);
   res.json({ ok: true });
@@ -213,19 +232,25 @@ const grantPermisoSchema = z.object({
 router.post('/usuarios/permiso-extra', async (req: any, res) => {
   const parsed = grantPermisoSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID' });
-  await supabaseAdmin.from('usuario_permisos').upsert({
+  // Si falla en silencio, el admin cree que otorgó el permiso y el usuario
+  // sigue recibiendo 403 sin que nadie entienda por qué.
+  const { error } = await supabaseAdmin.from('usuario_permisos').upsert({
     auth_user_id: parsed.data.auth_user_id,
     permiso_code: parsed.data.permiso_code,
     asignado_por: req.user?.sub ?? null,
   });
+  if (error) return res.status(500).json({ error: 'PERMISO_GRANT_FAILED', detail: error.message });
   invalidateUserPermisos(parsed.data.auth_user_id);
   res.json({ ok: true });
 });
 
 router.delete('/usuarios/:auth_user_id/permisos/:code', async (req, res) => {
-  await supabaseAdmin.from('usuario_permisos').delete()
+  // SEGURIDAD: si este borrado falla en silencio, el sistema "falla abierto":
+  // el admin ve que revocó el permiso y el usuario lo conserva indefinidamente.
+  const { error } = await supabaseAdmin.from('usuario_permisos').delete()
     .eq('auth_user_id', req.params.auth_user_id)
     .eq('permiso_code', req.params.code);
+  if (error) return res.status(500).json({ error: 'PERMISO_REVOKE_FAILED', detail: error.message });
   invalidateUserPermisos(req.params.auth_user_id);
   res.json({ ok: true });
 });

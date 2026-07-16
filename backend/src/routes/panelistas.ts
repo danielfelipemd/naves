@@ -131,12 +131,17 @@ router.post('/portal/:token/confirmar', async (req, res) => {
   }, { onConflict: 'panelista_id' });
   if (errLog) return res.status(500).json({ error: errLog.message });
 
+  // La confirmación es el objetivo de todo este endpoint: si su error se ignora
+  // (la logística de arriba SÍ se verifica), el panelista ve "confirmado", pero
+  // en la base sigue sin confirmar: no cuenta en el tablero del coordinador y
+  // los recordatorios le siguen llegando a un evaluador externo.
   const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '').split(',')[0].trim() || null;
-  await supabaseAdmin.from('panelistas').update({
+  const { error: errConf } = await supabaseAdmin.from('panelistas').update({
     confirmado: true,
     fecha_confirmacion: new Date().toISOString(),
     ip_confirmacion: ip,
   }).eq('id', (p as any).id);
+  if (errConf) return res.status(500).json({ error: errConf.message });
 
   res.json({ ok: true, confirmado: true });
 });
@@ -260,9 +265,15 @@ router.post('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
   if (!asiste_todas && jornada_ids?.length) {
-    await supabaseAdmin.from('panelista_jornadas').insert(
+    // Si esto falla en silencio el panelista queda creado SIN jornadas: su
+    // portal muestra agenda vacía y no aparece en ningún conteo de logística.
+    const { error: errJor } = await supabaseAdmin.from('panelista_jornadas').insert(
       jornada_ids.map((jid) => ({ panelista_id: (nuevo as any).id, jornada_id: jid })),
     );
+    if (errJor) {
+      await supabaseAdmin.from('panelistas').delete().eq('id', (nuevo as any).id);
+      return res.status(500).json({ error: 'JORNADAS_FAILED', detail: errJor.message });
+    }
   }
   res.status(201).json({ id: (nuevo as any).id });
 });
@@ -285,11 +296,16 @@ router.patch('/admin/panelista/:id', ...soloAdmin, async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
   }
   if (jornada_ids !== undefined) {
-    await supabaseAdmin.from('panelista_jornadas').delete().eq('panelista_id', req.params.id);
+    // Borrar-y-reinsertar: si el insert falla tras el borrado, el panelista
+    // pierde TODAS sus jornadas en silencio (desaparece del resumen logístico
+    // y nadie le reserva transporte ni comidas) y el admin cree que guardó.
+    const { error: errDel } = await supabaseAdmin.from('panelista_jornadas').delete().eq('panelista_id', req.params.id);
+    if (errDel) return res.status(500).json({ error: 'JORNADAS_FAILED', paso: 'borrar', detail: errDel.message });
     if (jornada_ids.length) {
-      await supabaseAdmin.from('panelista_jornadas').insert(
+      const { error: errIns } = await supabaseAdmin.from('panelista_jornadas').insert(
         jornada_ids.map((jid) => ({ panelista_id: req.params.id, jornada_id: jid })),
       );
+      if (errIns) return res.status(500).json({ error: 'JORNADAS_FAILED', paso: 'insertar', detail: errIns.message });
     }
   }
   res.json({ ok: true });

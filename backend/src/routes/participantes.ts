@@ -152,14 +152,22 @@ router.put('/mi-perfil', requireRole('participante'), async (req: AuthenticatedR
     .eq('id', pid);
   if (upErr) return res.status(500).json({ error: upErr.message });
 
-  // Reemplazar emociones y preocupaciones
-  await supabaseAdmin.from('participante_emociones').delete().eq('participante_id', pid);
-  await supabaseAdmin.from('participante_preocupaciones').delete().eq('participante_id', pid);
+  // Reemplazar emociones y preocupaciones. Es un borrar-y-reinsertar sobre
+  // datos que el participante acaba de escribir: si el borrado pasa y el insert
+  // falla en silencio, su perfil queda VACÍO, la pantalla dice "guardado" y
+  // encima queda marcado como perfil completo (con lo que puede formar equipo
+  // y ese vacío se propaga a la sábana). Verificamos cada paso.
+  const rDelE = await supabaseAdmin.from('participante_emociones').delete().eq('participante_id', pid);
+  if (rDelE.error) return res.status(500).json({ error: rDelE.error.message, paso: 'emociones' });
+  const rDelP = await supabaseAdmin.from('participante_preocupaciones').delete().eq('participante_id', pid);
+  if (rDelP.error) return res.status(500).json({ error: rDelP.error.message, paso: 'preocupaciones' });
   if (datos.emociones.length) {
-    await supabaseAdmin.from('participante_emociones').insert(datos.emociones.map((e) => ({ participante_id: pid, emocion: e })));
+    const { error } = await supabaseAdmin.from('participante_emociones').insert(datos.emociones.map((e) => ({ participante_id: pid, emocion: e })));
+    if (error) return res.status(500).json({ error: error.message, paso: 'emociones' });
   }
   if (datos.preocupaciones.length) {
-    await supabaseAdmin.from('participante_preocupaciones').insert(datos.preocupaciones.map((p) => ({ participante_id: pid, preocupacion: p })));
+    const { error } = await supabaseAdmin.from('participante_preocupaciones').insert(datos.preocupaciones.map((p) => ({ participante_id: pid, preocupacion: p })));
+    if (error) return res.status(500).json({ error: error.message, paso: 'preocupaciones' });
   }
 
   // Sincronizar a miembros_equipo si ya está en un equipo (para que el flujo viejo siga viendo el perfil)

@@ -217,8 +217,13 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
         userId = users.find((u) => u.email === synth)?.id ?? null;
       }
 
-      // 2) upsert participantes_lista
-      const { data: pRow } = await supabaseAdmin
+      // 2) upsert participantes_lista.
+      // OJO: si este upsert falla y no lo miramos, ya existe una cuenta de auth
+      // (creada arriba) que puede iniciar sesión pero SIN fila de participante:
+      // el alumno no aparece en la lista de la cohorte y, aun así, abajo se
+      // contaba como insertado. Reportamos la fila como error y seguimos con
+      // las demás.
+      const { data: pRow, error: errRow } = await supabaseAdmin
         .from('participantes_lista')
         .upsert({
           cohorte_id: cohorteId,
@@ -231,6 +236,10 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
           estado: 'pendiente_activacion',
         }, { onConflict: 'cohorte_id,cedula_hash' })
         .select('id').single();
+      if (errRow || !pRow) {
+        errors.push({ row: r, error: errRow?.message ?? 'NO_SE_PUDO_CREAR_PARTICIPANTE' });
+        continue;
+      }
 
       // 3) actualizar metadata del auth user con participante_id
       if (userId && pRow) {
@@ -1965,7 +1974,12 @@ router.post('/equipos/:id/remover-miembro', async (req, res) => {
       .order('posicion');
     const sucesor = (restantes ?? [])[0]?.participante_id;
     if (sucesor) {
-      await supabaseAdmin.from('equipos').update({ creador_id: sucesor }).eq('id', req.params.id);
+      // Si el traspaso falla y seguimos, borramos igual al miembro y creador_id
+      // queda apuntando a alguien que ya no está: el equipo se queda sin dueño
+      // y ese participante no se puede borrar nunca más (DELETE lo bloquea por
+      // ser "creador"). Abortamos antes de tocar nada más.
+      const { error: errSuc } = await supabaseAdmin.from('equipos').update({ creador_id: sucesor }).eq('id', req.params.id);
+      if (errSuc) return res.status(500).json({ error: 'TRASPASO_CREADOR_FALLIDO', detail: errSuc.message });
     } else {
       // No hay sucesor: dejamos el equipo sin creador (queda vacio).
       // Importante: equipos.creador_id es NOT NULL, asi que no podemos
@@ -1975,13 +1989,18 @@ router.post('/equipos/:id/remover-miembro', async (req, res) => {
     }
   }
 
-  await supabaseAdmin.from('miembros_equipo').delete().eq('id', miembro.id);
+  // Esta es LA razón de ser del endpoint: si su error se ignora, la UI confirma
+  // "miembro removido" y el estudiante sigue en el equipo.
+  const { error: errDel } = await supabaseAdmin.from('miembros_equipo').delete().eq('id', miembro.id);
+  if (errDel) return res.status(500).json({ error: 'REMOVER_MIEMBRO_FALLIDO', detail: errDel.message });
 
   // Si el equipo queda vacio, el participante removido recupera su flag de
-  // espera (puede volver a unirse a otro equipo).
-  await supabaseAdmin.from('participantes_lista')
+  // espera (puede volver a unirse a otro equipo). Best-effort: si falla, solo
+  // queda sin la marca de "buscando equipo" (el admin puede re-agregarlo igual).
+  const { error: errFlag } = await supabaseAdmin.from('participantes_lista')
     .update({ esperando_equipo_at: new Date().toISOString() })
     .eq('id', parsed.data.participante_id);
+  if (errFlag) console.warn('[remover-miembro] no se pudo marcar esperando_equipo_at:', errFlag.message);
 
   res.json({ ok: true });
 });

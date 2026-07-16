@@ -118,17 +118,25 @@ router.post('/equipos/:id/seleccionar-proyecto-definitivo', async (req: Authenti
   if (!ids.includes(parsed.data.proyecto_id)) return res.status(400).json({ error: 'PROJECT_NOT_IN_TEAM' });
 
   const ahora = new Date().toISOString();
-  // El proyecto elegido pasa a definitivo, los demás a archivado
-  await supabaseAdmin.from('proyectos').update({ estado_seleccion: 'definitivo' }).eq('id', parsed.data.proyecto_id);
-  await supabaseAdmin
+  // El proyecto elegido pasa a definitivo, los demás a archivado. Son 3 escrituras
+  // que deben cuadrar entre sí: si una falla en silencio el equipo queda
+  // inconsistente (p.ej. definitivo marcado pero el equipo sin apuntarlo, o los
+  // otros sin archivar). Verificamos las tres antes de responder ok.
+  const rDef = await supabaseAdmin.from('proyectos').update({ estado_seleccion: 'definitivo' }).eq('id', parsed.data.proyecto_id);
+  if (rDef.error) return res.status(500).json({ error: 'SELECCION_FALLIDA', paso: 'definitivo', detail: rDef.error.message });
+
+  const rArch = await supabaseAdmin
     .from('proyectos')
     .update({ estado_seleccion: 'archivado', fecha_archivado: ahora })
     .eq('anteproyecto_id', ant.id)
     .neq('id', parsed.data.proyecto_id);
-  await supabaseAdmin
+  if (rArch.error) return res.status(500).json({ error: 'SELECCION_FALLIDA', paso: 'archivar', detail: rArch.error.message });
+
+  const rEq = await supabaseAdmin
     .from('equipos')
     .update({ proyecto_definitivo_id: parsed.data.proyecto_id, fecha_seleccion_definitivo: ahora })
     .eq('id', req.params.id);
+  if (rEq.error) return res.status(500).json({ error: 'SELECCION_FALLIDA', paso: 'equipo', detail: rEq.error.message });
 
   res.json({ ok: true, proyecto_definitivo_id: parsed.data.proyecto_id, archivados_count: ids.length - 1 });
 });

@@ -184,13 +184,17 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
     const equipos = parsed.data.equipo_ids.map((id) => ({ equipo_id: id, ...(eq.get(id) ?? { proyecto: '', autores: '', sector: '' }) }));
     const filas = computarJornada(toMin((jornada as any).hora_inicio), !!(jornada as any).foto_inicial, (jornada as any).intro_min ?? 0, equipos, 1, false, C);
     const slots = filas.filter((f) => f.tipo === 'proyecto');
-    // Reemplazar slots de la jornada
-    await supabaseAdmin.from('slot_presentacion').delete().eq('jornada_id', jid);
+    // Reemplazar slots de la jornada. OJO: es un borrar-y-reinsertar; si el
+    // insert falla y no lo miramos, la jornada queda SIN horario y el admin
+    // cree que guardó. Verificamos ambos pasos y avisamos si algo falla.
+    const { error: errDel } = await supabaseAdmin.from('slot_presentacion').delete().eq('jornada_id', jid);
+    if (errDel) return res.status(500).json({ error: 'SLOTS_DELETE_FAILED', detail: errDel.message });
     if (slots.length) {
-      await supabaseAdmin.from('slot_presentacion').insert(slots.map((f) => ({
+      const { error: errIns } = await supabaseAdmin.from('slot_presentacion').insert(slots.map((f) => ({
         jornada_id: jid, orden: f.slot, equipo_id: f.equipo_id ?? null,
         hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin),
       })));
+      if (errIns) return res.status(500).json({ error: 'SLOTS_INSERT_FAILED', detail: errIns.message });
     }
   }
   res.json({ ok: true });

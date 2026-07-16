@@ -50,7 +50,15 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
   // solo deja una fila (el segundo insert falla y releemos).
   if (!data) {
     console.warn(`[mi-anteproyecto] equipo ${miembro.equipo_id} sin anteproyecto; creando`);
-    await supabaseAdmin.from('anteproyectos').insert({ equipo_id: miembro.equipo_id, ultimo_editor_id: pid });
+    const { error: errIns } = await supabaseAdmin
+      .from('anteproyectos').insert({ equipo_id: miembro.equipo_id, ultimo_editor_id: pid });
+    // Un error de unicidad significa que otro miembro lo creó a la vez: no es
+    // un fallo, releemos. Cualquier otro error sí lo es.
+    const esCarrera = !!errIns && /duplicate|unique/i.test(errIns.message ?? '');
+    if (errIns && !esCarrera) {
+      console.error('[mi-anteproyecto] no se pudo auto-reparar:', errIns.message);
+      return res.status(500).json({ error: 'ANTEPROYECTO_REPAIR_FAILED', detail: errIns.message });
+    }
     const reread = await supabaseAdmin
       .from('anteproyectos')
       .select(SELECT_ANTE)
@@ -58,6 +66,10 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
       .maybeSingle();
     if (reread.error) return res.status(500).json({ error: reread.error.message });
     data = reread.data;
+    // Si tras reparar sigue sin haber fila, NO devolvemos null en silencio:
+    // eso reproduce exactamente el bug original (formulario sin id, "Enviar"
+    // mudo). Es mejor un error visible que una trampa invisible.
+    if (!data) return res.status(500).json({ error: 'ANTEPROYECTO_REPAIR_FAILED' });
   }
   if (!data) return res.json({ anteproyecto: null });
 
@@ -173,7 +185,11 @@ async function persistirBorradorEnBD(params: {
     m.preocupaciones !== undefined,
   );
   if (miembrosConCambios.length > 0) {
-    await Promise.all(miembrosConCambios.map(async (m) => {
+    // Hoy el formulario no manda emociones/preocupaciones, así que este bloque
+    // casi no corre; pero el esquema las acepta, y si un cliente empezara a
+    // enviarlas un borrar-y-reinsertar sin verificar dejaría el perfil del
+    // miembro VACÍO respondiendo ok. Cada escritura devuelve su error.
+    const errores = await Promise.all(miembrosConCambios.map(async (m): Promise<string | null> => {
       const updateRow: Record<string, unknown> = {};
       if (m.fue_emprendedor !== undefined) {
         updateRow.fue_emprendedor = m.fue_emprendedor;
@@ -182,38 +198,58 @@ async function persistirBorradorEnBD(params: {
       }
       if (m.perfil !== undefined) updateRow.perfil = m.perfil;
       if (Object.keys(updateRow).length) {
-        await supabaseAdmin.from('miembros_equipo').update(updateRow)
+        const { error } = await supabaseAdmin.from('miembros_equipo').update(updateRow)
           .eq('equipo_id', equipoId).eq('participante_id', m.participante_id);
+        if (error) return error.message;
       }
-      if (m.emociones === undefined && m.preocupaciones === undefined) return;
-      const { data: row } = await supabaseAdmin
+      if (m.emociones === undefined && m.preocupaciones === undefined) return null;
+      const { data: row, error: errRow } = await supabaseAdmin
         .from('miembros_equipo').select('id').eq('equipo_id', equipoId).eq('participante_id', m.participante_id).maybeSingle();
-      if (!row) return;
+      if (errRow) return errRow.message;
+      if (!row) return null;
       if (m.emociones) {
-        await supabaseAdmin.from('miembro_emociones').delete().eq('miembro_id', row.id);
+        const { error: eDel } = await supabaseAdmin.from('miembro_emociones').delete().eq('miembro_id', row.id);
+        if (eDel) return eDel.message;
         if (m.emociones.length) {
-          await supabaseAdmin.from('miembro_emociones').insert(m.emociones.map((emocion) => ({ miembro_id: row.id, emocion })));
+          const { error } = await supabaseAdmin.from('miembro_emociones').insert(m.emociones.map((emocion) => ({ miembro_id: row.id, emocion })));
+          if (error) return error.message;
         }
       }
       if (m.preocupaciones) {
-        await supabaseAdmin.from('miembro_preocupaciones').delete().eq('miembro_id', row.id);
+        const { error: pDel } = await supabaseAdmin.from('miembro_preocupaciones').delete().eq('miembro_id', row.id);
+        if (pDel) return pDel.message;
         if (m.preocupaciones.length) {
-          await supabaseAdmin.from('miembro_preocupaciones').insert(m.preocupaciones.map((preocupacion) => ({ miembro_id: row.id, preocupacion })));
+          const { error } = await supabaseAdmin.from('miembro_preocupaciones').insert(m.preocupaciones.map((preocupacion) => ({ miembro_id: row.id, preocupacion })));
+          if (error) return error.message;
         }
       }
+      return null;
     }));
+    const primerError = errores.find(Boolean);
+    if (primerError) return { ok: false, status: 500, body: { error: primerError, paso: 'perfil de miembros' } };
   }
 
   // === Flags equipo + SELECT proyectos existentes en PARALELO =============
   const equipoUpdate: Record<string, unknown> = {};
   if (payload.buscando_socios !== undefined) equipoUpdate.buscando_socios = payload.buscando_socios;
   if (payload.buscando_asociacion_otro_proyecto !== undefined) equipoUpdate.buscando_asociacion_otro_proyecto = payload.buscando_asociacion_otro_proyecto;
-  const [, existingRes] = await Promise.all([
+  // OJO: el resultado del UPDATE de flags NO se puede descartar (antes era una
+  // elisión `[, existingRes]` y su error era inalcanzable). Si falla, el equipo
+  // se queda sin los flags de sábana: cada autoguardado responde ok, pero al
+  // enviar el backend rechaza con FLAG_BUSCANDO_SOCIOS_REQUERIDO una pregunta
+  // que el estudiante YA contestó, y no hay forma de salir de ahí.
+  const [flagsRes, existingRes] = await Promise.all([
     Object.keys(equipoUpdate).length
       ? supabaseAdmin.from('equipos').update(equipoUpdate).eq('id', equipoId)
-      : Promise.resolve(),
+      : Promise.resolve({ error: null } as { error: null }),
     supabaseAdmin.from('proyectos').select('id, estado_seleccion').eq('anteproyecto_id', anteId),
   ]);
+  if ((flagsRes as any)?.error) {
+    return { ok: false, status: 500, body: { error: (flagsRes as any).error.message, paso: 'flags equipo' } };
+  }
+  if (existingRes?.error) {
+    return { ok: false, status: 500, body: { error: existingRes.error.message, paso: 'leer proyectos' } };
+  }
   const eliminables = ((existingRes?.data ?? []) as Array<{ id: string; estado_seleccion: string }>)
     .filter((p) => p.estado_seleccion === 'pendiente_seleccion');
 
@@ -358,12 +394,15 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
     if (!ant.archivo_proyecto_final_path) faltantes.push('proyecto_final');
     if (faltantes.length) return res.status(400).json({ error: 'ARCHIVOS_FALTANTES', faltantes });
 
+    // CRÍTICO: si este update falla en silencio, el participante ve la
+    // constancia de envío pero el anteproyecto sigue en 'borrador'.
     const fechaEnvio = new Date().toISOString();
-    await supabaseAdmin.from('anteproyectos').update({
+    const { error: errEnvioArch } = await supabaseAdmin.from('anteproyectos').update({
       estado: 'enviado',
       fecha_envio: fechaEnvio,
       ultimo_editor_id: pid,
     }).eq('id', req.params.id);
+    if (errEnvioArch) return res.status(500).json({ error: 'ENVIO_FALLIDO', detail: errEnvioArch.message });
 
     // Mismo correo unificado para todas las modalidades (sin info de director
     // porque para caso/PI ya se notifico al cargar el archivo, aqui es solo
@@ -473,16 +512,26 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
 
   // Si solo hay 1 proyecto, marcarlo automáticamente como definitivo
   if (proyectos.length === 1) {
-    await supabaseAdmin.from('proyectos').update({ estado_seleccion: 'definitivo' }).eq('id', proyectos[0].id);
-    await supabaseAdmin.from('equipos').update({ proyecto_definitivo_id: proyectos[0].id }).eq('id', ant.equipo_id);
+    const [rp, re] = await Promise.all([
+      supabaseAdmin.from('proyectos').update({ estado_seleccion: 'definitivo' }).eq('id', proyectos[0].id),
+      supabaseAdmin.from('equipos').update({ proyecto_definitivo_id: proyectos[0].id }).eq('id', ant.equipo_id),
+    ]);
+    if (rp.error || re.error) {
+      return res.status(500).json({ error: 'ENVIO_FALLIDO', detail: (rp.error ?? re.error)?.message });
+    }
   }
 
+  // CRÍTICO: este update es el que realmente registra el envío. Si su error se
+  // ignora, el participante ve "¡Anteproyecto enviado!" con su constancia y
+  // recibe el correo, pero en la base sigue en 'borrador' y la coordinación
+  // nunca lo ve. Verificar SIEMPRE antes de notificar y responder ok.
   const fechaEnvio = new Date().toISOString();
-  await supabaseAdmin.from('anteproyectos').update({
+  const { error: errEnvio } = await supabaseAdmin.from('anteproyectos').update({
     estado: 'enviado',
     fecha_envio: fechaEnvio,
     ultimo_editor_id: pid,
   }).eq('id', req.params.id);
+  if (errEnvio) return res.status(500).json({ error: 'ENVIO_FALLIDO', detail: errEnvio.message });
 
   // El correo de confirmación incluye el cronograma de hitos del/los proyecto(s).
   void notificarRegistroAnteproyectoAParticipantes({

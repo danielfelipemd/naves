@@ -350,15 +350,23 @@ async function generarUno(proyectoId: string): Promise<{ resumen: string; linked
   return { resumen, linkedin, sha256: f.sha256 };
 }
 
-async function guardarContenido(proyectoId: string, campos: Record<string, unknown>) {
-  const { data: prev } = await supabaseAdmin.from('proyecto_contenido').select('one_pager_url, logo_url').eq('proyecto_id', proyectoId).maybeSingle();
-  await supabaseAdmin.from('proyecto_contenido').upsert({
+// Devuelve null si todo bien, o el mensaje de error. OJO con los dos fallos
+// silenciosos que tenía: (1) si el SELECT previo fallaba, `prev` quedaba null y
+// el upsert escribía one_pager_url/logo_url = null, BORRANDO justo las URLs que
+// leía para preservarlas; (2) si el upsert fallaba, el llamador respondía ok y
+// el admin perdía el texto que acababa de escribir.
+async function guardarContenido(proyectoId: string, campos: Record<string, unknown>): Promise<string | null> {
+  const { data: prev, error: errPrev } = await supabaseAdmin
+    .from('proyecto_contenido').select('one_pager_url, logo_url').eq('proyecto_id', proyectoId).maybeSingle();
+  if (errPrev) return errPrev.message;
+  const { error } = await supabaseAdmin.from('proyecto_contenido').upsert({
     proyecto_id: proyectoId,
     one_pager_url: (prev as any)?.one_pager_url ?? null,
     logo_url: (prev as any)?.logo_url ?? null,
     ...campos,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'proyecto_id' });
+  return error ? error.message : null;
 }
 
 // POST generar contenido de UN proyecto
@@ -379,7 +387,8 @@ router.post('/admin/proyecto/:proyectoId/generar-contenido', ...soloAdmin, async
   }
   try {
     const { resumen, linkedin, sha256 } = await generarUno(proyectoId);
-    await guardarContenido(proyectoId, { resumen, linkedin, source_sha256: sha256, generado_en: new Date().toISOString(), aprobado: false });
+    const errG = await guardarContenido(proyectoId, { resumen, linkedin, source_sha256: sha256, generado_en: new Date().toISOString(), aprobado: false });
+    if (errG) return res.status(500).json({ error: 'GUARDAR_FALLIDO', detail: errG });
     res.json({ ok: true, resumen, linkedin });
   } catch (e: any) {
     const msg = e?.message ?? 'IA_ERROR';
@@ -404,7 +413,9 @@ router.post('/admin/:cohorteId/generar-todo', ...soloAdmin, async (req, res) => 
       // Saltar si ya está aprobado o si el hash no cambió y ya hay resumen.
       if (prev?.aprobado || (f && prev && prev.source_sha256 === f.sha256 && prev.resumen)) { resultado.saltados++; continue; }
       const { resumen, linkedin, sha256 } = await generarUno(pid);
-      await guardarContenido(pid, { resumen, linkedin, source_sha256: sha256, generado_en: new Date().toISOString(), aprobado: false });
+      // No contar como "generado" algo que no se guardó (antes sumaba igual).
+      const errG = await guardarContenido(pid, { resumen, linkedin, source_sha256: sha256, generado_en: new Date().toISOString(), aprobado: false });
+      if (errG) { resultado.errores++; continue; }
       resultado.generados++;
       await new Promise((r) => setTimeout(r, 600)); // respirar entre llamadas
     } catch (e: any) {
@@ -424,8 +435,11 @@ const contenidoSchema = z.object({
 router.put('/admin/proyecto/:proyectoId/contenido', ...soloAdmin, async (req, res) => {
   const parsed = contenidoSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  // Aquí el admin acaba de escribir/editar el texto a mano: si esto falla en
+  // silencio pierde su trabajo y la aprobación no queda, con la UI diciendo ok.
   const campos: Record<string, unknown> = { ...parsed.data };
-  await guardarContenido(req.params.proyectoId, campos);
+  const errG = await guardarContenido(req.params.proyectoId, campos);
+  if (errG) return res.status(500).json({ error: 'GUARDAR_FALLIDO', detail: errG });
   res.json({ ok: true });
 });
 
@@ -452,7 +466,16 @@ router.post('/admin/proyecto/:proyectoId/asset', ...soloAdmin, upload.single('ar
   try {
     const { path } = await uploadAssetNaves(proyectoId, tipo, file.buffer, file.mimetype);
     const col = tipo === 'logo' ? 'logo_path' : 'one_pager_path';
-    await supabaseAdmin.from('proyecto_contenido').upsert({ proyecto_id: proyectoId, [col]: path, updated_at: new Date().toISOString() }, { onConflict: 'proyecto_id' });
+    // OJO: este upsert NO lanza; sin verificar su error el archivo quedaba
+    // subido a Storage (y hasta devolvíamos una URL que se veía bien) pero sin
+    // guardar el enlace: al recargar, el logo/one pager no estaba y el objeto
+    // quedaba huérfano en el bucket.
+    const { error: errDb } = await supabaseAdmin.from('proyecto_contenido')
+      .upsert({ proyecto_id: proyectoId, [col]: path, updated_at: new Date().toISOString() }, { onConflict: 'proyecto_id' });
+    if (errDb) {
+      await deleteAssetNaves(path).catch(() => { /* no dejar huérfano */ });
+      return res.status(500).json({ error: 'ASSET_DB_FAILED', detail: errDb.message });
+    }
     res.json({ ok: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)) });
   } catch (e: any) {
     res.status(500).json({ error: e?.message ?? 'UPLOAD_ERROR' });

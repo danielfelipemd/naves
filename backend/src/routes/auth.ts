@@ -167,14 +167,20 @@ router.post('/recovery/confirm', async (req, res) => {
   });
   if (!r.ok) return res.status(500).json({ error: 'AUTH_UPDATE_FAILED', detail: await r.text() });
 
-  // Marcar token usado + activar al participante si estaba pendiente
-  await supabaseAdmin.from('recovery_tokens')
+  // Marcar token usado + activar al participante si estaba pendiente.
+  // Si el "usado" falla en silencio el token de recuperación seguiría siendo
+  // reutilizable; si falla la activación, el participante queda atrapado en el
+  // cambio de clave forzado. Ambos se verifican.
+  const { error: errTok } = await supabaseAdmin.from('recovery_tokens')
     .update({ usado: true, fecha_uso: new Date().toISOString() })
     .eq('id', row.id);
+  if (errTok) return res.status(500).json({ error: 'TOKEN_UPDATE_FAILED', detail: errTok.message });
+
   if (row.participante_id) {
-    await supabaseAdmin.from('participantes_lista')
+    const { error: errAct } = await supabaseAdmin.from('participantes_lista')
       .update({ estado: 'activo', fecha_activacion: new Date().toISOString() })
       .eq('id', row.participante_id);
+    if (errAct) return res.status(500).json({ error: 'ACTIVACION_FALLIDA', detail: errAct.message });
   }
 
   res.json({ ok: true });
@@ -270,10 +276,13 @@ router.post('/cambiar-clave-inicial', requireAuth(), async (req: any, res) => {
   });
   if (!r.ok) return res.status(500).json({ error: 'AUTH_UPDATE_FAILED', detail: await r.text() });
 
-  // Activar al participante
-  await supabaseAdmin.from('participantes_lista')
+  // Activar al participante. Si esto falla en silencio, la clave YA cambió pero
+  // el participante sigue 'pendiente_activacion': queda atrapado en el cambio
+  // de clave forzado y no puede formar equipo. Verificamos y avisamos.
+  const { error: errAct } = await supabaseAdmin.from('participantes_lista')
     .update({ estado: 'activo', fecha_activacion: new Date().toISOString() })
     .eq('id', participanteId);
+  if (errAct) return res.status(500).json({ error: 'ACTIVACION_FALLIDA', detail: errAct.message });
 
   res.json({ ok: true });
 });
