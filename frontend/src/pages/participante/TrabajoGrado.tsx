@@ -27,6 +27,7 @@ interface Anteproyecto {
     id: string;
     tipo_trabajo_grado: Modalidad;
     director_id: string | null;
+    proyecto_definitivo_id: string | null;
     director?: { id: string; nombre_completo: string } | null;
   };
 }
@@ -209,6 +210,18 @@ export default function TrabajoGrado() {
 
   async function subir(tipo: 'anteproyecto' | 'proyecto-final', file: File) {
     if (!ant) return;
+    // El proyecto final no se puede reemplazar: se confirma antes de subirlo.
+    if (tipo === 'proyecto-final') {
+      const ok = window.confirm(
+        `Vas a cargar "${file.name}" como tu proyecto final.\n\n` +
+        'Es DEFINITIVO: una vez cargado no podrás modificarlo ni reemplazarlo.\n\n' +
+        '¿Confirmas que es la versión correcta?',
+      );
+      if (!ok) {
+        if (inputFinalRef.current) inputFinalRef.current.value = '';
+        return;
+      }
+    }
     setSubiendo(tipo); setError(null);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -346,8 +359,13 @@ export default function TrabajoGrado() {
   const esCasoOPI = modalidad === 'caso' || modalidad === 'proyecto_investigacion';
   const directorAsignado = ant?.equipos?.director_id ?? null;
   const antSubido = !!ant?.archivo_anteproyecto_path;
-  const aprobado = !!ant?.anteproyecto_aprobado_at;
   const finalSubido = !!ant?.archivo_proyecto_final_path;
+
+  // Módulo de proyecto: se habilita distinto según el flujo de cada modalidad.
+  //  - caso/PI: al cargar su archivo de anteproyecto. No pasan por la reunión de
+  //    profesores; esa selección es exclusiva del Business Plan.
+  //  - business plan: al elegirse el proyecto definitivo en la reunión.
+  const proyectoHabilitado = esCasoOPI ? antSubido : !!ant?.equipos?.proyecto_definitivo_id;
 
   return (
     <>
@@ -450,16 +468,25 @@ export default function TrabajoGrado() {
           </div>
 
           {/* === Bloque 2: Proyecto final ================================= */}
-          <div className={`border rounded p-5 mb-8 ${aprobado ? 'border-inalde-gray-light' : 'border-inalde-gray-light bg-inalde-gray-bg/30'}`}>
+          <div className={`border rounded p-5 mb-8 ${proyectoHabilitado ? 'border-inalde-gray-light' : 'border-inalde-gray-light bg-inalde-gray-bg/30'}`}>
             <div className="flex items-start justify-between gap-3 mb-2">
               <h2 className="font-primary font-bold text-base">Proyecto final (PDF o Word)</h2>
-              {!aprobado && <span className="text-xs">🔒</span>}
+              {!proyectoHabilitado && <span className="text-xs" aria-hidden="true">🔒</span>}
             </div>
 
-            {!aprobado && !finalSubido && (
-              <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-xs text-inalde-text mb-3">
-                Este paso queda <strong>bloqueado</strong> hasta la entrega final; estará disponible
-                al final del proceso.
+            {!proyectoHabilitado && !finalSubido && (
+              <div className="rounded border-l-4 border-inalde-gold bg-inalde-gray-bg px-4 py-3 text-xs text-inalde-text mb-3">
+                {esCasoOPI
+                  ? <>Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.</>
+                  : <>Este paso se habilita <strong>cuando se elija tu proyecto definitivo</strong>.</>}
+              </div>
+            )}
+
+            {proyectoHabilitado && !finalSubido && (
+              <div className="rounded border-l-4 border-inalde-red bg-inalde-gray-bg px-4 py-3 text-xs text-inalde-text mb-3">
+                <strong>Atención:</strong> el proyecto final es <strong>definitivo</strong>. Una vez
+                cargado <strong>no se puede modificar ni reemplazar</strong>. Asegúrate de subir la
+                versión correcta.
               </div>
             )}
 
@@ -478,7 +505,7 @@ export default function TrabajoGrado() {
                   Este archivo no se puede reemplazar.
                 </p>
               </div>
-            ) : aprobado ? (
+            ) : proyectoHabilitado ? (
               <>
                 <p className="text-sm text-inalde-gray italic mb-3">Aún no has cargado el proyecto final.</p>
                 <DropZone
@@ -491,7 +518,9 @@ export default function TrabajoGrado() {
                 />
               </>
             ) : (
-              <p className="text-sm text-inalde-gray italic">Disponible al final del proceso.</p>
+              <p className="text-sm text-inalde-gray italic">
+                {esCasoOPI ? 'Carga primero tu anteproyecto.' : 'Disponible cuando se elija tu proyecto definitivo.'}
+              </p>
             )}
           </div>
 

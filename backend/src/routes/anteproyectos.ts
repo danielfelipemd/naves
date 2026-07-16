@@ -26,6 +26,7 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
       *,
       equipos:equipos!inner (
         id, tipo_trabajo_grado, director_id, director_asignado_at,
+        proyecto_definitivo_id,
         director:directores ( id, nombre_completo )
       ),
       proyectos (

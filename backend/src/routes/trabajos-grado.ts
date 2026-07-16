@@ -62,6 +62,7 @@ async function loadAnteproyectoConEquipo(id: string) {
       archivo_anteproyecto_path, archivo_proyecto_final_path,
       anteproyecto_aprobado_at,
       equipos:equipos!inner ( id, cohorte_id, tipo_trabajo_grado, nombre_equipo, director_id,
+        proyecto_definitivo_id,
         cohortes:cohortes ( fecha_limite_entrega_anteproyecto )
       )
     `)
@@ -234,21 +235,19 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
   if (!(await isMiembroDelEquipo(pid, ant.equipo_id))) {
     return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
   }
-  if (ant.estado !== 'borrador') {
-    return res.status(409).json({ error: 'ALREADY_SUBMITTED', estado: ant.estado });
-  }
-
   const modalidad = ant.equipos?.tipo_trabajo_grado;
-  if (!(modalidad === 'caso' || modalidad === 'proyecto_investigacion')) {
-    return res.status(400).json({ error: 'MODALIDAD_NO_USA_ARCHIVOS', modalidad });
-  }
-
+  const esCasoPI = modalidad === 'caso' || modalidad === 'proyecto_investigacion';
   const directorId = ant.equipos?.director_id as string | null;
-  const aprobadoAt = ant.anteproyecto_aprobado_at as string | null;
   const yaSubido = ant[COL_PATH[tipo]] as string | null;
 
   // Reglas por tipo
   if (tipo === 'anteproyecto') {
+    // El ARCHIVO de anteproyecto solo existe en caso/PI: el Business Plan usa el
+    // formulario. Solo se carga mientras el anteproyecto sigue en borrador.
+    if (!esCasoPI) return res.status(400).json({ error: 'MODALIDAD_NO_USA_ARCHIVOS', modalidad });
+    if (ant.estado !== 'borrador') {
+      return res.status(409).json({ error: 'ALREADY_SUBMITTED', estado: ant.estado });
+    }
     if (!directorId) {
       return res.status(400).json({
         error: 'DIRECTOR_NO_SELECCIONADO',
@@ -262,11 +261,22 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
       });
     }
   } else {
-    // proyecto-final: solo permitido si el anteproyecto fue aprobado
-    if (!aprobadoAt) {
+    // MÓDULO DE PROYECTO (proyecto final). Aplica a todas las modalidades, pero
+    // se habilita distinto porque los flujos son distintos:
+    //  - caso/PI: al cargar su archivo de anteproyecto. No pasan por la reunión
+    //    de profesores; esa selección es exclusiva del Business Plan.
+    //  - business plan: al elegirse el proyecto definitivo en la reunión.
+    if (esCasoPI) {
+      if (!ant.archivo_anteproyecto_path) {
+        return res.status(403).json({
+          error: 'FALTA_ANTEPROYECTO',
+          mensaje: 'Carga primero tu anteproyecto: con eso se habilita el módulo de proyecto.',
+        });
+      }
+    } else if (!ant.equipos?.proyecto_definitivo_id) {
       return res.status(403).json({
-        error: 'ESPERA_APROBACION_ANTEPROYECTO',
-        mensaje: 'Solo puedes cargar el proyecto final cuando tu anteproyecto haya sido aprobado.',
+        error: 'ESPERA_PROYECTO_DEFINITIVO',
+        mensaje: 'Podrás cargar tu proyecto final cuando se elija tu proyecto definitivo.',
       });
     }
     if (yaSubido) {
@@ -281,8 +291,10 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
   const setPermitido = tipo === 'anteproyecto' ? MIME_ANTEPROYECTO : MIME_PROYECTO_FINAL;
   if (!setPermitido.has(mime)) return res.status(400).json({ error: 'INVALID_MIME', mime });
 
+  // La fecha límite es la de ENTREGA DEL ANTEPROYECTO: no puede cerrar el
+  // proyecto final, que se entrega mucho después (hito 10).
   const limite = ant.equipos?.cohortes?.fecha_limite_entrega_anteproyecto;
-  if (limite && new Date() >= new Date(limite)) {
+  if (tipo === 'anteproyecto' && limite && new Date() >= new Date(limite)) {
     return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA', fecha_limite: limite });
   }
 
