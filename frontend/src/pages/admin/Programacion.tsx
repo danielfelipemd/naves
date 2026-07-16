@@ -228,7 +228,15 @@ export default function Programacion() {
                 )}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse bg-white">
+                {/* Los anchos se declaran UNA vez en el colgroup y el layout es
+                    fijo: con table-auto el navegador reparte el sobrante a su
+                    manera y la cabecera deja de caer sobre su columna. */}
+                <table className="w-full min-w-[1305px] table-fixed border-collapse bg-white">
+                  <colgroup>
+                    <col className="w-[70px]" /><col className="w-[75px]" /><col className="w-[120px]" />
+                    <col className="w-[190px]" /><col className="w-[130px]" /><col className="w-[240px]" />
+                    <col className="w-[260px]" /><col className="w-[130px]" /><col className="w-[90px]" />
+                  </colgroup>
                   <thead>
                     <tr className="bg-inalde-text text-white">
                       {['Slot', 'Logo', 'Proyecto', 'Autores', 'Sector', 'One Pager', 'Post LinkedIn', 'Descargas', ''].map((h, i) => (
@@ -247,27 +255,27 @@ export default function Programacion() {
                       </tr>
                     ) : (
                       <tr key={f.s.proyecto_id} className="border-b border-inalde-gray-light align-middle">
-                        <td className="w-[70px] text-center px-3 py-2.5">
+                        <td className="text-center px-3 py-2.5">
                           <strong className="font-primary text-inalde-text">{f.s.slot}</strong>
                           <span className="block text-[0.7rem] text-inalde-gray mt-0.5 font-mono">{f.s.hora_inicio}–{f.s.hora_fin}</span>
                         </td>
-                        <td className="w-[75px] text-center px-3 py-2.5">
+                        <td className="text-center px-3 py-2.5">
                           {f.s.logo_url
                             ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[55px] max-h-[45px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
                             : <span className="text-[0.7rem] text-inalde-gray italic">Sin logo</span>}
                         </td>
-                        <td className="w-[120px] px-3 py-2.5 font-primary font-bold text-[0.85rem] text-inalde-text">{f.s.proyecto}</td>
-                        <td className="w-[190px] px-3 py-2.5 text-[0.78rem] text-inalde-gray">{f.s.autores}</td>
-                        <td className="w-[130px] px-3 py-2.5">
+                        <td className="px-3 py-2.5 font-primary font-bold text-[0.85rem] text-inalde-text">{f.s.proyecto}</td>
+                        <td className="px-3 py-2.5 text-[0.78rem] text-inalde-gray">{f.s.autores}</td>
+                        <td className="px-3 py-2.5">
                           {f.s.sector && (
                             <span className="inline-block text-white rounded-[3px] px-2 py-0.5 font-primary font-bold text-[0.62rem] tracking-wider uppercase whitespace-nowrap" style={{ background: colorSector(f.s.sector) }}>{f.s.sector}</span>
                           )}
                         </td>
-                        <td className="w-[240px] px-3 py-2.5 text-[0.8rem] leading-relaxed">
+                        <td className="px-3 py-2.5 text-[0.8rem] leading-relaxed">
                           {f.s.resumen ?? <span className="text-inalde-gray italic">Sin resumen</span>}
                           {f.s.one_pager_url && <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="block mt-1 font-primary font-bold text-[0.7rem] text-inalde-red hover:underline">Ver One Pager →</a>}
                         </td>
-                        <td className="w-[260px] px-3 py-2.5">
+                        <td className="px-3 py-2.5">
                           {f.s.linkedin ? (
                             <>
                               <div className="text-[0.76rem] leading-relaxed text-inalde-text mb-1.5">{f.s.linkedin}</div>
@@ -278,7 +286,7 @@ export default function Programacion() {
                             </>
                           ) : <span className="text-[0.76rem] text-inalde-gray italic">Sin post</span>}
                         </td>
-                        <td className="w-[130px] px-3 py-2.5">
+                        <td className="px-3 py-2.5">
                           {f.s.logo_url && <a href={f.s.logo_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-blue border border-inalde-blue hover:bg-inalde-blue hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>Logo</a>}
                           {f.s.one_pager_url && <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-red border border-inalde-red hover:bg-inalde-red hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>One Pager</a>}
                           {!f.s.logo_url && !f.s.one_pager_url && <span className="text-[0.7rem] text-inalde-gray italic">—</span>}
