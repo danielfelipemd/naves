@@ -5,6 +5,11 @@ import { supabaseAdmin } from '../db/supabase.js';
 // La Fase 2 (panelistas, programación, base de datos interna, contenido IA) es
 // el evento de presentación: se presenta el PROYECTO FINAL ya entregado.
 //
+// SOLO BUSINESS PLAN presenta. Caso y Proyecto de Investigación NO participan del
+// evento: no se programan, no aparecen en la programación interna ni se les pide
+// material (one pager, logo, modelo financiero). Su trabajo de grado termina con
+// la entrega a su director, sin sustentación en NAVES.
+//
 // REGLA: un equipo entra a la Fase 2 solo cuando ha CARGADO SU PROYECTO FINAL.
 // Mientras no lo entregue sigue siendo un anteproyecto y no existe como
 // proyecto: no se programa, no aparece en la base de datos interna y no se le
@@ -38,7 +43,9 @@ export async function proyectosFase2(cohorteId: string): Promise<Map<string, Pro
   const { data } = await supabaseAdmin
     .from('equipos')
     .select('id, proyecto_definitivo_id, miembros_equipo(posicion, participantes_lista(nombre_completo)), anteproyectos(archivo_proyecto_final_path, proyectos(id, nombre, sector, estado_seleccion))')
-    .eq('cohorte_id', cohorteId);
+    .eq('cohorte_id', cohorteId)
+    // Solo Business Plan presenta (ver cabecera): Caso/PI quedan fuera del evento.
+    .eq('tipo_trabajo_grado', 'business_plan');
 
   const map = new Map<string, ProyectoFase2>();
   for (const e of (data ?? []) as any[]) {
@@ -62,12 +69,15 @@ export async function proyectosFase2(cohorteId: string): Promise<Map<string, Pro
 
 // Equipos de la cohorte que aún NO han entregado su proyecto final y por tanto
 // no entran a la Fase 2. Se cuentan para poder decirlo en pantalla: si no, el
-// administrador ve una tabla vacía y no sabe por qué.
+// administrador ve una tabla vacía y no sabe por qué. Solo Business Plan: contar
+// Caso/PI aquí daría un número alarmante de "faltantes" que en realidad nunca
+// presentan.
 export async function contarEquiposSinProyectoFinal(cohorteId: string): Promise<number> {
   const { data } = await supabaseAdmin
     .from('equipos')
     .select('id, anteproyectos(archivo_proyecto_final_path)')
-    .eq('cohorte_id', cohorteId);
+    .eq('cohorte_id', cohorteId)
+    .eq('tipo_trabajo_grado', 'business_plan');
   return ((data ?? []) as any[])
     .filter((e) => !pickAnte(e.anteproyectos)?.archivo_proyecto_final_path).length;
 }
