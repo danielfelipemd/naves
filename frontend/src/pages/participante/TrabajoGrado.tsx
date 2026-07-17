@@ -185,15 +185,8 @@ function AssetUploader(props: {
       </div>
       {props.asset?.cargado ? (
         <div className="text-sm text-inalde-gray">
-          <p className="mb-1 break-all"><span aria-hidden="true">📎 </span><span className="text-inalde-text">{props.asset.nombre}</span></p>
-          <div className="flex gap-4 items-center">
-            <button onClick={props.onOpen} className="text-inalde-red font-semibold hover:underline text-sm">Descargar →</button>
-            <button onClick={() => props.inputRef.current?.click()} disabled={props.disabled} className="text-inalde-gray hover:text-inalde-text text-sm disabled:opacity-40 disabled:cursor-not-allowed">
-              {props.subiendo ? 'Reemplazando…' : 'Reemplazar'}
-            </button>
-          </div>
-          <input ref={props.inputRef} type="file" accept={cfg.accept} className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f && aceptaAsset(props.tipo, f)) props.onFile(f); e.target.value = ''; }} />
+          <p className="mb-1 break-all"><span aria-hidden="true">✅ </span><span className="text-inalde-text">{props.asset.nombre}</span></p>
+          <button onClick={props.onOpen} className="text-inalde-red font-semibold hover:underline text-sm">Descargar →</button>
         </div>
       ) : (
         <DropZone
@@ -634,9 +627,16 @@ export default function TrabajoGrado() {
 
             {!proyectoHabilitado && !finalSubido && (
               <div className="rounded border-l-4 border-inalde-gold bg-inalde-gray-bg px-4 py-3 text-xs text-inalde-text mb-3">
-                {esCasoOPI
-                  ? <>Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.</>
-                  : <>Este paso se habilita <strong>cuando se elija tu proyecto definitivo</strong>.</>}
+                {esCasoOPI ? (
+                  <>Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.</>
+                ) : (
+                  <>
+                    Este paso se habilita <strong>cuando se elija tu proyecto definitivo</strong>, después de la Reunión 1 con tu profesor.
+                    <button onClick={() => navigate('/seleccion')} className="block mt-2 text-inalde-red font-semibold hover:underline">
+                      Ir a la selección del proyecto definitivo →
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -692,10 +692,7 @@ export default function TrabajoGrado() {
                 publique. */}
             {!esCasoOPI && proyectoHabilitado && (
               <div className="mt-6 pt-5 border-t border-inalde-gray-light">
-                <h3 className="font-primary font-semibold text-sm text-inalde-text mb-1">Material para la presentación</h3>
-                <p className="text-xs text-inalde-gray mb-4">
-                  Estos archivos se usan en la programación del evento. Puedes reemplazarlos mientras la programación no se publique.
-                </p>
+                <h3 className="font-primary font-semibold text-sm text-inalde-text mb-4">Material para la presentación</h3>
                 {(['one_pager', 'logo', 'modelo_financiero'] as const).map((t) => (
                   <AssetUploader
                     key={t}

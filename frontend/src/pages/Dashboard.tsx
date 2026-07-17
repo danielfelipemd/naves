@@ -359,17 +359,31 @@ export default function Dashboard() {
                       const otraElegida = !!modalidad && !elegida;
 
                       if (elegida) {
+                        // Business Plan entra a UNA sola pantalla (el hub de
+                        // trabajo de grado): antes había esta card de modalidad
+                        // (→ equipo) y aparte la de "Proyecto definitivo"
+                        // (→ trabajo-grado); no tenía sentido tenerlas separadas.
+                        const esBP = m.id === 'business_plan';
+                        const dest = esBP ? '/trabajo-grado' : destinoModalidad(m.id);
+                        const cta = esBP
+                          ? (proyectoDefinitivoNombre ? 'Cargar proyecto final' : 'Continuar con tu trabajo de grado')
+                          : 'Continuar';
                         return (
                           <Link
                             key={m.id}
-                            to={destinoModalidad(m.id)}
+                            to={dest}
                             className="card-inalde-interactive flex flex-col gap-3 border-2 border-inalde-red"
                           >
                             <div className="text-3xl">{m.emoji}</div>
                             <h2 className="font-primary font-bold text-lg">{m.titulo}</h2>
                             <p className="text-inalde-gray text-sm">{m.descripcion}</p>
+                            {esBP && proyectoDefinitivoNombre && (
+                              <p className="text-sm text-inalde-gray">
+                                Proyecto definitivo: <strong className="text-inalde-text">{proyectoDefinitivoNombre}</strong>.
+                              </p>
+                            )}
                             <span className="text-xs uppercase tracking-wider text-inalde-red font-semibold">
-                              ✓ Tu modalidad · Continuar →
+                              ✓ Tu modalidad · {cta} →
                             </span>
                           </Link>
                         );
@@ -403,34 +417,10 @@ export default function Dashboard() {
                     })}
                   </div>
 
-                  {modalidad && (
-                    <div className="grid sm:grid-cols-2 gap-6">
-                      {modalidad === 'business_plan' && (
-                        proyectoDefinitivoNombre ? (
-                          // Elegido el definitivo, esta card deja de ser un aviso y
-                          // pasa a ser la entrada al módulo de proyecto: es el
-                          // momento en que se habilita el cargue del proyecto final.
-                          <Link to="/trabajo-grado" className="card-inalde-interactive flex flex-col gap-3">
-                            <div className="text-3xl" aria-hidden="true">✅</div>
-                            <h2 className="font-primary font-bold text-lg">Proyecto definitivo</h2>
-                            <p className="text-inalde-gray text-sm">
-                              El proyecto <strong className="text-inalde-text">{proyectoDefinitivoNombre}</strong> fue definido como definitivo. Ya puedes cargar tu proyecto final.
-                            </p>
-                            <span className="text-sm font-semibold text-inalde-red">Cargar proyecto final →</span>
-                          </Link>
-                        ) : (
-                          <Link to="/seleccion" className="card-inalde-interactive flex flex-col gap-3">
-                            <div className="text-3xl">✅</div>
-                            <h2 className="font-primary font-bold text-lg">Selección del proyecto definitivo</h2>
-                            <p className="text-inalde-gray text-sm">Después de la Reunión 1 con tu profesor</p>
-                            <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
-                          </Link>
-                        )
-                      )}
-                      {/* Card 'Mi profesor' retirada del panel — la ruta /mi-profesor
-                          sigue disponible si se necesita restaurar el acceso. */}
-                    </div>
-                  )}
+                  {/* La entrada al trabajo de grado (anteproyecto, selección del
+                      definitivo y proyecto final) está unificada en la card de
+                      modalidad de arriba, que lleva a /trabajo-grado. La
+                      selección del definitivo se ofrece dentro de esa pantalla. */}
 
                   {/* Sábana de proyectos: vista de solo lectura de proyectos
                       de la cohorte que están buscando socios. */}
