@@ -12,6 +12,9 @@ interface Director {
   areas_afinidad?: string[];
 }
 
+interface AssetState { cargado: boolean; url: string; nombre: string; }
+type TipoAsset = 'one_pager' | 'logo' | 'modelo_financiero';
+
 interface Anteproyecto {
   id: string;
   equipo_id: string;
@@ -23,6 +26,7 @@ interface Anteproyecto {
   archivo_proyecto_final_mime: string | null;
   archivo_proyecto_final_uploaded_at: string | null;
   anteproyecto_aprobado_at: string | null;
+  assets?: Record<TipoAsset, AssetState | null>;
   equipos: {
     id: string;
     tipo_trabajo_grado: Modalidad;
@@ -30,6 +34,39 @@ interface Anteproyecto {
     proyecto_definitivo_id: string | null;
     director?: { id: string; nombre_completo: string } | null;
   };
+}
+
+// Material de apoyo del Business Plan que alimenta la programación de
+// presentaciones. A diferencia de los entregables (PDF definitivo), estos SÍ se
+// pueden reemplazar volviéndolos a subir.
+const ASSET_CFG: Record<TipoAsset, { label: string; accept: string; hint: string; exts: string[]; mimes: Set<string> }> = {
+  one_pager: {
+    label: 'One pager',
+    accept: '.pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp',
+    hint: 'PDF o imagen (PNG, JPG, WebP)',
+    exts: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
+    mimes: new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']),
+  },
+  logo: {
+    label: 'Logo',
+    accept: '.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp',
+    hint: 'PNG, JPG o WebP',
+    exts: ['png', 'jpg', 'jpeg', 'webp'],
+    mimes: new Set(['image/png', 'image/jpeg', 'image/webp']),
+  },
+  modelo_financiero: {
+    label: 'Modelo financiero',
+    accept: '.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel',
+    hint: 'Excel (.xlsx o .xls)',
+    exts: ['xlsx', 'xls'],
+    mimes: new Set(['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']),
+  },
+};
+
+function aceptaAsset(tipo: TipoAsset, file: File): boolean {
+  const cfg = ASSET_CFG[tipo];
+  if (file.type) return cfg.mimes.has(file.type);
+  return cfg.exts.includes(file.name.toLowerCase().split('.').pop() ?? '');
 }
 
 // Los dos entregables van en PDF, y solo PDF (el backend rechaza el resto).
@@ -65,23 +102,26 @@ function formatoFecha(iso: string | null): string {
   }
 }
 
-/** Zona de drag-and-drop sobre un input file nativo. */
+/** Zona de drag-and-drop sobre un input file nativo. Genérica: valida con la
+ *  función que le pasen y muestra el hint/error correspondiente. */
 function DropZone(props: {
-  tipo: 'anteproyecto' | 'proyecto-final';
   accept: string;
+  hint: string;
   disabled: boolean;
   subiendoEste: boolean;
+  validate: (f: File) => boolean;
+  errMsg: string;
   onFile: (f: File) => void;
   inputRef: React.RefObject<HTMLInputElement>;
 }) {
-  const { tipo, accept, disabled, subiendoEste, onFile, inputRef } = props;
+  const { accept, hint, disabled, subiendoEste, validate, errMsg, onFile, inputRef } = props;
   const [drag, setDrag] = useState(false);
   const [errMime, setErrMime] = useState(false);
 
   function handleFiles(files: FileList | null) {
     const f = files?.[0];
     if (!f) return;
-    if (!aceptaMime(tipo, f)) { setErrMime(true); return; }
+    if (!validate(f)) { setErrMime(true); return; }
     setErrMime(false);
     onFile(f);
   }
@@ -117,11 +157,55 @@ function DropZone(props: {
       <p className="text-sm text-inalde-text font-medium">
         {subiendoEste ? 'Cargando…' : 'Arrastra el archivo aquí o haz clic para seleccionarlo'}
       </p>
-      <p className="text-xs text-inalde-gray mt-1">PDF · máximo 25 MB</p>
+      <p className="text-xs text-inalde-gray mt-1">{hint} · máximo 25 MB</p>
       {errMime && (
-        <p className="text-xs text-inalde-red mt-2">
-          El tipo de archivo no es válido. Solo PDF.
-        </p>
+        <p className="text-xs text-inalde-red mt-2">El tipo de archivo no es válido. {errMsg}</p>
+      )}
+    </div>
+  );
+}
+
+/** Fila de carga de un asset (one pager / logo / modelo financiero). Se puede
+ *  reemplazar: si ya hay archivo, muestra descargar + reemplazar. */
+function AssetUploader(props: {
+  tipo: TipoAsset;
+  asset: AssetState | null;
+  subiendo: boolean;
+  disabled: boolean;
+  onFile: (f: File) => void;
+  onOpen: () => void;
+  inputRef: React.RefObject<HTMLInputElement>;
+}) {
+  const cfg = ASSET_CFG[props.tipo];
+  return (
+    <div className="border border-inalde-gray-light rounded p-4 mb-3">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <h4 className="font-primary font-semibold text-sm text-inalde-text">{cfg.label}</h4>
+        {props.asset?.cargado && <span className="text-xs text-inalde-gray">✓ Cargado</span>}
+      </div>
+      {props.asset?.cargado ? (
+        <div className="text-sm text-inalde-gray">
+          <p className="mb-1 break-all"><span aria-hidden="true">📎 </span><span className="text-inalde-text">{props.asset.nombre}</span></p>
+          <div className="flex gap-4 items-center">
+            <button onClick={props.onOpen} className="text-inalde-red font-semibold hover:underline text-sm">Descargar →</button>
+            <button onClick={() => props.inputRef.current?.click()} disabled={props.disabled} className="text-inalde-gray hover:text-inalde-text text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+              {props.subiendo ? 'Reemplazando…' : 'Reemplazar'}
+            </button>
+          </div>
+          <input ref={props.inputRef} type="file" accept={cfg.accept} className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f && aceptaAsset(props.tipo, f)) props.onFile(f); e.target.value = ''; }} />
+        </div>
+      ) : (
+        <DropZone
+          accept={cfg.accept}
+          hint={cfg.hint}
+          validate={(f) => aceptaAsset(props.tipo, f)}
+          errMsg={`Formato permitido: ${cfg.hint}.`}
+          disabled={props.disabled}
+          subiendoEste={props.subiendo}
+          onFile={props.onFile}
+          inputRef={props.inputRef}
+        />
       )}
     </div>
   );
@@ -140,8 +224,15 @@ export default function TrabajoGrado() {
   const [directorSel, setDirectorSel] = useState<string>('');
   const [guardandoDirector, setGuardandoDirector] = useState(false);
 
+  const [subiendoAsset, setSubiendoAsset] = useState<TipoAsset | null>(null);
+
   const inputAntRef = useRef<HTMLInputElement>(null);
   const inputFinalRef = useRef<HTMLInputElement>(null);
+  const inputAssetRefs: Record<TipoAsset, React.RefObject<HTMLInputElement>> = {
+    one_pager: useRef<HTMLInputElement>(null),
+    logo: useRef<HTMLInputElement>(null),
+    modelo_financiero: useRef<HTMLInputElement>(null),
+  };
   // AbortController para cancelar el upload si el usuario decide salir
   // mientras se esta subiendo el archivo.
   const abortRef = useRef<AbortController | null>(null);
@@ -239,6 +330,47 @@ export default function TrabajoGrado() {
       setSubiendo(null);
       if (tipo === 'anteproyecto' && inputAntRef.current) inputAntRef.current.value = '';
       if (tipo === 'proyecto-final' && inputFinalRef.current) inputFinalRef.current.value = '';
+    }
+  }
+
+  // Assets del proyecto (one pager, logo, modelo financiero). Se pueden
+  // reemplazar: volver a subir sobrescribe. Van a un endpoint distinto que los
+  // cuelga del proyecto definitivo.
+  async function subirAsset(tipo: TipoAsset, file: File) {
+    if (!ant) return;
+    setSubiendoAsset(tipo); setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await api.post(`/anteproyectos/${ant.id}/asset/${tipo}`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0,
+      });
+      await cargar();
+    } catch (e: any) {
+      setError(formatBackendError(e));
+    } finally {
+      setSubiendoAsset(null);
+      const ref = inputAssetRefs[tipo].current;
+      if (ref) ref.value = '';
+    }
+  }
+
+  async function abrirAsset(tipo: TipoAsset) {
+    if (!ant) return;
+    setError(null);
+    try {
+      const { data } = await api.get(`/anteproyectos/${ant.id}/asset/${tipo}`);
+      if (!data?.url) { setError('No fue posible obtener el archivo. Inténtalo de nuevo.'); return; }
+      const a = document.createElement('a');
+      a.href = new URL(data.url, window.location.origin).href;
+      a.download = '';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e: any) {
+      setError(formatBackendError(e));
     }
   }
 
@@ -418,17 +550,44 @@ export default function TrabajoGrado() {
 
           <p className="text-inalde-gray mb-8 text-sm">
             {esCasoOPI
-              ? <>Carga el <strong>anteproyecto</strong> en PDF. Tamaño máximo: 25 MB.</>
-              : <>Carga aquí tu <strong>proyecto final</strong> en PDF. Tamaño máximo: 25 MB.</>}
+              ? <>Tu trabajo de grado tiene dos pasos: primero el <strong>anteproyecto</strong> y, una vez cargado, el <strong>proyecto de grado</strong>.</>
+              : <>Tu trabajo de grado tiene dos pasos: primero el <strong>anteproyecto</strong> y, cuando se elija tu proyecto definitivo, el <strong>proyecto de grado</strong> con su material.</>}
           </p>
 
-          {/* === Bloque 1: Anteproyecto (solo caso/PI) ====================
-              El Business Plan hace su anteproyecto por formulario, no por
-              archivo: mostrarle esta zona de carga lo llevaba a un error
-              MODALIDAD_NO_USA_ARCHIVOS del servidor. */}
+          {/* === Bloque 1 (Business Plan): estado del anteproyecto ==========
+              El Business Plan hace su anteproyecto por FORMULARIO, no por
+              archivo. Aquí no se rellena: se muestra su estado y, si está hecho,
+              queda como paso completado; el formulario vive en /anteproyecto. */}
+          {!esCasoOPI && (
+          <div className="border border-inalde-gray-light rounded p-5 mb-5">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h2 className="font-primary font-bold text-base">1. Anteproyecto</h2>
+              {ant?.estado !== 'borrador' && <span className="text-xs text-inalde-gray" aria-hidden="true">✓ Completado</span>}
+            </div>
+            {ant?.estado !== 'borrador' ? (
+              <div className="text-sm text-inalde-gray">
+                <p className="mb-2">✅ Tu anteproyecto ya fue enviado. Este paso está completo.</p>
+                <button onClick={() => navigate('/anteproyecto')} className="text-inalde-red font-semibold hover:underline text-sm">
+                  Ver mi anteproyecto →
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-inalde-gray mb-3">
+                  Todavía no has enviado tu anteproyecto. Complétalo primero: con eso se habilita el proyecto de grado.
+                </p>
+                <button onClick={() => navigate('/anteproyecto')} className="btn-inalde-primary !py-2 !px-4 !text-xs">
+                  Completar anteproyecto →
+                </button>
+              </>
+            )}
+          </div>
+          )}
+
+          {/* === Bloque 1 (caso/PI): Anteproyecto por archivo ============== */}
           {esCasoOPI && (
           <div className="border border-inalde-gray-light rounded p-5 mb-5">
-            <h2 className="font-primary font-bold text-base mb-2">Anteproyecto (PDF)</h2>
+            <h2 className="font-primary font-bold text-base mb-2">1. Anteproyecto (PDF)</h2>
             {antSubido ? (
               <div className="text-sm text-inalde-gray mb-3">
                 <p>
@@ -452,8 +611,10 @@ export default function TrabajoGrado() {
                     : 'Aún no has cargado el anteproyecto.'}
                 </p>
                 <DropZone
-                  tipo="anteproyecto"
                   accept={MIME_ANTEPROYECTO_ACCEPT}
+                  hint="PDF"
+                  validate={(f) => aceptaMime('anteproyecto', f)}
+                  errMsg="Solo PDF."
                   disabled={!!subiendo || (esCasoOPI && !directorAsignado)}
                   subiendoEste={subiendo === 'anteproyecto'}
                   onFile={(f) => subir('anteproyecto', f)}
@@ -467,7 +628,7 @@ export default function TrabajoGrado() {
           {/* === Bloque 2: Proyecto final ================================= */}
           <div className={`border rounded p-5 mb-8 ${proyectoHabilitado ? 'border-inalde-gray-light' : 'border-inalde-gray-light bg-inalde-gray-bg/30'}`}>
             <div className="flex items-start justify-between gap-3 mb-2">
-              <h2 className="font-primary font-bold text-base">Proyecto final (PDF)</h2>
+              <h2 className="font-primary font-bold text-base">{esCasoOPI ? 'Proyecto final (PDF)' : '2. Proyecto de grado'}</h2>
               {!proyectoHabilitado && <span className="text-xs" aria-hidden="true">🔒</span>}
             </div>
 
@@ -481,10 +642,14 @@ export default function TrabajoGrado() {
 
             {proyectoHabilitado && !finalSubido && (
               <div className="rounded border-l-4 border-inalde-red bg-inalde-gray-bg px-4 py-3 text-xs text-inalde-text mb-3">
-                <strong>Atención:</strong> el proyecto final es <strong>definitivo</strong>. Una vez
+                <strong>Atención:</strong> {esCasoOPI ? 'el proyecto final' : 'el documento del Business Plan'} es <strong>definitivo</strong>. Una vez
                 cargado <strong>no se puede modificar ni reemplazar</strong>. Asegúrate de subir la
                 versión correcta.
               </div>
+            )}
+
+            {!esCasoOPI && (
+              <p className="font-primary font-semibold text-sm text-inalde-text mb-2">Documento del Business Plan (PDF)</p>
             )}
 
             {finalSubido ? (
@@ -506,8 +671,10 @@ export default function TrabajoGrado() {
               <>
                 <p className="text-sm text-inalde-gray italic mb-3">Aún no has cargado el proyecto final.</p>
                 <DropZone
-                  tipo="proyecto-final"
                   accept={MIME_PROYECTO_FINAL_ACCEPT}
+                  hint="PDF"
+                  validate={(f) => aceptaMime('proyecto-final', f)}
+                  errMsg="Solo PDF."
                   disabled={!!subiendo}
                   subiendoEste={subiendo === 'proyecto-final'}
                   onFile={(f) => subir('proyecto-final', f)}
@@ -518,6 +685,30 @@ export default function TrabajoGrado() {
               <p className="text-sm text-inalde-gray italic">
                 {esCasoOPI ? 'Carga primero tu anteproyecto.' : 'Disponible cuando se elija tu proyecto definitivo.'}
               </p>
+            )}
+
+            {/* Material del proyecto (solo Business Plan): alimenta la
+                programación de presentaciones. Reemplazable mientras no se
+                publique. */}
+            {!esCasoOPI && proyectoHabilitado && (
+              <div className="mt-6 pt-5 border-t border-inalde-gray-light">
+                <h3 className="font-primary font-semibold text-sm text-inalde-text mb-1">Material para la presentación</h3>
+                <p className="text-xs text-inalde-gray mb-4">
+                  Estos archivos se usan en la programación del evento. Puedes reemplazarlos mientras la programación no se publique.
+                </p>
+                {(['one_pager', 'logo', 'modelo_financiero'] as const).map((t) => (
+                  <AssetUploader
+                    key={t}
+                    tipo={t}
+                    asset={ant?.assets?.[t] ?? null}
+                    subiendo={subiendoAsset === t}
+                    disabled={!!subiendoAsset}
+                    onFile={(f) => subirAsset(t, f)}
+                    onOpen={() => abrirAsset(t)}
+                    inputRef={inputAssetRefs[t]}
+                  />
+                ))}
+              </div>
             )}
           </div>
 

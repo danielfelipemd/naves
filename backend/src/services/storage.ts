@@ -23,9 +23,14 @@ const ASSET_MIME_TO_EXT: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
+  // Modelo financiero: solo Excel (el modelo editable, no una foto de él).
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.ms-excel': 'xls',
 };
 const EXT_TO_MIME: Record<string, string> = {
   pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xls: 'application/vnd.ms-excel',
 };
 export function extForAsset(mime: string): string | null { return ASSET_MIME_TO_EXT[mime] ?? null; }
 export function mimeFromPath(path: string): string {
@@ -33,7 +38,7 @@ export function mimeFromPath(path: string): string {
   return EXT_TO_MIME[ext] ?? 'application/octet-stream';
 }
 
-export type TipoAssetNaves = 'logo' | 'one_pager';
+export type TipoAssetNaves = 'logo' | 'one_pager' | 'modelo_financiero';
 /** Sube un asset de proyecto (logo/one pager) al bucket privado y devuelve su path. */
 export async function uploadAssetNaves(
   proyectoId: string, tipo: TipoAssetNaves, buffer: Buffer, mime: string,

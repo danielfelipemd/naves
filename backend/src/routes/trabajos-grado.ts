@@ -7,10 +7,15 @@ import {
   crearUrlProxyArchivo,
   downloadTrabajoGradoFile,
   extForMime,
+  uploadAssetNaves,
+  extForAsset,
+  mimeFromPath,
   type TipoArchivoTrabajo,
+  type TipoAssetNaves,
 } from '../services/storage.js';
 import { sendEmail, type EmailAttachment } from '../services/email.js';
 import { notificarRegistroAnteproyectoAParticipantes } from '../services/notificaciones-anteproyecto.js';
+import { programacionPublicadaAt } from '../services/escaleta.js';
 import { decryptPII } from '../auth/crypto.js';
 
 // (Antes este archivo enviaba un correo al Comité del MBA por cada carga.
@@ -415,6 +420,107 @@ router.get('/:id/archivo/:tipo', async (req: AuthenticatedRequest, res) => {
   // URL firmada de Supabase Storage.
   const url = crearUrlProxyArchivo(path, mime);
   res.json({ url, expires_in: 300, mime });
+});
+
+// === Assets del proyecto: one pager, logo y modelo financiero ==============
+// A diferencia del proyecto final (definitivo, un único PDF), estos son material
+// de apoyo que alimenta la programación de presentaciones. Se guardan en
+// proyecto_contenido, colgados del PROYECTO DEFINITIVO del equipo, y SÍ se pueden
+// reemplazar (volver a subir sobrescribe) mientras la programación no se publique
+// — un logo malo congelado es peor que dejarlo editable.
+const ASSET_MIMES: Record<TipoAssetNaves, Set<string>> = {
+  logo: new Set(['image/png', 'image/jpeg', 'image/webp']),
+  one_pager: new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']),
+  // Solo Excel: el modelo editable, no una foto ni un PDF de él.
+  modelo_financiero: new Set([
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+  ]),
+};
+const ASSET_COL: Record<TipoAssetNaves, string> = {
+  logo: 'logo_path',
+  one_pager: 'one_pager_path',
+  modelo_financiero: 'modelo_financiero_path',
+};
+function isTipoAsset(v: string): v is TipoAssetNaves {
+  return v === 'logo' || v === 'one_pager' || v === 'modelo_financiero';
+}
+
+// Resuelve el proyecto definitivo del equipo del anteproyecto y comprueba que el
+// participante puede tocar sus assets: es miembro, ya hay definitivo, y la
+// programación no está publicada. Devuelve el proyecto_id o responde el error.
+async function resolverProyectoAsset(req: AuthenticatedRequest, res: any): Promise<{ proyectoId: string } | null> {
+  const pid = req.user!.participanteId;
+  if (!pid) { res.status(403).json({ error: 'NO_PARTICIPANT_ID' }); return null; }
+
+  const ant = await loadAnteproyectoConEquipo(req.params.id);
+  if (!ant) { res.status(404).json({ error: 'NOT_FOUND' }); return null; }
+  if (!(await isMiembroDelEquipo(pid, ant.equipo_id))) { res.status(403).json({ error: 'NOT_TEAM_MEMBER' }); return null; }
+
+  const proyectoId = ant.equipos?.proyecto_definitivo_id as string | null;
+  if (!proyectoId) {
+    res.status(403).json({
+      error: 'ESPERA_PROYECTO_DEFINITIVO',
+      mensaje: 'Podrás cargar el material del proyecto cuando se elija tu proyecto definitivo.',
+    });
+    return null;
+  }
+  return { proyectoId };
+}
+
+// GET /:id/asset/:tipo — URL de descarga (proxy) del asset, o 404 si no hay.
+router.get('/:id/asset/:tipo', async (req: AuthenticatedRequest, res) => {
+  const tipo = req.params.tipo;
+  if (!isTipoAsset(tipo)) return res.status(400).json({ error: 'TIPO_INVALIDO' });
+  const r = await resolverProyectoAsset(req, res);
+  if (!r) return;
+
+  const { data } = await supabaseAdmin
+    .from('proyecto_contenido').select(ASSET_COL[tipo]).eq('proyecto_id', r.proyectoId).maybeSingle();
+  const path = (data as any)?.[ASSET_COL[tipo]] as string | null;
+  if (!path) return res.status(404).json({ error: 'ARCHIVO_NO_SUBIDO' });
+  res.json({ url: crearUrlProxyArchivo(path, mimeFromPath(path)), expires_in: 300 });
+});
+
+// POST /:id/asset/:tipo — sube (o reemplaza) el asset del proyecto definitivo.
+router.post('/:id/asset/:tipo', upload.single('file'), async (req: AuthenticatedRequest, res) => {
+  const tipo = req.params.tipo;
+  if (!isTipoAsset(tipo)) return res.status(400).json({ error: 'TIPO_INVALIDO' });
+  if (!req.file) return res.status(400).json({ error: 'NO_FILE' });
+
+  const r = await resolverProyectoAsset(req, res);
+  if (!r) return;
+
+  // La programación publicada es definitiva: si ya se publicó, estos assets
+  // están congelados (la escaleta que ven las áreas se armó con ellos).
+  const ant = await loadAnteproyectoConEquipo(req.params.id);
+  const cohorteId = ant?.equipos?.cohorte_id as string | undefined;
+  if (cohorteId && (await programacionPublicadaAt(cohorteId))) {
+    return res.status(423).json({
+      error: 'PROGRAMACION_PUBLICADA',
+      mensaje: 'La programación de presentaciones ya se publicó: el material del proyecto no se puede cambiar.',
+    });
+  }
+
+  const mime = req.file.mimetype;
+  if (!ASSET_MIMES[tipo].has(mime) || !extForAsset(mime)) {
+    return res.status(400).json({ error: 'INVALID_MIME', mime });
+  }
+
+  let path: string;
+  try {
+    ({ path } = await uploadAssetNaves(r.proyectoId, tipo, req.file.buffer, mime));
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message ?? 'UPLOAD_FAILED' });
+  }
+
+  // El upsert de supabase-js no lanza: si no verificamos su error, el archivo
+  // queda en Storage pero sin enlace en la fila, y al recargar "no está".
+  const { error: errDb } = await supabaseAdmin.from('proyecto_contenido')
+    .upsert({ proyecto_id: r.proyectoId, [ASSET_COL[tipo]]: path, updated_at: new Date().toISOString() }, { onConflict: 'proyecto_id' });
+  if (errDb) return res.status(500).json({ error: 'ASSET_DB_FAILED', detail: errDb.message });
+
+  res.status(201).json({ ok: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)) });
 });
 
 export default router;

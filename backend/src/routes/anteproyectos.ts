@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
-import { crearUrlProxyArchivo } from '../services/storage.js';
+import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
 import { notificarRegistroAnteproyectoAParticipantes } from '../services/notificaciones-anteproyecto.js';
 import { regenerarSabana } from './sabana.js';
 
@@ -82,6 +82,30 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
   }
   if (ant.archivo_proyecto_final_path) {
     ant.archivo_proyecto_final_url = crearUrlProxyArchivo(ant.archivo_proyecto_final_path, ant.archivo_proyecto_final_mime);
+  }
+
+  // Material de apoyo del proyecto definitivo (one pager, logo, modelo
+  // financiero): lo sube el participante desde la pantalla de proyecto de grado
+  // y alimenta la programación de presentaciones. Vive en proyecto_contenido,
+  // colgado del proyecto definitivo, así que solo hay algo que mostrar una vez
+  // elegido. Se entrega ya envuelto para que la pantalla no arme URLs ni rutas.
+  ant.assets = { one_pager: null, logo: null, modelo_financiero: null };
+  if (ant.equipos?.proyecto_definitivo_id) {
+    const { data: cont } = await supabaseAdmin
+      .from('proyecto_contenido')
+      .select('one_pager_path, logo_path, modelo_financiero_path')
+      .eq('proyecto_id', ant.equipos.proyecto_definitivo_id)
+      .maybeSingle();
+    const asset = (path: string | null) => path
+      ? { cargado: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)), nombre: path.split('/').pop() ?? '' }
+      : null;
+    if (cont) {
+      ant.assets = {
+        one_pager: asset((cont as any).one_pager_path ?? null),
+        logo: asset((cont as any).logo_path ?? null),
+        modelo_financiero: asset((cont as any).modelo_financiero_path ?? null),
+      };
+    }
   }
 
   res.json({ anteproyecto: ant });
