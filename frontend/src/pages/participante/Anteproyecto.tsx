@@ -59,6 +59,11 @@ const PRESET_HITOS: Array<{ descripcion: string; fecha_fin: string }> = [
 const PRESET_HITO_NAMES = new Set(PRESET_HITOS.map((h) => h.descripcion));
 const MIN_HITOS = 5;
 
+// Hito cuya fecha NO la escribe el participante: se extrae de la configuración
+// de la cohorte (fecha_limite_entrega_anteproyecto). Se siembra como hito #1 y
+// sus fechas quedan bloqueadas.
+const HITO_ENTREGA = 'Entrega Anteproyecto';
+
 // =============== Tipos ====================================================
 interface Hito {
   posicion: number;
@@ -146,7 +151,6 @@ export default function Anteproyecto() {
   const [cohorte, setCohorte] = useState<Cohorte | null>(null);
   const [miembros, setMiembros] = useState<MiembroForm[]>([]);
   const [proyectos, setProyectos] = useState<Proyecto[]>([emptyProyecto(1)]);
-  const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
@@ -207,6 +211,29 @@ export default function Anteproyecto() {
       ]);
       if (coh.data.cohorte) setCohorte(coh.data.cohorte);
 
+      // Fecha de entrega del anteproyecto: sale de la configuración de la
+      // cohorte, no la escribe el participante. La usamos para sembrar y
+      // bloquear el hito "Entrega Anteproyecto".
+      const fechaEntrega = coh.data.cohorte?.fecha_limite_entrega_anteproyecto
+        ? String(coh.data.cohorte.fecha_limite_entrega_anteproyecto).slice(0, 10)
+        : '';
+      const esBorrador = !ant.data.anteproyecto || ant.data.anteproyecto.estado === 'borrador';
+      // Garantiza el hito de entrega con la fecha de la cohorte:
+      //  - si ya existe, fuerza sus fechas a la de la cohorte;
+      //  - si no existe y sigue en borrador, lo inserta como hito #1.
+      const applyEntrega = (proj: Proyecto): Proyecto => {
+        if (!fechaEntrega) return proj;
+        const tiene = proj.hitos.some((h) => h.descripcion === HITO_ENTREGA);
+        const hitos = tiene
+          ? proj.hitos.map((h) => h.descripcion === HITO_ENTREGA
+              ? { ...h, fecha_inicio: fechaEntrega, fecha_fin: fechaEntrega }
+              : h)
+          : (esBorrador
+              ? [{ posicion: 0, descripcion: HITO_ENTREGA, fecha_inicio: fechaEntrega, fecha_fin: fechaEntrega }, ...proj.hitos]
+              : proj.hitos);
+        return { ...proj, hitos: hitos.map((h, i) => ({ ...h, posicion: i + 1 })) };
+      };
+
       // Datos del backend
       let proyectosFromBackend: Proyecto[] | null = null;
       let backendUpdatedAt = '';
@@ -235,40 +262,38 @@ export default function Anteproyecto() {
 
       // Revisar copia local: si es mas reciente que el backend, restaurar.
       // Sobrevive logout / refresh / token expirado.
+      let chosen: Proyecto[] | null = null;
       try {
         const raw = window.localStorage.getItem(localKey(eqId));
         if (raw) {
           const local = JSON.parse(raw) as { savedAt: string; proyectos: Proyecto[]; buscandoSocios: boolean | null; buscandoAsociacion: boolean | null };
           const localIsNewer = !backendUpdatedAt || (local.savedAt && local.savedAt > backendUpdatedAt);
           if (localIsNewer && Array.isArray(local.proyectos) && local.proyectos.length > 0) {
-            setProyectos(local.proyectos);
+            chosen = local.proyectos;
             if (local.buscandoSocios !== undefined) setBuscandoSocios(local.buscandoSocios);
             if (local.buscandoAsociacion !== undefined) setBuscandoAsociacion(local.buscandoAsociacion);
             setLocalRecovered(true);
           } else if (proyectosFromBackend) {
-            setProyectos(proyectosFromBackend);
+            chosen = proyectosFromBackend;
           }
         } else if (proyectosFromBackend) {
-          setProyectos(proyectosFromBackend);
+          chosen = proyectosFromBackend;
         }
       } catch {
-        if (proyectosFromBackend) setProyectos(proyectosFromBackend);
+        if (proyectosFromBackend) chosen = proyectosFromBackend;
       }
+      // Solo puede presentarse UN proyecto: descartamos cualquier extra que
+      // arrastren datos antiguos. Y aseguramos el hito de entrega de la cohorte.
+      const base = (chosen && chosen.length > 0) ? chosen : [emptyProyecto(1)];
+      setProyectos([applyEntrega(base[0])]);
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setLoading(false); }
   })(); }, [navigate]);
 
   // ----- Mutadores -----
+  // Solo se presenta UN proyecto. numProyectos queda fijo en 1.
   const numProyectos = proyectos.length;
-  function setNumProyectos(n: number) {
-    if (n === numProyectos) return;
-    const next = [...proyectos];
-    while (next.length < n) next.push(emptyProyecto(next.length + 1));
-    while (next.length > n) next.pop();
-    setProyectos(next);
-    if (activeTab >= n) setActiveTab(n - 1);
-  }
 
   function updateProyecto(i: number, patch: Partial<Proyecto>) {
     setProyectos((p) => p.map((x, idx) => idx === i ? { ...x, ...patch } : x));
@@ -800,60 +825,20 @@ export default function Anteproyecto() {
 
           {/* ============ Sección 2: Tus proyectos ============ */}
           <div className="mt-12">
-            <SectionHeader n={2} title={numProyectos === 1 ? 'Tu Anteproyecto' : 'Tus Anteproyectos'} />
+            <SectionHeader n={2} title="Tu Anteproyecto" />
 
             <p className="text-sm text-inalde-gray mb-6">
-              {numProyectos === 1
-                ? 'Describe tu idea de emprendimiento. Será el proyecto definitivo automáticamente al enviar.'
-                : `Describe tus ${numProyectos} alternativas. Después de la Reunión 1 con tu profesor, elegirán uno como definitivo y los demás quedarán archivados.`}
+              Describe tu idea de emprendimiento. Será el proyecto definitivo automáticamente al enviar.
             </p>
 
-            <div className="mb-6">
-              <label className="block font-primary font-semibold text-sm text-inalde-red mb-2">
-                ¿Cuántos proyectos vas a presentar?
-              </label>
-              <div className="flex gap-2">
-                {[1, 2].map((n) => (
-                  <button key={n} type="button" disabled={readOnly}
-                    onClick={() => setNumProyectos(n)}
-                    className={`px-6 py-2 rounded font-primary font-semibold transition ${
-                      numProyectos === n
-                        ? 'bg-inalde-red text-white'
-                        : 'bg-inalde-gray-bg text-inalde-gray hover:text-inalde-text'
-                    } disabled:opacity-50`}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tabs */}
-            {numProyectos > 1 && (
-              <div className="flex gap-1 border-b border-inalde-gray-light mb-6">
-                {proyectos.map((_, i) => (
-                  <button key={i} type="button"
-                    onClick={() => setActiveTab(i)}
-                    className={`px-4 py-2 font-primary font-semibold text-sm border-b-2 transition ${
-                      activeTab === i
-                        ? 'border-inalde-red text-inalde-red'
-                        : 'border-transparent text-inalde-gray hover:text-inalde-text'
-                    }`}>
-                    Proyecto {i + 1}
-                    {proyectos[i].nombre && (
-                      <span className="ml-2 text-xs font-normal text-inalde-gray">· {proyectos[i].nombre.slice(0, 20)}{proyectos[i].nombre.length > 20 ? '…' : ''}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <fieldset disabled={readOnly} key={activeTab}>
+            <fieldset disabled={readOnly}>
               <ProyectoForm
-                proyecto={proyectos[activeTab]}
-                onChange={(patch) => updateProyecto(activeTab, patch)}
-                onUpdateHito={(hi, patch) => updateHito(activeTab, hi, patch)}
-                onAddHito={() => addHito(activeTab)}
-                onRemoveHito={(hi) => removeHito(activeTab, hi)}
+                proyecto={proyectos[0]}
+                fechaEntrega={cohorte?.fecha_limite_entrega_anteproyecto?.slice(0, 10) ?? ''}
+                onChange={(patch) => updateProyecto(0, patch)}
+                onUpdateHito={(hi, patch) => updateHito(0, hi, patch)}
+                onAddHito={() => addHito(0)}
+                onRemoveHito={(hi) => removeHito(0, hi)}
               />
             </fieldset>
           </div>
@@ -1052,8 +1037,11 @@ function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder, id, 
   );
 }
 
-function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHito }: {
+function ProyectoForm({ proyecto, fechaEntrega, onChange, onUpdateHito, onAddHito, onRemoveHito }: {
   proyecto: Proyecto;
+  // Fecha de entrega del anteproyecto tomada de la cohorte (YYYY-MM-DD).
+  // Bloquea las fechas del hito "Entrega Anteproyecto".
+  fechaEntrega: string;
   onChange: (patch: Partial<Proyecto>) => void;
   onUpdateHito: (hi: number, patch: Partial<Hito>) => void;
   onAddHito: () => void;
@@ -1203,8 +1191,13 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
                         const preset = PRESET_HITOS.find((p) => p.descripcion === v);
                         // Solo prellenamos la descripcion del hito; las fechas
                         // las llena el participante manualmente -- ningun item
-                        // debe aparecer con fecha predeterminada.
-                        if (preset) onUpdateHito(hi, { descripcion: preset.descripcion });
+                        // debe aparecer con fecha predeterminada. EXCEPCIÓN: la
+                        // "Entrega Anteproyecto" toma su fecha de la cohorte.
+                        if (preset && preset.descripcion === HITO_ENTREGA && fechaEntrega) {
+                          onUpdateHito(hi, { descripcion: preset.descripcion, fecha_inicio: fechaEntrega, fecha_fin: fechaEntrega });
+                        } else if (preset) {
+                          onUpdateHito(hi, { descripcion: preset.descripcion });
+                        }
                       }
                     }}
                     className="input-inalde">
@@ -1221,6 +1214,9 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
             </div>
 
             {(() => {
+              // La "Entrega Anteproyecto" tiene su fecha fijada por la cohorte:
+              // se muestra bloqueada y no se puede editar aquí.
+              const esEntrega = h.descripcion === HITO_ENTREGA && !!fechaEntrega;
               const prev = hi > 0 ? proyecto.hitos[hi - 1] : null;
               const minInicio = prev ? (prev.fecha_inicio || prev.fecha_fin || undefined) : undefined;
               const prevFin = prev?.fecha_fin || undefined;
@@ -1242,12 +1238,13 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
                   <div className="w-full sm:w-44 shrink-0">
                     <div className="mt-4">
                       <label htmlFor={`${hitoId}-ini`} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">Inicio</label>
-                      <input id={`${hitoId}-ini`} type="date" value={h.fecha_inicio}
+                      <input id={`${hitoId}-ini`} type="date" value={esEntrega ? fechaEntrega : h.fecha_inicio}
+                        disabled={esEntrega}
                         aria-invalid={inicioMal || undefined}
-                        aria-describedby={inicioMal ? `${hitoId}-ini-err` : undefined}
+                        aria-describedby={esEntrega ? `${hitoId}-entrega-nota` : (inicioMal ? `${hitoId}-ini-err` : undefined)}
                         onChange={(e) => onUpdateHito(hi, { fecha_inicio: e.target.value })}
-                        className="input-inalde" />
-                      {inicioMal && (
+                        className="input-inalde disabled:opacity-60 disabled:cursor-not-allowed" />
+                      {!esEntrega && inicioMal && (
                         <p id={`${hitoId}-ini-err`} className="text-[11px] text-inalde-red mt-1">No puede ser anterior al hito #{h.posicion - 1}.</p>
                       )}
                     </div>
@@ -1255,13 +1252,17 @@ function ProyectoForm({ proyecto, onChange, onUpdateHito, onAddHito, onRemoveHit
                   <div className="w-full sm:w-44 shrink-0">
                     <div className="mt-4">
                       <label htmlFor={`${hitoId}-fin`} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">Fin</label>
-                      <input id={`${hitoId}-fin`} type="date" value={h.fecha_fin}
+                      <input id={`${hitoId}-fin`} type="date" value={esEntrega ? fechaEntrega : h.fecha_fin}
+                        disabled={esEntrega}
                         aria-invalid={finMal || undefined}
-                        aria-describedby={finMal ? `${hitoId}-fin-err` : undefined}
+                        aria-describedby={esEntrega ? `${hitoId}-entrega-nota` : (finMal ? `${hitoId}-fin-err` : undefined)}
                         onChange={(e) => onUpdateHito(hi, { fecha_fin: e.target.value })}
-                        className="input-inalde" />
-                      {finMal && (
+                        className="input-inalde disabled:opacity-60 disabled:cursor-not-allowed" />
+                      {!esEntrega && finMal && (
                         <p id={`${hitoId}-fin-err`} className="text-[11px] text-inalde-red mt-1">No puede ser anterior al inicio ni al hito previo.</p>
+                      )}
+                      {esEntrega && (
+                        <p id={`${hitoId}-entrega-nota`} className="text-[11px] text-inalde-gray mt-1">Fecha definida por la cohorte.</p>
                       )}
                     </div>
                   </div>
