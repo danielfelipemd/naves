@@ -224,20 +224,28 @@ async function isMiembroDelEquipo(pid: string, equipoId: string): Promise<boolea
   return !!data;
 }
 
-// Fecha límite para cargar el PROYECTO DE GRADO (documento final + material): es
-// el hito 10 del cronograma, "Entrega Final". No es la del anteproyecto, que
-// vence mucho antes. Sin fecha configurada no se bloquea.
+// Fecha y hora límite para cargar el PROYECTO DE GRADO (documento final +
+// material), como ISO datetime:
+//  - la configurada en la cohorte (fecha_limite_proyecto_final, CON hora), o
+//  - si no está, el hito 10 del cronograma ("Entrega Final") a fin del día
+//    (Bogotá, UTC-5) como respaldo.
+// No es la fecha del anteproyecto, que vence mucho antes. Sin ninguna de las dos
+// configurada, no se bloquea.
 async function fechaLimiteProyecto(cohorteId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin
+  const { data: coh } = await supabaseAdmin
+    .from('cohortes').select('fecha_limite_proyecto_final').eq('id', cohorteId).maybeSingle();
+  const dt = (coh as any)?.fecha_limite_proyecto_final;
+  if (dt) return new Date(dt).toISOString();
+  const { data: hito } = await supabaseAdmin
     .from('cohorte_hitos').select('fecha').eq('cohorte_id', cohorteId).eq('posicion', 10).maybeSingle();
-  return (data as any)?.fecha ?? null;
+  const f = (hito as any)?.fecha;
+  return f ? new Date(`${f}T23:59:59-05:00`).toISOString() : null;
 }
 
-// Vencido = ya pasó el final del día de la fecha límite (hora de Bogotá, UTC-5).
-// Dar el día completo evita cerrar la entrega a medianoche UTC (7 p. m. local).
-function limiteVencido(fecha: string | null): boolean {
-  if (!fecha) return false;
-  return new Date() > new Date(`${fecha}T23:59:59-05:00`);
+// Vencido = ya pasó el instante límite (comparación directa de datetime).
+function limiteVencido(iso: string | null): boolean {
+  if (!iso) return false;
+  return new Date() > new Date(iso);
 }
 
 // === POST /api/anteproyectos/:id/archivo/:tipo ==============================

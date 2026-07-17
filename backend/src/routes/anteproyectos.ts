@@ -89,16 +89,29 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
   // y alimenta la programación de presentaciones. Vive en proyecto_contenido,
   // colgado del proyecto definitivo, así que solo hay algo que mostrar una vez
   // elegido. Se entrega ya envuelto para que la pantalla no arme URLs ni rutas.
-  // Fecha límite del proyecto de grado (documento final + material): hito 10 del
-  // cronograma, "Entrega Final". La pantalla la muestra y bloquea la carga si ya
-  // pasó. Se resuelve por el equipo → cohorte.
+  // Fechas límite del proyecto de grado, resueltas por equipo → cohorte:
+  //  - fecha_limite_proyecto: el hito 10 del cronograma (DATE). Lo usa el
+  //    formulario de anteproyecto para el hito "Consolidación Documento Final".
+  //  - fecha_limite_proyecto_final: el CORTE real para cargar el proyecto de
+  //    grado, como datetime con hora. Sale del campo configurable de la cohorte;
+  //    si no está, del hito 10 a fin del día (Bogotá). Lo usa la pantalla de
+  //    trabajo de grado para mostrar fecha+hora y bloquear la carga vencida.
   ant.fecha_limite_proyecto = null;
+  ant.fecha_limite_proyecto_final = null;
   if (ant.equipo_id) {
     const { data: eq } = await supabaseAdmin.from('equipos').select('cohorte_id').eq('id', ant.equipo_id).maybeSingle();
-    if ((eq as any)?.cohorte_id) {
-      const { data: hito } = await supabaseAdmin
-        .from('cohorte_hitos').select('fecha').eq('cohorte_id', (eq as any).cohorte_id).eq('posicion', 10).maybeSingle();
-      ant.fecha_limite_proyecto = (hito as any)?.fecha ?? null;
+    const cohorteId = (eq as any)?.cohorte_id;
+    if (cohorteId) {
+      const [{ data: hito }, { data: coh }] = await Promise.all([
+        supabaseAdmin.from('cohorte_hitos').select('fecha').eq('cohorte_id', cohorteId).eq('posicion', 10).maybeSingle(),
+        supabaseAdmin.from('cohortes').select('fecha_limite_proyecto_final').eq('id', cohorteId).maybeSingle(),
+      ]);
+      const fHito = (hito as any)?.fecha ?? null;
+      ant.fecha_limite_proyecto = fHito;
+      const dt = (coh as any)?.fecha_limite_proyecto_final;
+      ant.fecha_limite_proyecto_final = dt
+        ? new Date(dt).toISOString()
+        : (fHito ? new Date(`${fHito}T23:59:59-05:00`).toISOString() : null);
     }
   }
 

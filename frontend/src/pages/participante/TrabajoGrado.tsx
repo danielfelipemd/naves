@@ -27,6 +27,7 @@ interface Anteproyecto {
   archivo_proyecto_final_uploaded_at: string | null;
   anteproyecto_aprobado_at: string | null;
   fecha_limite_proyecto?: string | null;
+  fecha_limite_proyecto_final?: string | null;
   assets?: Record<TipoAsset, AssetState | null>;
   equipos: {
     id: string;
@@ -491,12 +492,12 @@ export default function TrabajoGrado() {
   //  - caso/PI: el archivo de anteproyecto ya está cargado.
   const anteproyectoHecho = esCasoOPI ? antSubido : ant?.estado !== 'borrador';
 
-  // Fecha límite del proyecto de grado (hito 10 de la cohorte). Vencida = no se
-  // puede cargar ni el documento ni el material.
-  const fechaLimite = ant?.fecha_limite_proyecto ?? null;
-  const vencido = !!fechaLimite && new Date() > new Date(`${fechaLimite}T23:59:59-05:00`);
+  // Fecha y hora límite del proyecto de grado (viene de la cohorte, ya como
+  // datetime). Vencida = no se puede cargar ni el documento ni el material.
+  const fechaLimite = ant?.fecha_limite_proyecto_final ?? null;
+  const vencido = !!fechaLimite && new Date() > new Date(fechaLimite);
   const fechaLimiteTexto = fechaLimite
-    ? new Date(`${fechaLimite}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(fechaLimite).toLocaleString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
     : null;
 
   // Ficha por defecto: si el anteproyecto ya está hecho, arrancamos en Proyecto

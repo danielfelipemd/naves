@@ -328,6 +328,7 @@ const fechasSchema = z.object({
   fecha_limite_entrega_anteproyecto: z.string().datetime().optional().nullable(),
   fecha_reunion_1: z.string().datetime().optional().nullable(),
   fecha_limite_seleccion_definitivo: z.string().datetime().optional().nullable(),
+  fecha_limite_proyecto_final: z.string().datetime().optional().nullable(),
   activa: z.boolean().optional(),
   hitos: z.array(hitoSchema).max(13).optional(),
 });
