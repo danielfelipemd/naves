@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
 
-interface Cohorte { id: string; etiqueta: string; activa: boolean; }
+interface Cohorte { id: string; etiqueta: string; activa: boolean; fecha_inicio?: string; }
 interface Item {
   id: string; estado: string; fecha_envio: string | null; fecha_actualizacion: string;
   archivo_anteproyecto_path: string | null;
@@ -84,9 +84,14 @@ export default function AnteproyectosList() {
   const navigate = useNavigate();
 
   useEffect(() => { (async () => {
-    // Solo cohortes activas en el dropdown
+    // Solo cohortes activas en el dropdown, la más reciente primero.
     const data = (await api.get('/admin/cohortes')).data as Cohorte[];
-    setCohortes(data.filter((c) => c.activa));
+    const activas = data.filter((c) => c.activa)
+      .sort((a, b) => (b.fecha_inicio ?? '').localeCompare(a.fecha_inicio ?? ''));
+    setCohortes(activas);
+    // Por defecto se abre en la cohorte activa (la más reciente), no en "Todas":
+    // es la que el admin quiere ver al entrar. Puede cambiar a "Todas" si quiere.
+    if (activas.length) setCohorte((prev) => prev || activas[0].id);
   })(); }, []);
 
   // La cohorte se filtra en el servidor; tipo y estado se filtran en el cliente
