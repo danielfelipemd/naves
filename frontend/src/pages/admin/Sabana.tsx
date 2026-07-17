@@ -435,10 +435,18 @@ export default function Sabana() {
             const totalComunicados = resumen.filter((f) => f.comunicado).length;
             const totalPendientesComunicar = resumen.filter((f) => f.profesor_asignado_id && !f.comunicado).length;
             // Conteo de equipos asignados por profesor (para los chips informativos)
+            // Avance de reuniones por profesor: cuántos de sus equipos ya tienen
+            // marcada la Reunión 1 y la 2. Sale de contar las casillas de la
+            // sábana, así que el indicador y la tabla nunca se contradicen.
             const porProfesor = resumen.reduce((acc, f) => {
-              if (f.profesor_asignado_nombre) acc.set(f.profesor_asignado_nombre, (acc.get(f.profesor_asignado_nombre) ?? 0) + 1);
+              const nom = f.profesor_asignado_nombre;
+              if (!nom) return acc;
+              const p = acc.get(nom) ?? { total: 0, r1: 0, r2: 0 };
+              p.total++; if (f.reunion_1) p.r1++; if (f.reunion_2) p.r2++;
+              acc.set(nom, p);
               return acc;
-            }, new Map<string, number>());
+            }, new Map<string, { total: number; r1: number; r2: number }>());
+            const pct = (n: number, t: number) => (t ? Math.round((n / t) * 100) : 0);
             return (
               <>
                 {/* Barra de filtros */}
@@ -508,9 +516,13 @@ export default function Sabana() {
                 {porProfesor.size > 0 && (
                   <div className="flex flex-wrap items-center gap-1.5 mb-3 -mt-1">
                     <span className="text-[10px] uppercase tracking-wider text-inalde-gray font-semibold mr-1">Asignados por profesor:</span>
-                    {[...porProfesor.entries()].sort((a, b) => b[1] - a[1]).map(([nombre, n]) => (
-                      <span key={nombre} className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-inalde-gold/15 text-[#8a7530] border border-inalde-gold/30 whitespace-nowrap">
-                        {nombre} · {n}
+                    {[...porProfesor.entries()].sort((a, b) => b[1].total - a[1].total).map(([nombre, p]) => (
+                      <span key={nombre} className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-inalde-gold/15 text-[#8a7530] border border-inalde-gold/30 whitespace-nowrap"
+                        title={`${nombre}: ${p.total} equipo(s) asignado(s). Reunión 1: ${p.r1} de ${p.total} (${pct(p.r1, p.total)}%). Reunión 2: ${p.r2} de ${p.total} (${pct(p.r2, p.total)}%).`}>
+                        {nombre} · {p.total}
+                        <span className="ml-1.5 text-inalde-gray font-normal">|</span>
+                        <span className={`ml-1.5 ${p.r1 === p.total ? 'text-green-700' : ''}`}>R1 {p.r1}/{p.total} ({pct(p.r1, p.total)}%)</span>
+                        <span className={`ml-1.5 ${p.r2 === p.total ? 'text-green-700' : ''}`}>R2 {p.r2}/{p.total} ({pct(p.r2, p.total)}%)</span>
                       </span>
                     ))}
                   </div>
