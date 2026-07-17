@@ -81,14 +81,30 @@ router.post('/equipos/:id/seleccionar-proyecto-definitivo', async (req: Authenti
   if (!equipo) return res.status(404).json({ error: 'TEAM_NOT_FOUND' });
   if (equipo.proyecto_definitivo_id) return res.status(409).json({ error: 'ALREADY_SELECTED', proyecto_definitivo_id: equipo.proyecto_definitivo_id });
 
-  // Solo el creador del equipo (o super_admin) puede marcar el definitivo.
+  // Pueden marcar el definitivo: el PROFESOR asignado al equipo (es quien lo
+  // decide en la reunión), el CREADOR del equipo, o el super_admin.
+  // Antes esto rechazaba a los profesores con un FORBIDDEN seco, aunque su panel
+  // les ofrece el botón: la pantalla prometía algo que el servidor negaba.
   if (!isSuperAdmin) {
-    if (role !== 'participante') return res.status(403).json({ error: 'FORBIDDEN' });
-    if (!pid || pid !== equipo.creador_id) {
-      return res.status(403).json({
-        error: 'SOLO_CREADOR_EQUIPO',
-        mensaje: 'Solo quien creó el equipo puede marcar el proyecto definitivo.',
-      });
+    if (role === 'profesor') {
+      const profesorId = req.user!.profesorId;
+      const { data: asig } = await supabaseAdmin
+        .from('asignaciones_profesor').select('profesor_id').eq('equipo_id', req.params.id).maybeSingle();
+      if (!profesorId || (asig as any)?.profesor_id !== profesorId) {
+        return res.status(403).json({
+          error: 'NO_ES_TU_EQUIPO',
+          mensaje: 'Solo puedes elegir el proyecto definitivo de los equipos que tienes asignados.',
+        });
+      }
+    } else if (role === 'participante') {
+      if (!pid || pid !== equipo.creador_id) {
+        return res.status(403).json({
+          error: 'SOLO_CREADOR_EQUIPO',
+          mensaje: 'Solo quien creó el equipo puede marcar el proyecto definitivo.',
+        });
+      }
+    } else {
+      return res.status(403).json({ error: 'FORBIDDEN' });
     }
   }
 
