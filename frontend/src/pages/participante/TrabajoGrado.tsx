@@ -187,6 +187,7 @@ function AssetUploader(props: {
         <div className="text-sm text-inalde-gray">
           <p className="mb-1 break-all"><span aria-hidden="true">✅ </span><span className="text-inalde-text">{props.asset.nombre}</span></p>
           <button onClick={props.onOpen} className="text-inalde-red font-semibold hover:underline text-sm">Descargar →</button>
+          <p className="text-xs text-inalde-gray italic mt-2">Este archivo no se puede reemplazar.</p>
         </div>
       ) : (
         <DropZone

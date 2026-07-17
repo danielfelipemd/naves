@@ -80,6 +80,9 @@ export default function ResetPassword() {
               {busy ? 'Procesando…' : 'Cambiar clave →'}
             </button>
           </form>
+          <div className="mt-6 pt-5 border-t border-inalde-gray-light text-center">
+            <Link to="/login" className="text-sm text-inalde-gray hover:text-inalde-red font-semibold">← Volver al login</Link>
+          </div>
         </div>
       </main>
     </>
