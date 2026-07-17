@@ -59,10 +59,12 @@ const PRESET_HITOS: Array<{ descripcion: string; fecha_fin: string }> = [
 const PRESET_HITO_NAMES = new Set(PRESET_HITOS.map((h) => h.descripcion));
 const MIN_HITOS = 5;
 
-// Hito cuya fecha NO la escribe el participante: se extrae de la configuración
-// de la cohorte (fecha_limite_entrega_anteproyecto). Se siembra como hito #1 y
-// sus fechas quedan bloqueadas.
+// Hitos cuya fecha NO la escribe el participante: se extraen de la
+// configuración de la cohorte y quedan bloqueados.
+//  - HITO_ENTREGA: fecha_limite_entrega_anteproyecto → se siembra como hito #1.
+//  - HITO_FINAL:   cohorte_hitos pos.10 (fecha_limite_proyecto) → último hito.
 const HITO_ENTREGA = 'Entrega Anteproyecto';
+const HITO_FINAL = 'Consolidación Documento Final';
 
 // =============== Tipos ====================================================
 interface Hito {
@@ -149,6 +151,9 @@ export default function Anteproyecto() {
   const [buscandoSocios, setBuscandoSocios] = useState<boolean | null>(null);
   const [buscandoAsociacion, setBuscandoAsociacion] = useState<boolean | null>(null);
   const [cohorte, setCohorte] = useState<Cohorte | null>(null);
+  // Fecha de entrega del proyecto final (cohorte_hitos pos.10), expuesta por el
+  // backend como anteproyecto.fecha_limite_proyecto. Bloquea el hito final.
+  const [fechaLimiteProyecto, setFechaLimiteProyecto] = useState<string | null>(null);
   const [miembros, setMiembros] = useState<MiembroForm[]>([]);
   const [proyectos, setProyectos] = useState<Proyecto[]>([emptyProyecto(1)]);
   const [loading, setLoading] = useState(true);
@@ -211,26 +216,36 @@ export default function Anteproyecto() {
       ]);
       if (coh.data.cohorte) setCohorte(coh.data.cohorte);
 
-      // Fecha de entrega del anteproyecto: sale de la configuración de la
-      // cohorte, no la escribe el participante. La usamos para sembrar y
-      // bloquear el hito "Entrega Anteproyecto".
+      // Fechas fijadas por la cohorte (no las escribe el participante):
+      //  - entrega del anteproyecto: cohortes.fecha_limite_entrega_anteproyecto
+      //  - entrega del proyecto final: cohorte_hitos pos.10, expuesta por el
+      //    backend como anteproyecto.fecha_limite_proyecto.
       const fechaEntrega = coh.data.cohorte?.fecha_limite_entrega_anteproyecto
         ? String(coh.data.cohorte.fecha_limite_entrega_anteproyecto).slice(0, 10)
         : '';
+      const fechaFinal = ant.data.anteproyecto?.fecha_limite_proyecto
+        ? String(ant.data.anteproyecto.fecha_limite_proyecto).slice(0, 10)
+        : '';
+      setFechaLimiteProyecto(ant.data.anteproyecto?.fecha_limite_proyecto ?? null);
       const esBorrador = !ant.data.anteproyecto || ant.data.anteproyecto.estado === 'borrador';
-      // Garantiza el hito de entrega con la fecha de la cohorte:
-      //  - si ya existe, fuerza sus fechas a la de la cohorte;
-      //  - si no existe y sigue en borrador, lo inserta como hito #1.
-      const applyEntrega = (proj: Proyecto): Proyecto => {
-        if (!fechaEntrega) return proj;
-        const tiene = proj.hitos.some((h) => h.descripcion === HITO_ENTREGA);
-        const hitos = tiene
-          ? proj.hitos.map((h) => h.descripcion === HITO_ENTREGA
-              ? { ...h, fecha_inicio: fechaEntrega, fecha_fin: fechaEntrega }
-              : h)
-          : (esBorrador
-              ? [{ posicion: 0, descripcion: HITO_ENTREGA, fecha_inicio: fechaEntrega, fecha_fin: fechaEntrega }, ...proj.hitos]
-              : proj.hitos);
+      // Garantiza los hitos de fecha fija con la fecha de la cohorte:
+      //  - si ya existen, fuerza sus fechas a la de la cohorte;
+      //  - si no existen y sigue en borrador, los siembra (entrega como #1,
+      //    proyecto final como último).
+      const applyFechasCohorte = (proj: Proyecto): Proyecto => {
+        let hitos = proj.hitos.map((h) => {
+          if (h.descripcion === HITO_ENTREGA && fechaEntrega) return { ...h, fecha_inicio: fechaEntrega, fecha_fin: fechaEntrega };
+          if (h.descripcion === HITO_FINAL && fechaFinal) return { ...h, fecha_inicio: fechaFinal, fecha_fin: fechaFinal };
+          return h;
+        });
+        if (esBorrador) {
+          if (fechaEntrega && !hitos.some((h) => h.descripcion === HITO_ENTREGA)) {
+            hitos = [{ posicion: 0, descripcion: HITO_ENTREGA, fecha_inicio: fechaEntrega, fecha_fin: fechaEntrega }, ...hitos];
+          }
+          if (fechaFinal && !hitos.some((h) => h.descripcion === HITO_FINAL)) {
+            hitos = [...hitos, { posicion: 0, descripcion: HITO_FINAL, fecha_inicio: fechaFinal, fecha_fin: fechaFinal }];
+          }
+        }
         return { ...proj, hitos: hitos.map((h, i) => ({ ...h, posicion: i + 1 })) };
       };
 
@@ -283,9 +298,9 @@ export default function Anteproyecto() {
         if (proyectosFromBackend) chosen = proyectosFromBackend;
       }
       // Solo puede presentarse UN proyecto: descartamos cualquier extra que
-      // arrastren datos antiguos. Y aseguramos el hito de entrega de la cohorte.
+      // arrastren datos antiguos. Y aseguramos los hitos de fecha fija de la cohorte.
       const base = (chosen && chosen.length > 0) ? chosen : [emptyProyecto(1)];
-      setProyectos([applyEntrega(base[0])]);
+      setProyectos([applyFechasCohorte(base[0])]);
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setLoading(false); }
@@ -301,23 +316,31 @@ export default function Anteproyecto() {
   function updateHito(pi: number, hi: number, patch: Partial<Hito>) {
     setProyectos((p) => p.map((proj, idx) => {
       if (idx !== pi) return proj;
-      const updatedHitos = proj.hitos.map((h, j) => j === hi ? { ...h, ...patch } : h);
+      let updatedHitos = proj.hitos.map((h, j) => j === hi ? { ...h, ...patch } : h);
 
-      // Auto-grow: si se llenó la descripción del ÚLTIMO hito y hay margen (<10),
-      // aparece un hito vacío extra para que el usuario lo siga llenando.
-      const isLastHito = hi === proj.hitos.length - 1;
+      // Auto-grow: si se llenó la descripción del último hito EDITABLE y hay
+      // margen (<10), aparece un hito vacío extra. Si el proyecto final está
+      // fijado como último hito, el nuevo se inserta ANTES de él.
+      const lastIsFinal = updatedHitos.length > 0 && updatedHitos[updatedHitos.length - 1].descripcion === HITO_FINAL;
+      const lastEditableIdx = lastIsFinal ? updatedHitos.length - 2 : updatedHitos.length - 1;
       const tieneDescripcion = ((patch.descripcion ?? proj.hitos[hi].descripcion) ?? '').trim().length > 0;
-      const yaSeAutoExpandio = updatedHitos.length > proj.hitos.length;
 
-      if (isLastHito && tieneDescripcion && updatedHitos.length < 10 && !yaSeAutoExpandio) {
-        updatedHitos.push(emptyHito(updatedHitos.length + 1));
+      if (hi === lastEditableIdx && tieneDescripcion && updatedHitos.length < 10) {
+        const insertAt = lastIsFinal ? updatedHitos.length - 1 : updatedHitos.length;
+        updatedHitos = [...updatedHitos.slice(0, insertAt), emptyHito(0), ...updatedHitos.slice(insertAt)];
       }
-      return { ...proj, hitos: updatedHitos };
+      return { ...proj, hitos: updatedHitos.map((h, j) => ({ ...h, posicion: j + 1 })) };
     }));
   }
   function addHito(pi: number) {
-    setProyectos((p) => p.map((proj, idx) =>
-      idx === pi ? { ...proj, hitos: [...proj.hitos, emptyHito(proj.hitos.length + 1)] } : proj));
+    setProyectos((p) => p.map((proj, idx) => {
+      if (idx !== pi) return proj;
+      // Mantener el hito de proyecto final (si está fijado) siempre al final.
+      const lastIsFinal = proj.hitos.length > 0 && proj.hitos[proj.hitos.length - 1].descripcion === HITO_FINAL;
+      const insertAt = lastIsFinal ? proj.hitos.length - 1 : proj.hitos.length;
+      const next = [...proj.hitos.slice(0, insertAt), emptyHito(0), ...proj.hitos.slice(insertAt)];
+      return { ...proj, hitos: next.map((h, j) => ({ ...h, posicion: j + 1 })) };
+    }));
   }
   function removeHito(pi: number, hi: number) {
     setProyectos((p) => p.map((proj, idx) => {
@@ -835,6 +858,7 @@ export default function Anteproyecto() {
               <ProyectoForm
                 proyecto={proyectos[0]}
                 fechaEntrega={cohorte?.fecha_limite_entrega_anteproyecto?.slice(0, 10) ?? ''}
+                fechaFinal={fechaLimiteProyecto?.slice(0, 10) ?? ''}
                 onChange={(patch) => updateProyecto(0, patch)}
                 onUpdateHito={(hi, patch) => updateHito(0, hi, patch)}
                 onAddHito={() => addHito(0)}
@@ -1037,11 +1061,13 @@ function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder, id, 
   );
 }
 
-function ProyectoForm({ proyecto, fechaEntrega, onChange, onUpdateHito, onAddHito, onRemoveHito }: {
+function ProyectoForm({ proyecto, fechaEntrega, fechaFinal, onChange, onUpdateHito, onAddHito, onRemoveHito }: {
   proyecto: Proyecto;
-  // Fecha de entrega del anteproyecto tomada de la cohorte (YYYY-MM-DD).
-  // Bloquea las fechas del hito "Entrega Anteproyecto".
+  // Fechas tomadas de la cohorte (YYYY-MM-DD). Bloquean las fechas de sus hitos:
+  //  - fechaEntrega → "Entrega Anteproyecto"
+  //  - fechaFinal   → "Consolidación Documento Final"
   fechaEntrega: string;
+  fechaFinal: string;
   onChange: (patch: Partial<Proyecto>) => void;
   onUpdateHito: (hi: number, patch: Partial<Hito>) => void;
   onAddHito: () => void;
@@ -1150,6 +1176,8 @@ function ProyectoForm({ proyecto, fechaEntrega, onChange, onUpdateHito, onAddHit
           const matchesPreset = PRESET_HITO_NAMES.has(h.descripcion);
           const isManual = manualHitos.has(hi) || (h.descripcion !== '' && !matchesPreset);
           const dropdownValue = isManual ? '__custom__' : (matchesPreset ? h.descripcion : '');
+          // Hito con fecha fijada por la cohorte: no se puede eliminar aquí.
+          const esFijo = (h.descripcion === HITO_ENTREGA && !!fechaEntrega) || (h.descripcion === HITO_FINAL && !!fechaFinal);
           const otherDescs = new Set(proyecto.hitos.filter((_, oi) => oi !== hi).map((o) => o.descripcion));
           // Id estable y único (no podemos usar useId dentro del map).
           const hitoId = `hito-p${proyecto.posicion}-${hi}`;
@@ -1191,10 +1219,12 @@ function ProyectoForm({ proyecto, fechaEntrega, onChange, onUpdateHito, onAddHit
                         const preset = PRESET_HITOS.find((p) => p.descripcion === v);
                         // Solo prellenamos la descripcion del hito; las fechas
                         // las llena el participante manualmente -- ningun item
-                        // debe aparecer con fecha predeterminada. EXCEPCIÓN: la
-                        // "Entrega Anteproyecto" toma su fecha de la cohorte.
+                        // debe aparecer con fecha predeterminada. EXCEPCIÓN: los
+                        // hitos de entrega toman su fecha (bloqueada) de la cohorte.
                         if (preset && preset.descripcion === HITO_ENTREGA && fechaEntrega) {
                           onUpdateHito(hi, { descripcion: preset.descripcion, fecha_inicio: fechaEntrega, fecha_fin: fechaEntrega });
+                        } else if (preset && preset.descripcion === HITO_FINAL && fechaFinal) {
+                          onUpdateHito(hi, { descripcion: preset.descripcion, fecha_inicio: fechaFinal, fecha_fin: fechaFinal });
                         } else if (preset) {
                           onUpdateHito(hi, { descripcion: preset.descripcion });
                         }
@@ -1214,9 +1244,12 @@ function ProyectoForm({ proyecto, fechaEntrega, onChange, onUpdateHito, onAddHit
             </div>
 
             {(() => {
-              // La "Entrega Anteproyecto" tiene su fecha fijada por la cohorte:
-              // se muestra bloqueada y no se puede editar aquí.
-              const esEntrega = h.descripcion === HITO_ENTREGA && !!fechaEntrega;
+              // Los hitos de entrega tienen su fecha fijada por la cohorte:
+              // se muestran bloqueados y no se pueden editar aquí.
+              const fechaFija = h.descripcion === HITO_ENTREGA ? fechaEntrega
+                : h.descripcion === HITO_FINAL ? fechaFinal
+                : '';
+              const esEntrega = !!fechaFija;
               const prev = hi > 0 ? proyecto.hitos[hi - 1] : null;
               const minInicio = prev ? (prev.fecha_inicio || prev.fecha_fin || undefined) : undefined;
               const prevFin = prev?.fecha_fin || undefined;
@@ -1238,7 +1271,7 @@ function ProyectoForm({ proyecto, fechaEntrega, onChange, onUpdateHito, onAddHit
                   <div className="w-full sm:w-44 shrink-0">
                     <div className="mt-4">
                       <label htmlFor={`${hitoId}-ini`} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">Inicio</label>
-                      <input id={`${hitoId}-ini`} type="date" value={esEntrega ? fechaEntrega : h.fecha_inicio}
+                      <input id={`${hitoId}-ini`} type="date" value={esEntrega ? fechaFija : h.fecha_inicio}
                         disabled={esEntrega}
                         aria-invalid={inicioMal || undefined}
                         aria-describedby={esEntrega ? `${hitoId}-entrega-nota` : (inicioMal ? `${hitoId}-ini-err` : undefined)}
@@ -1252,7 +1285,7 @@ function ProyectoForm({ proyecto, fechaEntrega, onChange, onUpdateHito, onAddHit
                   <div className="w-full sm:w-44 shrink-0">
                     <div className="mt-4">
                       <label htmlFor={`${hitoId}-fin`} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">Fin</label>
-                      <input id={`${hitoId}-fin`} type="date" value={esEntrega ? fechaEntrega : h.fecha_fin}
+                      <input id={`${hitoId}-fin`} type="date" value={esEntrega ? fechaFija : h.fecha_fin}
                         disabled={esEntrega}
                         aria-invalid={finMal || undefined}
                         aria-describedby={esEntrega ? `${hitoId}-entrega-nota` : (finMal ? `${hitoId}-fin-err` : undefined)}
@@ -1271,7 +1304,7 @@ function ProyectoForm({ proyecto, fechaEntrega, onChange, onUpdateHito, onAddHit
             })()}
 
             <div className="w-10 shrink-0 pt-7 text-center">
-              {proyecto.hitos.length > MIN_HITOS && (
+              {proyecto.hitos.length > MIN_HITOS && !esFijo && (
                 <button type="button" onClick={() => { onRemoveHito(hi); setManual(hi, false); }}
                   title="Eliminar hito"
                   className="text-inalde-gray hover:text-inalde-red text-2xl leading-none transition">×</button>
