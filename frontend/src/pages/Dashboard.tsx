@@ -446,6 +446,18 @@ export default function Dashboard() {
                       <span className="text-sm font-semibold text-inalde-red whitespace-nowrap">Entrar →</span>
                     </Link>
                   </div>
+
+                  {/* Consulta Cronograma: línea de tiempo con los hitos de la cohorte */}
+                  <div className="mt-6">
+                    <Link to="/consulta-cronograma" className="card-inalde-interactive flex items-center gap-5 p-6">
+                      <div className="text-4xl">📅</div>
+                      <div className="flex-1">
+                        <h2 className="font-primary font-bold text-lg mb-1">Consulta Cronograma</h2>
+                        <p className="text-inalde-gray text-sm">Consulta el cronograma detallado de NAVES.</p>
+                      </div>
+                      <span className="text-sm font-semibold text-inalde-red whitespace-nowrap">Entrar →</span>
+                    </Link>
+                  </div>
                 </>
               )}
             </>
