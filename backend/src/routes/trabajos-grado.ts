@@ -224,6 +224,22 @@ async function isMiembroDelEquipo(pid: string, equipoId: string): Promise<boolea
   return !!data;
 }
 
+// Fecha límite para cargar el PROYECTO DE GRADO (documento final + material): es
+// el hito 10 del cronograma, "Entrega Final". No es la del anteproyecto, que
+// vence mucho antes. Sin fecha configurada no se bloquea.
+async function fechaLimiteProyecto(cohorteId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from('cohorte_hitos').select('fecha').eq('cohorte_id', cohorteId).eq('posicion', 10).maybeSingle();
+  return (data as any)?.fecha ?? null;
+}
+
+// Vencido = ya pasó el final del día de la fecha límite (hora de Bogotá, UTC-5).
+// Dar el día completo evita cerrar la entrega a medianoche UTC (7 p. m. local).
+function limiteVencido(fecha: string | null): boolean {
+  if (!fecha) return false;
+  return new Date() > new Date(`${fecha}T23:59:59-05:00`);
+}
+
 // === POST /api/anteproyectos/:id/archivo/:tipo ==============================
 router.post('/:id/archivo/:tipo', upload.single('file'), async (req: AuthenticatedRequest, res) => {
   const pid = req.user!.participanteId;
@@ -286,6 +302,15 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
       return res.status(409).json({
         error: 'PROYECTO_FINAL_YA_SUBIDO',
         mensaje: 'El proyecto final ya fue cargado y no se puede reemplazar.',
+      });
+    }
+    // Corte por fecha de la cohorte (hito 10 "Entrega Final"): pasada esa
+    // fecha ya no se puede cargar el proyecto de grado.
+    const limite = await fechaLimiteProyecto(ant.equipos?.cohorte_id);
+    if (limiteVencido(limite)) {
+      return res.status(403).json({
+        error: 'FECHA_LIMITE_PROYECTO_EXPIRADA', fecha_limite: limite,
+        mensaje: 'La fecha límite para entregar el proyecto de grado ya pasó.',
       });
     }
   }
@@ -491,10 +516,20 @@ router.post('/:id/asset/:tipo', upload.single('file'), async (req: Authenticated
   const r = await resolverProyectoAsset(req, res);
   if (!r) return;
 
-  // La programación publicada es definitiva: si ya se publicó, estos assets
-  // están congelados (la escaleta que ven las áreas se armó con ellos).
   const ant = await loadAnteproyectoConEquipo(req.params.id);
   const cohorteId = ant?.equipos?.cohorte_id as string | undefined;
+
+  // Mismo corte por fecha que el proyecto final: el material se entrega junto
+  // con él (hito 10). Pasada la fecha, no se carga.
+  if (cohorteId && limiteVencido(await fechaLimiteProyecto(cohorteId))) {
+    return res.status(403).json({
+      error: 'FECHA_LIMITE_PROYECTO_EXPIRADA',
+      mensaje: 'La fecha límite para entregar el proyecto de grado ya pasó.',
+    });
+  }
+
+  // La programación publicada es definitiva: si ya se publicó, estos assets
+  // están congelados (la escaleta que ven las áreas se armó con ellos).
   if (cohorteId && (await programacionPublicadaAt(cohorteId))) {
     return res.status(423).json({
       error: 'PROGRAMACION_PUBLICADA',

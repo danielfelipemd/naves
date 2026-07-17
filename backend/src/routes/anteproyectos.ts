@@ -89,6 +89,19 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
   // y alimenta la programación de presentaciones. Vive en proyecto_contenido,
   // colgado del proyecto definitivo, así que solo hay algo que mostrar una vez
   // elegido. Se entrega ya envuelto para que la pantalla no arme URLs ni rutas.
+  // Fecha límite del proyecto de grado (documento final + material): hito 10 del
+  // cronograma, "Entrega Final". La pantalla la muestra y bloquea la carga si ya
+  // pasó. Se resuelve por el equipo → cohorte.
+  ant.fecha_limite_proyecto = null;
+  if (ant.equipo_id) {
+    const { data: eq } = await supabaseAdmin.from('equipos').select('cohorte_id').eq('id', ant.equipo_id).maybeSingle();
+    if ((eq as any)?.cohorte_id) {
+      const { data: hito } = await supabaseAdmin
+        .from('cohorte_hitos').select('fecha').eq('cohorte_id', (eq as any).cohorte_id).eq('posicion', 10).maybeSingle();
+      ant.fecha_limite_proyecto = (hito as any)?.fecha ?? null;
+    }
+  }
+
   ant.assets = { one_pager: null, logo: null, modelo_financiero: null };
   if (ant.equipos?.proyecto_definitivo_id) {
     const { data: cont } = await supabaseAdmin

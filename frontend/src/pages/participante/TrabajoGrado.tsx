@@ -26,6 +26,7 @@ interface Anteproyecto {
   archivo_proyecto_final_mime: string | null;
   archivo_proyecto_final_uploaded_at: string | null;
   anteproyecto_aprobado_at: string | null;
+  fecha_limite_proyecto?: string | null;
   assets?: Record<TipoAsset, AssetState | null>;
   equipos: {
     id: string;
@@ -219,6 +220,9 @@ export default function TrabajoGrado() {
   const [guardandoDirector, setGuardandoDirector] = useState(false);
 
   const [subiendoAsset, setSubiendoAsset] = useState<TipoAsset | null>(null);
+  // Ficha activa (null = sigue el valor por defecto según el estado). Dos fichas:
+  // 'anteproyecto' y 'proyecto'.
+  const [ficha, setFicha] = useState<'anteproyecto' | 'proyecto' | null>(null);
 
   const inputAntRef = useRef<HTMLInputElement>(null);
   const inputFinalRef = useRef<HTMLInputElement>(null);
@@ -477,22 +481,37 @@ export default function TrabajoGrado() {
   const antSubido = !!ant?.archivo_anteproyecto_path;
   const finalSubido = !!ant?.archivo_proyecto_final_path;
 
-  // Módulo de proyecto: se habilita distinto según el flujo de cada modalidad.
-  //  - caso/PI: al cargar su archivo de anteproyecto. No pasan por la reunión de
-  //    profesores; esa selección es exclusiva del Business Plan.
+  // La carga del proyecto final se habilita distinto por modalidad:
+  //  - caso/PI: al cargar su archivo de anteproyecto.
   //  - business plan: al elegirse el proyecto definitivo en la reunión.
   const proyectoHabilitado = esCasoOPI ? antSubido : !!ant?.equipos?.proyecto_definitivo_id;
+
+  // Anteproyecto DILIGENCIADO: habilita la ficha de proyecto de grado.
+  //  - BP: el formulario ya fue enviado (estado ≠ borrador).
+  //  - caso/PI: el archivo de anteproyecto ya está cargado.
+  const anteproyectoHecho = esCasoOPI ? antSubido : ant?.estado !== 'borrador';
+
+  // Fecha límite del proyecto de grado (hito 10 de la cohorte). Vencida = no se
+  // puede cargar ni el documento ni el material.
+  const fechaLimite = ant?.fecha_limite_proyecto ?? null;
+  const vencido = !!fechaLimite && new Date() > new Date(`${fechaLimite}T23:59:59-05:00`);
+  const fechaLimiteTexto = fechaLimite
+    ? new Date(`${fechaLimite}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+
+  // Ficha por defecto: si el anteproyecto ya está hecho, arrancamos en Proyecto
+  // de grado (es el paso importante); si no, en Anteproyecto. El clic del usuario
+  // manda por encima de este valor.
+  const fichaActiva: 'anteproyecto' | 'proyecto' = ficha ?? (anteproyectoHecho ? 'proyecto' : 'anteproyecto');
 
   return (
     <>
       <Header />
       <main className="pt-36 pb-16 px-4">
-        <div className="max-w-[800px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
-          <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
+        <div className="max-w-[860px] mx-auto">
+          <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
             <p className="section-subtitle mb-2">Trabajo de grado</p>
-            <h1 className="section-title">
-              {modalidad ? TITULO_MODALIDAD[modalidad] : 'Modalidad'}
-            </h1>
+            <h1 className="section-title">{modalidad ? TITULO_MODALIDAD[modalidad] : 'Modalidad'}</h1>
           </div>
 
           {error && (
@@ -501,216 +520,220 @@ export default function TrabajoGrado() {
             </div>
           )}
 
-          {/* === Selección de director (solo caso/PI) ====================== */}
-          {esCasoOPI && !directorAsignado && (
-            <div className="border-2 border-inalde-red rounded p-5 mb-8 bg-red-50/30">
-              <h2 className="font-primary font-bold text-base mb-2">Selecciona tu director</h2>
-              <p className="text-sm text-inalde-gray mb-4">
-                Antes de cargar el anteproyecto, elige al director que acompañará tu trabajo de
-                grado. Esta selección es <strong>definitiva</strong> y no se puede cambiar después.
-              </p>
-              {directores.length === 0 ? (
-                <p className="text-sm text-inalde-gray italic">Cargando directores disponibles…</p>
-              ) : (
-                <>
-                  <select
-                    value={directorSel}
-                    onChange={(e) => setDirectorSel(e.target.value)}
-                    className="input-inalde w-full mb-3">
-                    <option value="">Selecciona un director…</option>
-                    {directores.map((d) => (
-                      <option key={d.id} value={d.id}>{d.nombre_completo}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={asignarDirector}
-                    disabled={!directorSel || guardandoDirector}
-                    className="btn-inalde-primary !py-2 !text-xs disabled:opacity-40 disabled:cursor-not-allowed">
-                    {guardandoDirector ? 'Guardando…' : 'Confirmar director →'}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+          {/* === Dos fichas: Anteproyecto (izq) · Proyecto de grado (der) === */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
+            <button
+              onClick={() => setFicha('anteproyecto')}
+              className={`rounded-lg border-2 px-4 py-4 text-left transition ${
+                fichaActiva === 'anteproyecto'
+                  ? 'border-inalde-red bg-inalde-red/5'
+                  : 'border-inalde-gray-light bg-white hover:border-inalde-gray'
+              }`}
+            >
+              <span className="block text-[10px] uppercase tracking-widest text-inalde-gray mb-1">Paso 1</span>
+              <span className="font-primary font-bold text-inalde-text flex items-center gap-2 flex-wrap">
+                Anteproyecto
+                {anteproyectoHecho && <span className="text-[10px] uppercase tracking-wider text-inalde-blue font-semibold">✓ Completado</span>}
+              </span>
+            </button>
 
-          {esCasoOPI && directorAsignado && (
-            <div className="border border-inalde-gray-light rounded p-4 mb-6 bg-inalde-gray-bg/40">
-              <p className="text-xs uppercase tracking-wider text-inalde-gray mb-1">Tu director</p>
-              <p className="font-medium text-inalde-text">
-                {ant?.equipos?.director?.nombre_completo ?? 'Director asignado'}
-              </p>
-            </div>
-          )}
-
-          <p className="text-inalde-gray mb-8 text-sm">
-            {esCasoOPI
-              ? <>Tu trabajo de grado tiene dos pasos: primero el <strong>anteproyecto</strong> y, una vez cargado, el <strong>proyecto de grado</strong>.</>
-              : <>Tu trabajo de grado tiene dos pasos: primero el <strong>anteproyecto</strong> y, cuando se elija tu proyecto definitivo, el <strong>proyecto de grado</strong> con su material.</>}
-          </p>
-
-          {/* === Bloque 1 (Business Plan): estado del anteproyecto ==========
-              El Business Plan hace su anteproyecto por FORMULARIO, no por
-              archivo. Aquí no se rellena: se muestra su estado y, si está hecho,
-              queda como paso completado; el formulario vive en /anteproyecto. */}
-          {!esCasoOPI && (
-          <div className="border border-inalde-gray-light rounded p-5 mb-5">
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <h2 className="font-primary font-bold text-base">1. Anteproyecto</h2>
-              {ant?.estado !== 'borrador' && <span className="text-xs text-inalde-gray" aria-hidden="true">✓ Completado</span>}
-            </div>
-            {ant?.estado !== 'borrador' ? (
-              <div className="text-sm text-inalde-gray">
-                <p className="mb-2">✅ Tu anteproyecto ya fue enviado. Este paso está completo.</p>
-                <button onClick={() => navigate('/anteproyecto')} className="text-inalde-red font-semibold hover:underline text-sm">
-                  Ver mi anteproyecto →
-                </button>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-inalde-gray mb-3">
-                  Todavía no has enviado tu anteproyecto. Complétalo primero: con eso se habilita el proyecto de grado.
-                </p>
-                <button onClick={() => navigate('/anteproyecto')} className="btn-inalde-primary !py-2 !px-4 !text-xs">
-                  Completar anteproyecto →
-                </button>
-              </>
-            )}
+            <button
+              onClick={() => { if (anteproyectoHecho) setFicha('proyecto'); }}
+              disabled={!anteproyectoHecho}
+              aria-disabled={!anteproyectoHecho}
+              title={!anteproyectoHecho ? 'Diligencia primero el anteproyecto' : undefined}
+              className={`rounded-lg border-2 px-4 py-4 text-left transition ${
+                !anteproyectoHecho
+                  ? 'border-inalde-gray-light bg-inalde-gray-bg/40 opacity-60 cursor-not-allowed'
+                  : fichaActiva === 'proyecto'
+                    ? 'border-inalde-red bg-inalde-red shadow-inalde-card'
+                    : 'border-inalde-red/50 bg-white hover:border-inalde-red'
+              }`}
+            >
+              <span className={`block text-[10px] uppercase tracking-widest mb-1 font-semibold ${
+                anteproyectoHecho && fichaActiva === 'proyecto' ? 'text-white/85' : 'text-inalde-red'
+              }`}>
+                Paso 2 · Entrega final
+              </span>
+              <span className={`font-primary font-extrabold flex items-center gap-2 flex-wrap ${
+                anteproyectoHecho && fichaActiva === 'proyecto' ? 'text-white' : 'text-inalde-text'
+              }`}>
+                Proyecto de grado
+                {!anteproyectoHecho && <span aria-hidden="true">🔒</span>}
+              </span>
+            </button>
           </div>
-          )}
 
-          {/* === Bloque 1 (caso/PI): Anteproyecto por archivo ============== */}
-          {esCasoOPI && (
-          <div className="border border-inalde-gray-light rounded p-5 mb-5">
-            <h2 className="font-primary font-bold text-base mb-2">1. Anteproyecto (PDF)</h2>
-            {antSubido ? (
-              <div className="text-sm text-inalde-gray mb-3">
-                <p>
-                  ✅ Cargado el {formatoFecha(ant!.archivo_anteproyecto_uploaded_at)} —{' '}
-                  <span className="text-inalde-text">{nombreArchivoDePath(ant!.archivo_anteproyecto_path)}</span>
-                </p>
-                <button
-                  onClick={() => abrirArchivo('anteproyecto')}
-                  className="text-inalde-red font-semibold hover:underline text-sm mt-1">
-                  Descargar →
-                </button>
-                <p className="text-xs text-inalde-gray italic mt-3">
-                  Este archivo no se puede reemplazar.
-                </p>
-              </div>
-            ) : (
+          <div className="bg-white rounded-lg shadow-inalde-card p-5 sm:p-8">
+            {fichaActiva === 'anteproyecto' ? (
+              /* ======================= FICHA ANTEPROYECTO ======================= */
               <>
-                <p className="text-sm text-inalde-gray italic mb-3">
-                  {esCasoOPI && !directorAsignado
-                    ? 'Selecciona primero a tu director.'
-                    : 'Aún no has cargado el anteproyecto.'}
-                </p>
-                <DropZone
-                  accept={MIME_ANTEPROYECTO_ACCEPT}
-                  hint="PDF"
-                  validate={(f) => aceptaMime('anteproyecto', f)}
-                  errMsg="Solo PDF."
-                  disabled={!!subiendo || (esCasoOPI && !directorAsignado)}
-                  subiendoEste={subiendo === 'anteproyecto'}
-                  onFile={(f) => subir('anteproyecto', f)}
-                  inputRef={inputAntRef}
-                />
-              </>
-            )}
-          </div>
-          )}
-
-          {/* === Bloque 2: Proyecto final ================================= */}
-          <div className={`border rounded p-5 mb-8 ${proyectoHabilitado ? 'border-inalde-gray-light' : 'border-inalde-gray-light bg-inalde-gray-bg/30'}`}>
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <h2 className="font-primary font-bold text-base">{esCasoOPI ? 'Proyecto final (PDF)' : '2. Proyecto de grado'}</h2>
-              {!proyectoHabilitado && <span className="text-xs" aria-hidden="true">🔒</span>}
-            </div>
-
-            {!proyectoHabilitado && !finalSubido && (
-              <div className="rounded border-l-4 border-inalde-gold bg-inalde-gray-bg px-4 py-3 text-xs text-inalde-text mb-3">
                 {esCasoOPI ? (
-                  <>Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.</>
-                ) : (
                   <>
-                    Este paso se habilita <strong>cuando se elija tu proyecto definitivo</strong>, después de la Reunión 1 con tu profesor.
-                    <button onClick={() => navigate('/seleccion')} className="block mt-2 text-inalde-red font-semibold hover:underline">
-                      Ir a la selección del proyecto definitivo →
-                    </button>
+                    {!directorAsignado && (
+                      <div className="border-2 border-inalde-red rounded p-5 mb-6 bg-red-50/30">
+                        <h2 className="font-primary font-bold text-base mb-2">Selecciona tu director</h2>
+                        <p className="text-sm text-inalde-gray mb-4">
+                          Antes de cargar el anteproyecto, elige al director que acompañará tu trabajo de
+                          grado. Esta selección es <strong>definitiva</strong> y no se puede cambiar después.
+                        </p>
+                        {directores.length === 0 ? (
+                          <p className="text-sm text-inalde-gray italic">Cargando directores disponibles…</p>
+                        ) : (
+                          <>
+                            <select value={directorSel} onChange={(e) => setDirectorSel(e.target.value)} className="input-inalde w-full mb-3">
+                              <option value="">Selecciona un director…</option>
+                              {directores.map((d) => <option key={d.id} value={d.id}>{d.nombre_completo}</option>)}
+                            </select>
+                            <button onClick={asignarDirector} disabled={!directorSel || guardandoDirector}
+                              className="btn-inalde-primary !py-2 !text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                              {guardandoDirector ? 'Guardando…' : 'Confirmar director →'}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {directorAsignado && (
+                      <div className="border border-inalde-gray-light rounded p-4 mb-6 bg-inalde-gray-bg/40">
+                        <p className="text-xs uppercase tracking-wider text-inalde-gray mb-1">Tu director</p>
+                        <p className="font-medium text-inalde-text">{ant?.equipos?.director?.nombre_completo ?? 'Director asignado'}</p>
+                      </div>
+                    )}
+                    <h2 className="font-primary font-bold text-base mb-3">Anteproyecto (PDF)</h2>
+                    {antSubido ? (
+                      <div className="text-sm text-inalde-gray">
+                        <p>✅ Cargado el {formatoFecha(ant!.archivo_anteproyecto_uploaded_at)} — <span className="text-inalde-text">{nombreArchivoDePath(ant!.archivo_anteproyecto_path)}</span></p>
+                        <button onClick={() => abrirArchivo('anteproyecto')} className="text-inalde-red font-semibold hover:underline text-sm mt-1">Descargar →</button>
+                        <p className="text-xs text-inalde-gray italic mt-3">Este archivo no se puede reemplazar.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm text-inalde-gray italic mb-3">
+                          {!directorAsignado ? 'Selecciona primero a tu director.' : 'Aún no has cargado el anteproyecto.'}
+                        </p>
+                        <DropZone
+                          accept={MIME_ANTEPROYECTO_ACCEPT} hint="PDF"
+                          validate={(f) => aceptaMime('anteproyecto', f)} errMsg="Solo PDF."
+                          disabled={!!subiendo || !directorAsignado}
+                          subiendoEste={subiendo === 'anteproyecto'}
+                          onFile={(f) => subir('anteproyecto', f)} inputRef={inputAntRef}
+                        />
+                      </>
+                    )}
+                  </>
+                ) : (
+                  /* Business Plan: anteproyecto por formulario. */
+                  <>
+                    <h2 className="font-primary font-bold text-base mb-3">Anteproyecto</h2>
+                    {anteproyectoHecho ? (
+                      <div className="text-sm text-inalde-gray">
+                        <p className="mb-2">✅ Tu anteproyecto ya fue enviado. Este paso está completo.</p>
+                        <button onClick={() => navigate('/anteproyecto')} className="text-inalde-red font-semibold hover:underline text-sm">Ver mi anteproyecto →</button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm text-inalde-gray mb-3">
+                          Todavía no has enviado tu anteproyecto. Complétalo primero: con eso se habilita el proyecto de grado.
+                        </p>
+                        <button onClick={() => navigate('/anteproyecto')} className="btn-inalde-primary !py-2 !px-4 !text-xs">Completar anteproyecto →</button>
+                      </>
+                    )}
                   </>
                 )}
-              </div>
-            )}
-
-            {proyectoHabilitado && !finalSubido && (
-              <div className="rounded border-l-4 border-inalde-red bg-inalde-gray-bg px-4 py-3 text-xs text-inalde-text mb-3">
-                <strong>Atención:</strong> {esCasoOPI ? 'el proyecto final' : 'el documento del Business Plan'} es <strong>definitivo</strong>. Una vez
-                cargado <strong>no se puede modificar ni reemplazar</strong>. Asegúrate de subir la
-                versión correcta.
-              </div>
-            )}
-
-            {!esCasoOPI && (
-              <p className="font-primary font-semibold text-sm text-inalde-text mb-2">Documento del Business Plan (PDF)</p>
-            )}
-
-            {finalSubido ? (
-              <div className="text-sm text-inalde-gray mb-3">
-                <p>
-                  ✅ Cargado el {formatoFecha(ant!.archivo_proyecto_final_uploaded_at)} —{' '}
-                  <span className="text-inalde-text">{nombreArchivoDePath(ant!.archivo_proyecto_final_path)}</span>
-                </p>
-                <button
-                  onClick={() => abrirArchivo('proyecto-final')}
-                  className="text-inalde-red font-semibold hover:underline text-sm mt-1">
-                  Descargar →
-                </button>
-                <p className="text-xs text-inalde-gray italic mt-3">
-                  Este archivo no se puede reemplazar.
-                </p>
-              </div>
-            ) : proyectoHabilitado ? (
-              <>
-                <p className="text-sm text-inalde-gray italic mb-3">Aún no has cargado el proyecto final.</p>
-                <DropZone
-                  accept={MIME_PROYECTO_FINAL_ACCEPT}
-                  hint="PDF"
-                  validate={(f) => aceptaMime('proyecto-final', f)}
-                  errMsg="Solo PDF."
-                  disabled={!!subiendo}
-                  subiendoEste={subiendo === 'proyecto-final'}
-                  onFile={(f) => subir('proyecto-final', f)}
-                  inputRef={inputFinalRef}
-                />
               </>
             ) : (
-              <p className="text-sm text-inalde-gray italic">
-                {esCasoOPI ? 'Carga primero tu anteproyecto.' : 'Disponible cuando se elija tu proyecto definitivo.'}
-              </p>
-            )}
+              /* ======================= FICHA PROYECTO DE GRADO ======================= */
+              <>
+                <div className="flex items-start gap-3 mb-2">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-inalde-red font-semibold mb-1">Entrega final · una sola vez</p>
+                    <h2 className="font-primary font-extrabold text-xl text-inalde-text">Proyecto de grado</h2>
+                  </div>
+                </div>
+                <p className="text-sm text-inalde-gray mb-5">
+                  Este es el entregable definitivo. El documento y su material se cargan <strong>una sola vez</strong> y no se pueden reemplazar. Revisa bien antes de subir.
+                </p>
 
-            {/* Material del proyecto (solo Business Plan): alimenta la
-                programación de presentaciones. Reemplazable mientras no se
-                publique. */}
-            {!esCasoOPI && proyectoHabilitado && (
-              <div className="mt-6 pt-5 border-t border-inalde-gray-light">
-                <h3 className="font-primary font-semibold text-sm text-inalde-text mb-4">Material para la presentación</h3>
-                {(['one_pager', 'logo', 'modelo_financiero'] as const).map((t) => (
-                  <AssetUploader
-                    key={t}
-                    tipo={t}
-                    asset={ant?.assets?.[t] ?? null}
-                    subiendo={subiendoAsset === t}
-                    disabled={!!subiendoAsset}
-                    onFile={(f) => subirAsset(t, f)}
-                    onOpen={() => abrirAsset(t)}
-                    inputRef={inputAssetRefs[t]}
-                  />
-                ))}
-              </div>
+                {vencido ? (
+                  <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm text-inalde-text mb-5">
+                    <strong>La fecha límite de entrega ya pasó{fechaLimiteTexto ? ` (${fechaLimiteTexto})` : ''}.</strong> Ya no es posible cargar el proyecto de grado. Contacta a la coordinación del programa.
+                  </div>
+                ) : fechaLimiteTexto && (
+                  <div className="rounded border-l-4 border-inalde-gold bg-inalde-gold/10 px-4 py-3 text-sm text-inalde-text mb-5">
+                    Fecha límite de entrega: <strong>{fechaLimiteTexto}</strong>. Después de esa fecha no podrás cargar el proyecto de grado.
+                  </div>
+                )}
+
+                {/* Gate: BP sin definitivo aún. */}
+                {!proyectoHabilitado ? (
+                  <div className="rounded border-l-4 border-inalde-gold bg-inalde-gray-bg px-4 py-3 text-sm text-inalde-text">
+                    {esCasoOPI ? (
+                      <>Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.</>
+                    ) : (
+                      <>
+                        Se habilita <strong>cuando se elija tu proyecto definitivo</strong>, después de la Reunión 1 con tu profesor.
+                        <button onClick={() => navigate('/seleccion')} className="block mt-2 text-inalde-red font-semibold hover:underline">
+                          Ir a la selección del proyecto definitivo →
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* Documento definitivo */}
+                    <div className="border-2 border-inalde-red/30 rounded-lg p-5 mb-6 bg-inalde-red/5">
+                      <h3 className="font-primary font-bold text-base text-inalde-text mb-2">
+                        {esCasoOPI ? 'Proyecto final (PDF)' : 'Documento del Business Plan (PDF)'}
+                      </h3>
+                      {finalSubido ? (
+                        <div className="text-sm text-inalde-gray">
+                          <p>✅ Cargado el {formatoFecha(ant!.archivo_proyecto_final_uploaded_at)} — <span className="text-inalde-text">{nombreArchivoDePath(ant!.archivo_proyecto_final_path)}</span></p>
+                          <button onClick={() => abrirArchivo('proyecto-final')} className="text-inalde-red font-semibold hover:underline text-sm mt-1">Descargar →</button>
+                          <p className="text-xs text-inalde-gray italic mt-3">Este archivo no se puede reemplazar.</p>
+                        </div>
+                      ) : vencido ? (
+                        <p className="text-sm text-inalde-gray italic">La fecha de entrega ya pasó.</p>
+                      ) : (
+                        <>
+                          <div className="rounded border-l-4 border-inalde-red bg-white px-4 py-3 text-xs text-inalde-text mb-3">
+                            <strong>Atención:</strong> es <strong>definitivo</strong>. Una vez cargado <strong>no se puede modificar ni reemplazar</strong>.
+                          </div>
+                          <DropZone
+                            accept={MIME_PROYECTO_FINAL_ACCEPT} hint="PDF"
+                            validate={(f) => aceptaMime('proyecto-final', f)} errMsg="Solo PDF."
+                            disabled={!!subiendo}
+                            subiendoEste={subiendo === 'proyecto-final'}
+                            onFile={(f) => subir('proyecto-final', f)} inputRef={inputFinalRef}
+                          />
+                        </>
+                      )}
+                    </div>
+
+                    {/* Material (solo Business Plan) */}
+                    {!esCasoOPI && (
+                      <div>
+                        <h3 className="font-primary font-semibold text-sm text-inalde-text mb-4">Material para la presentación</h3>
+                        {(['one_pager', 'logo', 'modelo_financiero'] as const).map((t) => (
+                          <AssetUploader
+                            key={t}
+                            tipo={t}
+                            asset={ant?.assets?.[t] ?? null}
+                            subiendo={subiendoAsset === t}
+                            disabled={!!subiendoAsset || vencido}
+                            onFile={(f) => subirAsset(t, f)}
+                            onOpen={() => abrirAsset(t)}
+                            inputRef={inputAssetRefs[t]}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
             )}
           </div>
 
-          <div className="flex justify-between items-center pt-6 border-t border-inalde-gray-light">
+          <div className="flex justify-between items-center pt-6 mt-2">
             <button
               onClick={() => navigate('/')}
               disabled={!!subiendo}
@@ -719,9 +742,7 @@ export default function TrabajoGrado() {
               ← Dashboard
             </button>
             {subiendo && (
-              <span className="text-xs text-inalde-gray italic">
-                Subiendo archivo… no recargues ni salgas de esta pantalla.
-              </span>
+              <span className="text-xs text-inalde-gray italic">Subiendo archivo… no recargues ni salgas de esta pantalla.</span>
             )}
           </div>
         </div>
