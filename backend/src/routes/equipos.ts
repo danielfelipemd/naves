@@ -4,7 +4,14 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 
 const router = Router();
-router.use(requireAuth(), requireRole('participante'));
+// OJO: aquí NO va requireRole('participante') a nivel de router. Este router se
+// monta en '/api/equipos', y un router.use se ejecuta en TODA petición que
+// atraviese ese prefijo — también en las que no le pertenecen y siguen hacia
+// otros routers, como '/api/equipos/:id/seleccionar-proyecto-definitivo' (vive
+// en seleccion.ts). Con la guarda aquí, esa ruta rebotaba con FORBIDDEN y el
+// profesor nunca llegaba a su código. El rol se exige ruta por ruta.
+router.use(requireAuth());
+const soloParticipante = requireRole('participante');
 
 // === Helpers =====================================================
 async function getCohorteFechas(cohorteId: string) {
@@ -33,7 +40,7 @@ async function meAndCohorte(participanteId: string) {
 }
 
 // === GET /api/equipos/mi-equipo =================================
-router.get('/mi-equipo', async (req: AuthenticatedRequest, res) => {
+router.get('/mi-equipo', soloParticipante, async (req: AuthenticatedRequest, res) => {
   const pid = req.user!.participanteId;
   if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
 
@@ -99,7 +106,7 @@ const createSchema = z.object({
   nombre_equipo: z.string().trim().max(100).optional(),
   miembros_ids: z.array(z.string().uuid()).max(2).optional(),
 });
-router.post('/', async (req: AuthenticatedRequest, res) => {
+router.post('/', soloParticipante, async (req: AuthenticatedRequest, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
 
@@ -235,7 +242,7 @@ const addMemberSchema = z.object({
   participante_id: z.string().uuid(),
   posicion: z.number().int().min(2).max(3),
 });
-router.post('/:id/agregar-miembro', async (req: AuthenticatedRequest, res) => {
+router.post('/:id/agregar-miembro', soloParticipante, async (req: AuthenticatedRequest, res) => {
   const parsed = addMemberSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
 
@@ -317,7 +324,7 @@ router.post('/:id/agregar-miembro', async (req: AuthenticatedRequest, res) => {
 // Asigna director al equipo (solo modalidades caso/proyecto_investigacion).
 // Inmutable: el trigger SQL impide cambiarlo despues.
 const directorSchema = z.object({ director_id: z.string().uuid() });
-router.put('/:id/director', async (req: AuthenticatedRequest, res) => {
+router.put('/:id/director', soloParticipante, async (req: AuthenticatedRequest, res) => {
   const parsed = directorSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
 
@@ -356,7 +363,7 @@ router.put('/:id/director', async (req: AuthenticatedRequest, res) => {
 
 // === POST /api/equipos/:id/remover-miembro =================================
 const removeSchema = z.object({ participante_id: z.string().uuid() });
-router.post('/:id/remover-miembro', async (req: AuthenticatedRequest, res) => {
+router.post('/:id/remover-miembro', soloParticipante, async (req: AuthenticatedRequest, res) => {
   const parsed = removeSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID' });
 
