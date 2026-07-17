@@ -294,11 +294,12 @@ router.get('/:cohorteId/resumen', requireRole('profesor', 'super_admin'), async 
   };
   const filas: Fila[] = [];
 
+  // El profesor ve la sábana COMPLETA de la cohorte, no solo sus equipos: la
+  // sábana es una vista consolidada y necesita el contexto de los demás. Para
+  // ver solo los suyos filtra en pantalla (el front sabe cuáles son suyos por
+  // profesor_asignado_id). Escribir sigue restringido: solo marca las reuniones
+  // de los equipos que tiene asignados (ver PATCH .../reunion).
   for (const eq of (equipos as any[]) ?? []) {
-    if (!isSuperAdmin) {
-      const profesorMatch = (eq.asignaciones_profesor ?? []).some((a: any) => a.profesores?.id === profesorId);
-      if (!profesorMatch) continue;
-    }
 
     const miembros = ((eq.miembros_equipo as any[]) ?? [])
       .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))

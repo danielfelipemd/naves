@@ -87,6 +87,8 @@ export default function Sabana() {
   const [filtroModalidad, setFiltroModalidad] = useState<'todas' | 'business_plan' | 'caso' | 'proyecto_investigacion'>('todas');
   const [filtroAsignacion, setFiltroAsignacion] = useState<'todas' | 'asignados' | 'no_asignados'>('todas');
   const [filtroComunicado, setFiltroComunicado] = useState<'todos' | 'comunicados' | 'pendientes'>('todos');
+  // El profesor ve toda la sábana; este filtro le deja aislar sus equipos.
+  const [soloMios, setSoloMios] = useState(false);
   const [filtroBuscar, setFiltroBuscar] = useState('');
 
   useEffect(() => { (async () => {
@@ -407,6 +409,7 @@ export default function Sabana() {
             const esAsignado = (f: FilaResumen) => !!(f.profesor_asignado_id || f.director_asignado_nombre);
             const q = filtroBuscar.trim().toLowerCase();
             const filtrados = resumen.filter((f) => {
+              if (soloMios && f.profesor_asignado_id !== miProfesorId) return false;
               if (filtroModalidad !== 'todas' && f.modalidad !== filtroModalidad) return false;
               if (filtroAsignacion === 'asignados' && !esAsignado(f)) return false;
               if (filtroAsignacion === 'no_asignados' && esAsignado(f)) return false;
@@ -451,6 +454,19 @@ export default function Sabana() {
               <>
                 {/* Barra de filtros */}
                 <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {/* Solo para profesores: la sábana llega completa y este botón
+                      la reduce a los equipos que tienen asignados. */}
+                  {miProfesorId && (
+                    <button
+                      onClick={() => setSoloMios(!soloMios)}
+                      aria-pressed={soloMios}
+                      title={soloMios ? 'Estás viendo solo tus equipos. Toca para ver toda la cohorte.' : 'Ver solo los equipos que tienes asignados'}
+                      className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${soloMios
+                        ? 'border-inalde-red bg-inalde-red text-white'
+                        : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
+                      {soloMios ? '✓ ' : ''}Mis equipos · {resumen.filter((f) => f.profesor_asignado_id === miProfesorId).length}
+                    </button>
+                  )}
                   <div className="flex gap-1">
                     {([
                       ['todas', `Todas · ${resumen.length}`],
