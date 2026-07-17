@@ -8,6 +8,7 @@ import {
   downloadTrabajoGradoFile,
   extForMime,
   uploadAssetNaves,
+  deleteAssetNaves,
   extForAsset,
   mimeFromPath,
   type TipoArchivoTrabajo,
@@ -507,6 +508,13 @@ router.post('/:id/asset/:tipo', upload.single('file'), async (req: Authenticated
     return res.status(400).json({ error: 'INVALID_MIME', mime });
   }
 
+  // Path anterior: al reemplazar con OTRA extensión (logo.jpg → logo.png) el
+  // path cambia y el archivo viejo quedaría huérfano en el bucket. Lo leemos
+  // para borrarlo después.
+  const { data: prevRow } = await supabaseAdmin
+    .from('proyecto_contenido').select(ASSET_COL[tipo]).eq('proyecto_id', r.proyectoId).maybeSingle();
+  const prevPath = (prevRow as any)?.[ASSET_COL[tipo]] as string | null;
+
   let path: string;
   try {
     ({ path } = await uploadAssetNaves(r.proyectoId, tipo, req.file.buffer, mime));
@@ -519,6 +527,10 @@ router.post('/:id/asset/:tipo', upload.single('file'), async (req: Authenticated
   const { error: errDb } = await supabaseAdmin.from('proyecto_contenido')
     .upsert({ proyecto_id: r.proyectoId, [ASSET_COL[tipo]]: path, updated_at: new Date().toISOString() }, { onConflict: 'proyecto_id' });
   if (errDb) return res.status(500).json({ error: 'ASSET_DB_FAILED', detail: errDb.message });
+
+  // Ya guardado el nuevo enlace: si el anterior era otro archivo, se borra (best
+  // effort). No bloquea la respuesta ni deja el enlace inconsistente.
+  if (prevPath && prevPath !== path) await deleteAssetNaves(prevPath).catch(() => { /* huérfano tolerable */ });
 
   res.status(201).json({ ok: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)) });
 });
