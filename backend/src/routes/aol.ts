@@ -4,7 +4,8 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/mid
 import { proyectosFase2 } from '../services/proyectos-fase2.js';
 import { analizarProyecto } from '../services/aol/pipeline.js';
 import { firmarCalificacion } from '../services/aol/firma.js';
-import { generarReporteWord } from '../services/aol/export.js';
+import { generarReporteWord, generarReporteExcel } from '../services/aol/export.js';
+import { generarLecturaImpacto } from '../services/aol/impacto.js';
 import { config } from '../config.js';
 
 // =====================================================================
@@ -21,6 +22,22 @@ import { config } from '../config.js';
 
 const router = Router();
 const soloAdmin = [requireAuth(), requireRole('super_admin')];
+
+// Nombre legible del usuario que firma (para medicion.autor / aol_calificacion.autor).
+// Se resuelve server-side desde la BD (no se confía en el cliente); el id no lo
+// conoce nadie salvo el sistema, por eso se guarda el nombre completo (QA #4).
+async function nombreAutor(req: AuthenticatedRequest): Promise<string> {
+  const u = req.user!;
+  if (u.profesorId) {
+    const { data } = await supabaseAdmin.from('profesores').select('nombre_completo').eq('id', u.profesorId).maybeSingle();
+    if ((data as any)?.nombre_completo) return (data as any).nombre_completo;
+  }
+  if (u.participanteId) {
+    const { data } = await supabaseAdmin.from('participantes_lista').select('nombre_completo').eq('id', u.participanteId).maybeSingle();
+    if ((data as any)?.nombre_completo) return (data as any).nombre_completo;
+  }
+  return u.sub ?? 'Administrador NAVES';
+}
 
 // GET /api/aol/trabajos?cohorte_id=<id> — trabajos por calificar de la cohorte.
 router.get('/trabajos', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
@@ -44,7 +61,7 @@ router.get('/trabajos', ...soloAdmin, async (req: AuthenticatedRequest, res) => 
       ? supabaseAdmin.from('anteproyectos').select('equipo_id, archivo_proyecto_final_path').in('equipo_id', equipoIds)
       : Promise.resolve({ data: [] as any[] }),
     proyIds.length
-      ? supabaseAdmin.from('aol_analisis').select('proyecto_plataforma_id, estado').in('proyecto_plataforma_id', proyIds)
+      ? supabaseAdmin.from('aol_analisis').select('proyecto_plataforma_id, estado, resultado').in('proyecto_plataforma_id', proyIds)
       : Promise.resolve({ data: [] as any[] }),
     proyIds.length
       ? supabaseAdmin.from('aol_calificacion').select('proyecto_plataforma_id').in('proyecto_plataforma_id', proyIds)
@@ -54,6 +71,11 @@ router.get('/trabajos', ...soloAdmin, async (req: AuthenticatedRequest, res) => 
   const contById = new Map(((cont.data ?? []) as any[]).map((x) => [x.proyecto_id, x]));
   const bpByEquipo = new Map(((antes.data ?? []) as any[]).map((x) => [x.equipo_id, x.archivo_proyecto_final_path]));
   const sugerenciaSet = new Set(((analisis.data ?? []) as any[]).filter((a) => a.estado === 'sugerencia').map((a) => a.proyecto_plataforma_id));
+  // "Revisar": el análisis tiene ítems de confianza baja o citas rechazadas por R1
+  // (necesitan atención humana antes de calificar).
+  const revisarSet = new Set(((analisis.data ?? []) as any[])
+    .filter((a) => a.estado === 'sugerencia' && Array.isArray(a.resultado?.traits) && a.resultado.traits.some((t: any) => t.confianza === 'baja'))
+    .map((a) => a.proyecto_plataforma_id));
   const califSet = new Set(((califs.data ?? []) as any[]).map((c) => c.proyecto_plataforma_id));
 
   const trabajos = entradas.map((e) => {
@@ -67,7 +89,9 @@ router.get('/trabajos', ...soloAdmin, async (req: AuthenticatedRequest, res) => 
     const completa = entrega.bp && entrega.one_pager && entrega.logo && entrega.modelo;
     // Estado análisis: hay sugerencia guardada → 'sugerencia'; entrega completa
     // pero sin análisis → 'en_cola' (lo dispara la Fase 3); si no, 'sin_entrega'.
-    const estado_analisis = sugerenciaSet.has(e.proyecto_id) ? 'sugerencia' : completa ? 'en_cola' : 'sin_entrega';
+    const estado_analisis = revisarSet.has(e.proyecto_id)
+      ? 'revisar'
+      : sugerenciaSet.has(e.proyecto_id) ? 'sugerencia' : completa ? 'en_cola' : 'sin_entrega';
     const estado_aol = califSet.has(e.proyecto_id) ? 'calificado' : 'pendiente';
     return {
       proyecto_id: e.proyecto_id,
@@ -205,6 +229,18 @@ router.get('/dashboard/:cohorteId', ...soloAdmin, async (req: AuthenticatedReque
   });
 });
 
+// GET /api/aol/dashboard/:cohorteId/lectura-impacto — borrador IA editable del
+// impacto de las acciones del ciclo anterior (closing the loop, §9).
+router.get('/dashboard/:cohorteId/lectura-impacto', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  if (!config.anthropic.apiKey) return res.status(503).json({ error: 'IA_NO_CONFIGURADA' });
+  try {
+    const texto = await generarLecturaImpacto(req.params.cohorteId);
+    res.json({ texto });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? 'IMPACTO_FALLO' });
+  }
+});
+
 // POST /api/aol/calificar/:proyectoId/firmar — la firma (R7). Inserta
 // aol_calificacion + medicion por integrante × trait. Nada en firme sin este clic.
 router.post('/calificar/:proyectoId/firmar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
@@ -221,7 +257,7 @@ router.post('/calificar/:proyectoId/firmar', ...soloAdmin, async (req: Authentic
     const r = await firmarCalificacion(req.params.proyectoId, {
       puntajes,
       parrafo: b.parrafo.trim(),
-      autor: req.user!.sub ?? 'super_admin',
+      autor: await nombreAutor(req),
       analisisId: b.analisis_id ?? null,
       versionCerebro: b.version_cerebro ?? '1.0',
       versionRubrica: b.version_rubrica ?? '1.0',
@@ -261,6 +297,18 @@ router.post('/export/:cohorteId/word', ...soloAdmin, async (req: AuthenticatedRe
   try {
     const { buffer, filename } = await generarReporteWord(req.params.cohorteId, req.body ?? {});
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? 'EXPORT_FALLO' });
+  }
+});
+
+// GET /api/aol/export/:cohorteId/excel — descarga el reporte en Excel (§11.3).
+router.get('/export/:cohorteId/excel', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { buffer, filename } = await generarReporteExcel(req.params.cohorteId);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (e: any) {

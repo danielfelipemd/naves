@@ -106,3 +106,44 @@ export async function generarReporteWord(cohorteId: string, campos: CamposEditab
   const filename = `Reporte_AoL_${codigoAol.replace(/\s+/g, '_')}.docx`;
   return { buffer, filename };
 }
+
+// Reporte en Excel (§11.3). Mismas cifras exactas de la base, en hojas navegables.
+export async function generarReporteExcel(cohorteId: string): Promise<{ buffer: Buffer; filename: string }> {
+  const { default: ExcelJS } = await import('exceljs');
+  const { data: coh } = await supabaseAdmin.from('cohortes').select('etiqueta').eq('id', cohorteId).maybeSingle();
+  const etiqueta = (coh as any)?.etiqueta ?? cohorteId;
+  const modalidad = /\bINT\b/i.test(etiqueta) ? 'INT' : 'FS';
+  const anios = etiqueta.match(/(\d{2,4})\s*[-–]\s*(\d{2,4})/);
+  const to4 = (s: string) => (s.length === 2 ? 2000 + Number(s) : Number(s));
+  const codigoAol = anios ? `${modalidad} ${to4(anios[1])}-${to4(anios[2])}` : etiqueta;
+
+  const [{ data: resumen }, { data: aacsb }, { data: concl }, { data: acciones }] = await Promise.all([
+    supabaseAdmin.from('v_resumen').select('*').eq('cohorte', codigoAol).order('lo').order('criterio'),
+    supabaseAdmin.from('aacsb_tabla').select('*').order('id'),
+    supabaseAdmin.from('conclusion_ciclo').select('*').order('anio', { ascending: false }),
+    supabaseAdmin.from('accion_mejora').select('*').order('anio', { ascending: false }),
+  ]);
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'NAVES AoL';
+  const hojaDe = (nombre: string, filas: any[]) => {
+    const ws = wb.addWorksheet(nombre);
+    if (!filas.length) { ws.addRow(['(sin datos)']); return; }
+    const cols = Object.keys(filas[0]);
+    ws.addRow(cols).font = { bold: true };
+    for (const f of filas) ws.addRow(cols.map((c) => {
+      const v = (f as any)[c];
+      return v != null && typeof v === 'object' ? JSON.stringify(v) : v;
+    }));
+    ws.columns.forEach((c) => { c.width = 22; });
+  };
+
+  hojaDe('Resumen cohorte', (resumen ?? []) as any[]);
+  hojaDe('Tabla 5-1 AACSB', (aacsb ?? []) as any[]);
+  hojaDe('Historico ciclos', (concl ?? []) as any[]);
+  hojaDe('Acciones de mejora', (acciones ?? []) as any[]);
+
+  const buffer = Buffer.from(await wb.xlsx.writeBuffer());
+  const filename = `Reporte_AoL_${codigoAol.replace(/\s+/g, '_')}.xlsx`;
+  return { buffer, filename };
+}

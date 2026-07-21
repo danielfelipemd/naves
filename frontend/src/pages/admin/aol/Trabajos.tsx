@@ -12,7 +12,7 @@ interface Trabajo {
   integrantes: string;
   entrega: Entrega;
   completa: boolean;
-  estado_analisis: 'sin_entrega' | 'en_cola' | 'sugerencia';
+  estado_analisis: 'sin_entrega' | 'en_cola' | 'sugerencia' | 'revisar';
   estado_aol: 'pendiente' | 'calificado';
 }
 interface Data { cohorte_id: string; etiqueta: string; por_calificar: number; trabajos: Trabajo[]; }
@@ -115,7 +115,9 @@ export default function AolTrabajos() {
                     {chipEntrega(t.entrega.modelo, 'Modelo $')}
                   </td>
                   <td className="px-3 py-3">
-                    {t.estado_analisis === 'sugerencia' ? (
+                    {t.estado_analisis === 'revisar' ? (
+                      <span className="text-[10px] uppercase tracking-wider font-semibold text-inalde-red">⚠ Revisar</span>
+                    ) : t.estado_analisis === 'sugerencia' ? (
                       <span className="text-[10px] uppercase tracking-wider font-semibold text-inalde-blue">Sugerencia lista</span>
                     ) : t.estado_analisis === 'en_cola' ? (
                       <span className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gold">En cola</span>

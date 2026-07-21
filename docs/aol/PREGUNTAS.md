@@ -1,33 +1,24 @@
-# AoL — Preguntas y supuestos para Juan Manuel
+# AoL — Decisiones de integración (resueltas con el desarrollador)
 
-Acumuladas durante la construcción del módulo (jerarquía: cerebro > especificación > mockup > **JMV decide**). Numeradas, con contexto y recomendación. Donde tuve que avanzar, dejé un supuesto marcado **[SUPUESTO APLICADO]** — confirmar o corregir.
+Los 7 puntos que quedaron abiertos al construir el módulo se resolvieron el 21-jul-2026 entre el desarrollador y el asistente (Juan Manuel no es técnico; las decisiones cuidan la seguridad y lo óptimo para el sistema). Estado: **RESUELTO**.
 
----
+1. **Mapeo cohorte de plataforma → `cohorte.codigo` del esquema AoL.** ✅ RESUELTO
+   Se deriva el código de la etiqueta de la plataforma: `"MBA INT 24-26"` → `"INT 2024-2026"` (modalidad + años a 4 dígitos). Confirmado.
 
-**1. Mapeo cohorte de plataforma → `cohorte.codigo` del esquema AoL.** [SUPUESTO APLICADO]
-La tabla `cohorte` del histórico usa `codigo` tipo `"FS 2014-2016"` / `"INT 2023-2025"`. Al firmar, se materializa la cohorte activa derivando el código de la etiqueta de la plataforma: `"MBA INT 24-26"` → `"INT 2024-2026"` (modalidad + años a 4 dígitos).
-*Recomendación:* confirmar el formato exacto (¿así, o con otra convención de código?).
+2. **Políticas RLS.** ✅ RESUELTO
+   La RLS está **activa y funcionando**. En esta plataforma ningún usuario accede directo a la base: todo pasa por el backend, que valida el rol NAVES y recién ahí lee (con `service_role`). Por eso las tablas AoL tienen RLS que **niega el acceso directo** de anon/authenticated (nadie externo lee, ni con la llave pública) y el permiso de lectura lo aplica el backend según el rol. Es más seguro que abrir lectura directa.
 
-**2. Políticas RLS (§5).** [SUPUESTO APLICADO]
-El §5 propone políticas de lectura para el rol `authenticated` con `auth.jwt() ->> 'rol_naves'`. Esta plataforma **no usa Supabase Auth**: todo el acceso a datos va por el backend Node con `service_role` (que valida el rol NAVES). Por eso dejé RLS **activada sin políticas** (niega acceso directo de anon/authenticated) — es más restrictivo que el ejemplo y consistente con el resto del sistema.
-*Recomendación:* confirmar que la lectura solo-por-backend es lo deseado (lo es por seguridad).
+3. **`on_standard` global de una calificación.** ✅ RESUELTO
+   Lo define el profesor con los 6 puntajes; el sistema lo deriva de ahí (`total ≥ 12` = promedio ≥ 2,0). Se mantiene, sin cambios.
 
-**3. Definición del flag global `on_standard` de una calificación.** [SUPUESTO APLICADO]
-El cerebro define *on standard = puntaje ≥ 2* **por trait**. Para el flag global de `aol_calificacion` usé `total ≥ 12` (promedio ≥ 2,0 sobre los 6 traits).
-*Recomendación:* confirmar. Alternativas: "todos los traits ≥ 2", o "≥ N traits on standard".
+4. **`autor` en `medicion`/`aol_calificacion`.** ✅ RESUELTO — CAMBIADO
+   Se guarda el **nombre completo del profesor** (el identificador no lo conoce nadie salvo el sistema). Se resuelve server-side desde la BD (`profesores`/`participantes_lista`), no se confía en el cliente.
 
-**4. `autor` en `medicion`/`aol_calificacion`.** [SUPUESTO APLICADO]
-Se guarda el identificador de autenticación (sub del JWT) del profesor que firma (trazable, R8). Las filas históricas parecen tener un nombre legible.
-*Recomendación:* ¿prefiere guardar el nombre completo del profesor en vez del id?
+5. **Extracción por trait.** ✅ RESUELTO
+   Segmentación pragmática por anclas de palabras clave (pasa los fixtures). Se calibrará con las primeras entregas reales.
 
-**5. Extracción por trait (§7.3).** [SUPUESTO APLICADO]
-La segmentación del BP por sección es **pragmática por anclas de palabras clave** (5.1, TAM/SAM/SOM, sección 8, canvas, etc.), no un parser estricto del índice. Pasa los fixtures (el paquete del trait 2 contiene TAM·SAM·SOM; el del trait 5 la sección 8 + el Excel).
-*Recomendación:* calibrar las anclas con las primeras entregas reales (§10).
+6. **Chequeos del modelo financiero.** ✅ RESUELTO
+   Los **12 chequeos** salen de la tabla `criterio_modelo_financiero` (dimensión A interna / B coherencia BP) que ya trae el paquete; la IA los marca OK/ALERTA. El cuadre del balance del quick-screen viene del cerebro (§7.2). Se añadió un mini-evaluador de fórmulas simples solo como refuerzo para modelos sin resultados cacheados.
 
-**6. Balance del modelo financiero.** [SUPUESTO APLICADO]
-Algunos modelos (p. ej. los fixtures) no traen los **resultados de las fórmulas cacheados**, así que se agregó un mini-evaluador de fórmulas simples (`SUM(rango)` y ±) para poder verificar el cuadre `Activo − (Pasivo+Patrimonio) = 0`. Si aun así no se resuelve, queda `NO VERIFICABLE`.
-*Recomendación:* confirmar tolerancia y nombres de hoja/etiquetas típicos de los modelos reales.
-
-**7. "Entrega completa" = 4 archivos.** [SUPUESTO APLICADO]
-Se considera completa con BP.pdf + one-pager + logo + modelo financiero .xlsx (los del campo contenedor). El pipeline solo consume el **BP.pdf** y el **Excel**; one-pager y logo cuentan para el estado de entrega pero no entran al juicio.
-*Recomendación:* confirmar si one-pager/logo deben ser obligatorios para disparar el análisis, o basta BP + Excel.
+7. **"Entrega completa" = 4 archivos.** ✅ RESUELTO
+   BP.pdf + one-pager + logo + modelo financiero .xlsx. El pipeline consume BP.pdf + Excel; one-pager y logo cuentan para el estado de entrega. Confirmado.

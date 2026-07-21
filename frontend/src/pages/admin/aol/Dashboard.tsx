@@ -142,6 +142,16 @@ export default function AolDashboard() {
   const [cohorte, setCohorte] = useState('');
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(false);
+  const [impacto, setImpacto] = useState('');
+  const [genImpacto, setGenImpacto] = useState(false);
+
+  async function generarImpacto() {
+    if (!cohorte) return;
+    setGenImpacto(true);
+    try { const r = await api.get(`/aol/dashboard/${cohorte}/lectura-impacto`); setImpacto(r.data.texto ?? ''); }
+    catch { setImpacto('No se pudo generar la lectura de impacto. Inténtelo de nuevo.'); }
+    finally { setGenImpacto(false); }
+  }
 
   useEffect(() => { (async () => {
     try {
@@ -444,6 +454,24 @@ export default function AolDashboard() {
                 </div>
               </div>
             )}
+
+            {/* Lectura de impacto (borrador IA editable, closing the loop §9) */}
+            <div className="mt-6 pt-5 border-t border-inalde-gray-light">
+              <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-inalde-red">Lectura de impacto · borrador IA (editable)</p>
+                <button onClick={generarImpacto} disabled={genImpacto}
+                  className="font-primary font-bold text-[11px] uppercase tracking-wider border border-inalde-red text-inalde-red px-3 py-1.5 rounded hover:bg-inalde-red hover:text-white disabled:opacity-50">
+                  {genImpacto ? 'Generando…' : impacto ? 'Regenerar' : 'Generar con IA'}
+                </button>
+              </div>
+              <textarea
+                value={impacto}
+                onChange={(e) => setImpacto(e.target.value)}
+                rows={6}
+                placeholder="La IA interpreta el impacto de las acciones del ciclo anterior (acción → trait/LO → delta). Genera el borrador y edítalo."
+                className="input-inalde w-full text-sm leading-relaxed"
+              />
+            </div>
           </div>
         </>
       )}

@@ -130,6 +130,26 @@ export default function AolExport() {
     }
   }
 
+  async function descargarExcel() {
+    if (!cohorte) return;
+    setGenerando(true); setErrorWord('');
+    try {
+      const r = await api.get(`/aol/export/${cohorte}/excel`, { responseType: 'blob' });
+      const u = URL.createObjectURL(r.data);
+      const a = document.createElement('a');
+      a.href = u;
+      a.download = 'Reporte_AoL.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(u);
+    } catch {
+      setErrorWord('No se pudo generar el Excel. Inténtelo de nuevo.');
+    } finally {
+      setGenerando(false);
+    }
+  }
+
   return (
     <>
       <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
@@ -238,9 +258,13 @@ export default function AolExport() {
 
             {errorWord && <p className="text-inalde-red text-sm mt-4">{errorWord}</p>}
 
-            <div className="mt-5 flex items-center gap-4">
+            <div className="mt-5 flex flex-wrap items-center gap-3">
               <button type="button" onClick={generarWord} disabled={generando} className="btn-inalde-primary disabled:opacity-60 disabled:cursor-not-allowed">
                 {generando ? 'Generando…' : 'Descargar reporte Word'}
+              </button>
+              <button type="button" onClick={descargarExcel} disabled={generando}
+                className="font-primary font-bold text-xs uppercase tracking-wider border-2 border-inalde-blue text-inalde-blue px-4 py-2 rounded hover:bg-inalde-blue hover:text-white disabled:opacity-60 disabled:cursor-not-allowed">
+                Descargar Excel
               </button>
             </div>
 
