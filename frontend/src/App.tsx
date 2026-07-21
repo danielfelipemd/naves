@@ -46,7 +46,6 @@ import AdminEquipos from './pages/admin/Equipos';
 import AdminAnteproyectoDetail from './pages/admin/AnteproyectoDetail';
 import AdminSabana from './pages/admin/Sabana';
 import AdminSolicitudes from './pages/admin/Solicitudes';
-import AdminAuditoria from './pages/admin/Auditoria';
 import AdminRolesPermisos from './pages/admin/RolesPermisos';
 
 function ProtectedRoute({ children, requierePerfilOk = false }: { children: React.ReactNode; requierePerfilOk?: boolean }) {
@@ -154,7 +153,6 @@ export default function App() {
           <Route path="actas/lote" element={<SuperAdminOnly><ActasFirmaLote /></SuperAdminOnly>} />
           <Route path="actas/:id" element={<SuperAdminOnly><ActaDetalle /></SuperAdminOnly>} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
-          <Route path="auditoria" element={<SuperAdminOnly><AdminAuditoria /></SuperAdminOnly>} />
           <Route path="roles-permisos" element={<SuperAdminOnly><AdminRolesPermisos /></SuperAdminOnly>} />
         </Route>
 
