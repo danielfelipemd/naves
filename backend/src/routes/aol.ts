@@ -4,9 +4,8 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/mid
 import { proyectosFase2 } from '../services/proyectos-fase2.js';
 import { analizarProyecto } from '../services/aol/pipeline.js';
 import { firmarCalificacion } from '../services/aol/firma.js';
-import { generarReporteWord, generarReporteExcel } from '../services/aol/export.js';
+import { generarReporteWord, generarReporteExcel, generarPaqueteCierre } from '../services/aol/export.js';
 import { generarLecturaImpacto } from '../services/aol/impacto.js';
-import { archivarPaqueteCohorte } from '../services/aol/onedrive.js';
 import { config } from '../config.js';
 
 // =====================================================================
@@ -293,7 +292,6 @@ router.get('/export/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest,
 
 // POST /api/aol/export/:cohorteId/word — genera y descarga el reporte Word (§11.3).
 // Recibe los campos editables ([EDITABLE]/[PROFESOR]) capturados en la UI.
-// (El archivo permanente en OneDrive §12 requiere MSGRAPH_*; por ahora, descarga.)
 router.post('/export/:cohorteId/word', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   try {
     const { buffer, filename } = await generarReporteWord(req.params.cohorteId, req.body ?? {});
@@ -305,20 +303,13 @@ router.post('/export/:cohorteId/word', ...soloAdmin, async (req: AuthenticatedRe
   }
 });
 
-// POST /api/aol/export/:cohorteId/archivar — cierra el ciclo (§12): genera el
-// paquete (docx + DATOS BRUTOS.xlsx + trazabilidad.json) y lo deja en OneDrive.
-// Si OneDrive no está configurado o falla, devuelve el paquete en base64 para
-// que el frontend lo descargue (fallback §12). No revienta nunca por Graph.
+// POST /api/aol/export/:cohorteId/archivar — cierra el ciclo: genera el paquete
+// (docx + DATOS BRUTOS.xlsx + trazabilidad.json) y lo devuelve para descarga. El
+// registro permanente del ciclo vive en la base de datos (Supabase, única fuente).
 router.post('/export/:cohorteId/archivar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   try {
-    const r = await archivarPaqueteCohorte(req.params.cohorteId);
-    if (r.via === 'onedrive') {
-      return res.json({ archivado: r.archivado, via: r.via, detalle: r.detalle });
-    }
-    res.json({
-      archivado: r.archivado, via: r.via, detalle: r.detalle,
-      archivos: r.archivos.map((a) => ({ nombre: a.nombre, base64: a.buffer.toString('base64') })),
-    });
+    const p = await generarPaqueteCierre(req.params.cohorteId, req.body ?? {});
+    res.json({ archivado: true, archivos: p.archivos.map((a) => ({ nombre: a.nombre, base64: a.buffer.toString('base64') })) });
   } catch (e: any) {
     res.status(400).json({ error: e?.message ?? 'ARCHIVAR_FALLO' });
   }

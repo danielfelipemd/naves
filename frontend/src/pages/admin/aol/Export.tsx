@@ -157,20 +157,16 @@ export default function AolExport() {
     try {
       const body = { nota_contexto: notaContexto || undefined, lectura_impacto: lecturaImpacto || undefined, acciones_siguiente: accionesSiguiente || undefined };
       const r = await api.post(`/aol/export/${cohorte}/archivar`, body);
-      if (r.data.via === 'onedrive') {
-        setMsgArchivo(`Paquete archivado en OneDrive. ${r.data.detalle ?? ''}`);
-      } else {
-        // Fallback: descargar los 3 archivos del paquete (base64 → blob).
-        for (const f of r.data.archivos ?? []) {
-          const bin = atob(f.base64);
-          const bytes = new Uint8Array(bin.length);
-          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-          const u = URL.createObjectURL(new Blob([bytes]));
-          const a = document.createElement('a'); a.href = u; a.download = f.nombre;
-          document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u);
-        }
-        setMsgArchivo('OneDrive no está configurado: se descargó el paquete (Word + DATOS BRUTOS.xlsx + trazabilidad.json).');
+      // Descarga los 3 archivos del paquete (base64 → blob).
+      for (const f of r.data.archivos ?? []) {
+        const bin = atob(f.base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const u = URL.createObjectURL(new Blob([bytes]));
+        const a = document.createElement('a'); a.href = u; a.download = f.nombre;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u);
       }
+      setMsgArchivo('Paquete de cierre descargado (Word + DATOS BRUTOS.xlsx + trazabilidad.json). El registro permanente queda en la base de datos.');
     } catch {
       setErrorWord('No se pudo cerrar el ciclo / archivar el paquete.');
     } finally {
@@ -302,7 +298,7 @@ export default function AolExport() {
             {msgArchivo && <p className="text-inalde-blue text-sm mt-3">{msgArchivo}</p>}
 
             <p className="text-[11px] text-inalde-gray mt-4">
-              El archivo permanente en OneDrive se habilitará al configurar Microsoft Graph; por ahora el reporte se descarga.
+              «Cerrar ciclo y archivar» descarga el paquete de cierre (Word + datos brutos + trazabilidad) para tus registros. El archivo permanente del ciclo vive en la base de datos.
             </p>
           </section>
         </div>

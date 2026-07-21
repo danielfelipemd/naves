@@ -206,7 +206,7 @@ router.post('/micro/:token', async (req, res) => {
 
 // POST /api/actas/:cohorteId/archivar — marca las completas como archivadas.
 // (El PDF certificado de archivo lo entrega el proveedor de firma; con el stub se
-// registra el archivo lógico. El paquete a OneDrive reutiliza el mecanismo de AoL.)
+// registra el archivo lógico. El registro permanente vive en la base de datos.)
 router.post('/:cohorteId/archivar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const { data: completas } = await supabaseAdmin.from('acta').select('id').eq('cohorte_id', req.params.cohorteId).eq('estado', 'completa');
   const ids = ((completas ?? []) as any[]).map((a) => a.id);

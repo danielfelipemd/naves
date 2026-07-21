@@ -507,3 +507,48 @@ export async function generarReporteExcel(cohorteId: string): Promise<{ buffer: 
   const filename = `${codigoAol} DATOS BRUTOS.xlsx`;
   return { buffer, filename };
 }
+
+// =====================================================================
+// generarPaqueteCierre — paquete de cierre del ciclo, para DESCARGA.
+//
+// Genera los 3 archivos (Word + DATOS BRUTOS.xlsx + trazabilidad.json). El
+// registro permanente del ciclo vive en la base de datos (Supabase es la única
+// fuente de verdad); este paquete es un exportable para los registros del
+// programa / la acreditación AACSB. No se sube a ningún servicio externo.
+// =====================================================================
+export interface PaqueteCierre { codigoAol: string; archivos: { nombre: string; buffer: Buffer }[]; }
+
+export async function generarPaqueteCierre(cohorteId: string, campos: CamposEditables = {}): Promise<PaqueteCierre> {
+  const { etiqueta, codigoAol } = await resolverCohorte(cohorteId);
+
+  // Trazabilidad (R8): versión de cerebro/rúbrica, hashes de los archivos
+  // evaluados y autor+fecha de cada firma.
+  const [{ data: califs }, { data: analisis }] = await Promise.all([
+    supabaseAdmin.from('aol_calificacion').select('proyecto_plataforma_id, autor, firmado_en, version_cerebro, version_rubrica, total, on_standard').eq('cohorte_codigo', codigoAol),
+    supabaseAdmin.from('aol_analisis').select('proyecto_plataforma_id, bp_pdf_hash, modelo_xlsx_hash, version_cerebro, estado').eq('cohorte_codigo', codigoAol),
+  ]);
+  const califList = (califs ?? []) as any[];
+  const analisisList = (analisis ?? []) as any[];
+  const traza = {
+    cohorte: { id: cohorteId, etiqueta, codigo_aol: codigoAol },
+    version_cerebro: califList[0]?.version_cerebro ?? analisisList[0]?.version_cerebro ?? 'v1.0',
+    version_rubrica: califList[0]?.version_rubrica ?? 'v1.0',
+    generado_en: new Date().toISOString(),
+    hashes_archivos_evaluados: analisisList.map((a) => ({ proyecto_plataforma_id: a.proyecto_plataforma_id, bp_pdf_hash: a.bp_pdf_hash ?? null, modelo_xlsx_hash: a.modelo_xlsx_hash ?? null, estado_analisis: a.estado ?? null })),
+    firmas: califList.map((c) => ({ proyecto_plataforma_id: c.proyecto_plataforma_id, autor: c.autor ?? null, firmado_en: c.firmado_en ?? null, total: c.total ?? null, on_standard: c.on_standard ?? null })),
+  };
+
+  const [{ buffer: docx }, { buffer: xlsx }] = await Promise.all([
+    generarReporteWord(cohorteId, campos),
+    generarReporteExcel(cohorteId),
+  ]);
+
+  return {
+    codigoAol,
+    archivos: [
+      { nombre: `Reporte AoL ${codigoAol}.docx`, buffer: docx },
+      { nombre: `${codigoAol} DATOS BRUTOS.xlsx`, buffer: xlsx },
+      { nombre: `${codigoAol} trazabilidad.json`, buffer: Buffer.from(JSON.stringify(traza, null, 2), 'utf-8') },
+    ],
+  };
+}
