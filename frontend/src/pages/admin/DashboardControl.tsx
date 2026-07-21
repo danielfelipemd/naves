@@ -78,6 +78,14 @@ function KpiCard({ label, value, sub }: { label: string; value: string | number;
 }
 
 // --- Barra de avance del proceso (n/total + %) -----------------------------
+// Semáforo por avance: paso cerrado (100%) en verde, en curso en rojo INALDE,
+// sin empezar (0%) en gris. En un tablero de control interesa ver de un vistazo
+// qué pasos ya cerraron; el largo de la barra refuerza el color (accesible).
+function colorAvance(p: number): string {
+  if (p >= 100) return '#1e7d34'; // verde — completado
+  if (p <= 0) return '#9aa0a6'; // gris — sin empezar
+  return '#d0021b'; // rojo INALDE — en curso
+}
 function ProgresoBar({ label, n, total }: { label: string; n: number; total: number }) {
   const p = pct(n, total);
   return (
@@ -90,8 +98,8 @@ function ProgresoBar({ label, n, total }: { label: string; n: number; total: num
       </div>
       <div className="h-3 w-full rounded bg-inalde-gray-bg overflow-hidden">
         <div
-          className="h-full rounded bg-inalde-red transition-all"
-          style={{ width: `${p}%` }}
+          className="h-full rounded transition-all"
+          style={{ width: `${p}%`, backgroundColor: colorAvance(p) }}
           role="progressbar"
           aria-valuenow={p}
           aria-valuemin={0}
@@ -239,6 +247,20 @@ export default function DashboardControl() {
             <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4 pb-2 border-b border-inalde-gray-light">
               Control del proceso
             </h2>
+            <div className="flex flex-wrap items-center gap-4 mb-3 text-xs text-inalde-gray">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: '#1e7d34' }} />
+                Completado
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: '#d0021b' }} />
+                En curso
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: '#9aa0a6' }} />
+                Sin empezar
+              </span>
+            </div>
             <div className="card-inalde p-5 flex flex-col gap-4">
               {data.bloque2.map((paso) => (
                 <ProgresoBar key={paso.label} label={paso.label} n={paso.n} total={paso.total} />

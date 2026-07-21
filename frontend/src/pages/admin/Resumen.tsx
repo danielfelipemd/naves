@@ -46,13 +46,8 @@ const GROUPS: Group[] = [
       {
         to: '/admin/anteproyectos', icon: '📋',
         title: 'Anteproyectos',
-        desc: 'Lista todos los anteproyectos con filtros por cohorte y estado. Entra al detalle de cada uno.',
+        desc: 'Vista consolidada por cohorte: todos los equipos con su estado, la sábana para la reunión de asignación (sugiere, asigna y comunica) y el detalle de cada anteproyecto.',
         hint: (d) => `${d.antesEnviados} enviados`,
-      },
-      {
-        to: '/admin/sabana', icon: '📑',
-        title: 'Sábana de anteproyectos',
-        desc: 'Vista consolidada por cohorte para la reunión de asignación. Genera, sugiere asignaciones y comunica a los equipos.',
       },
       {
         to: '/admin/proyectos-db', icon: '🗂️',
@@ -63,6 +58,11 @@ const GROUPS: Group[] = [
         to: '/admin/trabajos-sector', icon: '🗂️',
         title: 'Trabajos por sector (público)',
         desc: 'Vista de los trabajos definitivos agrupada por sector, protegida con clave para compartir. Marca proyectos confidenciales (sin descargas).',
+      },
+      {
+        to: '/admin/programacion', icon: '📆',
+        title: 'Programación',
+        desc: 'Asigna los proyectos a los slots de cada jornada: horarios calculados automáticamente, breaks por bloque y Excel de calificación para los panelistas.',
       },
       {
         to: '/admin/dashboard-control', icon: '📊',
@@ -78,11 +78,6 @@ const GROUPS: Group[] = [
         to: '/admin/actas', icon: '📜',
         title: 'Actas de grado',
         desc: 'Genera y administra las actas del Proyecto de Grado MBA (Formato v3): una por participante, cadena de firmas (BP y Caso/PI), firma en lote y microformularios de jurados.',
-      },
-      {
-        to: '/admin/programacion', icon: '📆',
-        title: 'Programación',
-        desc: 'Asigna los proyectos a los slots de cada jornada: horarios calculados automáticamente, breaks por bloque y Excel de calificación para los panelistas.',
       },
     ],
   },

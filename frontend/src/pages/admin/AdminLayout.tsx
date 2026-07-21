@@ -8,7 +8,6 @@ const sectionLabels: Record<string, string> = {
   directores: 'Directores',
   anteproyectos: 'Anteproyectos',
   equipos: 'Equipos',
-  sabana: 'Sábana de anteproyectos',
   panelistas: 'Panelistas',
   programacion: 'Programación',
   'proyectos-db': 'Trabajos de grado definitivos',

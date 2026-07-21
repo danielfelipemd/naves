@@ -44,9 +44,10 @@ export default function AdminEquipos() {
 
   useEffect(() => { (async () => {
     const cs = (await api.get('/admin/cohortes')).data as Cohorte[];
-    setCohortes(cs);
-    const activa = cs.find((c: any) => c.activa);
-    if (activa) setCohorte(activa.id);
+    // Solo cohortes activas en el selector (nunca inactivas).
+    const activas = cs.filter((c: any) => c.activa);
+    setCohortes(activas);
+    if (activas.length) setCohorte(activas[0].id);
   })(); }, []);
 
   async function cargarEquipos() {

@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import MiEquipo from './pages/participante/MiEquipo';
 import MiPerfil from './pages/participante/MiPerfil';
 import Anteproyecto from './pages/participante/Anteproyecto';
+import Decisor from './pages/participante/Decisor';
 import TrabajoGrado from './pages/participante/TrabajoGrado';
 import SeleccionDefinitivo from './pages/participante/SeleccionDefinitivo';
 import MiProfesor from './pages/participante/MiProfesor';
@@ -44,7 +45,6 @@ import AdminDirectores from './pages/admin/Directores';
 import AdminAnteproyectos from './pages/admin/Anteproyectos';
 import AdminEquipos from './pages/admin/Equipos';
 import AdminAnteproyectoDetail from './pages/admin/AnteproyectoDetail';
-import AdminSabana from './pages/admin/Sabana';
 import AdminSolicitudes from './pages/admin/Solicitudes';
 import AdminRolesPermisos from './pages/admin/RolesPermisos';
 
@@ -118,6 +118,7 @@ export default function App() {
         <Route path="/mi-perfil" element={<ProtectedRoute><MiPerfil /></ProtectedRoute>} />
         <Route path="/equipo" element={<ProtectedRoute requierePerfilOk><MiEquipo /></ProtectedRoute>} />
         <Route path="/anteproyecto" element={<ProtectedRoute requierePerfilOk><Anteproyecto /></ProtectedRoute>} />
+        <Route path="/decisor" element={<ProtectedRoute requierePerfilOk><Decisor /></ProtectedRoute>} />
         <Route path="/trabajo-grado" element={<ProtectedRoute><TrabajoGrado /></ProtectedRoute>} />
         <Route path="/seleccion" element={<ProtectedRoute requierePerfilOk><SeleccionDefinitivo /></ProtectedRoute>} />
         <Route path="/mi-profesor" element={<ProtectedRoute><MiProfesor /></ProtectedRoute>} />
@@ -139,7 +140,8 @@ export default function App() {
           <Route path="anteproyectos" element={<AdminAnteproyectos />} />
           <Route path="anteproyectos/:id" element={<AdminAnteproyectoDetail />} />
           <Route path="equipos" element={<SuperAdminOnly><AdminEquipos /></SuperAdminOnly>} />
-          <Route path="sabana" element={<AdminSabana />} />
+          {/* Sábana unificada dentro de Anteproyectos: se conserva la ruta como redirect. */}
+          <Route path="sabana" element={<Navigate to="/admin/anteproyectos" replace />} />
           <Route path="panelistas" element={<SuperAdminOnly><AdminPanelistas /></SuperAdminOnly>} />
           <Route path="programacion" element={<SuperAdminOnly><AdminProgramacion /></SuperAdminOnly>} />
           <Route path="proyectos-db" element={<SuperAdminOnly><AdminProyectosDB /></SuperAdminOnly>} />
