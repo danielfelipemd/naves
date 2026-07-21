@@ -78,13 +78,13 @@ function KpiCard({ label, value, sub }: { label: string; value: string | number;
 }
 
 // --- Barra de avance del proceso (n/total + %) -----------------------------
-// Semáforo por avance: paso cerrado (100%) en verde, en curso en rojo INALDE,
-// sin empezar (0%) en gris. En un tablero de control interesa ver de un vistazo
-// qué pasos ya cerraron; el largo de la barra refuerza el color (accesible).
+// Semáforo por avance en tres tramos (meta = 100%): reparte 0–100 en tercios,
+// equivalente a la escala 0–50 del criterio (0–16 rojo, 17–33 amarillo, 34–50
+// verde). El largo de la barra refuerza el color (accesible).
 function colorAvance(p: number): string {
-  if (p >= 100) return '#1e7d34'; // verde — completado
-  if (p <= 0) return '#9aa0a6'; // gris — sin empezar
-  return '#d0021b'; // rojo INALDE — en curso
+  if (p >= 67) return '#2e9e3f'; // verde — 34–50 (67–100%)
+  if (p >= 34) return '#f5b301'; // amarillo — 17–33 (34–66%)
+  return '#d0021b'; // rojo — 0–16 (0–33%)
 }
 function ProgresoBar({ label, n, total }: { label: string; n: number; total: number }) {
   const p = pct(n, total);
@@ -248,17 +248,18 @@ export default function DashboardControl() {
               Control del proceso
             </h2>
             <div className="flex flex-wrap items-center gap-4 mb-3 text-xs text-inalde-gray">
+              <span className="font-semibold text-inalde-text">Cambia de color:</span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: '#1e7d34' }} />
-                Completado
+                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#d0021b' }} />
+                0–33%
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: '#d0021b' }} />
-                En curso
+                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#f5b301' }} />
+                34–66%
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: '#9aa0a6' }} />
-                Sin empezar
+                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: '#2e9e3f' }} />
+                67–100%
               </span>
             </div>
             <div className="card-inalde p-5 flex flex-col gap-4">
