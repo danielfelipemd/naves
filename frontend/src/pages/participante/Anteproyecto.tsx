@@ -1108,6 +1108,11 @@ function ProyectoForm({ proyecto, fechaEntrega, fechaFinal, onChange, onUpdateHi
         <Field label="Sector" hint="Obligatorio. Define en qué bloque de presentaciones queda el proyecto.">
           <select value={proyecto.sector} onChange={(e) => onChange({ sector: e.target.value })} className="input-inalde" required>
             <option value="">Selecciona un sector…</option>
+            {/* Red de seguridad: si el sector guardado no está en el catálogo (dato
+                antiguo), se muestra para que no quede en blanco al editar. */}
+            {proyecto.sector && !(SECTORES as readonly string[]).includes(proyecto.sector) && (
+              <option value={proyecto.sector}>{proyecto.sector}</option>
+            )}
             {SECTORES.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </Field>

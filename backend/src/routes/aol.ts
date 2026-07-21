@@ -309,6 +309,24 @@ router.post('/export/:cohorteId/word', ...soloAdmin, async (req: AuthenticatedRe
 router.post('/export/:cohorteId/archivar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   try {
     const p = await generarPaqueteCierre(req.params.cohorteId, req.body ?? {});
+
+    // Registro longitudinal (§11.2): al cerrar el ciclo se alimenta conclusion_ciclo
+    // con la fila del ciclo (año, cohorte, % del goal, resumen = lectura de closing
+    // the loop). Solo si ya hay mediciones firmadas de esta cohorte.
+    const { data: vres } = await supabaseAdmin.from('v_resumen').select('pct_on_standard, anio_medicion').eq('cohorte', p.codigoAol);
+    const filas = (vres ?? []) as any[];
+    if (filas.length) {
+      const goalPct = Math.round((filas.reduce((s, r) => s + Number(r.pct_on_standard), 0) / filas.length) * 10) / 10;
+      const anio = Number(filas[0].anio_medicion) || Number((p.codigoAol.match(/(\d{4})\s*-\s*(\d{4})/) ?? [])[2]) || null;
+      const resumen = (typeof req.body?.lectura_impacto === 'string' && req.body.lectura_impacto.trim())
+        ? req.body.lectura_impacto.trim().slice(0, 800)
+        : `Cierre del ciclo ${p.codigoAol}: competency goal Entrepreneurship en ${goalPct}% de learners on standard.`;
+      const { data: existe } = await supabaseAdmin.from('conclusion_ciclo').select('id').eq('cohorte_codigo', p.codigoAol).eq('anio', anio).maybeSingle();
+      const payload = { anio, cohorte_codigo: p.codigoAol, goal_pct: goalPct, resumen, fuente: 'Plataforma naves-inalde.com (cierre de ciclo)' };
+      if (existe) await supabaseAdmin.from('conclusion_ciclo').update(payload).eq('id', (existe as any).id);
+      else await supabaseAdmin.from('conclusion_ciclo').insert(payload);
+    }
+
     res.json({ archivado: true, archivos: p.archivos.map((a) => ({ nombre: a.nombre, base64: a.buffer.toString('base64') })) });
   } catch (e: any) {
     res.status(400).json({ error: e?.message ?? 'ARCHIVAR_FALLO' });
