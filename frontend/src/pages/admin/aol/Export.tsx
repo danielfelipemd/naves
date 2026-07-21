@@ -150,6 +150,34 @@ export default function AolExport() {
     }
   }
 
+  const [msgArchivo, setMsgArchivo] = useState('');
+  async function cerrarCiclo() {
+    if (!cohorte) return;
+    setGenerando(true); setErrorWord(''); setMsgArchivo('');
+    try {
+      const body = { nota_contexto: notaContexto || undefined, lectura_impacto: lecturaImpacto || undefined, acciones_siguiente: accionesSiguiente || undefined };
+      const r = await api.post(`/aol/export/${cohorte}/archivar`, body);
+      if (r.data.via === 'onedrive') {
+        setMsgArchivo(`Paquete archivado en OneDrive. ${r.data.detalle ?? ''}`);
+      } else {
+        // Fallback: descargar los 3 archivos del paquete (base64 → blob).
+        for (const f of r.data.archivos ?? []) {
+          const bin = atob(f.base64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const u = URL.createObjectURL(new Blob([bytes]));
+          const a = document.createElement('a'); a.href = u; a.download = f.nombre;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u);
+        }
+        setMsgArchivo('OneDrive no está configurado: se descargó el paquete (Word + DATOS BRUTOS.xlsx + trazabilidad.json).');
+      }
+    } catch {
+      setErrorWord('No se pudo cerrar el ciclo / archivar el paquete.');
+    } finally {
+      setGenerando(false);
+    }
+  }
+
   return (
     <>
       <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
@@ -266,7 +294,12 @@ export default function AolExport() {
                 className="font-primary font-bold text-xs uppercase tracking-wider border-2 border-inalde-blue text-inalde-blue px-4 py-2 rounded hover:bg-inalde-blue hover:text-white disabled:opacity-60 disabled:cursor-not-allowed">
                 Descargar Excel
               </button>
+              <button type="button" onClick={cerrarCiclo} disabled={generando}
+                className="font-primary font-bold text-xs uppercase tracking-wider border-2 border-inalde-gold text-inalde-gold px-4 py-2 rounded hover:bg-inalde-gold hover:text-white disabled:opacity-60 disabled:cursor-not-allowed">
+                Cerrar ciclo y archivar
+              </button>
             </div>
+            {msgArchivo && <p className="text-inalde-blue text-sm mt-3">{msgArchivo}</p>}
 
             <p className="text-[11px] text-inalde-gray mt-4">
               El archivo permanente en OneDrive se habilitará al configurar Microsoft Graph; por ahora el reporte se descarga.

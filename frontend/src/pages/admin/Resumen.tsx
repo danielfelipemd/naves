@@ -75,6 +75,11 @@ const GROUPS: Group[] = [
         desc: 'Calificación AACSB de los Business Plan (competency goal Entrepreneurship): trabajos por calificar, análisis IA del calificador, rúbrica de 6 traits e informe de cohorte.',
       },
       {
+        to: '/admin/actas', icon: '📜',
+        title: 'Actas de grado',
+        desc: 'Genera y administra las actas del Proyecto de Grado MBA (Formato v3): una por participante, cadena de firmas (BP y Caso/PI), firma en lote y microformularios de jurados.',
+      },
+      {
         to: '/admin/programacion', icon: '📆',
         title: 'Programación',
         desc: 'Asigna los proyectos a los slots de cada jornada: horarios calculados automáticamente, breaks por bloque y Excel de calificación para los panelistas.',

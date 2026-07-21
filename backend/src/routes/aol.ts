@@ -6,6 +6,7 @@ import { analizarProyecto } from '../services/aol/pipeline.js';
 import { firmarCalificacion } from '../services/aol/firma.js';
 import { generarReporteWord, generarReporteExcel } from '../services/aol/export.js';
 import { generarLecturaImpacto } from '../services/aol/impacto.js';
+import { archivarPaqueteCohorte } from '../services/aol/onedrive.js';
 import { config } from '../config.js';
 
 // =====================================================================
@@ -301,6 +302,25 @@ router.post('/export/:cohorteId/word', ...soloAdmin, async (req: AuthenticatedRe
     res.send(buffer);
   } catch (e: any) {
     res.status(400).json({ error: e?.message ?? 'EXPORT_FALLO' });
+  }
+});
+
+// POST /api/aol/export/:cohorteId/archivar — cierra el ciclo (§12): genera el
+// paquete (docx + DATOS BRUTOS.xlsx + trazabilidad.json) y lo deja en OneDrive.
+// Si OneDrive no está configurado o falla, devuelve el paquete en base64 para
+// que el frontend lo descargue (fallback §12). No revienta nunca por Graph.
+router.post('/export/:cohorteId/archivar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const r = await archivarPaqueteCohorte(req.params.cohorteId);
+    if (r.via === 'onedrive') {
+      return res.json({ archivado: r.archivado, via: r.via, detalle: r.detalle });
+    }
+    res.json({
+      archivado: r.archivado, via: r.via, detalle: r.detalle,
+      archivos: r.archivos.map((a) => ({ nombre: a.nombre, base64: a.buffer.toString('base64') })),
+    });
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? 'ARCHIVAR_FALLO' });
   }
 });
 

@@ -25,6 +25,7 @@ import cohortesRouter from './routes/cohortes.js';
 import directoresRouter from './routes/directores.js';
 import profesorConsultaRouter from './routes/profesor-consulta.js';
 import trabajosSectorRouter from './routes/trabajos-sector.js';
+import actasRouter from './routes/actas.js';
 import dashboardControlRouter from './routes/dashboard-control.js';
 import aolRouter from './routes/aol.js';
 
@@ -71,6 +72,10 @@ app.use('/api/archivos', archivosProxyRouter);
 // sin sesión recibe MISSING_BEARER aunque tenga la clave. Sus rutas /admin/*
 // llevan su propio requireAuth+super_admin.
 app.use('/api/trabajos-sector', trabajosSectorRouter);
+// Actas: el microformulario de jurados (/micro/:token) es PÚBLICO (sin login),
+// por eso el router va antes del catch-all '/api' de seleccionRouter (que aplica
+// requireAuth global). Sus rutas de administración llevan su propio auth.
+app.use('/api/actas', actasRouter);
 app.use('/api/auth/verificar-cedula', sensitiveAuthLimiter);
 app.use('/api/auth/recovery', sensitiveAuthLimiter);
 app.use('/api/auth', authLimiter, authRouter);

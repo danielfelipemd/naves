@@ -25,6 +25,10 @@ import ProfesorTrabajosDefinitivos from './pages/profesor/TrabajosDefinitivos';
 import ProfesorEquiposConsulta from './pages/profesor/EquiposConsulta';
 import ProfesorProgramacionConsulta from './pages/profesor/ProgramacionConsulta';
 import TrabajosSectorPublico from './pages/publico/TrabajosSector';
+import ActasPanel from './pages/admin/actas/Panel';
+import ActaDetalle from './pages/admin/actas/Acta';
+import ActasFirmaLote from './pages/admin/actas/FirmaLote';
+import ActaMicroformulario from './pages/publico/ActaMicroformulario';
 import AdminTrabajosSector from './pages/admin/TrabajosSectorAdmin';
 import AdminDashboardControl from './pages/admin/DashboardControl';
 import AolTrabajos from './pages/admin/aol/Trabajos';
@@ -109,6 +113,7 @@ export default function App() {
         <Route path="/cambiar-clave-inicial" element={<CambiarClaveRoute />} />
         <Route path="/panelista/confirmar" element={<ConfirmarAsistencia />} />
         <Route path="/trabajos/:cohorteId" element={<TrabajosSectorPublico />} />
+        <Route path="/actas/micro/:token" element={<ActaMicroformulario />} />
 
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/mi-perfil" element={<ProtectedRoute><MiPerfil /></ProtectedRoute>} />
@@ -145,6 +150,9 @@ export default function App() {
           <Route path="aol/calificar/:proyectoId" element={<SuperAdminOnly><AolCalificar /></SuperAdminOnly>} />
           <Route path="aol/dashboard" element={<SuperAdminOnly><AolDashboard /></SuperAdminOnly>} />
           <Route path="aol/export" element={<SuperAdminOnly><AolExport /></SuperAdminOnly>} />
+          <Route path="actas" element={<SuperAdminOnly><ActasPanel /></SuperAdminOnly>} />
+          <Route path="actas/lote" element={<SuperAdminOnly><ActasFirmaLote /></SuperAdminOnly>} />
+          <Route path="actas/:id" element={<SuperAdminOnly><ActaDetalle /></SuperAdminOnly>} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
           <Route path="auditoria" element={<SuperAdminOnly><AdminAuditoria /></SuperAdminOnly>} />
           <Route path="roles-permisos" element={<SuperAdminOnly><AdminRolesPermisos /></SuperAdminOnly>} />
