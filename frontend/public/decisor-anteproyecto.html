@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decisor de Anteproyecto · NAVES · INALDE Business School</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Paleta oficial INALDE */
+    --inalde-red:#e30613;
+    --inalde-red-dark:#cc292b;
+    --inalde-red-hover:#b30510;
+    --inalde-blue:#224d7c;
+    --inalde-navy:#163a5f;
+    --inalde-navy-deep:#0e2a47;
+    --inalde-gold:#9f885f;
+    --gold-light:#d7c39c;
+    --inalde-text:#1a1a1a;
+    --inalde-gray:#6b6b6b;
+    --inalde-gray-light:#e8e8e8;
+    --inalde-gray-bg:#f5f5f5;
+    --inalde-white:#ffffff;
+    --font-primary:'Montserrat',-apple-system,BlinkMacSystemFont,sans-serif;
+    --font-body:'Roboto',-apple-system,BlinkMacSystemFont,sans-serif;
+    --sombra:0 1px 2px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.06);
+    --verde-ok:#2e7d5b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font-body);
+    background:var(--inalde-white);
+    color:var(--inalde-text);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    padding:0 0 80px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:0 28px}
+
+  /* HEADER */
+  header{padding:48px 0 26px;border-bottom:3px solid var(--inalde-red);position:relative}
+  .eyebrow{font-family:var(--font-primary);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--inalde-red);font-weight:700;margin-bottom:12px}
+  h1{font-family:var(--font-primary);font-weight:800;font-size:clamp(1.9rem,4.4vw,2.9rem);line-height:1.05;color:var(--inalde-text);letter-spacing:-.01em}
+  .sub{margin-top:14px;max-width:660px;color:var(--inalde-gray);font-size:1.02rem}
+
+  /* AVISO NOTA TECNICA */
+  .aviso-nota{margin-top:22px;background:#fff;border:1px solid var(--inalde-gray-light);border-left:4px solid var(--inalde-red);border-radius:12px;padding:16px 20px;display:flex;gap:14px;align-items:flex-start;box-shadow:var(--sombra)}
+  .aviso-nota .aviso-ic{flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:var(--inalde-red);color:#fff;font-family:var(--font-primary);font-weight:800;font-size:1.1rem;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .aviso-nota b{font-family:var(--font-primary);color:var(--inalde-red);font-size:.82rem;letter-spacing:.08em;text-transform:uppercase}
+  .aviso-nota p{font-size:.94rem;color:var(--inalde-text);margin-top:4px}
+  .aviso-nota p b{font-family:var(--font-primary);color:var(--inalde-text);font-size:.94rem;letter-spacing:0;text-transform:none}
+
+  /* STEP HEADERS */
+  .paso{margin-top:44px}
+  .paso-head{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+  .paso-num{font-family:var(--font-primary);font-size:1.05rem;font-weight:700;color:#fff;background:var(--inalde-red);width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 34px;box-shadow:var(--sombra)}
+  .paso-num.locked{background:var(--inalde-gray-light);color:var(--inalde-gray)}
+  .paso-titulo{font-family:var(--font-primary);font-size:1.45rem;font-weight:700;color:var(--inalde-text)}
+  .paso-desc{margin:4px 0 20px 48px;color:var(--inalde-gray);max-width:680px;font-size:.95rem}
+
+  /* CARD */
+  .card{background:var(--inalde-white);border:1px solid var(--inalde-gray-light);border-radius:14px;box-shadow:var(--sombra);padding:26px 28px}
+
+  /* PASO 1 · ANTEPROYECTOS */
+  .proj-list{display:flex;flex-direction:column;gap:12px}
+  .proj-row{display:grid;grid-template-columns:46px 1fr 40px;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--inalde-gray-light);border-radius:11px;background:#fff}
+  .proj-code{font-family:var(--font-primary);font-weight:700;font-size:.95rem;color:#fff;background:var(--inalde-red);width:44px;height:44px;border-radius:9px;display:flex;align-items:center;justify-content:center;align-self:center}
+  .proj-row input{font-family:var(--font-primary);font-weight:600;font-size:1.02rem;border:1.5px solid var(--inalde-gray-light);border-radius:8px;padding:10px 13px;background:#fff;color:var(--inalde-text);width:100%}
+  .proj-row input::placeholder{color:#b7b7b7;font-style:italic;font-weight:400}
+  .proj-row input:focus{outline:none;border-color:var(--inalde-red);box-shadow:0 0 0 3px rgba(227,6,19,.1)}
+  .row-del{align-self:center;width:40px;height:40px;border-radius:9px;border:1.5px solid var(--inalde-gray-light);background:#fff;color:var(--inalde-gray);cursor:pointer;font-size:1.1rem;transition:all .15s}
+  .row-del:hover:not(:disabled){border-color:var(--inalde-red);color:var(--inalde-red)}
+  .row-del:disabled{opacity:.35;cursor:not-allowed}
+  .add-row{margin-top:14px;background:transparent;border:1.5px dashed var(--inalde-gray-light);color:var(--inalde-gray);border-radius:10px;padding:11px 18px;cursor:pointer;font-family:var(--font-body);font-weight:500;font-size:.9rem;transition:all .15s}
+  .add-row:hover:not(:disabled){border-color:var(--inalde-red);color:var(--inalde-red)}
+  .add-row:disabled{opacity:.4;cursor:not-allowed}
+
+  /* CALLOUT RECTOR */
+  .rector-callout{margin:0 0 22px;background:var(--inalde-gray-bg);border:1px solid var(--inalde-gray-light);border-left:4px solid var(--inalde-gold);border-radius:11px;padding:16px 20px}
+  .rector-callout b{font-family:var(--font-primary);color:var(--inalde-text)}
+  .rector-callout .star{color:var(--inalde-gold);font-weight:700}
+  .rector-callout p{font-size:.9rem;color:var(--inalde-gray);margin-top:4px}
+
+  /* PASO 2 · CRITERIOS */
+  .crit-list{display:flex;flex-direction:column;gap:14px}
+  .crit-row{display:grid;grid-template-columns:46px 1fr 120px 40px;align-items:start;gap:14px;padding:14px;border:1px solid var(--inalde-gray-light);border-radius:11px;background:var(--inalde-white)}
+  .crit-row.es-rector{border-color:var(--inalde-gold);box-shadow:0 0 0 2px rgba(159,136,95,.16)}
+  .crit-badge{width:44px;height:44px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-primary);font-weight:700;font-size:1.1rem;align-self:center;line-height:1}
+  .crit-badge.rector{background:var(--inalde-gold);color:#fff}
+  .crit-badge.rector small{font-size:.5rem;letter-spacing:.06em;font-weight:700;margin-top:2px}
+  .crit-badge.normal{background:var(--inalde-gray-bg);color:var(--inalde-gray);border:1px solid var(--inalde-gray-light)}
+  .crit-fields{display:flex;flex-direction:column;gap:8px}
+  .crit-fields input{font-family:var(--font-body);border:1.5px solid var(--inalde-gray-light);border-radius:8px;padding:9px 12px;background:#fff;color:var(--inalde-text);width:100%}
+  .crit-fields input.nombre{font-family:var(--font-primary);font-weight:600;font-size:1rem;color:var(--inalde-text)}
+  .crit-fields input.desc{font-size:.86rem;color:var(--inalde-gray)}
+  .crit-fields input::placeholder{color:#b7b7b7;font-style:italic;font-weight:400}
+  .crit-fields input:focus{outline:none;border-color:var(--inalde-red);box-shadow:0 0 0 3px rgba(227,6,19,.1)}
+  .peso-input{position:relative;display:flex;align-items:center;align-self:center}
+  .peso-input input{width:100%;font-family:var(--font-primary);font-size:1.35rem;font-weight:700;text-align:right;padding:9px 32px 9px 12px;border:1.5px solid var(--inalde-gray-light);border-radius:9px;background:#fff;color:var(--inalde-text)}
+  .peso-input input:focus{outline:none;border-color:var(--inalde-red);box-shadow:0 0 0 3px rgba(227,6,19,.1)}
+  .peso-input .pct{position:absolute;right:12px;font-size:1rem;font-weight:700;color:var(--inalde-gray);pointer-events:none}
+
+  /* SUMA */
+  .suma-bar{margin-top:22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .suma-track{flex:1;min-width:220px;height:12px;background:var(--inalde-gray-light);border-radius:20px;overflow:hidden}
+  .suma-fill{height:100%;width:0;background:var(--inalde-red);border-radius:20px;transition:width .35s cubic-bezier(.4,0,.2,1)}
+  .suma-fill.over{background:var(--inalde-red-dark)}
+  .suma-label{font-size:.92rem;font-weight:600;color:var(--inalde-gray);white-space:nowrap;font-family:var(--font-primary)}
+  .suma-total{font-family:var(--font-primary);font-size:1.3rem;font-weight:700;color:var(--inalde-text)}
+  .suma-total.ok{color:var(--verde-ok)}
+  .suma-total.bad{color:var(--inalde-red)}
+  .suma-msg{width:100%;font-size:.86rem;color:var(--inalde-red);min-height:1.1em;margin-top:2px}
+  .suma-msg.ok{color:var(--verde-ok)}
+  .rector-warn{width:100%;font-size:.86rem;color:var(--inalde-gold);min-height:1.1em;font-weight:500}
+
+  .btn-row{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
+  .btn{font-family:var(--font-primary);font-weight:600;font-size:.92rem;border:none;border-radius:10px;padding:13px 24px;cursor:pointer;transition:transform .12s,box-shadow .15s,background .15s;letter-spacing:.01em}
+  .btn-primary{background:var(--inalde-red);color:#fff;box-shadow:var(--sombra)}
+  .btn-primary:hover:not(:disabled){background:var(--inalde-red-hover);transform:translateY(-1px)}
+  .btn-primary:disabled{background:var(--inalde-gray-light);color:var(--inalde-gray);cursor:not-allowed;box-shadow:none}
+  .btn-ghost{background:transparent;color:var(--inalde-red);border:1.5px solid var(--inalde-gray-light)}
+  .btn-ghost:hover{border-color:var(--inalde-red);background:rgba(227,6,19,.04)}
+
+  /* MATRIZ */
+  #seccion-matriz{transition:opacity .4s,filter .4s}
+  .locked-overlay{opacity:.4;filter:grayscale(.6);pointer-events:none;user-select:none}
+  .lock-note{display:flex;align-items:center;gap:8px;margin:4px 0 22px 48px;color:var(--inalde-red);font-size:.9rem;font-weight:500}
+  .lock-note svg{flex:0 0 16px}
+
+  /* INSTRUCCION DE CALIFICACION */
+  .instruccion{margin:0 0 22px 48px;background:var(--inalde-gray-bg);border:1px solid var(--inalde-gray-light);border-radius:12px;padding:20px 22px;max-width:780px}
+  .instruccion h3{font-family:var(--font-primary);font-size:1.05rem;color:var(--inalde-navy);margin-bottom:8px}
+  .instruccion p{font-size:.92rem;color:var(--inalde-text);margin-bottom:8px}
+  .instruccion .escala-list{list-style:none;margin:12px 0;display:flex;flex-direction:column;gap:8px}
+  .instruccion .escala-list li{display:flex;align-items:center;gap:11px;font-size:.92rem;color:var(--inalde-text)}
+  .escala-dot{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-primary);font-weight:700;font-size:.92rem;flex:0 0 28px}
+  .dot-1{background:var(--inalde-blue)}.dot-2{background:#9aa3ad}.dot-3{background:var(--inalde-red)}
+  .instruccion .regla{background:#fff;border:1px solid var(--inalde-gray-light);border-left:3px solid var(--inalde-gold);border-radius:8px;padding:11px 14px;font-size:.88rem;color:var(--inalde-gray);margin-top:6px}
+  .instruccion .regla b{color:var(--inalde-text);font-family:var(--font-primary)}
+  .instruccion .ej{display:block;margin-top:10px;font-size:.86rem;color:var(--inalde-gray);font-style:italic}
+
+  .tabla-wrap{overflow-x:auto;border-radius:16px;box-shadow:0 10px 30px rgba(22,58,95,.10);border:1px solid var(--inalde-gray-light)}
+  table.matriz{width:100%;border-collapse:separate;border-spacing:0;min-width:660px;background:#fff;border-radius:16px;overflow:hidden}
+  table.matriz th,table.matriz td{padding:20px 16px;text-align:center;border-bottom:1px solid #eeeeee}
+  table.matriz thead th{background:linear-gradient(180deg,var(--inalde-blue),var(--inalde-navy));color:#fff;font-family:var(--font-primary);font-weight:600;font-size:.94rem;vertical-align:bottom;letter-spacing:.01em}
+  table.matriz thead th .crit-desc-tag{display:block;font-family:var(--font-body);font-weight:400;font-size:.75rem;color:#bcd0e6;margin:4px auto 0;max-width:160px;line-height:1.35}
+  table.matriz thead th .peso-tag{display:block;font-weight:700;font-size:.78rem;color:var(--gold-light);margin-top:6px;letter-spacing:.02em}
+  table.matriz thead th .rector-tag{display:block;font-size:.66rem;color:var(--gold-light);font-weight:700;letter-spacing:.14em;margin-bottom:3px}
+  table.matriz thead th.col-alt{text-align:left;min-width:170px;font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:#bcd0e6;padding-left:22px}
+  table.matriz thead th.col-total{background:linear-gradient(180deg,var(--inalde-navy),var(--inalde-navy-deep));min-width:120px;font-size:.86rem}
+  .alt-cell{text-align:left;min-width:170px;padding-left:22px !important}
+  .alt-code{font-family:var(--font-primary);font-weight:700;color:var(--inalde-gold);font-size:.72rem;letter-spacing:.14em}
+  .alt-name{font-family:var(--font-primary);font-weight:800;color:var(--inalde-blue);font-size:1.14rem;margin-top:3px;line-height:1.2}
+  table.matriz tbody tr:last-child td{border-bottom:none}
+  table.matriz tbody tr:hover td{background:rgba(34,77,124,.028)}
+
+  .rank-group{display:inline-flex;border:1.5px solid var(--inalde-gray-light);border-radius:11px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .rank-group button{font-family:var(--font-primary);font-weight:700;font-size:1.05rem;width:44px;height:46px;border:none;background:transparent;color:var(--inalde-gray);cursor:pointer;transition:background .12s,color .12s;border-right:1px solid var(--inalde-gray-light)}
+  .rank-group button:last-child{border-right:none}
+  .rank-group button:hover{background:rgba(34,77,124,.07)}
+  .rank-group button.sel-1{background:var(--inalde-blue);color:#fff}
+  .rank-group button.sel-2{background:#9aa3ad;color:#fff}
+  .rank-group button.sel-3{background:var(--inalde-red);color:#fff}
+  .rank-group button.blocked{background:#f1f1f1;color:#c6c6c6;cursor:not-allowed}
+  .rank-group button.blocked:hover{background:#f1f1f1}
+
+  .total-cell{font-family:var(--font-primary);font-size:1.6rem;font-weight:800;color:var(--inalde-blue);background:#f7f9fb}
+  .total-cell small{display:block;font-family:var(--font-body);font-size:.68rem;font-weight:400;color:var(--inalde-gray);letter-spacing:.03em;margin-top:2px}
+  .total-cell.mejor{color:var(--verde-ok);background:rgba(46,125,91,.09)}
+
+  .col-flag{font-family:var(--font-body);font-size:.74rem;font-weight:500;margin-top:8px;min-height:1em}
+  .col-flag.ok{color:var(--gold-light)}
+  .col-flag.warn{color:#ffc9cf}
+
+  /* RECOMENDACION */
+  .reco{margin-top:28px;background:linear-gradient(135deg,var(--inalde-navy-deep),var(--inalde-blue));color:#fff;border-radius:16px;padding:30px 32px;box-shadow:0 14px 34px rgba(22,58,95,.28);position:relative;overflow:hidden}
+  .reco::after{content:"";position:absolute;right:-50px;top:-50px;width:220px;height:220px;background:radial-gradient(circle,rgba(215,195,156,.22),transparent 70%);border-radius:50%}
+  .reco-eyebrow{font-family:var(--font-primary);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-light);font-weight:700;position:relative}
+  .reco-title{font-family:var(--font-primary);font-size:2rem;font-weight:800;margin:8px 0 4px;position:relative}
+  .reco-detail{font-size:.95rem;color:rgba(255,255,255,.9);position:relative}
+  .reco-empty{color:rgba(255,255,255,.78)}
+  .reco-ranking{margin-top:20px;display:flex;flex-direction:column;gap:9px;position:relative}
+  .reco-bar-row{display:grid;grid-template-columns:160px 1fr 56px;align-items:center;gap:12px;font-size:.9rem}
+  .reco-bar-track{height:9px;background:rgba(255,255,255,.2);border-radius:10px;overflow:hidden}
+  .reco-bar-fill{height:100%;background:var(--gold-light);border-radius:10px;width:0;transition:width .5s cubic-bezier(.4,0,.2,1)}
+  .reco-bar-row.lead .reco-bar-fill{background:#fff}
+  .reco-bar-row.lead{font-weight:700}
+  .reco-val{text-align:right;font-family:var(--font-primary);font-weight:700}
+
+  /* Botón para registrar el anteproyecto (solo aparece embebido en la app NAVES,
+     cuando hay un ganador claro). Añadido a la herramienta original para
+     conectar el Decisor con el formulario de anteproyecto. */
+  .reco-registrar{margin-top:22px;position:relative;display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--inalde-navy-deep);font-family:var(--font-primary);font-weight:700;font-size:.98rem;border:none;border-radius:10px;padding:14px 26px;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.22);transition:transform .12s,box-shadow .15s}
+  .reco-registrar:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(0,0,0,.28)}
+
+  /* OBSERVACIONES */
+  .obs-grid{margin-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .obs-card{background:var(--inalde-white);border:1px solid var(--inalde-gray-light);border-radius:11px;padding:16px 18px}
+  .obs-card label{display:block;font-family:var(--font-primary);font-weight:600;color:var(--inalde-text);margin-bottom:9px;font-size:.96rem}
+  .obs-card textarea{width:100%;min-height:80px;resize:vertical;font-family:var(--font-body);font-size:.9rem;color:var(--inalde-text);border:1.5px solid var(--inalde-gray-light);border-radius:8px;padding:11px 13px;background:#fff;line-height:1.5}
+  .obs-card textarea:focus{outline:none;border-color:var(--inalde-red);box-shadow:0 0 0 3px rgba(227,6,19,.08)}
+
+  .escala-nota{margin-top:24px;font-size:.86rem;color:var(--inalde-gray);background:var(--inalde-gray-bg);border-radius:10px;padding:16px 20px;border:1px solid var(--inalde-gray-light)}
+  .escala-nota b{color:var(--inalde-text);font-family:var(--font-primary)}
+
+  .acciones{margin-top:32px;display:flex;gap:12px;flex-wrap:wrap}
+
+  .cierre-nota{margin-top:44px;background:var(--inalde-gray-bg);border:1px solid var(--inalde-gray-light);border-top:3px solid var(--inalde-gold);border-radius:14px;padding:26px 30px;max-width:780px;margin-left:auto;margin-right:auto;text-align:center}
+  .cierre-nota p{font-size:.97rem;color:var(--inalde-text);line-height:1.65}
+  .cierre-nota .suerte{display:block;margin-top:12px;font-family:var(--font-primary);font-weight:700;color:var(--inalde-red);font-size:1.05rem}
+
+  footer{margin-top:48px;padding-top:22px;border-top:1px solid var(--inalde-gray-light);text-align:center;color:var(--inalde-gray);font-size:.8rem;font-family:var(--font-primary)}
+
+  /* TOAST / POPUP */
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(22px);max-width:min(92vw,470px);background:#fff;border:1px solid var(--inalde-gray-light);border-left:5px solid var(--inalde-gold);border-radius:13px;box-shadow:0 16px 40px rgba(0,0,0,.2);padding:15px 20px;font-family:var(--font-body);font-size:.92rem;color:var(--inalde-text);line-height:1.45;opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:200}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.blocked{border-left-color:var(--inalde-red)}
+  #toast .t-title{font-family:var(--font-primary);font-weight:800;font-size:.82rem;letter-spacing:.03em;text-transform:uppercase;margin-bottom:3px}
+  #toast.ok .t-title{color:var(--inalde-gold)}
+  #toast.blocked .t-title{color:var(--inalde-red)}
+  #toast b{font-family:var(--font-primary);color:var(--inalde-navy)}
+
+  @media (max-width:640px){
+    .proj-row{grid-template-columns:46px 1fr}
+    .proj-row .row-del{grid-column:2;justify-self:end}
+    .crit-row{grid-template-columns:46px 1fr;grid-template-areas:"badge fields" "peso del";gap:10px}
+    .crit-badge{grid-area:badge}.crit-fields{grid-area:fields}.peso-input{grid-area:peso}.crit-row .row-del{grid-area:del;justify-self:end}
+    .reco-bar-row{grid-template-columns:110px 1fr 46px}
+  }
+  @media print{
+    body{padding:0}
+    .btn-row,.acciones,.lock-note,.col-flag,.add-row,.row-del,#toast,.reco-registrar{display:none}
+    .card,.reco,.obs-card{box-shadow:none}
+    .locked-overlay{opacity:1;filter:none}
+    .reco,table.matriz thead th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">INALDE Business School · NAVES</div>
+    <h1>Decisor de Anteproyecto</h1>
+    <p class="sub">¿Tienes más de un anteproyecto en la cabeza y aún no te decides? Esta herramienta te ayuda a comparar tus alternativas con criterios ponderados y a identificar cuál te conviene desarrollar como trabajo de grado.</p>
+  </header>
+
+  <div class="aviso-nota">
+    <div class="aviso-ic">!</div>
+    <div>
+      <b>Antes de empezar</b>
+      <p>Es muy importante que antes de usar esta herramienta leas la nota técnica <b>«Recomendaciones generales y alcance del Proyecto de Grado — NAVES»</b>, que te ayuda a determinar qué es y qué no es un proyecto de NAVES.</p>
+    </div>
+  </div>
+
+  <!-- PASO 1: ANTEPROYECTOS -->
+  <section class="paso">
+    <div class="paso-head">
+      <div class="paso-num">1</div>
+      <div class="paso-titulo">Nombra tus anteproyectos</div>
+    </div>
+    <p class="paso-desc">Escribe los nombres de los anteproyectos que estás considerando. Puedes comparar <b>dos o tres</b>.</p>
+
+    <div class="card">
+      <div class="proj-list" id="proj-list"><!-- filas generadas por JS --></div>
+      <button class="add-row" id="add-proj">+ Agregar anteproyecto</button>
+    </div>
+  </section>
+
+  <!-- PASO 2: CRITERIOS Y PONDERACION -->
+  <section class="paso">
+    <div class="paso-head">
+      <div class="paso-num">2</div>
+      <div class="paso-titulo">Define tus criterios y su peso</div>
+    </div>
+    <p class="paso-desc">Escribe hasta <b>tres criterios</b> con los que vas a comparar tus anteproyectos. <b>El orden importa:</b> empieza por el más importante. Reparte los pesos hasta sumar exactamente <b>100&nbsp;%</b>. Hasta entonces, la calificación permanece bloqueada.</p>
+
+    <div class="card">
+      <div class="rector-callout">
+        <b><span class="star">★</span> El primer criterio es tu criterio rector</b>
+        <p>Es el criterio que tu proyecto <b>debe</b> satisfacer por encima de todo — el que no estás dispuesto a sacrificar. Debe llevar el <b>mayor peso</b>. Los siguientes van en orden de importancia.</p>
+      </div>
+
+      <div class="crit-list" id="crit-list"><!-- filas generadas por JS --></div>
+      <button class="add-row" id="add-crit">+ Agregar criterio</button>
+
+      <div class="suma-bar">
+        <span class="suma-label">Suma de pesos</span>
+        <div class="suma-track"><div class="suma-fill" id="suma-fill"></div></div>
+        <span class="suma-total" id="suma-total">0 %</span>
+      </div>
+      <div class="suma-msg" id="suma-msg"></div>
+      <div class="rector-warn" id="rector-warn"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-confirmar" disabled>Confirmar y continuar a la calificación</button>
+        <button class="btn btn-ghost" id="btn-sugerir">Sugerir pesos por orden</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PASO 3: MATRIZ -->
+  <section class="paso" id="seccion-matriz">
+    <div class="paso-head">
+      <div class="paso-num locked" id="paso3-num">3</div>
+      <div class="paso-titulo">Compara tus anteproyectos</div>
+    </div>
+    <div class="lock-note" id="lock-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      Nombra tus anteproyectos (Paso 1) y confirma la ponderación (Paso 2) para habilitar la calificación.
+    </div>
+
+    <div id="matriz-contenido" class="locked-overlay">
+
+      <div class="instruccion">
+        <h3>¿Cómo se califica?</h3>
+        <p>Para cada criterio (cada columna) vas a <b>ordenar tus anteproyectos, del mejor al menos bueno</b>. No le pones una nota suelta a cada uno: los <b>comparas entre sí</b>.</p>
+        <ul class="escala-list">
+          <li><span class="escala-dot dot-1">1</span> <span><b>El mejor</b> anteproyecto en ese criterio.</span></li>
+          <li><span class="escala-dot dot-2">2</span> <span><b>El intermedio.</b></span></li>
+          <li><span class="escala-dot dot-3">3</span> <span><b>El menos bueno</b> en ese criterio.</span></li>
+        </ul>
+        <div class="regla"><b>Cada número se usa una sola vez por columna.</b> En cuanto le das un número a un anteproyecto, ese número <b>se bloquea</b> para los demás en esa columna. ¿Te equivocaste? Toca de nuevo la nota que pusiste para quitarla y liberarla.</div>
+        <span class="ej">Ejemplo — en "Escalabilidad": marca <b>1</b> al más escalable, <b>2</b> al siguiente y <b>3</b> al menos escalable.</span>
+      </div>
+
+      <div class="tabla-wrap">
+        <table class="matriz">
+          <thead><tr id="matriz-head"><!-- generado por JS --></tr></thead>
+          <tbody id="matriz-body"><!-- generado por JS --></tbody>
+        </table>
+      </div>
+
+      <!-- RECOMENDACION -->
+      <div class="reco" id="reco">
+        <div class="reco-eyebrow">Recomendación automática</div>
+        <div class="reco-title" id="reco-title">Pendiente de calificar</div>
+        <div class="reco-detail reco-empty" id="reco-detail">Completa la comparación en cada criterio para obtener la alternativa recomendada.</div>
+        <div class="reco-ranking" id="reco-ranking"></div>
+        <button id="btn-registrar" class="reco-registrar" style="display:none">Registrar mi anteproyecto →</button>
+      </div>
+
+      <!-- OBSERVACIONES -->
+      <div class="obs-grid" id="obs-grid"><!-- generado por JS --></div>
+
+      <div class="escala-nota">
+        <b>Cómo se calcula.</b> Cada número (1 a 3) se multiplica por el peso del criterio y se suman los productos. El total va de <b>1,00</b> (el mejor en todos los criterios) a <b>3,00</b> (el peor en todos). <b>Gana el proyecto con el menor total</b>: el que quedó mejor ubicado en lo que más pesa para ti.
+      </div>
+
+      <div class="acciones">
+        <button class="btn btn-primary" onclick="window.print()">Exportar / Imprimir a PDF</button>
+        <button class="btn btn-ghost" id="btn-reiniciar">Reiniciar calificaciones</button>
+        <button class="btn btn-ghost" id="btn-editar">Editar anteproyectos, criterios y pesos</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="cierre-nota">
+    <p>Ten presente que esta herramienta <b>solo sirve para ordenar tus criterios y apoyar el proceso de decisión</b> — es únicamente eso. <b>No sustituye la intuición ni la valoración subjetiva</b> que muchas veces queda fuera de su alcance y que solo tú puedes aportar. Tómala como una ayuda para pensar con más claridad, no como la última palabra.
+    <span class="suerte">¡Mucha suerte con tu proyecto!</span></p>
+  </div>
+
+  <footer>
+    INALDE Business School · NAVES — Nuevas Aventuras Empresariales · Decisor de anteproyecto (matriz de decisión multicriterio)
+  </footer>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var MAX_CRIT = 3, MAX_PROJ = 3, MIN_CRIT = 1, MIN_PROJ = 2;
+  var uid = 0; function nid(p){ return p + (++uid); }
+  var CODES = ["A1","A2","A3","A4"];
+
+  // ---- Estado inicial ----
+  var proyectos = [ {id:nid("p"), nombre:""}, {id:nid("p"), nombre:""} ];
+  var criterios = [
+    {id:nid("c"), nombre:"", desc:"", peso:0},
+    {id:nid("c"), nombre:"", desc:"", peso:0},
+    {id:nid("c"), nombre:"", desc:"", peso:0}
+  ];
+  var scores = {};
+  var obs = {};
+  var confirmado = false;
+
+  function critPlaceholder(idx){
+    if(idx === 0) return "¿Cuál es tu criterio rector? (el más importante)";
+    if(idx === 1) return "¿Cuál sería el siguiente criterio por el que deberías guiarte?";
+    return "¿Y cuál sería el tercer criterio a considerar?";
+  }
+  function significado(v, N){
+    if(v === 1) return "el MEJOR";
+    if(v === N) return "el MENOS bueno";
+    return "el intermedio";
+  }
+  function ensureScoreSlots(){
+    proyectos.forEach(function(p){
+      if(!scores[p.id]) scores[p.id] = {};
+      criterios.forEach(function(c){ if(!(c.id in scores[p.id])) scores[p.id][c.id] = null; });
+    });
+  }
+
+  // ---- Refs ----
+  var projList = document.getElementById("proj-list");
+  var addProjBtn = document.getElementById("add-proj");
+  var critList = document.getElementById("crit-list");
+  var addCritBtn = document.getElementById("add-crit");
+  var sumaFill = document.getElementById("suma-fill");
+  var sumaTotal = document.getElementById("suma-total");
+  var sumaMsg = document.getElementById("suma-msg");
+  var rectorWarn = document.getElementById("rector-warn");
+  var btnConfirmar = document.getElementById("btn-confirmar");
+  var btnSugerir = document.getElementById("btn-sugerir");
+  var matrizContenido = document.getElementById("matriz-contenido");
+  var lockNote = document.getElementById("lock-note");
+  var paso3num = document.getElementById("paso3-num");
+  var matrizHead = document.getElementById("matriz-head");
+  var matrizBody = document.getElementById("matriz-body");
+  var obsGrid = document.getElementById("obs-grid");
+  var toast = document.getElementById("toast");
+  var toastTimer = null;
+
+  // ---- Integración con la app NAVES (añadido a la herramienta original) ----
+  // Cuando el Decisor va embebido en un <iframe> de la app, mostramos un botón
+  // para registrar el anteproyecto ganador. El botón avisa al contenedor con
+  // postMessage; el Decisor sigue siendo autónomo (no guarda ni toca la BD).
+  var registrarBtn = document.getElementById("btn-registrar");
+  var ganadorNombre = null;
+  var embedded = window.parent && window.parent !== window;
+
+  function showToast(kind, title, html){
+    toast.className = kind;
+    toast.innerHTML = '<div class="t-title">'+title+'</div>'+html;
+    void toast.offsetWidth;
+    toast.classList.add("show");
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toast.classList.remove("show"); }, 3200);
+  }
+
+  // ================= PASO 1: ANTEPROYECTOS =================
+  function renderProyectos(){
+    projList.innerHTML = "";
+    proyectos.forEach(function(p, idx){
+      var row = document.createElement("div");
+      row.className = "proj-row";
+      var code = document.createElement("div");
+      code.className = "proj-code"; code.textContent = CODES[idx];
+      var inp = document.createElement("input");
+      inp.value = p.nombre; inp.placeholder = "Escribe aquí el nombre de tu anteproyecto";
+      inp.addEventListener("input", function(){
+        p.nombre = inp.value;
+        var an = document.getElementById("altname-"+p.id); if(an){ an.textContent = p.nombre.trim() || ("Anteproyecto " + (idx+1)); }
+        var ol = document.getElementById("obslabel-"+p.id); if(ol){ ol.textContent = (p.nombre.trim() || ("Anteproyecto " + (idx+1))) + " — observaciones"; }
+        renderEstado();
+        if(confirmado){ renderScores(); }
+      });
+      var del = document.createElement("button");
+      del.className = "row-del"; del.textContent = "×"; del.title = "Quitar anteproyecto";
+      del.disabled = proyectos.length <= MIN_PROJ;
+      del.addEventListener("click", function(){
+        if(proyectos.length <= MIN_PROJ) return;
+        delete scores[p.id]; delete obs[p.id];
+        proyectos = proyectos.filter(function(x){ return x.id !== p.id; });
+        renderProyectos(); renderEstado();
+        if(confirmado){ renderMatriz(); }
+      });
+      row.appendChild(code); row.appendChild(inp); row.appendChild(del);
+      projList.appendChild(row);
+    });
+    addProjBtn.disabled = proyectos.length >= MAX_PROJ;
+  }
+
+  // ================= PASO 2: CRITERIOS =================
+  function renderCriterios(){
+    critList.innerHTML = "";
+    criterios.forEach(function(c, idx){
+      var row = document.createElement("div");
+      row.className = "crit-row" + (idx === 0 ? " es-rector" : "");
+      var badge = document.createElement("div");
+      if(idx === 0){ badge.className = "crit-badge rector"; badge.innerHTML = "★<small>RECTOR</small>"; }
+      else { badge.className = "crit-badge normal"; badge.textContent = (idx+1); }
+
+      var fields = document.createElement("div");
+      fields.className = "crit-fields";
+      var inNom = document.createElement("input");
+      inNom.className = "nombre"; inNom.value = c.nombre; inNom.placeholder = critPlaceholder(idx);
+      inNom.addEventListener("input", function(){ c.nombre = inNom.value; renderEstado(); if(confirmado){ renderMatrizHead(); } });
+      var inDesc = document.createElement("input");
+      inDesc.className = "desc"; inDesc.value = c.desc; inDesc.placeholder = "Descríbelo brevemente aquí";
+      inDesc.addEventListener("input", function(){ c.desc = inDesc.value; if(confirmado){ renderMatrizHead(); } });
+      fields.appendChild(inNom); fields.appendChild(inDesc);
+
+      var peso = document.createElement("div");
+      peso.className = "peso-input";
+      var inPeso = document.createElement("input");
+      inPeso.type = "number"; inPeso.min = 0; inPeso.max = 100; inPeso.value = c.peso; inPeso.inputMode = "numeric";
+      inPeso.addEventListener("input", function(){ c.peso = parseFloat(inPeso.value) || 0; renderEstado(); if(confirmado){ renderMatrizHead(); renderScores(); } });
+      var pct = document.createElement("span"); pct.className = "pct"; pct.textContent = "%";
+      peso.appendChild(inPeso); peso.appendChild(pct);
+
+      var del = document.createElement("button");
+      del.className = "row-del"; del.textContent = "×"; del.title = "Eliminar criterio";
+      del.disabled = criterios.length <= MIN_CRIT;
+      del.addEventListener("click", function(){
+        if(criterios.length <= MIN_CRIT) return;
+        criterios = criterios.filter(function(x){ return x.id !== c.id; });
+        proyectos.forEach(function(p){ if(scores[p.id]) delete scores[p.id][c.id]; });
+        renderCriterios(); renderEstado();
+        if(confirmado){ renderMatriz(); }
+      });
+
+      row.appendChild(badge); row.appendChild(fields); row.appendChild(peso); row.appendChild(del);
+      critList.appendChild(row);
+    });
+    addCritBtn.disabled = criterios.length >= MAX_CRIT;
+  }
+
+  // ================= VALIDACION =================
+  function renderEstado(){
+    var suma = criterios.reduce(function(s,c){ return s + (c.peso||0); }, 0);
+    sumaFill.style.width = Math.min(suma,100) + "%";
+    sumaTotal.textContent = (Math.round(suma*100)/100) + " %";
+    sumaFill.classList.toggle("over", suma > 100);
+    sumaTotal.classList.remove("ok","bad");
+
+    var exacto = Math.abs(suma - 100) < 0.001;
+    var critNombrados = criterios.every(function(c){ return c.nombre.trim().length > 0; });
+    var projNombrados = proyectos.filter(function(p){ return p.nombre.trim().length > 0; }).length >= MIN_PROJ;
+
+    if(!exacto){
+      sumaTotal.classList.add("bad");
+      var dif = Math.round((100 - suma)*100)/100;
+      sumaMsg.textContent = suma < 100 ? ("Faltan " + dif + " puntos para llegar a 100 %.") : ("Se excede en " + (-dif) + " puntos. La suma debe ser 100 %.");
+      sumaMsg.classList.remove("ok");
+    } else {
+      sumaTotal.classList.add("ok");
+      if(!critNombrados){ sumaMsg.textContent = "Ponle nombre a cada criterio para continuar."; sumaMsg.classList.remove("ok"); }
+      else if(!projNombrados){ sumaMsg.textContent = "Nombra al menos dos anteproyectos en el Paso 1 para continuar."; sumaMsg.classList.remove("ok"); }
+      else { sumaMsg.textContent = "Todo listo. Puedes continuar a la calificación."; sumaMsg.classList.add("ok"); }
+    }
+    btnConfirmar.disabled = !(exacto && critNombrados && projNombrados);
+
+    var rector = criterios[0];
+    if(rector && criterios.length > 1){
+      var maxPeso = Math.max.apply(null, criterios.map(function(c){ return c.peso||0; }));
+      if((rector.peso||0) < maxPeso){
+        rectorWarn.textContent = "⚠ Tu criterio rector (" + (rector.nombre.trim()||"el primero") + ") no es el de mayor peso. El rector debería llevar el mayor peso.";
+      } else { rectorWarn.textContent = ""; }
+    } else { rectorWarn.textContent = ""; }
+  }
+
+  // ================= PASO 3: MATRIZ =================
+  function renderMatrizHead(){
+    matrizHead.innerHTML = "";
+    var thAlt = document.createElement("th");
+    thAlt.className = "col-alt"; thAlt.textContent = "Anteproyecto";
+    matrizHead.appendChild(thAlt);
+    criterios.forEach(function(c, idx){
+      var th = document.createElement("th");
+      th.innerHTML = (idx === 0 ? '<span class="rector-tag">★ RECTOR</span>' : '') +
+                     (c.nombre.trim() || ("Criterio " + (idx+1))) +
+                     '<span class="crit-desc-tag">'+ (c.desc||"") +'</span>' +
+                     '<span class="peso-tag">'+ (c.peso||0) +' %</span>' +
+                     '<div class="col-flag" id="flag-'+c.id+'"></div>';
+      matrizHead.appendChild(th);
+    });
+    var thTot = document.createElement("th");
+    thTot.className = "col-total"; thTot.innerHTML = "Total<br>ponderado";
+    matrizHead.appendChild(thTot);
+  }
+
+  function renderMatriz(){
+    ensureScoreSlots();
+    renderMatrizHead();
+    matrizBody.innerHTML = "";
+    proyectos.forEach(function(p, idx){
+      var tr = document.createElement("tr");
+      var tdAlt = document.createElement("td");
+      tdAlt.className = "alt-cell";
+      tdAlt.innerHTML = '<div class="alt-code">'+CODES[idx]+'</div>'+
+                        '<div class="alt-name" id="altname-'+p.id+'">'+ (p.nombre.trim() || ("Anteproyecto " + (idx+1))) +'</div>';
+      tr.appendChild(tdAlt);
+
+      criterios.forEach(function(c){
+        var td = document.createElement("td");
+        var grp = document.createElement("div");
+        grp.className = "rank-group";
+        for(var v=1; v<=proyectos.length; v++){
+          (function(val){
+            var b = document.createElement("button");
+            b.textContent = val;
+            b.addEventListener("click", function(){ onRankClick(p, c, idx, val); });
+            grp.appendChild(b);
+          })(v);
+        }
+        td.appendChild(grp);
+        tr.appendChild(td);
+      });
+
+      var tdTot = document.createElement("td");
+      tdTot.className = "total-cell"; tdTot.id = "total-"+p.id; tdTot.innerHTML = "—";
+      tr.appendChild(tdTot);
+      matrizBody.appendChild(tr);
+    });
+    buildObs();
+    renderScores();
+  }
+
+  function onRankClick(p, c, idx, v){
+    var N = proyectos.length;
+    var pn = p.nombre.trim() || ("Anteproyecto " + (idx+1));
+    var cn = c.nombre.trim() || "este criterio";
+    // toggle-off: si tocas tu propia nota, se quita y se libera
+    if(scores[p.id][c.id] === v){
+      scores[p.id][c.id] = null;
+      showToast("ok", "Nota quitada", 'Quitaste la calificación de <b>'+pn+'</b> en <b>'+cn+'</b>. El '+v+' vuelve a estar libre.');
+      renderScores(); return;
+    }
+    // bloqueado: ese número ya lo tiene otro anteproyecto en esta columna
+    var takenBy = null;
+    proyectos.forEach(function(q){ if(q.id !== p.id && scores[q.id][c.id] === v){ takenBy = q; } });
+    if(takenBy){
+      var qi = proyectos.indexOf(takenBy);
+      var qn = takenBy.nombre.trim() || ("Anteproyecto " + (qi+1));
+      showToast("blocked", "Ese número ya está usado", 'En <b>'+cn+'</b> ya escogiste a <b>'+qn+'</b> como '+significado(v,N)+' (el '+v+'). Cada número se usa una sola vez por columna. Para cambiarlo, primero quítaselo tocándolo de nuevo.');
+      return;
+    }
+    // asignar + explicar
+    scores[p.id][c.id] = v;
+    showToast("ok", "Calificación registrada", 'Pusiste <b>'+v+'</b>: <b>'+pn+'</b> es '+significado(v,N)+' en <b>'+cn+'</b>.');
+    renderScores();
+  }
+
+  function buildObs(){
+    obsGrid.innerHTML = "";
+    proyectos.forEach(function(p, idx){
+      var d = document.createElement("div");
+      d.className = "obs-card";
+      var nombre = p.nombre.trim() || ("Anteproyecto " + (idx+1));
+      var lbl = document.createElement("label"); lbl.id = "obslabel-"+p.id; lbl.textContent = nombre + " — observaciones";
+      var ta = document.createElement("textarea");
+      ta.placeholder = "Notas cualitativas, supuestos o justificación (útil para desempatar)...";
+      ta.value = obs[p.id] || "";
+      ta.addEventListener("input", function(){ obs[p.id] = ta.value; });
+      d.appendChild(lbl); d.appendChild(ta);
+      obsGrid.appendChild(d);
+    });
+  }
+
+  function renderScores(){
+    var N = proyectos.length;
+    matrizBody.querySelectorAll("tr").forEach(function(tr, ri){
+      var p = proyectos[ri];
+      tr.querySelectorAll(".rank-group").forEach(function(grp, ci){
+        var c = criterios[ci];
+        var own = scores[p.id][c.id];
+        grp.querySelectorAll("button").forEach(function(b){
+          var val = parseInt(b.textContent,10);
+          b.classList.remove("sel-1","sel-2","sel-3","blocked");
+          if(own === val){ b.classList.add("sel-"+val); }
+          else {
+            var takenByOther = proyectos.some(function(q){ return q.id !== p.id && scores[q.id][c.id] === val; });
+            if(takenByOther){ b.classList.add("blocked"); }
+          }
+        });
+      });
+    });
+
+    criterios.forEach(function(c){
+      var flag = document.getElementById("flag-"+c.id);
+      if(!flag) return;
+      var llenos = proyectos.map(function(p){ return scores[p.id][c.id]; }).filter(function(v){ return v !== null; });
+      flag.classList.remove("ok","warn");
+      if(llenos.length === 0){ flag.textContent = ""; }
+      else if(llenos.length < N){ flag.textContent = "Faltan " + (N - llenos.length); flag.classList.add("warn"); }
+      else { flag.textContent = "✓ Completo"; flag.classList.add("ok"); }
+    });
+
+    var totales = [];
+    proyectos.forEach(function(p){
+      var completo = criterios.every(function(c){ return scores[p.id][c.id] !== null; });
+      var cell = document.getElementById("total-"+p.id);
+      if(cell) cell.classList.remove("mejor");
+      if(!completo){ if(cell) cell.innerHTML = "—"; totales.push({proj:p, val:null}); return; }
+      var t = 0;
+      criterios.forEach(function(c){ t += scores[p.id][c.id] * ((c.peso||0)/100); });
+      var tr = Math.round(t*1000)/1000;
+      if(cell) cell.innerHTML = tr.toFixed(2).replace(".",",") + '<small>menor es mejor</small>';
+      totales.push({proj:p, val:tr});
+    });
+
+    var colsValidas = criterios.every(function(c){
+      var vals = proyectos.map(function(p){ return scores[p.id][c.id]; });
+      if(vals.some(function(v){ return v===null; })) return false;
+      var u = {}; vals.forEach(function(v){ u[v]=(u[v]||0)+1; });
+      for(var v=1; v<=N; v++){ if(u[v]!==1) return false; }
+      return true;
+    });
+
+    renderReco(totales, colsValidas);
+  }
+
+  function renderReco(totales, colsValidas){
+    var titulo = document.getElementById("reco-title");
+    var detalle = document.getElementById("reco-detail");
+    var ranking = document.getElementById("reco-ranking");
+    var completos = totales.filter(function(t){ return t.val !== null; });
+
+    if(completos.length < proyectos.length || !colsValidas){
+      titulo.textContent = "Pendiente de calificar";
+      detalle.className = "reco-detail reco-empty";
+      detalle.textContent = "Completa la comparación de todos los anteproyectos en cada criterio.";
+      ranking.innerHTML = "";
+      proyectos.forEach(function(p){ var cc = document.getElementById("total-"+p.id); if(cc) cc.classList.remove("mejor"); });
+      ganadorNombre = null;
+      if(registrarBtn) registrarBtn.style.display = "none";
+      return;
+    }
+
+    var orden = completos.slice().sort(function(a,b){ return a.val - b.val; });
+    var lider = orden[0];
+    var empate = orden.length > 1 && Math.abs(orden[1].val - lider.val) < 0.0001;
+
+    detalle.className = "reco-detail";
+    if(empate){
+      var empatados = orden.filter(function(t){ return Math.abs(t.val - lider.val) < 0.0001; })
+                           .map(function(t){ return t.proj.nombre.trim() || "Anteproyecto"; });
+      titulo.textContent = "Empate técnico";
+      detalle.textContent = "Empatan con " + lider.val.toFixed(2).replace(".",",") + " puntos: " + empatados.join(" y ") + ". Revisa las observaciones cualitativas para desempatar.";
+      ganadorNombre = null;
+      if(registrarBtn) registrarBtn.style.display = "none";
+    }else{
+      titulo.textContent = lider.proj.nombre.trim() || "Tu primer anteproyecto";
+      detalle.textContent = "Menor puntaje ponderado: " + lider.val.toFixed(2).replace(".",",") + ". Es la alternativa recomendada según los pesos que definiste.";
+      ganadorNombre = lider.proj.nombre.trim() || "";
+      if(registrarBtn && embedded) registrarBtn.style.display = "inline-flex";
+    }
+
+    proyectos.forEach(function(p){ var cc = document.getElementById("total-"+p.id); if(cc) cc.classList.remove("mejor"); });
+    if(!empate){ var cLid = document.getElementById("total-"+lider.proj.id); if(cLid) cLid.classList.add("mejor"); }
+
+    var N = proyectos.length;
+    ranking.innerHTML = "";
+    orden.forEach(function(t){
+      var esLider = Math.abs(t.val - lider.val) < 0.0001;
+      var row = document.createElement("div");
+      row.className = "reco-bar-row" + (esLider ? " lead" : "");
+      var fill = N > 1 ? ((N - t.val) / (N - 1)) * 100 : 100;
+      row.innerHTML = '<span>'+(t.proj.nombre.trim() || "Anteproyecto")+'</span>'+
+                      '<div class="reco-bar-track"><div class="reco-bar-fill" style="width:'+fill+'%"></div></div>'+
+                      '<span class="reco-val">'+t.val.toFixed(2).replace(".",",")+'</span>';
+      ranking.appendChild(row);
+    });
+  }
+
+  // ---- Bloqueo / desbloqueo ----
+  function desbloquear(){
+    confirmado = true;
+    matrizContenido.classList.remove("locked-overlay");
+    lockNote.style.display = "none";
+    paso3num.classList.remove("locked");
+    renderMatriz();
+    document.getElementById("seccion-matriz").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+  function bloquear(){
+    confirmado = false;
+    matrizContenido.classList.add("locked-overlay");
+    lockNote.style.display = "flex";
+    paso3num.classList.add("locked");
+    document.querySelector(".paso").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+
+  // ---- Eventos ----
+  addProjBtn.addEventListener("click", function(){
+    if(proyectos.length >= MAX_PROJ) return;
+    proyectos.push({id:nid("p"), nombre:""});
+    ensureScoreSlots();
+    renderProyectos(); renderEstado();
+    if(confirmado){ renderMatriz(); }
+  });
+  addCritBtn.addEventListener("click", function(){
+    if(criterios.length >= MAX_CRIT) return;
+    criterios.push({id:nid("c"), nombre:"", desc:"", peso:0});
+    renderCriterios(); renderEstado();
+    if(confirmado){ renderMatriz(); }
+  });
+  btnConfirmar.addEventListener("click", function(){ if(!btnConfirmar.disabled){ desbloquear(); } });
+  btnSugerir.addEventListener("click", function(){
+    var n = criterios.length;
+    var reparto = n === 1 ? [100] : (n === 2 ? [60,40] : [50,30,20]);
+    criterios.forEach(function(c,i){ c.peso = reparto[i]; });
+    renderCriterios(); renderEstado();
+  });
+  document.getElementById("btn-editar").addEventListener("click", bloquear);
+  document.getElementById("btn-reiniciar").addEventListener("click", function(){
+    proyectos.forEach(function(p){ criterios.forEach(function(c){ scores[p.id][c.id] = null; }); });
+    renderScores();
+    showToast("ok", "Calificaciones reiniciadas", "Puedes volver a comparar tus anteproyectos desde cero.");
+  });
+
+  // Registrar el anteproyecto ganador: avisa a la app contenedora.
+  if(registrarBtn){
+    registrarBtn.addEventListener("click", function(){
+      if(ganadorNombre === null) return;
+      try {
+        window.parent.postMessage({ type: "naves:registrar-anteproyecto", nombre: ganadorNombre }, window.location.origin);
+      } catch(e){ /* si no hay contenedor, no hacemos nada */ }
+    });
+  }
+
+  // ---- Init ----
+  ensureScoreSlots();
+  renderProyectos();
+  renderCriterios();
+  renderEstado();
+})();
+</script>
+</body>
+</html>

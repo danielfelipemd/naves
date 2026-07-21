@@ -71,6 +71,15 @@ function aceptaAsset(tipo: TipoAsset, file: File): boolean {
   return cfg.exts.includes(file.name.toLowerCase().split('.').pop() ?? '');
 }
 
+// Copy de la entrega final (mensajes-entrega-trabajo-de-grado-NAVES.md). Cada uno
+// de los cuatro documentos tiene su texto de botón (estado pendiente) y su
+// confirmación al quedar subido. Numeración 1..4 para reforzar "cuatro archivos".
+const ASSET_UI: Record<TipoAsset, { num: number; cta: string; recibido: string }> = {
+  one_pager:         { num: 2, cta: 'Sube tu Resumen · One Pager (PDF)', recibido: 'One Pager recibido ✓' },
+  logo:              { num: 3, cta: 'Sube tu Logo (JPG)',                recibido: 'Logo recibido ✓' },
+  modelo_financiero: { num: 4, cta: 'Sube tu Modelo Financiero (Excel)', recibido: 'Modelo Financiero recibido ✓' },
+};
+
 // Los dos entregables van en PDF, y solo PDF (el backend rechaza el resto).
 const MIME_ANTEPROYECTO_ACCEPT = '.pdf,application/pdf';
 const MIME_PROYECTO_FINAL_ACCEPT = '.pdf,application/pdf';
@@ -115,8 +124,11 @@ function DropZone(props: {
   errMsg: string;
   onFile: (f: File) => void;
   inputRef: React.RefObject<HTMLInputElement>;
+  // Texto principal del botón (estado pendiente). Si no se pasa, se usa la
+  // instrucción genérica de arrastrar/soltar.
+  cta?: string;
 }) {
-  const { accept, hint, disabled, subiendoEste, validate, errMsg, onFile, inputRef } = props;
+  const { accept, hint, disabled, subiendoEste, validate, errMsg, onFile, inputRef, cta } = props;
   const [drag, setDrag] = useState(false);
   const [errMime, setErrMime] = useState(false);
 
@@ -156,9 +168,12 @@ function DropZone(props: {
         onChange={(e) => handleFiles(e.target.files)}
         className="hidden"
       />
-      <p className="text-sm text-inalde-text font-medium">
-        {subiendoEste ? 'Cargando…' : 'Arrastra el archivo aquí o haz clic para seleccionarlo'}
+      <p className="text-sm text-inalde-text font-semibold">
+        {subiendoEste ? 'Cargando…' : (cta ?? 'Arrastra el archivo aquí o haz clic para seleccionarlo')}
       </p>
+      {cta && !subiendoEste && (
+        <p className="text-xs text-inalde-gray mt-0.5">Arrastra el archivo o haz clic para seleccionarlo</p>
+      )}
       <p className="text-xs text-inalde-gray mt-1">{hint} · máximo 25 MB</p>
       {errMime && (
         <p className="text-xs text-inalde-red mt-2">El tipo de archivo no es válido. {errMsg}</p>
@@ -179,11 +194,15 @@ function AssetUploader(props: {
   inputRef: React.RefObject<HTMLInputElement>;
 }) {
   const cfg = ASSET_CFG[props.tipo];
+  const ui = ASSET_UI[props.tipo];
   return (
     <div className="border border-inalde-gray-light rounded p-4 mb-3">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <h4 className="font-primary font-semibold text-sm text-inalde-text">{cfg.label}</h4>
-        {props.asset?.cargado && <span className="text-xs text-inalde-gray">✓ Cargado</span>}
+        <h4 className="font-primary font-semibold text-sm text-inalde-text flex items-center gap-2">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-inalde-gray-bg text-inalde-gray text-[11px] font-bold">{ui.num}</span>
+          {cfg.label}
+        </h4>
+        {props.asset?.cargado && <span className="text-xs font-semibold text-green-700">{ui.recibido}</span>}
       </div>
       {props.asset?.cargado ? (
         <div className="text-sm text-inalde-gray">
@@ -195,6 +214,7 @@ function AssetUploader(props: {
         <DropZone
           accept={cfg.accept}
           hint={cfg.hint}
+          cta={ui.cta}
           validate={(f) => aceptaAsset(props.tipo, f)}
           errMsg={`Formato permitido: ${cfg.hint}.`}
           disabled={props.disabled}
@@ -224,6 +244,9 @@ export default function TrabajoGrado() {
   // Ficha activa (null = sigue el valor por defecto según el estado). Dos fichas:
   // 'anteproyecto' y 'proyecto'.
   const [ficha, setFicha] = useState<'anteproyecto' | 'proyecto' | null>(null);
+  // Compuerta antes de entrar al formulario de anteproyecto: "¿Ya decidiste tu
+  // proyecto?". Sí → registrar; No → Decisor de Anteproyecto.
+  const [gateOpen, setGateOpen] = useState(false);
 
   const inputAntRef = useRef<HTMLInputElement>(null);
   const inputFinalRef = useRef<HTMLInputElement>(null);
@@ -482,6 +505,20 @@ export default function TrabajoGrado() {
   const antSubido = !!ant?.archivo_anteproyecto_path;
   const finalSubido = !!ant?.archivo_proyecto_final_path;
 
+  // Entrega final del Business Plan = 4 documentos: Business Plan (PDF) +
+  // one pager + logo + modelo financiero. Contamos cuántos van para el
+  // indicador de avance y la felicitación final.
+  const docsEntregados = [
+    finalSubido,
+    !!ant?.assets?.one_pager?.cargado,
+    !!ant?.assets?.logo?.cargado,
+    !!ant?.assets?.modelo_financiero?.cargado,
+  ].filter(Boolean).length;
+  const entregaCompleta = docsEntregados === 4;
+  // "Entregado" real: en BP exige los 4 documentos; en caso/PI basta el PDF
+  // definitivo (no llevan material). No se marca entregado con documentos faltantes.
+  const trabajoEntregado = esCasoOPI ? finalSubido : entregaCompleta;
+
   // La carga del proyecto final se habilita distinto por modalidad:
   //  - caso/PI: al cargar su archivo de anteproyecto.
   //  - business plan: al elegirse el proyecto definitivo en la reunión.
@@ -508,6 +545,45 @@ export default function TrabajoGrado() {
   return (
     <>
       <Header />
+
+      {/* Compuerta: ¿ya decidiste tu proyecto? */}
+      {gateOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="border-b-[3px] border-inalde-red px-6 py-5">
+              <p className="section-subtitle mb-1">Antes de registrar</p>
+              <h2 id="gate-title" className="font-primary font-bold text-2xl text-inalde-text">¿Ya tienes decidido tu proyecto?</h2>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-inalde-text">
+                El anteproyecto es el punto de partida de tu Trabajo de Grado. Antes de registrarlo, cuéntanos: ¿ya tienes claro cuál será tu proyecto?
+              </p>
+            </div>
+            <div className="px-6 py-5 border-t border-inalde-gray-light flex flex-col gap-3">
+              <button
+                onClick={() => { setGateOpen(false); navigate('/anteproyecto'); }}
+                className="btn-inalde-primary w-full !py-3"
+              >
+                Sí, ya lo decidí — registrar mi anteproyecto →
+              </button>
+              <button
+                onClick={() => { setGateOpen(false); navigate('/decisor'); }}
+                className="w-full rounded-lg border-2 border-inalde-gray-light hover:border-inalde-red px-4 py-3 text-left transition"
+              >
+                <span className="font-primary font-bold text-inalde-text block">Aún estoy decidiendo</span>
+                <span className="text-xs text-inalde-gray">Te ayudamos a compararlos con una matriz de criterios ponderados.</span>
+              </button>
+              <button
+                onClick={() => setGateOpen(false)}
+                className="text-xs text-inalde-gray hover:text-inalde-text mt-1 self-center"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="pt-36 pb-16 px-4">
         <div className="max-w-[860px] mx-auto">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
@@ -560,7 +636,7 @@ export default function TrabajoGrado() {
                 anteproyectoHecho && fichaActiva === 'proyecto' ? 'text-white' : 'text-inalde-text'
               }`}>
                 Proyecto de grado
-                {finalSubido && (
+                {trabajoEntregado && (
                   <span className={`text-[10px] uppercase tracking-wider font-semibold ${
                     fichaActiva === 'proyecto' ? 'text-white/90' : 'text-inalde-blue'
                   }`}>✓ Entregado</span>
@@ -641,7 +717,7 @@ export default function TrabajoGrado() {
                         <p className="text-sm text-inalde-gray mb-3">
                           Todavía no has enviado tu anteproyecto. Complétalo primero: con eso se habilita el proyecto de grado.
                         </p>
-                        <button onClick={() => navigate('/anteproyecto')} className="btn-inalde-primary !py-2 !px-4 !text-xs">Completar anteproyecto →</button>
+                        <button onClick={() => setGateOpen(true)} className="btn-inalde-primary !py-2 !px-4 !text-xs">Completar anteproyecto →</button>
                       </>
                     )}
                   </>
@@ -686,13 +762,26 @@ export default function TrabajoGrado() {
                   </div>
                 ) : (
                   <>
+                    {/* Indicador de avance de la entrega (solo Business Plan: 4
+                        documentos). Se muestra mientras falten archivos y
+                        desaparece al completar los cuatro. */}
+                    {!esCasoOPI && !vencido && !entregaCompleta && docsEntregados > 0 && (
+                      <div className="rounded border-l-4 border-inalde-gold bg-inalde-gold/10 px-4 py-3 text-sm text-inalde-text mb-6" role="status" aria-live="polite">
+                        {docsEntregados === 3
+                          ? <>Te falta <strong>1 documento</strong> para completar tu entrega.</>
+                          : <>Has entregado <strong>{docsEntregados} de 4</strong> documentos. Sigue así.</>}
+                      </div>
+                    )}
+
                     {/* Documento definitivo */}
                     <div className="border-2 border-inalde-red/30 rounded-lg p-5 mb-6 bg-inalde-red/5">
-                      <h3 className="font-primary font-bold text-base text-inalde-text mb-2">
-                        {esCasoOPI ? 'Proyecto final (PDF)' : 'Documento del Business Plan (PDF)'}
+                      <h3 className="font-primary font-bold text-base text-inalde-text mb-2 flex items-center gap-2">
+                        {!esCasoOPI && <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-inalde-red text-white text-[11px] font-bold">1</span>}
+                        {esCasoOPI ? 'Proyecto final (PDF)' : 'Business Plan (PDF)'}
                       </h3>
                       {finalSubido ? (
                         <div className="text-sm text-inalde-gray">
+                          <p className="text-sm font-semibold text-green-700 mb-1">{esCasoOPI ? 'Proyecto final recibido ✓' : 'Business Plan recibido ✓'}</p>
                           <p>✅ Cargado el {formatoFecha(ant!.archivo_proyecto_final_uploaded_at)} — <span className="text-inalde-text">{nombreArchivoDePath(ant!.archivo_proyecto_final_path)}</span></p>
                           <button onClick={() => abrirArchivo('proyecto-final')} className="text-inalde-red font-semibold hover:underline text-sm mt-1">Descargar →</button>
                           <p className="text-xs text-inalde-gray italic mt-3">Este archivo no se puede reemplazar.</p>
@@ -706,6 +795,7 @@ export default function TrabajoGrado() {
                           </div>
                           <DropZone
                             accept={MIME_PROYECTO_FINAL_ACCEPT} hint="PDF"
+                            cta={esCasoOPI ? 'Sube tu proyecto final (PDF)' : 'Sube tu Business Plan (PDF)'}
                             validate={(f) => aceptaMime('proyecto-final', f)} errMsg="Solo PDF."
                             disabled={!!subiendo}
                             subiendoEste={subiendo === 'proyecto-final'}
@@ -715,10 +805,10 @@ export default function TrabajoGrado() {
                       )}
                     </div>
 
-                    {/* Material (solo Business Plan) */}
+                    {/* Material (solo Business Plan): documentos 2, 3 y 4 */}
                     {!esCasoOPI && (
                       <div>
-                        <h3 className="font-primary font-semibold text-sm text-inalde-text mb-4">Material para la presentación</h3>
+                        <h3 className="font-primary font-semibold text-sm text-inalde-text mb-4">Resumen, logo y modelo financiero</h3>
                         {(['one_pager', 'logo', 'modelo_financiero'] as const).map((t) => (
                           <AssetUploader
                             key={t}
@@ -731,6 +821,17 @@ export default function TrabajoGrado() {
                             inputRef={inputAssetRefs[t]}
                           />
                         ))}
+                      </div>
+                    )}
+
+                    {/* Felicitación final: solo cuando están los CUATRO documentos. */}
+                    {!esCasoOPI && entregaCompleta && (
+                      <div className="rounded-lg border border-green-200 bg-green-50 px-5 py-5 mt-2 text-center" role="status" aria-live="polite">
+                        <div className="text-3xl mb-2" aria-hidden="true">🎓</div>
+                        <p className="font-primary font-extrabold text-lg text-inalde-text mb-1">¡Felicitaciones! Entregaste tu Trabajo de Grado.</p>
+                        <p className="text-sm text-inalde-text">
+                          Con esto completas la entrega de tus cuatro documentos: Business Plan, Resumen (One Pager), Logo y Modelo Financiero. Ahora solo te resta <strong>preparar tu presentación</strong>. ¡Mucho éxito en la recta final!
+                        </p>
                       </div>
                     )}
                   </>

@@ -8,7 +8,7 @@ const noPasteProps = {
   },
   onDrop: (e: React.DragEvent) => e.preventDefault(),
 };
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { CiiuPicker } from '../../components/inalde/CiiuPicker';
 import { api } from '../../lib/api';
@@ -144,6 +144,10 @@ function fmtFecha(iso: string): string {
 // =============== Componente principal ======================================
 export default function Anteproyecto() {
   const navigate = useNavigate();
+  // Nombre sugerido que viene del Decisor de Anteproyecto (navigate con state).
+  // Solo se usa como arranque si el anteproyecto sigue en borrador y sin nombre.
+  const location = useLocation();
+  const prefillNombre = (location.state as { prefillNombre?: string } | null)?.prefillNombre?.trim() || '';
   const [anteId, setAnteId] = useState<string | null>(null);
   const [estado, setEstado] = useState<string>('borrador');
   const [equipoNombre, setEquipoNombre] = useState<string>('');
@@ -300,7 +304,13 @@ export default function Anteproyecto() {
       // Solo puede presentarse UN proyecto: descartamos cualquier extra que
       // arrastren datos antiguos. Y aseguramos los hitos de fecha fija de la cohorte.
       const base = (chosen && chosen.length > 0) ? chosen : [emptyProyecto(1)];
-      setProyectos([applyFechasCohorte(base[0])]);
+      let primer = applyFechasCohorte(base[0]);
+      // Sugerencia de arranque desde el Decisor: solo si sigue en borrador y el
+      // nombre está vacío (no pisa lo que el participante ya haya escrito).
+      if (prefillNombre && esBorrador && !primer.nombre.trim()) {
+        primer = { ...primer, nombre: prefillNombre };
+      }
+      setProyectos([primer]);
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setLoading(false); }
