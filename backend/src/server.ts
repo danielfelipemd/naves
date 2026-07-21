@@ -64,6 +64,12 @@ app.use('/', healthRouter);
 // Proxy publico (auth via token efimero en query string) — antes de cualquier
 // router con requireAuth para que no se aplique el middleware global de auth.
 app.use('/api/archivos', archivosProxyRouter);
+// La vista de trabajos por sector tiene una ruta PÚBLICA (/publico/:cohorteId,
+// protegida por clave, no por sesión). Debe montarse ANTES del catch-all
+// '/api' de seleccionRouter (que aplica requireAuth global); si no, un visitante
+// sin sesión recibe MISSING_BEARER aunque tenga la clave. Sus rutas /admin/*
+// llevan su propio requireAuth+super_admin.
+app.use('/api/trabajos-sector', trabajosSectorRouter);
 app.use('/api/auth/verificar-cedula', sensitiveAuthLimiter);
 app.use('/api/auth/recovery', sensitiveAuthLimiter);
 app.use('/api/auth', authLimiter, authRouter);
@@ -84,7 +90,6 @@ app.use('/api/admin/roles', rolesRouter);
 app.use('/api/cohortes', cohortesRouter);
 app.use('/api/directores', directoresRouter);
 app.use('/api/profesor-consulta', profesorConsultaRouter);
-app.use('/api/trabajos-sector', trabajosSectorRouter);
 app.use('/api/dashboard-control', dashboardControlRouter);
 
 // 404 + error handlers
