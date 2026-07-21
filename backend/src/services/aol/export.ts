@@ -1,4 +1,3 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType } from 'docx';
 import { supabaseAdmin } from '../../db/supabase.js';
 
 // =====================================================================
@@ -13,14 +12,16 @@ export interface CamposEditables {
   acciones_siguiente?: string;   // §7 [PROFESOR]
 }
 
-const P = (text: string, opts: any = {}) => new Paragraph({ children: [new TextRun({ text, ...opts })], spacing: { after: 120 }, ...opts.paraOpts });
-const H = (text: string, level: any = HeadingLevel.HEADING_1) => new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 } });
-const celda = (text: string, bold = false) => new TableCell({
-  width: { size: 20, type: WidthType.PERCENTAGE },
-  children: [new Paragraph({ children: [new TextRun({ text, bold })] })],
-});
-
 export async function generarReporteWord(cohorteId: string, campos: CamposEditables = {}): Promise<{ buffer: Buffer; filename: string }> {
+  // Carga diferida de docx: solo al generar un reporte, no al arrancar el servidor.
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType } = await import('docx');
+  const P = (text: string, opts: any = {}) => new Paragraph({ children: [new TextRun({ text, ...opts })], spacing: { after: 120 }, ...opts.paraOpts });
+  const H = (text: string, level: any = HeadingLevel.HEADING_1) => new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 } });
+  const celda = (text: string, bold = false) => new TableCell({
+    width: { size: 20, type: WidthType.PERCENTAGE },
+    children: [new Paragraph({ children: [new TextRun({ text, bold })] })],
+  });
+
   const { data: coh } = await supabaseAdmin.from('cohortes').select('etiqueta').eq('id', cohorteId).maybeSingle();
   const etiqueta = (coh as any)?.etiqueta ?? cohorteId;
   const modalidad = /\bINT\b/i.test(etiqueta) ? 'INT' : 'FS';
