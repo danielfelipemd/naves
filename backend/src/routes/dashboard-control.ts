@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole } from '../auth/middleware.js';
+import { entregaFinalCompleta } from '../services/entrega-final.js';
 
 // === Dashboard de control de cohorte (Comentario 15 QA, JMV 20-jul-2026) =====
 //
@@ -64,14 +65,37 @@ router.get('/:cohorteId', ...soloAdmin, async (req, res) => {
   const totalEquipos = equipos.length;
 
   // Entregado = el equipo envió su anteproyecto (cualquier estado distinto de
-  // 'borrador'). Definitivo entregado = cargó el archivo del proyecto final.
+  // 'borrador').
   const anteEntregados = equipos.filter((e) => {
     const a = pickAnte(e.anteproyectos);
     return a && a.estado && a.estado !== 'borrador';
   }).length;
-  const definitivosEntregados = equipos.filter(
-    (e) => pickAnte(e.anteproyectos)?.archivo_proyecto_final_path,
-  ).length;
+
+  // Definitivo entregado = entrega final COMPLETA. Para Business Plan no basta
+  // el PDF: exige también one pager, logo y modelo financiero (los 4 documentos).
+  // Traemos el material del proyecto definitivo de cada equipo BP para poder
+  // exigirlo (vive en proyecto_contenido, colgado del proyecto).
+  const defProyectoIds = equipos
+    .filter((e) => e.tipo_trabajo_grado === 'business_plan' && e.proyecto_definitivo_id)
+    .map((e) => e.proyecto_definitivo_id as string);
+  const contenidoPorProyecto = new Map<string, any>();
+  if (defProyectoIds.length) {
+    const { data: conts } = await supabaseAdmin
+      .from('proyecto_contenido')
+      .select('proyecto_id, one_pager_path, logo_path, modelo_financiero_path')
+      .in('proyecto_id', defProyectoIds);
+    for (const c of (conts ?? []) as any[]) contenidoPorProyecto.set(c.proyecto_id, c);
+  }
+  const definitivosEntregados = equipos.filter((e) => {
+    const a = pickAnte(e.anteproyectos);
+    const cont = e.proyecto_definitivo_id ? contenidoPorProyecto.get(e.proyecto_definitivo_id) : null;
+    return entregaFinalCompleta(e.tipo_trabajo_grado, {
+      archivoFinalPath: a?.archivo_proyecto_final_path,
+      onePagerPath: cont?.one_pager_path,
+      logoPath: cont?.logo_path,
+      modeloFinancieroPath: cont?.modelo_financiero_path,
+    });
+  }).length;
   const reunion1 = equipos.filter((e) => e.reunion_1_profesor_at).length;
   const definitivosElegidos = equipos.filter((e) => e.proyecto_definitivo_id).length;
   const reunion2 = equipos.filter((e) => e.reunion_2_profesor_at).length;
