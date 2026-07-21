@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAVES {{ANIO}} | MBA {{MODALIDAD}} | INALDE Business School</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADXUlEQVR4nO2Xz0srVxTHz/2RiY5jp1VJrImCj+Iir0VEMC3C2whCQBTcuhODLjX/kjjJX+AuuCrJYxChjxEyPLNIKRFqTNKZ2Mzk/uiiTgldzRUfjz76Xc45853PPefecxmk67qEzyj8OT/+P8CLATDGAgDg/Py8VqlU3o8/UxVVfYEQwjnnZHNz85f9/f2fAAC2trauq9XqehRT8XtxC05OTgbsWaenpwgAQEqJVH2QyjFECEkpJUqlUr/f3d3NYoz/WcDa2lrTdd03GGMhhIi9MKUWRADpdLp7dXXV4pxLKaUkhOCFhQXsui4ghJTmyosqMDMz85hKpbrjsX6/b7Tb7XSUE9dTqQIYY8E5J2dnZx92dnYWOecCIYQwxujm5ubj4eFhWsVPGSBaWT6f/2ZlZeXNeMwwDJ1SyhhjVKUKSqcg2lxTU1OaEEIwxhjnnAshBKWUTE5O/qnipwwA8Pc+SCQSRP5LyWRSm5iYCFT9YrcgKitCSM7NzZnkWVHcNE0zkUjcj+e+KkAkKSW6vLxsZDKZVkQEAPD09MR8389FOXH9YgNEplJK5Lqu8DxvMB73fV8Oh8OJuH6RlOZANOVs2/6Yy+W+G491u93u8vKyMRqNEp/sFERTznXdB8YYC4IgCMMwZIyx29vbX1U/DvCCUYwQkp1OZ0QppVH/CSHk/v5+gBCShBDOGIvtq1QBQgiXUqJGoyE457xcLtcsy6pxzrnjOIGUEhFCuIpnfFKMRRAEScMwBp7nEUIIcRyHP4ORh4cHYhiG7/u+oXIjxq6AEALv7u6+t227p2maqFar167r6o1GQ69Wq9cIIWnbdn9vb6+uch3HTiwUCna5XM4zxrjneaTZbA46nY7++PioN5vNge/7RAghLMv6sVAo2K8OUCqVkowxZllW8/j42CwWi+9WV1c76+vrnWKx+O7o6Oiri4uLO8YYK5VKyVcHyOfzbymldDQaQTabnQ3DMBRCoOFwiMIwDBcXF2eDIABKKd3Y2MjF9Y29Cbe3t2/n5+cHYRjqmUzmWwCA6elpIaUETdO0bDa74DjObwcHB/V2u20AwPevClCv138AADBNs1+pVH5eWlqa7vV6GACgVqt9aLVaf9Tr9be9Xu/ruJ4AiqP4U+i/+Wf0RQH8BQzP3m4VhnqpAAAAAElFTkSuQmCC">
+  <link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,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">  
+  <!-- Open Graph / WhatsApp / redes sociales -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="NAVES {{ANIO}} | MBA {{MODALIDAD}} | INALDE Business School">
+  <meta property="og:description" content="Trabajo de grado del Executive MBA de INALDE: cronograma, hitos y preguntas frecuentes sobre NAVES.">
+  <meta property="og:image" content="og-image-naves.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="NAVES {{ANIO}} | MBA {{MODALIDAD}} | INALDE Business School">
+  <meta name="twitter:description" content="Trabajo de grado del Executive MBA de INALDE.">
+  <meta name="twitter:image" content="og-image-naves.png">
+
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Paleta oficial INALDE */
+      --inalde-red: #e30613;
+      --inalde-red-dark: #cc292b;
+      --inalde-red-hover: #b30510;
+      --inalde-blue: #224d7c;
+      --inalde-gold: #9f885f;
+      --inalde-black: #000000;
+      --inalde-text: #1a1a1a;
+      --inalde-gray: #6b6b6b;
+      --inalde-gray-light: #e8e8e8;
+      --inalde-gray-bg: #f5f5f5;
+      --inalde-white: #ffffff;
+      --font-primary: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: var(--font-body);
+      background: var(--inalde-white);
+      color: var(--inalde-text);
+      line-height: 1.6;
+      font-weight: 400;
+      overflow-x: hidden;
+    }
+    
+    /* ===== HEADER ===== */
+    header {
+      background: var(--inalde-white);
+      border-bottom: 1px solid var(--inalde-gray-light);
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    
+    .header-top {
+      background: var(--inalde-black);
+      padding: 0.5rem 2rem;
+      text-align: right;
+    }
+    
+    .header-top span {
+      color: var(--inalde-white);
+      font-family: var(--font-primary);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    
+    .header-main {
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .logo-inalde {
+      height: 55px;
+      width: auto;
+      display: block;
+    }
+    
+    .logo-separator {
+      width: 1px;
+      height: 45px;
+      background: var(--inalde-gray-light);
+      margin: 0 1.5rem;
+    }
+    
+    .logo-container {
+      display: flex;
+      align-items: center;
+    }
+    
+    .program-label {
+      font-family: var(--font-primary);
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--inalde-gray);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.15rem;
+    }
+    
+    .program-name {
+      font-family: var(--font-primary);
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--inalde-text);
+      letter-spacing: 0.02em;
+      line-height: 1;
+    }
+    
+    .program-name .red-accent {
+      color: var(--inalde-red);
+    }
+    
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+    
+    nav a {
+      color: var(--inalde-text);
+      text-decoration: none;
+      font-family: var(--font-primary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0.5rem 0;
+      border-bottom: 2px solid transparent;
+      transition: all 0.3s;
+    }
+    
+    nav a:hover {
+      color: var(--inalde-red);
+      border-bottom-color: var(--inalde-red);
+    }
+    
+    /* ===== HERO ===== */
+    .hero {
+      min-height: 90vh;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 10rem 2rem 6rem;
+      position: relative;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 60%, #2a1010 100%);
+      overflow: hidden;
+    }
+    
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 50%;
+      height: 100%;
+      background: radial-gradient(ellipse at right, rgba(227, 6, 19, 0.25) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--inalde-red);
+    }
+    
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      padding-left: 2rem;
+    }
+    
+    .hero-badge {
+      display: inline-block;
+      background: var(--inalde-red);
+      color: white;
+      padding: 0.6rem 1.8rem;
+      font-family: var(--font-primary);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+      border-radius: 4px;
+      animation: fadeInDown 0.8s ease-out;
+    }
+    
+    .hero h1 {
+      font-family: var(--font-primary);
+      font-size: clamp(3rem, 8vw, 6rem);
+      font-weight: 900;
+      color: white;
+      line-height: 1.05;
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.02em;
+      animation: fadeInUp 0.8s ease-out 0.2s backwards;
+    }
+    
+    .hero h1 .red-highlight {
+      color: var(--inalde-red);
+    }
+    
+    .hero-subtitle {
+      font-family: var(--font-primary);
+      font-size: 1.4rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 1rem;
+      letter-spacing: 0.02em;
+      animation: fadeInUp 0.8s ease-out 0.3s backwards;
+    }
+    
+    .hero-subtitle strong {
+      font-weight: 700;
+      color: white;
+    }
+    
+    .hero p {
+      font-family: var(--font-body);
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.75);
+      font-weight: 300;
+      max-width: 650px;
+      margin-bottom: 2.5rem;
+      line-height: 1.7;
+      animation: fadeInUp 0.8s ease-out 0.4s backwards;
+    }
+    
+    .hero-cta-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      animation: fadeInUp 0.8s ease-out 0.6s backwards;
+    }
+    
+    .btn-inalde {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.9rem 2.2rem;
+      font-family: var(--font-primary);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-decoration: none;
+      border-radius: 30px;
+      transition: all 0.3s;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    
+    .btn-primary {
+      background: var(--inalde-red);
+      color: white;
+      border-color: var(--inalde-red);
+    }
+    
+    .btn-primary:hover {
+      background: white;
+      color: var(--inalde-red);
+      transform: translateY(-2px);
+    }
+    
+    .btn-outline {
+      background: transparent;
+      color: white;
+      border-color: white;
+    }
+    
+    .btn-outline:hover {
+      background: white;
+      color: var(--inalde-text);
+    }
+    
+    .btn-inalde svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s;
+    }
+    
+    .btn-inalde:hover svg {
+      transform: translateX(3px);
+    }
+    
+    /* ===== SECCIONES GENERALES ===== */
+    section.content-section {
+      padding: 6rem 2rem;
+    }
+    
+    section.alt-bg {
+      background: var(--inalde-gray-bg);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    /* Título con línea roja a la izquierda (estilo INALDE) */
+    .section-header {
+      margin-bottom: 4rem;
+      position: relative;
+      padding-left: 1.5rem;
+      border-left: 6px solid var(--inalde-red);
+    }
+    
+    .section-header-centered {
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto 4rem;
+      padding-left: 0;
+      border-left: none;
+    }
+    
+    .section-header-centered .section-title {
+      display: inline-block;
+      padding-left: 1.5rem;
+      border-left: 6px solid var(--inalde-red);
+      text-align: left;
+    }
+    
+    .section-label {
+      display: block;
+      font-family: var(--font-primary);
+      color: var(--inalde-red);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+    
+    .section-title {
+      font-family: var(--font-primary);
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      font-weight: 800;
+      color: var(--inalde-text);
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+    }
+    
+    .section-subtitle {
+      font-family: var(--font-body);
+      color: var(--inalde-gray);
+      font-size: 1.1rem;
+      font-weight: 400;
+      margin-top: 1rem;
+      max-width: 700px;
+    }
+    
+    /* ===== TIMELINE ===== */
+    #timeline {
+      background: white;
+    }
+    
+    .timeline-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      position: relative;
+    }
+    
+    .timeline-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--inalde-gray-light);
+      transform: translateX(-50%);
+    }
+    
+    .timeline-item {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 4rem;
+      position: relative;
+    }
+    
+    .timeline-item:nth-child(odd) {
+      flex-direction: row-reverse;
+    }
+    
+    .timeline-item:nth-child(odd) .timeline-content {
+      text-align: right;
+      padding-right: 4rem;
+      padding-left: 0;
+    }
+    
+    .timeline-item:nth-child(even) .timeline-content {
+      padding-left: 4rem;
+    }
+    
+    .timeline-content {
+      width: 50%;
+      padding: 0;
+    }
+    
+    .timeline-dot {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 18px;
+      height: 18px;
+      background: var(--inalde-red);
+      border-radius: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      box-shadow: 0 0 0 5px white, 0 0 0 7px var(--inalde-gray-light);
+      transition: all 0.3s;
+    }
+    
+    .timeline-item:hover .timeline-dot {
+      transform: translateX(-50%) scale(1.2);
+      box-shadow: 0 0 0 5px white, 0 0 0 7px var(--inalde-red);
+    }
+    
+    .timeline-date {
+      display: inline-block;
+      font-family: var(--font-primary);
+      color: var(--inalde-red);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      padding: 0.3rem 0.9rem;
+      background: rgba(227, 6, 19, 0.08);
+      border-radius: 3px;
+    }
+    
+    .timeline-title {
+      font-family: var(--font-primary);
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--inalde-text);
+      margin-bottom: 0.75rem;
+      line-height: 1.2;
+    }
+    
+    .timeline-desc {
+      font-family: var(--font-body);
+      color: var(--inalde-gray);
+      font-size: 0.98rem;
+      line-height: 1.7;
+      margin-bottom: 1rem;
+    }
+    
+    .timeline-tag {
+      display: inline-block;
+      background: var(--inalde-text);
+      color: white;
+      padding: 0.35rem 0.9rem;
+      font-family: var(--font-primary);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 3px;
+    }
+    
+    /* ===== GRID DE HITOS ===== */
+    .hitos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .hito-card {
+      background: white;
+      padding: 2.5rem 2rem;
+      border: 1px solid var(--inalde-gray-light);
+      border-top: 4px solid var(--inalde-red);
+      transition: all 0.3s;
+      position: relative;
+    }
+    
+    .hito-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+      border-top-color: var(--inalde-red);
+    }
+    
+    .hito-number {
+      font-family: var(--font-primary);
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--inalde-gray-light);
+      line-height: 1;
+      margin-bottom: 1rem;
+    }
+    
+    .hito-card:hover .hito-number {
+      color: var(--inalde-red);
+    }
+    
+    .hito-card h3 {
+      font-family: var(--font-primary);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--inalde-text);
+      margin-bottom: 0.5rem;
+    }
+    
+    .hito-fecha {
+      font-family: var(--font-primary);
+      color: var(--inalde-red);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+    }
+    
+    .hito-card p:last-child {
+      font-family: var(--font-body);
+      color: var(--inalde-gray);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+    
+    /* ===== CTA / CONTACTO ===== */
+    #contacto {
+      background: var(--inalde-text);
+      padding: 5rem 2rem;
+      position: relative;
+    }
+    
+    #contacto::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--inalde-red);
+    }
+    
+    .cta-box {
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+      color: white;
+    }
+    
+    .cta-box h2 {
+      font-family: var(--font-primary);
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+    
+    .cta-box p {
+      font-family: var(--font-body);
+      font-size: 1.1rem;
+      opacity: 0.85;
+      margin-bottom: 2rem;
+      font-weight: 300;
+    }
+    
+    /* ===== FOOTER ===== */
+    footer {
+      background: #0a0a0a;
+      color: rgba(255,255,255,0.7);
+      padding: 3rem 2rem 2rem;
+      text-align: center;
+      font-family: var(--font-primary);
+      font-size: 0.85rem;
+    }
+    
+    footer .footer-logo {
+      display: inline-block;
+      margin-bottom: 1.5rem;
+      background: white;
+      padding: 0.8rem 1.2rem;
+      border-radius: 4px;
+    }
+    
+    footer .footer-logo img {
+      height: 45px;
+      display: block;
+    }
+    
+    footer a {
+      color: var(--inalde-red);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    footer a:hover {
+      color: white;
+    }
+    
+    footer .footer-divider {
+      width: 60px;
+      height: 2px;
+      background: var(--inalde-red);
+      margin: 1.5rem auto;
+    }
+    
+    footer p {
+      margin-bottom: 0.4rem;
+    }
+    
+    /* ===== ANIMACIONES ===== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 992px) {
+      .header-top { display: none; }
+
+      nav { display: none; }
+
+      .logo-inalde { height: 42px; }
+      .program-name { font-size: 1.1rem; }
+
+      .hero { padding: 8rem 1.5rem 4rem; min-height: 80vh; }
+      .hero-content { padding-left: 0; }
+    }
+
+    /* ===== TIMELINE RESPONSIVE (móvil) ===== */
+    @media (max-width: 768px) {
+      /* Mover la línea vertical al lado izquierdo */
+      .timeline-line {
+        left: 18px;
+        transform: none;
+      }
+
+      /* Todos los ítems en una sola columna, desplazados a la derecha de la línea */
+      .timeline-item {
+        flex-direction: row !important;
+        padding-left: 52px;
+        margin-bottom: 2.5rem;
+      }
+
+      /* Quitar alternancia: todo el contenido alineado a la izquierda */
+      .timeline-item:nth-child(odd) {
+        flex-direction: row !important;
+      }
+
+      .timeline-item:nth-child(odd) .timeline-content,
+      .timeline-item:nth-child(even) .timeline-content {
+        text-align: left;
+        padding-left: 0;
+        padding-right: 0;
+        width: 100%;
+      }
+
+      /* Reubicar el punto sobre la línea izquierda */
+      .timeline-dot {
+        left: 18px;
+        transform: translateX(-50%);
+        top: 4px;
+      }
+
+      .timeline-item:hover .timeline-dot {
+        transform: translateX(-50%) scale(1.2);
+      }
+
+      /* Ajustes de tipografía para pantallas pequeñas */
+      .timeline-title {
+        font-size: 1.25rem;
+      }
+
+      .timeline-date {
+        font-size: 0.72rem;
+      }
+
+      .timeline-desc {
+        font-size: 0.92rem;
+      }
+    }
+    
+    /* ===== Q&A ACORDEÓN ===== */
+    .qa-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .qa-category {
+      background: white;
+      border: 1px solid var(--inalde-gray-light);
+      border-left: 4px solid var(--inalde-red);
+      margin-bottom: 1.5rem;
+      transition: all 0.3s;
+    }
+    
+    .qa-category:hover {
+      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+    
+    .qa-category-header {
+      padding: 1.5rem 2rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      transition: background 0.2s;
+    }
+    
+    .qa-category-header:hover {
+      background: var(--inalde-gray-bg);
+    }
+    
+    .qa-category-title {
+      font-family: var(--font-primary);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--inalde-text);
+      margin: 0;
+      flex: 1;
+    }
+    
+    .qa-category-number {
+      font-family: var(--font-primary);
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--inalde-red);
+      margin-right: 1rem;
+      min-width: 30px;
+    }
+    
+    .qa-toggle-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--inalde-red);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+      transition: transform 0.3s;
+      flex-shrink: 0;
+    }
+    
+    .qa-category.open .qa-toggle-icon {
+      transform: rotate(45deg);
+    }
+    
+    .qa-category-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease-out;
+    }
+    
+    .qa-category.open .qa-category-body {
+      max-height: 10000px;
+      transition: max-height 0.8s ease-in;
+    }
+    
+    .qa-category-intro {
+      padding: 0 2rem 1rem;
+      font-family: var(--font-body);
+      color: var(--inalde-gray);
+      font-size: 0.98rem;
+      font-style: italic;
+      line-height: 1.7;
+    }
+    
+    .qa-item {
+      border-top: 1px solid var(--inalde-gray-light);
+      padding: 0;
+    }
+    
+    .qa-question {
+      padding: 1.1rem 2rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      user-select: none;
+      transition: background 0.2s;
+      font-family: var(--font-primary);
+      font-size: 0.98rem;
+      font-weight: 600;
+      color: var(--inalde-text);
+      gap: 1rem;
+    }
+    
+    .qa-question:hover {
+      background: var(--inalde-gray-bg);
+      color: var(--inalde-red);
+    }
+    
+    .qa-question-text {
+      flex: 1;
+    }
+    
+    .qa-question-icon {
+      color: var(--inalde-red);
+      font-weight: 700;
+      font-size: 1rem;
+      transition: transform 0.3s;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    
+    .qa-item.open .qa-question-icon {
+      transform: rotate(90deg);
+    }
+    
+    .qa-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    
+    .qa-item.open .qa-answer {
+      max-height: 2000px;
+      transition: max-height 0.5s ease-in;
+    }
+    
+    .qa-answer-content {
+      padding: 0 2rem 1.5rem 3.5rem;
+      font-family: var(--font-body);
+      color: var(--inalde-gray);
+      font-size: 0.95rem;
+      line-height: 1.75;
+    }
+    
+    .qa-answer-content p {
+      margin-bottom: 0.8rem;
+    }
+    
+    .qa-answer-content p:last-child {
+      margin-bottom: 0;
+    }
+    
+    .qa-answer-content strong {
+      color: var(--inalde-text);
+      font-weight: 600;
+    }
+    
+    .qa-answer-content ul {
+      margin-left: 1.2rem;
+      margin-bottom: 0.8rem;
+    }
+    
+    .qa-answer-content li {
+      margin-bottom: 0.4rem;
+    }
+    
+    /* ===== FORMULARIO DE PREGUNTAS ===== */
+    .qa-form-section {
+      max-width: 700px;
+      margin: 4rem auto 0;
+      padding: 3rem 2.5rem;
+      background: white;
+      border: 1px solid var(--inalde-gray-light);
+      border-top: 4px solid var(--inalde-red);
+    }
+    
+    .qa-form-title {
+      font-family: var(--font-primary);
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--inalde-text);
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    
+    .qa-form-subtitle {
+      font-family: var(--font-body);
+      color: var(--inalde-gray);
+      text-align: center;
+      margin-bottom: 2rem;
+      font-size: 0.98rem;
+    }
+    
+    .qa-form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .qa-form-label {
+      display: block;
+      font-family: var(--font-primary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--inalde-text);
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.02em;
+    }
+    
+    .qa-form-label .required {
+      color: var(--inalde-red);
+      margin-left: 2px;
+    }
+    
+    .qa-form-input,
+    .qa-form-textarea {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      border: 1px solid var(--inalde-gray-light);
+      border-bottom: 2px solid var(--inalde-text);
+      border-radius: 0;
+      font-family: var(--font-body);
+      font-size: 0.98rem;
+      color: var(--inalde-text);
+      background: var(--inalde-gray-bg);
+      transition: all 0.2s;
+    }
+    
+    .qa-form-input:focus,
+    .qa-form-textarea:focus {
+      outline: none;
+      border-bottom-color: var(--inalde-red);
+      background: white;
+    }
+    
+    .qa-form-textarea {
+      min-height: 130px;
+      resize: vertical;
+      font-family: var(--font-body);
+    }
+    
+    .qa-form-checkbox-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7rem;
+      margin-bottom: 1.8rem;
+    }
+    
+    .qa-form-checkbox {
+      margin-top: 4px;
+      flex-shrink: 0;
+      accent-color: var(--inalde-red);
+      width: 16px;
+      height: 16px;
+    }
+    
+    .qa-form-checkbox-label {
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      color: var(--inalde-gray);
+      line-height: 1.5;
+    }
+    
+    .qa-form-checkbox-label a {
+      color: var(--inalde-red);
+      text-decoration: underline;
+    }
+    
+    .qa-captcha-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+    
+    .qa-captcha-wrapper .h-captcha {
+      transform-origin: center;
+    }
+    
+    .qa-form-submit {
+      width: 100%;
+      padding: 1rem;
+      background: var(--inalde-red);
+      color: white;
+      border: 2px solid var(--inalde-red);
+      font-family: var(--font-primary);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s;
+      border-radius: 30px;
+    }
+    
+    .qa-form-submit:hover {
+      background: white;
+      color: var(--inalde-red);
+    }
+    
+    .qa-form-submit:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+    
+    .qa-form-message {
+      margin-top: 1rem;
+      padding: 0.9rem 1rem;
+      border-radius: 4px;
+      font-family: var(--font-body);
+      font-size: 0.92rem;
+      text-align: center;
+      display: none;
+    }
+    
+    .qa-form-message.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #c8e6c9;
+      display: block;
+    }
+    
+    .qa-form-message.error {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ffcdd2;
+      display: block;
+    }
+    
+    /* ===== PANTALLA DE BLOQUEO (ACCESO CON CLAVE) ===== */
+    #access-gate {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 60%, #2a1010 100%);
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    
+    #access-gate::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 50%;
+      height: 100%;
+      background: radial-gradient(ellipse at right, rgba(227, 6, 19, 0.25) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    
+    #access-gate::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--inalde-red);
+    }
+    
+    .gate-box {
+      position: relative;
+      z-index: 2;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      max-width: 480px;
+      width: 100%;
+      padding: 3rem 2.5rem;
+      text-align: center;
+    }
+    
+    .gate-logo {
+      max-width: 180px;
+      height: auto;
+      margin: 0 auto 2rem;
+      display: block;
+      background: white;
+      padding: 0.8rem 1.2rem;
+      border-radius: 4px;
+    }
+    
+    .gate-title {
+      font-family: var(--font-primary);
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.01em;
+    }
+    
+    .gate-title .red-accent {
+      color: var(--inalde-red);
+    }
+    
+    .gate-subtitle {
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    
+    .gate-form {
+      margin-top: 1.5rem;
+    }
+    
+    .gate-input {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px;
+      color: white;
+      font-family: var(--font-body);
+      font-size: 1rem;
+      text-align: center;
+      letter-spacing: 0.05em;
+      transition: all 0.2s;
+      margin-bottom: 1rem;
+    }
+    
+    .gate-input::placeholder {
+      color: rgba(255,255,255,0.4);
+    }
+    
+    .gate-input:focus {
+      outline: none;
+      border-color: var(--inalde-red);
+      background: rgba(255,255,255,0.08);
+    }
+    
+    .gate-button {
+      width: 100%;
+      padding: 0.9rem;
+      background: var(--inalde-red);
+      color: white;
+      border: 2px solid var(--inalde-red);
+      font-family: var(--font-primary);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s;
+      border-radius: 30px;
+    }
+    
+    .gate-button:hover {
+      background: transparent;
+      color: white;
+    }
+    
+    .gate-error {
+      margin-top: 1rem;
+      color: #ff6b6b;
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      min-height: 20px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .gate-error.show {
+      opacity: 1;
+    }
+    
+    .gate-footer {
+      margin-top: 2rem;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.05em;
+    }
+    
+    body.locked {
+      overflow: hidden;
+    }
+    
+    body.locked > *:not(#access-gate) {
+      display: none !important;
+    }
+    
+    /* Honeypot - campo invisible anti-spam */
+    .qa-honeypot {
+      position: absolute !important;
+      left: -9999px !important;
+      top: -9999px !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      height: 0 !important;
+      width: 0 !important;
+      overflow: hidden !important;
+    }
+    
+    @media (max-width: 768px) {
+      .gate-box { padding: 2rem 1.5rem; }
+      .gate-title { font-size: 1.25rem; }
+    }
+  </style>
+</head>
+<body class="locked">
+
+  <!-- ====== PANTALLA DE BLOQUEO (acceso con clave) ====== -->
+  <div id="access-gate">
+    <div class="gate-box">
+      <img src="data:image/jpeg;base64,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" alt="INALDE" class="gate-logo">
+      <h2 class="gate-title">N<span class="red-accent">A</span>VES 2026</h2>
+      <p class="gate-subtitle">Este sitio es de acceso privado para participantes del Executive MBA de INALDE Business School.</p>
+      <form class="gate-form" onsubmit="return validateAccess(event)" autocomplete="off">
+        <input type="password" id="gate-password" class="gate-input" placeholder="Ingrese la clave de acceso" required autofocus>
+        <button type="submit" class="gate-button">Ingresar</button>
+        <div id="gate-error" class="gate-error">Clave incorrecta. Intente de nuevo.</div>
+      </form>
+      <div class="gate-footer">INALDE Business School · Universidad de La Sabana</div>
+    </div>
+  </div>
+
+
+  <header>
+    <div class="header-top">
+      <span>{{COHORTE_FULL}}</span>
+    </div>
+    <div class="header-main">
+      <div class="logo-container">
+        <a href="https://www.inalde.edu.co" target="_blank">
+          <img src="data:image/jpeg;base64,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" alt="INALDE Business School — Universidad de La Sabana" class="logo-inalde">
+        </a>
+        <div class="logo-separator"></div>
+        <div>
+          <div class="program-label">Trabajo de grado</div>
+          <div class="program-name">N<span class="red-accent">A</span>VES {{ANIO}}</div>
+        </div>
+      </div>
+      <nav>
+        <a href="#timeline">Cronograma</a>
+        <a href="#hitos">Hitos</a>
+        <a href="#preguntas">Preguntas</a>
+      </nav>
+    </div>
+  </header>
+  
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">{{COHORTE_FULL_DOT}}</div>
+      <h1>N<span class="red-highlight">A</span>VES <span class="red-highlight">{{ANIO}}</span></h1>
+      <p class="hero-subtitle"><strong>Nuevas Aventuras Empresariales</strong></p>
+      <p>Pensar antes de hacer: cuatro meses para diseñar, con rigor y criterio empresarial, un nuevo negocio digno de un inversionista. Una modalidad de trabajo de grado del Executive MBA de INALDE Business School.</p>
+      <div class="hero-cta-group">
+        <a href="#timeline" class="btn-inalde btn-primary">
+          Ver cronograma
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+        <a href="#preguntas" class="btn-inalde btn-outline">
+          Preguntas frecuentes
+        </a>
+      </div>
+    </div>
+  </section>
+  
+  <section id="timeline" class="content-section">
+    <div class="container">
+      <div class="section-header-centered">
+        <h2 class="section-title">Línea de tiempo</h2>
+        <p class="section-subtitle" style="margin-left: auto; margin-right: auto; text-align: center;">Principales hitos del proceso</p>
+      </div>
+      
+      <div class="timeline-container">
+        <div class="timeline-line"></div>
+        
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <span class="timeline-date">{{FECHA_LANZAMIENTO}}</span>
+            <h3 class="timeline-title">Lanzamiento</h3>
+            <p class="timeline-desc">Conformación del grupo de WhatsApp oficial, entrega de notas técnicas con instrucciones del proceso, y reunión de Kick Off donde se explica el cronograma completo y las expectativas.</p>
+          </div>
+          <div class="timeline-dot"></div>
+        </div>
+        
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <span class="timeline-date">{{FECHA_ANTEPROYECTO}}</span>
+            <h3 class="timeline-title">Entrega del anteproyecto</h3>
+            <p class="timeline-desc">Los profesores de NAVES les pedimos bajar la ansiedad con esta entrega. Se trata de llenar un formulario con la idea de negocio, que entendemos está en un estado primario.</p>
+            <span class="timeline-tag">Hora límite: 7:59 AM</span>
+          </div>
+          <div class="timeline-dot"></div>
+        </div>
+        
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <span class="timeline-date">{{FECHA_VENTANA_R1}}</span>
+            <h3 class="timeline-title">Ventana Reunión 1</h3>
+            <p class="timeline-desc">Primero se publican los profesores asignados (28 mayo). Luego cada equipo agenda y realiza la Reunión 1 con su profesor para discutir el anteproyecto y recibir retroalimentación.</p>
+            <span class="timeline-tag">Obligatoria — Requisito de grado</span>
+          </div>
+          <div class="timeline-dot"></div>
+        </div>
+        
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <span class="timeline-date">{{FECHA_VENTANA_R2}}</span>
+            <h3 class="timeline-title">Ventana Reunión 2</h3>
+            <p class="timeline-desc">Período para agendar y realizar la Reunión 2 con el profesor NAVES. Se revisan los avances del Business Plan y se define la recta final del proyecto.</p>
+            <span class="timeline-tag">Obligatoria — Requisito de grado</span>
+          </div>
+          <div class="timeline-dot"></div>
+        </div>
+        
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <span class="timeline-date">{{FECHA_60_DIAS}}</span>
+            <h3 class="timeline-title">Reunión 60 días antes</h3>
+            <p class="timeline-desc">Reunión grupal a las 6:30 PM. Cada equipo debe tener una lista clara y fechada de lo que falta para completar el documento. Es el momento de definir el plan de cierre.</p>
+            <span class="timeline-tag">Obligatoria — Requisito de grado</span>
+          </div>
+          <div class="timeline-dot"></div>
+        </div>
+        
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <span class="timeline-date">{{FECHA_ENTREGA_FINAL}}</span>
+            <h3 class="timeline-title">Entrega final</h3>
+            <p class="timeline-desc">Entrega de los tres documentos finales antes de las 7:59 AM: Business Plan (PDF), Resumen Ejecutivo (PDF) y Logo (JPG). Se recomienda subir con 3 días de anticipación.</p>
+          </div>
+          <div class="timeline-dot"></div>
+        </div>
+        
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <span class="timeline-date">{{FECHA_REUNION_PREP}}</span>
+            <h3 class="timeline-title">Reunión preparación presentación</h3>
+            <p class="timeline-desc">Reunión grupal a las 6:30 PM. Repaso de la estructura de la presentación, manejo del tiempo y preparación para las preguntas del panel.</p>
+            <span class="timeline-tag">Obligatoria — Requisito de grado</span>
+          </div>
+          <div class="timeline-dot"></div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-content">
+            <span class="timeline-date">{{FECHA_PRESENTACIONES}}</span>
+            <h3 class="timeline-title">Presentaciones NAVES</h3>
+            <p class="timeline-desc">Jornadas de presentación final. Cada equipo presenta en la jornada asignada: 10 minutos de presentación + 10 minutos de preguntas de los panelistas.</p>
+            <span class="timeline-tag">Asistencia obligatoria</span>
+          </div>
+          <div class="timeline-dot"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <section id="hitos" class="content-section alt-bg">
+    <div class="container">
+      <div class="section-header-centered">
+        <span class="section-label">Resumen ejecutivo</span>
+        <h2 class="section-title">Los 8 hitos de NAVES</h2>
+        <p class="section-subtitle" style="margin-left: auto; margin-right: auto; text-align: center;">Todo lo que necesitas saber en un vistazo</p>
+      </div>
+      
+      <div class="hitos-grid">
+        <div class="hito-card">
+          <div class="hito-number">01</div>
+          <h3>Lanzamiento</h3>
+          <p class="hito-fecha">{{FECHA_LANZAMIENTO_COMPLETA}}</p>
+          <p>WhatsApp + Notas técnicas + Kick Off. El inicio oficial de tu aventura NAVES.</p>
+        </div>
+        
+        <div class="hito-card">
+          <div class="hito-number">02</div>
+          <h3>Anteproyecto</h3>
+          <p class="hito-fecha">{{FECHA_ANTEPROYECTO_COMPLETA}}</p>
+          <p>Formulario con las preguntas clave sobre tu idea de negocio. Base para la asignación de profesor.</p>
+        </div>
+        
+        <div class="hito-card">
+          <div class="hito-number">03</div>
+          <h3>Ventana Reunión 1</h3>
+          <p class="hito-fecha">{{FECHA_VENTANA_R1}}</p>
+          <p>Asignación de profesores y primera reunión de retroalimentación. Obligatoria para graduarse.</p>
+        </div>
+        
+        <div class="hito-card">
+          <div class="hito-number">04</div>
+          <h3>Ventana Reunión 2</h3>
+          <p class="hito-fecha">{{FECHA_VENTANA_R2}}</p>
+          <p>Segunda reunión con tu profesor. Revisión de avances y definición de la recta final. Obligatoria — Requisito de grado.</p>
+        </div>
+        
+        <div class="hito-card">
+          <div class="hito-number">05</div>
+          <h3>60 días antes</h3>
+          <p class="hito-fecha">{{FECHA_60_DIAS}}</p>
+          <p>Reunión grupal para definir el plan de cierre. Lista clara de lo que falta.</p>
+        </div>
+        
+        <div class="hito-card">
+          <div class="hito-number">06</div>
+          <h3>Entrega final</h3>
+          <p class="hito-fecha">{{FECHA_ENTREGA_FINAL}}</p>
+          <p>Business Plan (PDF) + Resumen (PDF) + Logo (JPG). Sin extensiones ni correcciones.</p>
+        </div>
+        
+        <div class="hito-card">
+          <div class="hito-number">07</div>
+          <h3>Reunión preparación</h3>
+          <p class="hito-fecha">{{FECHA_REUNION_PREP}}</p>
+          <p>Construcción colectiva de narrativa para la presentación final.</p>
+        </div>
+
+        <div class="hito-card">
+          <div class="hito-number">08</div>
+          <h3>Presentaciones</h3>
+          <p class="hito-fecha">{{FECHA_PRESENTACIONES}}</p>
+          <p>10 min presentación + 10 min preguntas. El cierre de tu viaje NAVES.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <section id="preguntas" class="content-section">
+    <div class="container">
+      <div class="section-header-centered">
+        <h2 class="section-title">Preguntas frecuentes</h2>
+        <p class="section-subtitle" style="margin-left: auto; margin-right: auto; text-align: center;">Revisa las categorías y sus respectivas preguntas. Si no encuentras tu respuesta, déjanos la pregunta en el formulario al final.</p>
+      </div>
+      
+      <div class="qa-container">
+        
+        <!-- CATEGORÍA 1: CARACTERÍSTICAS DE LOS PROYECTOS -->
+        <div class="qa-category">
+          <div class="qa-category-header" onclick="toggleCategory(this)">
+            <span class="qa-category-number">1.</span>
+            <h3 class="qa-category-title">Sobre las características de los proyectos</h3>
+            <div class="qa-toggle-icon">+</div>
+          </div>
+          <div class="qa-category-body">
+            <p class="qa-category-intro">La opción de trabajo de grado Business Plan es una oportunidad para pensar en grande en una oportunidad de negocio.</p>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Cuál es la dimensión esperada de un proyecto NAVES?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Un proyecto NAVES debe pensarse en grande. Como referencia, pedimos que el <strong>valor presente neto (VPN) del negocio no sea inferior a USD 1,5 millones</strong>. Más que una cifra, este umbral busca que estructuren un negocio relevante sobre el papel y se alejen de iniciativas pequeñas o meramente incrementales.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Puedo presentar un emprendimiento social en el proceso de trabajo de grado?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Por supuesto, son bienvenidas las iniciativas sociales.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">En mi compañía hay un proyecto que no se ha desarrollado, ¿puedo presentarlo como trabajo de grado?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Sí, son bienvenidos los intraemprendimientos. Importante: no puede ser el negocio <em>"mejorado un poco"</em>, ni un simple crecimiento en ventas, ni el rediseño de un proceso interno. Debe implicar el montaje de una <strong>nueva unidad o una nueva línea de negocio</strong> dentro de la compañía, con el mismo estándar de ambición que cualquier otro proyecto NAVES.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Puedo cambiar de proyecto después de haber iniciado el proceso?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Es posible cambiar de proyecto en las primeras semanas del proceso. Es normal que en el proceso de descubrimiento se hagan cambios, que recomendamos sean lo más rápido posible. Por favor tener en cuenta que después de iniciado el proceso no es posible cambiar de modalidad de trabajo de grado (de Business Plan a escritura de caso y viceversa).</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">Me da miedo no tener una idea nueva y disruptiva, ¿qué puedo hacer?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>¡Las ideas nuevas y disruptivas son muy escasas! Una idea de negocio puede ser la mejora de una oferta de valor existente, o la aplicación de ésta en una nueva geografía o mercado. No es necesario que la idea sea nueva.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Tendré acceso a proyectos anteriores?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Sí. El día del lanzamiento del proceso, junto con las instrucciones se entrega un link en el que se pueden consultar trabajos anteriores.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">Tengo una idea de emprendimiento social, pero no tengo claro cómo monetizarlo, ¿aún así puedo usar esta idea?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>La sostenibilidad es el gran reto de todos los emprendimientos sociales. Descubrir cómo lograrla puede ser el objeto de tu trabajo de grado.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- CATEGORÍA 2: EQUIPOS DE NAVES -->
+        <div class="qa-category">
+          <div class="qa-category-header" onclick="toggleCategory(this)">
+            <span class="qa-category-number">2.</span>
+            <h3 class="qa-category-title">Sobre los equipos de NAVES</h3>
+            <div class="qa-toggle-icon">+</div>
+          </div>
+          <div class="qa-category-body">
+            <p class="qa-category-intro">Recomendamos hacer el trabajo de grado en equipo. Es un trabajo exigente que puede avanzar mucho mejor en grupos. No obstante, puede hacerse el Business Plan de manera individual si es lo más conveniente para el proyecto.</p>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Cuántas personas pueden conformar un equipo?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Puede ser desde una hasta tres personas. En casos excepcionales, en proyectos que tengan una gran dimensión, podemos considerar un equipo de cuatro participantes.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Puedo asociarme con alguien de la otra sección o aula?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Sí, siempre y cuando sean de la misma cohorte, los grupos pueden ser conformados como lo deseen.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">Tengo un socio que no es de INALDE, ¿puede participar en la redacción del Business Plan?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>La redacción del Business Plan es la construcción de un trabajo de grado de Maestría. Por tanto, debe corresponder al esfuerzo del participante, que puede recibir apoyo de otras personas, entre ellas un socio externo del proyecto.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- CATEGORÍA 3: TRABAJO ESCRITO -->
+        <div class="qa-category">
+          <div class="qa-category-header" onclick="toggleCategory(this)">
+            <span class="qa-category-number">3.</span>
+            <h3 class="qa-category-title">Sobre el trabajo escrito</h3>
+            <div class="qa-toggle-icon">+</div>
+          </div>
+          <div class="qa-category-body">
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Hay alguna estructura de presentación del trabajo?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Sí, hay un instructivo que se entrega en la reunión de lanzamiento del proceso. Adicionalmente se puede consultar la base de datos de trabajos anteriores para darse una idea de la estructura.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Hay un número de páginas determinado para el trabajo escrito?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Sí, el trabajo escrito no debe superar las <strong>30 páginas</strong>, incluyendo tablas, anexos y referencias. Debe ser en tamaño carta, formato vertical o apaisado.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Qué debe llevar la hoja de portada?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>La portada debe contener: nombre del proyecto, logotipo o imagen que identifique el proyecto, nombre del autor o autores, cohorte (ej. {{COHORTE_CORTA_EJEMPLO}}) y el logotipo de INALDE.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Cómo se debe reportar el uso de inteligencia artificial?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>El documento debe tener una sección de referencias donde se especifique el uso que se le dio a la inteligencia artificial, en qué secciones se usó y qué modelo o LLM fue empleado.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- CATEGORÍA 4: LOGÍSTICA, TIEMPOS Y REGLAMENTOS -->
+        <div class="qa-category">
+          <div class="qa-category-header" onclick="toggleCategory(this)">
+            <span class="qa-category-number">4.</span>
+            <h3 class="qa-category-title">Sobre logística, tiempos de entrega y reglamentos</h3>
+            <div class="qa-toggle-icon">+</div>
+          </div>
+          <div class="qa-category-body">
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Cuánto tiempo tengo para escribir el Business Plan?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>El proceso se cuenta desde la entrega del anteproyecto ({{FECHA_ANTEPROYECTO_LARGA}}) hasta la entrega final ({{FECHA_ENTREGA_FINAL_LARGA}}), aproximadamente <strong>{{DURACION_MESES}} meses</strong> (unas {{DURACION_SEMANAS}} semanas). Este es el tiempo estándar, resultado de múltiples ensayos a lo largo de los años.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿En qué formato se entrega el trabajo?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>El Business Plan final se entrega en formato PDF, y debe subirse a una plataforma cuya instrucción de acceso se dará dos semanas antes de la fecha de entrega.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿En qué fecha debo entregar mi trabajo de grado?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>La <strong>entrega final es el {{FECHA_ENTREGA_FINAL_LARGA}}</strong>, antes de las 7:59 AM. Se recomienda subir con al menos <strong>3 días de anticipación</strong> para evitar problemas técnicos con la plataforma. Consulta el detalle en la sección <em>Línea de tiempo</em> de este sitio.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Cuántas reuniones obligatorias hay con el profesor?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Hay <strong>dos reuniones obligatorias</strong> con el profesor NAVES, requisitos para poder graduarse:</p>
+                  <ul>
+                    <li><strong>Reunión 1</strong> — en la ventana {{FECHA_VENTANA_R1_LARGA}}. Para discutir el anteproyecto.</li>
+                    <li><strong>Reunión 2</strong> — en la ventana {{FECHA_VENTANA_R2_LARGA}}. Para discutir avances y recta final.</li>
+                  </ul>
+                  <p>Adicionalmente hay una <strong>reunión grupal de narrativa</strong> (obligatoria) con fechas por anunciar, para preparar la presentación final.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Existe seguimiento por parte de los profesores que dirigen NAVES?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Sí hay seguimiento, pero no supervisión. El participante es 100% responsable de su cronograma de trabajo.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Veremos una clase formal de NAVES con metodología?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>No hay clases formales de NAVES. Sin embargo, los lineamientos del trabajo escrito, el proceso y las recomendaciones metodológicas están en las <strong>notas técnicas</strong> que se entregan al inicio del proceso. Además, cada equipo cuenta con el acompañamiento de su profesor asignado en las reuniones obligatorias.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Cómo es la mecánica para reunirse con los profesores?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Pidan ayuda al profesor <strong>solo después de haber hecho un intento serio de análisis propio</strong>. La reunión debe ser el paso que destraba un punto específico, no el reemplazo del trabajo del equipo.</p>
+                  <p>Envíen un correo previo con: qué quieren lograr en la reunión, cuál es la decisión o problema puntual, y qué material o avance llevan para discutir. No es buen uso del tiempo pedir una cita para que se explique <em>"cómo se hace"</em> algo desde cero — a estas alturas del MBA ya dominan las bases.</p>
+                  <p>En síntesis: reflexionen primero, formulen una pregunta precisa, comuniquen por escrito el objeto de la reunión. Así la sesión será breve, enfocada y de alto impacto.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- CATEGORÍA 5: PRESENTACIÓN -->
+        <div class="qa-category">
+          <div class="qa-category-header" onclick="toggleCategory(this)">
+            <span class="qa-category-number">5.</span>
+            <h3 class="qa-category-title">Sobre la presentación</h3>
+            <div class="qa-toggle-icon">+</div>
+          </div>
+          <div class="qa-category-body">
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿En qué fecha serán las presentaciones?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Las presentaciones serán los días <strong>{{FECHA_PRESENTACIONES_LARGA}}</strong>. A cada equipo se le asigna uno de los dos días para presentar. Consulta el detalle en la sección <em>Línea de tiempo</em>.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Cuánto tiempo tengo para hacer mi presentación?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p><strong>10 minutos de presentación + 10 minutos de preguntas</strong> de los panelistas y compañeros.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Qué es El Panel?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Es un grupo de exitosos emprendedores, miembros de fondos de inversión, Family Offices y expertos en temas específicos que apoyan a los emprendedores de INALDE en ese momento crucial de presentación de sus proyectos.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿INALDE invita fondos de inversión a las presentaciones?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Sí. INALDE invita a fondos de inversión, Family Offices, emprendedores exitosos y expertos sectoriales, y les comparte los resúmenes ejecutivos de los proyectos. Son <strong>ellos quienes deciden si asisten o no</strong>, en función del interés que les despierte la calidad de cada trabajo de grado. Por eso la <strong>calidad del resumen ejecutivo (one-pager) es crítica</strong>: es la carta de presentación que determina quién llega al auditorio.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿La asistencia a los días de presentación es obligatoria?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Sí, es obligatoria. Las presentaciones de trabajos de grado corresponden a un crédito académico y como tal requieren asistencia, con registro de fallas.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Puedo presentar remotamente?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>No es posible presentar remotamente.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Puedo asistir remotamente?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>No es posible asistir remotamente.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">Tengo un socio que no es de INALDE, ¿puede presentar conmigo?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>No. La presentación del trabajo de grado debe ser hecha exclusivamente por participantes del MBA de INALDE.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- CATEGORÍA 6: REDACCIÓN DE CASOS -->
+        <div class="qa-category">
+          <div class="qa-category-header" onclick="toggleCategory(this)">
+            <span class="qa-category-number">6.</span>
+            <h3 class="qa-category-title">Sobre la redacción de casos</h3>
+            <div class="qa-toggle-icon">+</div>
+          </div>
+          <div class="qa-category-body">
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿El profesor de NAVES tiene alguna relación con el proceso de escritura de casos?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>No. Escribir casos tiene su propio proceso, detallado en el instructivo entregado en la reunión de lanzamiento. A partir de que el proyecto de caso sea aprobado, el participante debe coordinar con su director todas las actividades hasta el término del proceso.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Con quién debo hablar para escribir un caso?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Con un profesor del área de interés para el caso.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Es más fácil escribir un caso que un Business Plan?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>No. Es un proceso distinto, pero igualmente exigente.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="qa-item">
+              <div class="qa-question" onclick="toggleQuestion(this)">
+                <span class="qa-question-text">¿Cuál es el formato para presentar el proyecto de caso?</span>
+                <span class="qa-question-icon">›</span>
+              </div>
+              <div class="qa-answer">
+                <div class="qa-answer-content">
+                  <p>Por favor remitirse al instructivo entregado en la reunión de lanzamiento.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+      
+      <!-- FORMULARIO -->
+      <div class="qa-form-section" id="formulario">
+        <h3 class="qa-form-title">¿No encontraste tu respuesta?</h3>
+        <p class="qa-form-subtitle">Escríbenos tu pregunta y uno de los profesores de NAVES te responderá directamente.<br><strong style="color: var(--inalde-red);">Tiempo estimado de respuesta: 2 días hábiles.</strong></p>
+        
+        <form id="qaForm" onsubmit="return handleQASubmit(event)">
+          <!-- Campo honeypot invisible anti-spam -->
+          <div class="qa-honeypot" aria-hidden="true">
+            <label for="qa-website">No llenar este campo</label>
+            <input type="text" id="qa-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          
+          <div class="qa-form-group">
+            <label class="qa-form-label" for="qa-nombre">Nombre completo <span class="required">*</span></label>
+            <input type="text" id="qa-nombre" name="nombre" class="qa-form-input" required>
+          </div>
+          
+          <div class="qa-form-group">
+            <label class="qa-form-label" for="qa-correo">Correo electrónico <span class="required">*</span></label>
+            <input type="email" id="qa-correo" name="correo" class="qa-form-input" required>
+          </div>
+          
+          <div class="qa-form-group">
+            <label class="qa-form-label" for="qa-pregunta">Tu pregunta <span class="required">*</span></label>
+            <textarea id="qa-pregunta" name="pregunta" class="qa-form-textarea" required placeholder="Escribe aquí tu pregunta con el mayor detalle posible..."></textarea>
+          </div>
+          
+          <div class="qa-form-checkbox-group">
+            <input type="checkbox" id="qa-consent" name="consent" class="qa-form-checkbox" required>
+            <label for="qa-consent" class="qa-form-checkbox-label">
+              Doy autorización expresa para el tratamiento de los datos aquí consignados, por parte de INALDE Business School, según su <a href="https://www.inalde.edu.co/politicas/" target="_blank">política de privacidad y tratamiento de datos</a>. <span style="color: var(--inalde-red);">*</span>
+            </label>
+          </div>
+          
+          <!-- hCaptcha de Web3Forms (casilla "No soy un robot") -->
+          <div class="qa-form-group qa-captcha-wrapper">
+            <div class="h-captcha" data-captcha="true"></div>
+          </div>
+          
+          <button type="submit" class="qa-form-submit" id="qa-submit-btn">Enviar pregunta</button>
+          
+          <div id="qa-form-message" class="qa-form-message"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+  
+  <footer>
+    <div class="footer-logo">
+      <img src="data:image/jpeg;base64,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" alt="INALDE Business School">
+    </div>
+    <div class="footer-divider"></div>
+    <p>&copy; 2026 <a href="https://www.inalde.edu.co" target="_blank">INALDE Business School</a> — Universidad de La Sabana</p>
+    <p>NAVES — Nuevas Aventuras Empresariales · Modalidad de trabajo de grado · Executive MBA</p>
+  </footer>
+  
+  <script>
+    // ===== CONTROL DE ACCESO CON CLAVE =====
+    // Hash SHA-256 de la clave (la clave real NO está en el código)
+    const ACCESS_HASH = '{{ACCESS_HASH_SHA256}}';
+    const SESSION_KEY = '{{SESSION_KEY}}';
+    const SESSION_DURATION_DAYS = 7;
+    
+    async function sha256(text) {
+      const buffer = new TextEncoder().encode(text);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      return Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+    
+    function checkSession() {
+      try {
+        const data = localStorage.getItem(SESSION_KEY);
+        if (!data) return false;
+        const { expires } = JSON.parse(data);
+        if (Date.now() > expires) {
+          localStorage.removeItem(SESSION_KEY);
+          return false;
+        }
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    
+    function grantAccess() {
+      const expires = Date.now() + (SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ expires }));
+      document.getElementById('access-gate').style.display = 'none';
+      document.body.classList.remove('locked');
+    }
+    
+    async function validateAccess(event) {
+      event.preventDefault();
+      const input = document.getElementById('gate-password');
+      const errorEl = document.getElementById('gate-error');
+      const entered = input.value;
+      
+      const enteredHash = await sha256(entered);
+      
+      if (enteredHash === ACCESS_HASH) {
+        errorEl.classList.remove('show');
+        grantAccess();
+      } else {
+        errorEl.classList.add('show');
+        input.value = '';
+        input.focus();
+        // Animación de sacudida
+        input.style.animation = 'none';
+        setTimeout(() => { input.style.animation = ''; }, 10);
+      }
+      return false;
+    }
+    
+    // Verificar sesión al cargar
+    if (checkSession()) {
+      // Ya tiene sesión activa
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('access-gate').style.display = 'none';
+        document.body.classList.remove('locked');
+      });
+    }
+    
+    // ===== FIN CONTROL DE ACCESO =====
+    
+    // Animación de elementos al hacer scroll
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, observerOptions);
+    
+    document.querySelectorAll('.timeline-item, .hito-card').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(30px)';
+      el.style.transition = 'all 0.6s ease-out';
+      observer.observe(el);
+    });
+    
+    // Smooth scroll para navegación
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+    
+    // ===== ACORDEÓN Q&A =====
+    function toggleCategory(headerEl) {
+      const category = headerEl.parentElement;
+      category.classList.toggle('open');
+    }
+    
+    function toggleQuestion(questionEl) {
+      const item = questionEl.parentElement;
+      item.classList.toggle('open');
+    }
+    
+    // ===== FORMULARIO DE PREGUNTAS (Web3Forms) =====
+    async function handleQASubmit(event) {
+      event.preventDefault();
+      
+      const form = document.getElementById('qaForm');
+      const submitBtn = document.getElementById('qa-submit-btn');
+      const messageDiv = document.getElementById('qa-form-message');
+      
+      // Reset mensaje
+      messageDiv.className = 'qa-form-message';
+      messageDiv.textContent = '';
+      
+      // ANTI-SPAM Nivel 1: Verificar honeypot
+      // Si el campo invisible está lleno, es un bot. Simulamos éxito sin enviar nada.
+      const honeypot = form.querySelector('input[name="website"]');
+      if (honeypot && honeypot.value.trim() !== '') {
+        messageDiv.className = 'qa-form-message success';
+        messageDiv.textContent = '¡Gracias! Tu pregunta fue enviada correctamente.';
+        form.reset();
+        return false;
+      }
+      
+      // ANTI-SPAM Nivel 2: Verificar que el hCaptcha esté completado
+      const hcaptchaResponse = form.querySelector('textarea[name="h-captcha-response"]');
+      const hcaptchaToken = hcaptchaResponse ? hcaptchaResponse.value : '';
+      
+      if (!hcaptchaToken) {
+        messageDiv.className = 'qa-form-message error';
+        messageDiv.textContent = 'Por favor completa la verificación "No soy un robot" antes de enviar.';
+        return false;
+      }
+      
+      // Deshabilitar botón durante envío
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando...';
+      
+      // Preparar datos
+      const formData = new FormData(form);
+      const data = {
+        access_key: '{{WEB3FORMS_KEY}}',  // Web3Forms - NAVES {{COHORTE_CORTA}}
+        from_name: 'Sitio NAVES {{COHORTE_CORTA}}',
+        subject: 'Nueva pregunta desde sitio NAVES {{COHORTE_CORTA}}',
+        nombre: formData.get('nombre'),
+        correo: formData.get('correo'),
+        pregunta: formData.get('pregunta'),
+        replyto: formData.get('correo'),
+        botcheck: '',  // Web3Forms usa este campo como honeypot adicional
+        'h-captcha-response': hcaptchaToken
+      };
+      
+      try {
+        const response = await fetch('https://api.web3forms.com/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          messageDiv.className = 'qa-form-message success';
+          messageDiv.textContent = '¡Gracias! Tu pregunta fue enviada correctamente. Recibirás una respuesta pronto.';
+          form.reset();
+          // Resetear el hCaptcha después del envío exitoso
+          if (typeof hcaptcha !== 'undefined') {
+            hcaptcha.reset();
+          }
+        } else {
+          throw new Error(result.message || 'Error al enviar');
+        }
+      } catch (error) {
+        messageDiv.className = 'qa-form-message error';
+        messageDiv.textContent = 'Hubo un error al enviar tu pregunta. Por favor intenta de nuevo o escribe directamente a juan.vicaria@inalde.edu.co';
+        // Resetear hCaptcha en caso de error también
+        if (typeof hcaptcha !== 'undefined') {
+          hcaptcha.reset();
+        }
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enviar pregunta';
+      }
+      
+      return false;
+    }
+  </script>
+  
+  <!-- Script de Web3Forms para renderizar hCaptcha (casilla "No soy un robot") -->
+  <script src="https://web3forms.com/client/script.js" async defer></script>
+</body>
+</html>

@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAVES 2026 | Gestión de Panelistas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#e30613;--black:#0a0a0a;--text:#1a1a1a;--gray:#6b6b6b;--light:#f5f5f5;--border:#e0e0e0;--white:#fff;--green:#1a6b3c;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Roboto',sans-serif;background:var(--light);color:var(--text);}
+
+    /* LOGIN */
+    #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--black);}
+    .login-box{background:#1a1a1a;border-top:4px solid var(--red);padding:2.5rem;width:100%;max-width:360px;text-align:center;}
+    .login-logo{font-family:'Montserrat',sans-serif;font-size:2.2rem;font-weight:900;color:#fff;margin-bottom:0.3rem;}
+    .login-logo span{color:var(--red);}
+    .login-sub{color:rgba(255,255,255,0.45);font-size:0.72rem;font-family:'Montserrat',sans-serif;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:2rem;}
+    .login-box input{width:100%;padding:0.75rem 1rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-bottom:2px solid rgba(255,255,255,0.25);color:#fff;font-family:'Roboto',sans-serif;font-size:1rem;margin-bottom:1rem;outline:none;}
+    .login-box input:focus{border-bottom-color:var(--red);}
+    .login-box button{width:100%;padding:0.8rem;background:var(--red);color:#fff;border:none;font-family:'Montserrat',sans-serif;font-size:0.82rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;}
+    .login-box button:hover{background:#c00510;}
+    .login-error{color:#ff6b6b;font-size:0.82rem;margin-top:0.6rem;display:none;}
+
+    /* HEADER */
+    header{background:var(--black);padding:0.9rem 2rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;}
+    .h-logo{font-family:'Montserrat',sans-serif;font-size:1.2rem;font-weight:900;color:#fff;}
+    .h-logo span{color:var(--red);}
+    .h-right{display:flex;align-items:center;gap:1rem;}
+    .h-badge{background:var(--red);color:#fff;font-family:'Montserrat',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:0.3rem 0.8rem;border-radius:3px;}
+    .btn-refresh{background:none;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.6);font-family:'Montserrat',sans-serif;font-size:0.7rem;font-weight:600;letter-spacing:0.06em;padding:0.3rem 0.8rem;cursor:pointer;border-radius:3px;transition:all 0.2s;}
+    .btn-refresh:hover{border-color:rgba(255,255,255,0.5);color:#fff;}
+
+    /* LAYOUT */
+    .contenido{max-width:1200px;margin:2rem auto;padding:0 1.5rem 4rem;}
+
+    /* LOADING */
+    #loading-bar{background:#1a1a1a;color:rgba(255,255,255,0.7);text-align:center;padding:0.6rem;font-family:'Montserrat',sans-serif;font-size:0.75rem;letter-spacing:0.1em;display:none;}
+
+    /* STATS */
+    .stats-bar{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+    .stat{background:var(--white);border:1px solid var(--border);border-left:4px solid var(--red);padding:1rem 1.5rem;flex:1;min-width:130px;}
+    .stat-num{font-family:'Montserrat',sans-serif;font-size:1.9rem;font-weight:900;color:var(--red);line-height:1;}
+    .stat-lbl{font-size:0.7rem;color:var(--gray);font-family:'Montserrat',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-top:0.25rem;}
+
+    /* ACTIONS */
+    .actions{display:flex;gap:0.75rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+    .btn{padding:0.65rem 1.4rem;font-family:'Montserrat',sans-serif;font-size:0.78rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;border-radius:3px;border:none;transition:all 0.2s;white-space:nowrap;}
+    .btn-red{background:var(--red);color:#fff;}
+    .btn-red:hover{background:#c00510;}
+    .btn-dark{background:var(--black);color:#fff;}
+    .btn-dark:hover{background:#333;}
+    .btn-outline{background:transparent;color:var(--gray);border:1px solid var(--border);}
+    .btn-outline:hover{border-color:#999;color:var(--text);}
+    .btn-danger-sm{background:transparent;color:#c0392b;border:1px solid #c0392b;font-size:0.65rem;padding:0.35rem 0.8rem;font-weight:600;opacity:0.7;}
+    .btn-danger-sm:hover{background:#fff0f0;opacity:1;}
+
+    /* TABLE */
+    .table-wrap{background:var(--white);border:1px solid var(--border);overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;min-width:800px;}
+    th{background:#1a1a1a;color:#fff;font-family:'Montserrat',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:0.8rem 1rem;text-align:left;white-space:nowrap;}
+    td{padding:0.7rem 1rem;border-bottom:1px solid var(--border);font-size:0.85rem;vertical-align:middle;}
+    tr:last-child td{border-bottom:none;}
+    tr:hover td{background:#fafafa;}
+
+    /* BADGES */
+    .badge{display:inline-block;padding:0.18rem 0.55rem;border-radius:3px;font-family:'Montserrat',sans-serif;font-size:0.62rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;}
+    .badge-ok{background:#e8f5e9;color:var(--green);border:1px solid #a5d6a7;}
+    .badge-no{background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;}
+    .badge-pend{background:#fff8e1;color:#e65100;border:1px solid #ffe082;}
+    .badge-gray{background:#f5f5f5;color:#999;border:1px solid #e0e0e0;}
+
+    /* JORNADA TAGS */
+    .jtag{display:inline-block;background:rgba(227,6,19,0.07);color:var(--red);border:1px solid rgba(227,6,19,0.18);padding:0.18rem 0.45rem;border-radius:3px;font-size:0.68rem;font-family:'Montserrat',sans-serif;font-weight:600;margin:2px 2px 2px 0;white-space:nowrap;}
+    .jtag-todas{background:rgba(26,107,60,0.08);color:var(--green);border-color:rgba(26,107,60,0.25);}
+
+    /* ROW BUTTONS */
+    .btn-sm{padding:0.28rem 0.65rem;font-family:'Montserrat',sans-serif;font-size:0.65rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer;border-radius:3px;border:none;transition:all 0.2s;white-space:nowrap;margin:2px;}
+    .btn-sm-dark{background:var(--black);color:#fff;}
+    .btn-sm-dark:hover{background:var(--red);}
+    .btn-sm-green{background:var(--green);color:#fff;cursor:default;}
+    .btn-sm-blue{background:#1565c0;color:#fff;}
+    .btn-sm-blue:hover{background:#0d47a1;}
+    .btn-sm-disabled{background:#ddd;color:#aaa;cursor:default;}
+    .btn-sm-teal{background:#00796b;color:#fff;}
+    .btn-sm-teal:hover{background:#004d40;}
+
+    /* LOGISTICS SUMMARY in cell */
+    .log-info{font-size:0.78rem;color:var(--gray);line-height:1.6;}
+    .log-info strong{color:var(--text);}
+
+    /* MODAL BASE */
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999;align-items:center;justify-content:center;padding:1rem;}
+    .modal.open{display:flex;}
+    .modal-box{background:var(--white);width:100%;max-height:90vh;display:flex;flex-direction:column;border-top:4px solid var(--red);box-shadow:0 20px 60px rgba(0,0,0,0.4);}
+    .modal-head{background:#1a1a1a;color:#fff;padding:0.9rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+    .modal-head h3{font-family:'Montserrat',sans-serif;font-size:0.82rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;}
+    .modal-head-btns{display:flex;gap:0.5rem;align-items:center;}
+    .modal-close{background:none;border:none;color:rgba(255,255,255,0.6);font-size:1.6rem;cursor:pointer;line-height:1;padding:0 0.2rem;}
+    .modal-close:hover{color:#fff;}
+    .modal-body{padding:1.5rem;overflow-y:auto;flex:1;}
+
+    /* LOGISTICS MODAL */
+    #modal-logistica .modal-box{max-width:500px;}
+    .form-section{margin-bottom:1.5rem;}
+    .form-section-title{font-family:'Montserrat',sans-serif;font-size:0.72rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--red);margin-bottom:0.8rem;padding-bottom:0.4rem;border-bottom:2px solid rgba(227,6,19,0.15);}
+    .form-field{margin-bottom:1rem;}
+    .form-field label{display:block;font-family:'Montserrat',sans-serif;font-size:0.75rem;font-weight:600;color:var(--text);margin-bottom:0.35rem;letter-spacing:0.02em;}
+    .form-field select,.form-field input[type="text"],.form-field input[type="time"]{width:100%;padding:0.6rem 0.8rem;border:1px solid var(--border);border-bottom:2px solid #ccc;font-family:'Roboto',sans-serif;font-size:0.9rem;background:var(--light);outline:none;border-radius:0;}
+    .form-field select:focus,.form-field input:focus{border-bottom-color:var(--red);background:#fff;}
+    .m-fechas-wrap{display:flex;flex-direction:column;gap:0.4rem;margin-top:0.25rem;}
+    .m-fecha-check{display:flex;align-items:center;gap:0.5rem;font-family:'Roboto',sans-serif;font-size:0.88rem;color:var(--text);cursor:pointer;padding:0.25rem 0;}
+    .m-fecha-check input[type="checkbox"]{width:15px;height:15px;accent-color:var(--red);cursor:pointer;flex-shrink:0;}
+    .m-fecha-check.disabled{opacity:0.3;pointer-events:none;}
+    .modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:0.5rem;flex-shrink:0;}
+
+    /* SUMMARY MODAL */
+    #modal-resumen .modal-box{max-width:760px;}
+    pre{font-size:0.8rem;white-space:pre-wrap;line-height:1.7;color:#333;font-family:'Roboto Mono','Courier New',monospace;}
+
+    /* TOAST */
+    .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#1a1a1a;color:#fff;padding:0.75rem 1.2rem;border-left:4px solid var(--green);font-family:'Montserrat',sans-serif;font-size:0.8rem;font-weight:600;border-radius:3px;transform:translateY(80px);opacity:0;transition:all 0.3s;z-index:9999;max-width:320px;}
+    .toast.show{transform:translateY(0);opacity:1;}
+    .toast.error{border-left-color:var(--red);}
+
+    .nota{margin-top:1rem;font-size:0.75rem;color:#aaa;font-family:'Montserrat',sans-serif;line-height:1.6;}
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">N<span>A</span>VES <span>2026</span></div>
+    <div class="login-sub">Panel de Administración</div>
+    <input type="password" id="pwd-input" placeholder="Contraseña de acceso"
+           onkeydown="if(event.key==='Enter')checkPwd()">
+    <button onclick="checkPwd()">Acceder</button>
+    <div class="login-error" id="login-error">Contraseña incorrecta</div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="admin-content" style="display:none">
+  <div id="loading-bar">⟳ Sincronizando datos...</div>
+
+  <header>
+    <div class="h-logo">N<span>A</span>VES <span>2026</span></div>
+    <div class="h-right">
+      <a class="btn-refresh" href="panelistas.html" style="text-decoration:none">← Volver a panelistas</a>
+      <button class="btn-refresh" onclick="cargarDatos()">↺ Actualizar</button>
+      <span class="h-badge">Admin — Panelistas</span>
+    </div>
+  </header>
+
+  <div class="contenido">
+    <div class="stats-bar" id="stats-bar"></div>
+    <div class="actions">
+      <button class="btn btn-dark" onclick="mostrarResumen()">📋 Ver resumen por jornada</button>
+      <a class="btn btn-dark" href="programador.html" style="text-decoration:none;">🗓 Generador de programación</a>
+      <button class="btn btn-danger-sm" onclick="enviarATodos()">⚠ Enviar a todos los pendientes</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nombre</th>
+            <th>Correo</th>
+            <th>Jornadas</th>
+            <th>Transporte</th>
+            <th>Comidas</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tabla"></tbody>
+      </table>
+    </div>
+    <p class="nota">* Datos exportados de Netlify Forms al 9 de junio de 2026. Entradas de prueba excluidas.<br>
+    Logística sincronizada en tiempo real entre todos los administradores. Use "↺ Actualizar" para ver cambios recientes.</p>
+  </div>
+</div>
+
+<!-- MODAL LOGÍSTICA -->
+<div class="modal" id="modal-logistica">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modal-log-titulo">Logística</h3>
+      <button class="modal-close" onclick="cerrarModalLog()">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-section">
+        <div class="form-section-title">🚗 Transporte</div>
+        <div class="form-field">
+          <label>¿Solicita transporte?</label>
+          <select id="m-transporte" onchange="toggleTransporte()">
+            <option value="">— Sin definir —</option>
+            <option value="si">Sí, necesita transporte</option>
+            <option value="no">No, tiene transporte propio</option>
+          </select>
+        </div>
+        <div id="m-transport-details" style="display:none">
+          <div class="form-field">
+            <label>Fechas que requiere transporte</label>
+            <div class="m-fechas-wrap">
+              <label class="m-fecha-check" id="m-fecha-row-v12"><input type="checkbox" name="m-fecha" value="Viernes 12 de junio"> Viernes 12 de junio</label>
+              <label class="m-fecha-check" id="m-fecha-row-s13"><input type="checkbox" name="m-fecha" value="Sábado 13 de junio"> Sábado 13 de junio</label>
+              <label class="m-fecha-check" id="m-fecha-row-v19"><input type="checkbox" name="m-fecha" value="Viernes 19 de junio"> Viernes 19 de junio</label>
+              <label class="m-fecha-check" id="m-fecha-row-s20"><input type="checkbox" name="m-fecha" value="Sábado 20 de junio"> Sábado 20 de junio</label>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Dirección de recogida</label>
+            <input type="text" id="m-direccion" placeholder="Ej: Cra 15 #85-32, Bogotá">
+          </div>
+          <div class="form-field">
+            <label>Hora de recogida</label>
+            <input type="time" id="m-hora">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section" id="m-section-almuerzo" style="display:none">
+        <div class="form-section-title">🍽 Almuerzo (jornadas de Viernes)</div>
+        <div class="form-field">
+          <label>¿Cuáles Viernes almuerza?</label>
+          <div class="m-fechas-wrap">
+            <label class="m-fecha-check" id="m-alm-row-v12"><input type="checkbox" name="m-almuerzo-fecha" value="Viernes 12 de junio"> Viernes 12 de junio</label>
+            <label class="m-fecha-check" id="m-alm-row-v19"><input type="checkbox" name="m-almuerzo-fecha" value="Viernes 19 de junio"> Viernes 19 de junio</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section" id="m-section-desayuno" style="display:none">
+        <div class="form-section-title">☕ Desayuno (jornadas de Sábado)</div>
+        <div class="form-field">
+          <label>¿Cuáles Sábados desayuna?</label>
+          <div class="m-fechas-wrap">
+            <label class="m-fecha-check" id="m-des-row-s13"><input type="checkbox" name="m-desayuno-fecha" value="Sábado 13 de junio"> Sábado 13 de junio</label>
+            <label class="m-fecha-check" id="m-des-row-s20"><input type="checkbox" name="m-desayuno-fecha" value="Sábado 20 de junio"> Sábado 20 de junio</label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModalLog()">Cancelar</button>
+      <button class="btn btn-red" onclick="guardarLogistica()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESUMEN -->
+<div class="modal" id="modal-resumen">
+  <div class="modal-box" style="max-width:800px">
+    <div class="modal-head">
+      <h3>Resumen de panelistas por jornada</h3>
+      <div class="modal-head-btns">
+        <button class="btn btn-red" style="font-size:0.7rem;padding:0.3rem 0.8rem;" onclick="copiarResumen()">Copiar</button>
+        <button class="btn btn-dark" style="font-size:0.7rem;padding:0.3rem 0.8rem;" onclick="descargarExcel()">⬇ Excel</button>
+        <button class="modal-close" onclick="document.getElementById('modal-resumen').classList.remove('open')">×</button>
+      </div>
+    </div>
+    <div class="modal-body"><pre id="resumen-text"></pre></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- EmailJS inline -->
+<script>var emailjs=function(e){"use strict";class t{constructor(){let e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:0,t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:"Network Error";this.status=e,this.text=t}}const i={origin:"https://api.emailjs.com",blockHeadless:!1,storageProvider:(()=>{if("undefined"!=typeof localStorage)return{get:e=>Promise.resolve(localStorage.getItem(e)),set:(e,t)=>Promise.resolve(localStorage.setItem(e,t)),remove:e=>Promise.resolve(localStorage.removeItem(e))}})()},r=e=>e?"string"==typeof e?{publicKey:e}:"[object Object]"===e.toString()?e:{}:{},o=function(e){let t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:"https://api.emailjs.com";if(!e)return;const o=r(e);i.publicKey=o.publicKey,i.blockHeadless=o.blockHeadless,i.storageProvider=o.storageProvider,i.blockList=o.blockList,i.limitRate=o.limitRate,i.origin=o.origin||t},a=async function(e,r){let o=arguments.length>2&&void 0!==arguments[2]?arguments[2]:{};const a=await fetch(i.origin+e,{method:"POST",headers:o,body:r}),s=await a.text(),n=new t(a.status,s);if(a.ok)return n;throw n},s=(e,t,i)=>{if(!e||"string"!=typeof e)throw"pk required";if(!t||"string"!=typeof t)throw"svc required";if(!i||"string"!=typeof i)throw"tpl required"},n=e=>e.webdriver||!e.languages||0===e.languages.length,l=()=>new t(451,"Headless"),c=(e,t)=>{if((e=>!e.list?.length||!e.watchVariable)(e))return!1;const i=(r=t,o=e.watchVariable,r instanceof FormData?r.get(o):r[o]);var r,o;return"string"==typeof i&&e.list.includes(i)},d=()=>new t(403,"Forbidden"),m=async(e,t,i)=>{if(!t.throttle||!i)return!1;const r=t.id||e,o=await(async(e,t,i)=>{return t-Date.now()+Number(await i.get(e)||0)})(r,t.throttle,i);return o>0||(await i.set(r,Date.now().toString()),!1)},h=()=>new t(429,"Rate limit"),p=async(e,t,o,p)=>{const u=r(p),b=u.publicKey||i.publicKey,g=u.blockHeadless||i.blockHeadless,f=u.storageProvider||i.storageProvider,w={...i.blockList,...u.blockList},y={...i.limitRate,...u.limitRate};if(g&&n(navigator))return Promise.reject(l());s(b,e,t);if(o&&c(w,o))return Promise.reject(d());if(await m(location.pathname,y,f))return Promise.reject(h());return a("/api/v1.0/email/send",JSON.stringify({lib_version:"4.4.1",user_id:b,service_id:e,template_id:t,template_params:o}),{"Content-type":"application/json"})};var b={init:o,send:p,EmailJSResponseStatus:t};return e.EmailJSResponseStatus=t,e.default=b,e.init=o,e.send=p,Object.defineProperty(e,"__esModule",{value:!0}),e}({});</script>
+
+<script>
+  emailjs.init('LKIjrtq_CeLR_3Do6');
+
+  const PWD    = 'Mba2026';
+  const SVC    = 'service_6g8bgqk';
+  const TPL    = 'template_jow68si';
+  const BIN_ID = '6a2874d6f5f4af5e29d436aa';
+  const BIN_KEY= '$2a$10$qBXsMcldU3zo7WzTazFhWeOrAvogSvSHw7bvSUBGWonD7zbLdj9hG';
+  const BIN_URL= `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+  const TODAS_LABEL = 'TODAS las jornadas — Viernes 12, Sábado 13, Viernes 19 y Sábado 20 de junio';
+  const JORNADAS = [
+    'Jornada 1 — Viernes 12 de junio · 13:50 – 15:50',
+    'Jornada 2 — Viernes 12 de junio · 16:30 – 18:30',
+    'Jornada 3 — Sábado 13 de junio · 07:20 – 09:20',
+    'Jornada 4 — Sábado 13 de junio · 10:00 – 12:00',
+    'Jornada 5 — Viernes 19 de junio · 14:00 – 16:00',
+    'Jornada 6 — Viernes 19 de junio · 16:40 – 18:40',
+    'Jornada 7 — Sábado 20 de junio · 08:55 – 10:30',
+  ];
+
+  const panelistas = [
+    {nombre:'Francisco Forero',           email:'fforeromendoza@gmail.com',          jornadas:JORNADAS, todas:true},
+    {nombre:'Diego Tovar',                email:'diego.tovar@internalconsulting.com', jornadas:JORNADAS, todas:true},
+    {nombre:'Juan Camilo Camargo',        email:'juan@diboca.co',                     jornadas:JORNADAS, todas:true},
+    {nombre:'Natalia Jiménez',            email:'natismonroy@gmail.com',              jornadas:JORNADAS, todas:true},
+    {nombre:'Mariana García',             email:'mariana.garcia@alascinco.org',       jornadas:JORNADAS, todas:true},
+    {nombre:'Fabián Motta Hurtado',       email:'fabian.motta@adabtech.com',          jornadas:[JORNADAS[0]], todas:false},
+    {nombre:'Mayrena Barraza',            email:'mayrenabarraza@gmail.com',           jornadas:[JORNADAS[3],JORNADAS[5],JORNADAS[6]], todas:false},
+    {nombre:'Rodrigo Ospina',             email:'rodrigo@consultoresog.com.co',        jornadas:[JORNADAS[1],JORNADAS[4],JORNADAS[5]], todas:false},
+    {nombre:'Juan Manuel Martínez',       email:'j.martinez@organizacionmas.com',     jornadas:[JORNADAS[2],JORNADAS[3],JORNADAS[4],JORNADAS[5],JORNADAS[6]], todas:false},
+    {nombre:'Diana Catalina Blanco',      email:'catablancof@gmail.com',              jornadas:[JORNADAS[0]], todas:false},
+    {nombre:'Juan Nicolás Piñeros',       email:'juan.pineros@grupopentalia.com',     jornadas:[JORNADAS[1]], todas:false},
+    {nombre:'Christian Cabarique',        email:'disenadorcabarique@gmail.com',       jornadas:[JORNADAS[0],JORNADAS[4]], todas:false},
+  ];
+
+  // Helpers
+  const tieneViernes = p => p.jornadas.some(j => j.includes('Viernes'));
+  const tieneSabado  = p => p.jornadas.some(j => j.includes('Sábado'));
+
+  // Shared state from JSONbin
+  let logistica = {};
+  let modalIdx  = -1;
+
+  // Listado combinado: los 12 panelistas preconfigurados + registros nuevos
+  // que llegaron por panelistas.html y existen en JSONbin pero no en la lista.
+  let listado = panelistas.slice();
+
+  function jornadasDeRegistro(log){
+    const raws = log.jornadas_confirmadas || (log.jornada ? [log.jornada] : []);
+    if(!raws.length) return {jornadas:[], todas:false};
+    if(raws.some(r => r.toLowerCase().includes('todas'))) return {jornadas:JORNADAS, todas:true};
+    const jornadas = raws.map(raw => {
+      const m = raw.match(/Jornada \d+/);
+      return (m && JORNADAS.find(j => j.startsWith(m[0] + ' '))) || raw;
+    });
+    return {jornadas: [...new Set(jornadas)], todas:false};
+  }
+
+  function actualizarListado(){
+    const conocidos = new Set(panelistas.map(p => p.email.toLowerCase()));
+    const extras = Object.entries(logistica)
+      .filter(([email]) => !conocidos.has(email.toLowerCase()))
+      .map(([email, log]) => {
+        const {jornadas, todas} = jornadasDeRegistro(log);
+        return {nombre: log.nombre || email, email, jornadas, todas, nuevo:true};
+      });
+    listado = [...panelistas, ...extras];
+  }
+
+  // ---------- JSONbin ----------
+  function showLoading(on){ document.getElementById('loading-bar').style.display = on ? 'block' : 'none'; }
+
+  async function cargarDatos(){
+    showLoading(true);
+    try {
+      const r = await fetch(`${BIN_URL}/latest`, {headers:{'X-Master-Key':BIN_KEY}});
+      const j = await r.json();
+      logistica = j.record?.logistica || {};
+      actualizarListado();
+      renderStats(); renderTable();
+    } catch(e){ mostrarToast('Error al cargar datos. Verifique la conexión.', true); }
+    showLoading(false);
+  }
+
+  async function guardarEnCloud(){
+    showLoading(true);
+    try {
+      await fetch(BIN_URL, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-Master-Key':BIN_KEY},
+        body: JSON.stringify({logistica})
+      });
+    } catch(e){ mostrarToast('Error al guardar. Intente de nuevo.', true); }
+    showLoading(false);
+  }
+
+  function getLogi(email){ return logistica[email] || {}; }
+  function setLogi(email, data){ logistica[email] = {...getLogi(email), ...data}; }
+
+  // ---------- Auth ----------
+  function checkPwd(){
+    if(document.getElementById('pwd-input').value === PWD){
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('admin-content').style.display='block';
+      cargarDatos();
+    } else {
+      document.getElementById('login-error').style.display='block';
+      document.getElementById('pwd-input').value='';
+    }
+  }
+
+  // ---------- Render ----------
+  function renderStats(){
+    const total    = listado.length;
+    const enviados = listado.filter(p => getLogi(p.email).enviado).length;
+    const conTransp= listado.filter(p => getLogi(p.email).transporte==='si').length;
+    document.getElementById('stats-bar').innerHTML = `
+      <div class="stat"><div class="stat-num">${total}</div><div class="stat-lbl">Panelistas</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--green)">${enviados}</div><div class="stat-lbl">Confirmaciones enviadas</div></div>
+      <div class="stat"><div class="stat-num" style="color:#1565c0">${conTransp}</div><div class="stat-lbl">Necesitan transporte</div></div>
+      <div class="stat"><div class="stat-num" style="color:#e65100">${total-enviados}</div><div class="stat-lbl">Pendientes</div></div>`;
+  }
+
+  function renderTable(){
+    document.getElementById('tabla').innerHTML = listado.map((p,i) => {
+      const log   = getLogi(p.email);
+      const sent  = !!log.enviado;
+
+      // Jornadas col
+      let jorCol;
+      if(p.todas){
+        jorCol = `<span class="jtag jtag-todas">TODAS J1–J7</span>`;
+      } else if(p.jornadas.length){
+        jorCol = p.jornadas.map(j=>{
+          const m = j.match(/Jornada \d+/);
+          return `<span class="jtag">${m ? m[0] : j}</span>`;
+        }).join('');
+      } else {
+        jorCol = '<span class="badge badge-gray">Sin jornada</span>';
+      }
+      const nuevoBadge = p.nuevo ? ' <span class="badge" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80">🆕 Nuevo registro</span>' : '';
+
+      // Transporte col
+      let transpCol = '<span class="badge badge-gray">Sin definir</span>';
+      if(log.transporte==='si'){
+        transpCol = `<span class="badge badge-ok">✓ Sí</span>`;
+        if(log.fechas_transporte && log.fechas_transporte.length){
+          transpCol += `<div class="log-info" style="margin-top:4px"><strong>📅</strong> ${log.fechas_transporte.join(' · ')}</div>`;
+        }
+        if(log.direccion) transpCol += `<div class="log-info" style="margin-top:2px"><strong>📍</strong> ${log.direccion}</div>`;
+        if(log.hora)      transpCol += `<div class="log-info"><strong>🕐</strong> ${log.hora}</div>`;
+      } else if(log.transporte==='no'){
+        transpCol = '<span class="badge badge-no">No</span>';
+      }
+
+      // Comidas col
+      let comidasCol = '';
+      if(tieneViernes(p)){
+        if(log.fechas_almuerzo && log.fechas_almuerzo.length){
+          const etiq = log.fechas_almuerzo.map(f=>f.replace('Viernes ','').replace(' de junio',' jun')).join(', ');
+          comidasCol += `<span class="badge badge-ok" style="margin:2px">🍽 ${etiq}</span>`;
+        } else if(log.fechas_almuerzo !== undefined){
+          comidasCol += '<span class="badge badge-no" style="margin:2px">🍽 No almuerza</span>';
+        } else {
+          comidasCol += '<span class="badge badge-gray" style="margin:2px">🍽 Almuerzo?</span>';
+        }
+      }
+      if(tieneSabado(p)){
+        if(log.fechas_desayuno && log.fechas_desayuno.length){
+          const etiq = log.fechas_desayuno.map(f=>f.replace('Sábado ','').replace(' de junio',' jun')).join(', ');
+          comidasCol += `<span class="badge badge-ok" style="margin:2px">☕ ${etiq}</span>`;
+        } else if(log.fechas_desayuno !== undefined){
+          comidasCol += '<span class="badge badge-no" style="margin:2px">☕ No desayuna</span>';
+        } else {
+          comidasCol += '<span class="badge badge-gray" style="margin:2px">☕ Desayuno?</span>';
+        }
+      }
+      if(!comidasCol) comidasCol = '<span class="badge badge-gray">—</span>';
+
+      // Actions col
+      const logBtn  = `<button class="btn-sm btn-sm-blue" onclick="abrirModalLog(${i})">✏ Logística</button>`;
+      const sendBtn = sent
+        ? `<button class="btn-sm btn-sm-green">✓ Confirmación enviada</button>`
+        : `<button class="btn-sm btn-sm-dark" onclick="enviarUno(${i})">✉ Enviar confirmación</button>`
+          + ` <button class="btn-sm btn-sm-teal" onclick="enviarUnoConLogistica(${i})">✉ Enviar + logística</button>`;
+
+      return `<tr>
+        <td style="color:#bbb;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.8rem">${i+1}</td>
+        <td><strong style="font-size:0.88rem">${p.nombre}</strong>${nuevoBadge}</td>
+        <td style="color:var(--gray);font-size:0.78rem">${p.email}</td>
+        <td>${jorCol}</td>
+        <td>${transpCol}</td>
+        <td>${comidasCol}</td>
+        <td style="white-space:nowrap">${sendBtn} ${logBtn}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ---------- Email sending ----------
+  function armarTextoLogistica(log, p) {
+    const lineas = [];
+    if (log.transporte === 'si') {
+      lineas.push('🚗 Transporte: Sí');
+      if (log.fechas_transporte && log.fechas_transporte.length)
+        lineas.push('   Fechas: ' + log.fechas_transporte.join(', '));
+      if (log.direccion) lineas.push('   📍 ' + log.direccion);
+      if (log.hora)      lineas.push('   🕐 ' + log.hora);
+    } else if (log.transporte === 'no') {
+      lineas.push('🚗 Transporte: No necesita');
+    }
+    if (tieneViernes(p) && log.almuerza)
+      lineas.push(log.almuerza === 'si' ? '🍽 Almuerzo: Sí' : '🍽 Almuerzo: No');
+    if (tieneSabado(p) && log.desayuna)
+      lineas.push(log.desayuna === 'si' ? '☕ Desayuno: Sí' : '☕ Desayuno: No');
+    if (!lineas.length) return '';
+    return '\n\n── Logística confirmada ──\n' + lineas.join('\n');
+  }
+
+  async function enviarUno(idx){
+    const p = listado[idx];
+    const jornadaText = p.todas ? TODAS_LABEL : p.jornadas.join('\n');
+    mostrarToast(`Enviando a ${p.nombre}...`);
+    try {
+      await emailjs.send(SVC, TPL, {nombre:p.nombre, email:p.email, jornada:jornadaText});
+      setLogi(p.email, {enviado:true});
+      await guardarEnCloud();
+      renderStats(); renderTable();
+      mostrarToast(`✓ Confirmación enviada a ${p.nombre}`);
+    } catch(e){ mostrarToast('Error al enviar. Intente de nuevo.', true); }
+  }
+
+  async function enviarUnoConLogistica(idx){
+    const p   = listado[idx];
+    const log = getLogi(p.email);
+    const jornadaText = (p.todas ? TODAS_LABEL : p.jornadas.join('\n')) + armarTextoLogistica(log, p);
+    mostrarToast(`Enviando a ${p.nombre}...`);
+    try {
+      await emailjs.send(SVC, TPL, {nombre:p.nombre, email:p.email, jornada:jornadaText});
+      setLogi(p.email, {enviado:true});
+      await guardarEnCloud();
+      renderStats(); renderTable();
+      mostrarToast(`✓ Confirmación + logística enviada a ${p.nombre}`);
+    } catch(e){ mostrarToast('Error al enviar. Intente de nuevo.', true); }
+  }
+
+  async function enviarATodos(){
+    const pendientes = listado.filter(p => !getLogi(p.email).enviado);
+    if(!pendientes.length){ mostrarToast('Todos ya tienen confirmación enviada.'); return; }
+    if(!confirm(`¿Enviar confirmación a ${pendientes.length} panelistas pendientes?`)) return;
+    let ok = 0;
+    for(const p of pendientes){
+      const jornadaText = p.todas ? TODAS_LABEL : p.jornadas.join('\n');
+      try {
+        await emailjs.send(SVC, TPL, {nombre:p.nombre, email:p.email, jornada:jornadaText});
+        setLogi(p.email, {enviado:true});
+        ok++;
+        await new Promise(r=>setTimeout(r,500));
+      } catch(e){ console.warn('Error:', p.email, e); }
+    }
+    await guardarEnCloud();
+    renderStats(); renderTable();
+    mostrarToast(`✓ ${ok} confirmaciones enviadas`);
+  }
+
+  // ---------- Logistics modal ----------
+  // Mapeo fecha → qué string de jornada contiene
+  const FECHAS_MAP = {
+    'v12': { val:'Viernes 12 de junio', test: j => j.includes('12') },
+    's13': { val:'Sábado 13 de junio',  test: j => j.includes('13') },
+    'v19': { val:'Viernes 19 de junio', test: j => j.includes('19') },
+    's20': { val:'Sábado 20 de junio',  test: j => j.includes('20') },
+  };
+
+  function abrirModalLog(idx){
+    modalIdx = idx;
+    const p   = listado[idx];
+    const log = getLogi(p.email);
+    document.getElementById('modal-log-titulo').textContent = `Logística — ${p.nombre}`;
+    document.getElementById('m-transporte').value = log.transporte || '';
+    document.getElementById('m-direccion').value  = log.direccion  || '';
+    document.getElementById('m-hora').value       = log.hora       || '';
+    // Almuerzo checkboxes
+    const almJornadas = p.todas ? ['12','19'] : p.jornadas.filter(j=>j.includes('Viernes')).map(j=>j.includes('12')?'12':'19');
+    const tieneAlmV12 = almJornadas.includes('12');
+    const tieneAlmV19 = almJornadas.includes('19');
+    const fechasAlm   = log.fechas_almuerzo || [];
+    document.getElementById('m-alm-row-v12').classList.toggle('disabled', !tieneAlmV12);
+    document.getElementById('m-alm-row-v19').classList.toggle('disabled', !tieneAlmV19);
+    document.querySelector('#m-alm-row-v12 input').disabled = !tieneAlmV12;
+    document.querySelector('#m-alm-row-v19 input').disabled = !tieneAlmV19;
+    document.querySelector('#m-alm-row-v12 input').checked = tieneAlmV12 && (fechasAlm.length ? fechasAlm.includes('Viernes 12 de junio') : true);
+    document.querySelector('#m-alm-row-v19 input').checked = tieneAlmV19 && (fechasAlm.length ? fechasAlm.includes('Viernes 19 de junio') : true);
+    document.getElementById('m-section-almuerzo').style.display = (tieneAlmV12||tieneAlmV19) ? 'block' : 'none';
+    // Desayuno checkboxes
+    const desJornadas = p.todas ? ['13','20'] : p.jornadas.filter(j=>j.includes('Sábado')).map(j=>j.includes('13')?'13':'20');
+    const tieneDesS13 = desJornadas.includes('13');
+    const tieneDesS20 = desJornadas.includes('20');
+    const fechasDes   = log.fechas_desayuno || [];
+    document.getElementById('m-des-row-s13').classList.toggle('disabled', !tieneDesS13);
+    document.getElementById('m-des-row-s20').classList.toggle('disabled', !tieneDesS20);
+    document.querySelector('#m-des-row-s13 input').disabled = !tieneDesS13;
+    document.querySelector('#m-des-row-s20 input').disabled = !tieneDesS20;
+    document.querySelector('#m-des-row-s13 input').checked = tieneDesS13 && (fechasDes.length ? fechasDes.includes('Sábado 13 de junio') : true);
+    document.querySelector('#m-des-row-s20 input').checked = tieneDesS20 && (fechasDes.length ? fechasDes.includes('Sábado 20 de junio') : true);
+    document.getElementById('m-section-desayuno').style.display = (tieneDesS13||tieneDesS20) ? 'block' : 'none';
+    // Poblar checkboxes de fechas
+    const fechasGuardadas = log.fechas_transporte || [];
+    Object.entries(FECHAS_MAP).forEach(([key, {val, test}]) => {
+      const disponible = p.todas || p.jornadas.some(j => test(j));
+      const row = document.getElementById('m-fecha-row-' + key);
+      const cb  = row.querySelector('input');
+      row.classList.toggle('disabled', !disponible);
+      cb.disabled = !disponible;
+      // Si hay fechas guardadas úsalas; si no, marcar las disponibles por defecto
+      cb.checked = disponible && (fechasGuardadas.length ? fechasGuardadas.includes(val) : true);
+    });
+    toggleTransporte();
+    document.getElementById('modal-logistica').classList.add('open');
+  }
+
+  function cerrarModalLog(){
+    document.getElementById('modal-logistica').classList.remove('open');
+    modalIdx = -1;
+  }
+
+  function toggleTransporte(){
+    const v = document.getElementById('m-transporte').value;
+    document.getElementById('m-transport-details').style.display = v==='si' ? 'block' : 'none';
+  }
+
+  async function guardarLogistica(){
+    if(modalIdx < 0) return;
+    const p = listado[modalIdx];
+    const transp = document.getElementById('m-transporte').value || null;
+    // Recoger fechas seleccionadas (solo si requiere transporte)
+    let fechasTransporte = null;
+    if(transp === 'si'){
+      fechasTransporte = [];
+      document.querySelectorAll('input[name="m-fecha"]:checked').forEach(cb => {
+        if(!cb.disabled) fechasTransporte.push(cb.value);
+      });
+      if(!fechasTransporte.length) fechasTransporte = null;
+    }
+    const fechasAlmuerzo = [...document.querySelectorAll('input[name="m-almuerzo-fecha"]:checked:not(:disabled)')].map(cb=>cb.value);
+    const fechasDesayuno = [...document.querySelectorAll('input[name="m-desayuno-fecha"]:checked:not(:disabled)')].map(cb=>cb.value);
+    setLogi(p.email, {
+      transporte:        transp,
+      fechas_transporte: fechasTransporte,
+      direccion:         document.getElementById('m-direccion').value.trim() || null,
+      hora:              document.getElementById('m-hora').value || null,
+      fechas_almuerzo:   fechasAlmuerzo.length ? fechasAlmuerzo : null,
+      fechas_desayuno:   fechasDesayuno.length ? fechasDesayuno : null,
+    });
+    cerrarModalLog();
+    await guardarEnCloud();
+    renderStats(); renderTable();
+    mostrarToast(`✓ Logística de ${p.nombre} guardada`);
+  }
+
+  // ---------- Summary ----------
+  function mostrarResumen(){
+    let txt = 'RESUMEN DE PANELISTAS — NAVES 2026\n';
+    txt += 'Executive MBA FS · INALDE Business School\n';
+    txt += '═'.repeat(50) + '\n\n';
+
+    // Helper: extrae "Viernes 12 de junio" de la cadena de jornada
+    const fechaDeJornada = j => j.replace(/^.*— /, '').replace(/ ·.*$/, '').trim();
+
+    JORNADAS.forEach(j => {
+      const confirmados = listado.filter(p => p.todas || p.jornadas.includes(j));
+      const fechaJ = fechaDeJornada(j);
+      const esViernes = j.includes('Viernes');
+      const esSabado  = j.includes('Sábado');
+      txt += `${j}\n${'─'.repeat(j.length)}\n`;
+      confirmados.forEach(p => {
+        const log = getLogi(p.email);
+        let extra = [];
+        // Transporte: solo si esta fecha está en sus fechas_transporte
+        if(log.transporte==='si'){
+          const ft = log.fechas_transporte;
+          const aplica = !ft || !ft.length || ft.includes(fechaJ);
+          if(aplica){
+            let t = '🚗 Transporte';
+            if(log.direccion) t += ` — ${log.direccion}`;
+            if(log.hora)      t += ` · ${log.hora}`;
+            extra.push(t);
+          }
+        }
+        // Almuerzo: solo si es Viernes y esta fecha está en fechas_almuerzo
+        if(esViernes && log.fechas_almuerzo){
+          if(log.fechas_almuerzo.includes(fechaJ)) extra.push('🍽 Almuerza');
+          else extra.push('🍽 No almuerza');
+        }
+        // Desayuno: solo si es Sábado y esta fecha está en fechas_desayuno
+        if(esSabado && log.fechas_desayuno){
+          if(log.fechas_desayuno.includes(fechaJ)) extra.push('☕ Desayuna');
+          else extra.push('☕ No desayuna');
+        }
+        txt += `  • ${p.nombre}`;
+        if(extra.length) txt += `\n    ${extra.join('  |  ')}`;
+        txt += '\n';
+      });
+      txt += '\n';
+    });
+
+    // Resumen de transporte por fecha
+    const conTransp = listado.filter(p => getLogi(p.email).transporte==='si');
+    if(conTransp.length){
+      txt += '═'.repeat(50) + '\n';
+      txt += 'RESUMEN DE TRANSPORTE\n──────────────────────\n';
+      // Agrupar por fecha
+      const fechasUnicas = ['Viernes 12 de junio','Sábado 13 de junio','Viernes 19 de junio','Sábado 20 de junio'];
+      fechasUnicas.forEach(fecha => {
+        const necesitan = conTransp.filter(p => {
+          const ft = getLogi(p.email).fechas_transporte;
+          return !ft || !ft.length || ft.includes(fecha);
+        });
+        if(!necesitan.length) return;
+        txt += `\n  📅 ${fecha}\n`;
+        necesitan.forEach(p => {
+          const log = getLogi(p.email);
+          txt += `    • ${p.nombre}`;
+          if(log.direccion) txt += `\n      📍 ${log.direccion}`;
+          if(log.hora)      txt += `  🕐 ${log.hora}`;
+          txt += '\n';
+        });
+      });
+      txt += '\n';
+    }
+
+    txt += '═'.repeat(50) + '\n';
+    txt += `Total panelistas: ${listado.length}  |  Con transporte: ${conTransp.length}\n`;
+    txt += `Generado: ${new Date().toLocaleString('es-CO')}`;
+
+    document.getElementById('resumen-text').textContent = txt;
+    document.getElementById('modal-resumen').classList.add('open');
+  }
+
+  function copiarResumen(){
+    navigator.clipboard.writeText(document.getElementById('resumen-text').textContent)
+      .then(()=>mostrarToast('✓ Resumen copiado al portapapeles'))
+      .catch(()=>mostrarToast('Seleccione el texto manualmente.', true));
+  }
+
+  function descargarExcel(){
+    const fechaDeJornada = j => j.replace(/^.*— /, '').replace(/ ·.*$/, '').trim();
+    const horaDeJornada  = j => (j.match(/· (.+)$/) || ['',''])[1].trim();
+
+    const encabezado = ['Jornada','Fecha','Hora jornada','Panelista','Transporte esta fecha','Dirección recogida','Hora recogida','Almuerza','Desayuna'];
+    const filas = [encabezado];
+
+    JORNADAS.forEach(j => {
+      const confirmados = listado.filter(p => p.todas || p.jornadas.includes(j));
+      const fechaJ  = fechaDeJornada(j);
+      const horaJ   = horaDeJornada(j);
+      const esViernes = j.includes('Viernes');
+      const esSabado  = j.includes('Sábado');
+
+      confirmados.forEach(p => {
+        const log = getLogi(p.email);
+        // Transporte: ¿aplica para esta fecha?
+        const ft = log.fechas_transporte;
+        const transpEstaFecha = log.transporte === 'si' && (!ft || !ft.length || ft.includes(fechaJ));
+        const transp  = log.transporte === 'si' ? (transpEstaFecha ? 'Sí' : 'No (otra fecha)') : (log.transporte === 'no' ? 'No' : '');
+        const dir     = transpEstaFecha ? (log.direccion || '') : '';
+        const hora    = transpEstaFecha ? (log.hora || '') : '';
+        // Comidas
+        const alm = esViernes && log.fechas_almuerzo != null
+          ? (log.fechas_almuerzo.includes(fechaJ) ? 'Sí' : 'No') : '';
+        const des = esSabado && log.fechas_desayuno != null
+          ? (log.fechas_desayuno.includes(fechaJ) ? 'Sí' : 'No') : '';
+
+        filas.push([j, fechaJ, horaJ, p.nombre, transp, dir, hora, alm, des]);
+      });
+      // Fila vacía entre jornadas
+      filas.push(Array(encabezado.length).fill(''));
+    });
+
+    // BOM + CSV con punto y coma (Excel español)
+    const csv = '﻿' + filas.map(r =>
+      r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(';')
+    ).join('\n');
+
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `NAVES_Panelistas_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    mostrarToast('✓ Archivo descargado');
+  }
+
+  // ---------- Toast ----------
+  function mostrarToast(msg, error=false){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (error?' error':'');
+    setTimeout(()=>{ t.className='toast'; }, 3500);
+  }
+
+  // Close modals on outside click
+  ['modal-logistica','modal-resumen'].forEach(id=>{
+    document.getElementById(id).addEventListener('click', function(e){
+      if(e.target===this) this.classList.remove('open');
+    });
+  });
+</script>
+</body>
+</html>

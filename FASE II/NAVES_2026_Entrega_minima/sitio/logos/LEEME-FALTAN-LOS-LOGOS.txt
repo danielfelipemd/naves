@@ -1,0 +1,21 @@
+⚠️  LOGOS DE LOS PROYECTOS — NO INCLUIDOS EN ESTA VERSIÓN
+==========================================================
+
+Esta es la ENTREGA MÍNIMA del proyecto NAVES 2026 (solo código + documentación).
+
+Los logos de los 34 proyectos NO vienen en este paquete.
+
+IMPORTANTE — DE DÓNDE VENDRÁN LOS DATOS Y LOS LOGOS
+--------------------------------------------------
+En el sistema definitivo, la información de cada proyecto (nombre, autores,
+descripción, sector, etc.) y su LOGO NO deben ir hardcodeados en index.html.
+
+Deben tomarse de la **plataforma de gestión integral de trabajos de grado** de INALDE (el formato/estructura
+que ya está diseñado en esa plataforma). Es decir: esa plataforma es la FUENTE DE
+VERDAD de los proyectos y de sus assets (logo incluido); el sitio NAVES los consume.
+
+Por eso este paquete mínimo trae solo el código y la documentación: los proyectos y
+sus logos se integrarán desde ese formato, no desde archivos sueltos.
+
+Si necesita los logos actuales para una prueba rápida, pídale a Juan Manuel la carpeta
+`logos/` (o el ZIP de entrega completo, NAVES_2026_Entrega.zip).

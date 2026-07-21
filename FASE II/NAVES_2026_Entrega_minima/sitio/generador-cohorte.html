@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAVES | Generador de Cohorte | INALDE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--red:#e30613;--black:#0a0a0a;--text:#1a1a1a;--gray:#6b6b6b;--light:#f5f5f5;--border:#e0e0e0;--white:#fff;--green:#1a6b3c;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Roboto',sans-serif;background:var(--light);color:var(--text);}
+  #login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#0a0a0a,#1a1a1a 60%,#2a1010);z-index:9999;display:flex;align-items:center;justify-content:center;}
+  .login-box{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);max-width:420px;width:90%;padding:3rem 2.5rem;text-align:center;}
+  .login-box h1{font-family:'Montserrat';font-size:1.5rem;font-weight:900;color:#fff;margin-bottom:0.3rem;}
+  .login-box h1 span{color:var(--red);}
+  .login-box p{color:rgba(255,255,255,0.6);font-size:0.85rem;margin-bottom:1.5rem;}
+  .login-box input{width:100%;padding:0.85rem 1rem;margin-bottom:0.8rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:0.95rem;text-align:center;}
+  .login-box input:focus{outline:none;border-color:var(--red);}
+  .login-label{color:rgba(255,255,255,0.45);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:0.35rem;text-align:left;}
+  .login-hint{color:rgba(255,255,255,0.3);font-size:0.7rem;margin-bottom:1.2rem;text-align:left;}
+  .login-box button{width:100%;padding:0.85rem;background:var(--red);color:#fff;border:none;font-family:'Montserrat';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border-radius:30px;font-size:0.85rem;margin-top:0.5rem;}
+  #login-err{color:#ff6b6b;font-size:0.82rem;margin-top:0.8rem;min-height:18px;}
+  header{background:var(--black);padding:0.9rem 2rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;}
+  .h-logo{font-family:'Montserrat';font-weight:900;font-size:1.3rem;color:#fff;}
+  .h-logo span{color:var(--red);}
+  .h-badge{background:var(--red);color:#fff;font-family:'Montserrat';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:0.35rem 0.9rem;border-radius:3px;}
+  .h-btn{background:none;border:1px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.7);font-family:'Montserrat';font-size:0.7rem;font-weight:600;padding:0.35rem 0.8rem;cursor:pointer;border-radius:3px;text-decoration:none;}
+  .wrap{max-width:900px;margin:0 auto;padding:1.5rem;}
+  .panel{background:#fff;border:1px solid var(--border);border-radius:6px;padding:1.3rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);margin-bottom:1.2rem;}
+  .panel h2{font-family:'Montserrat';font-size:0.9rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:0.5rem;padding-bottom:0.5rem;border-bottom:2px solid var(--red);}
+  .step{font-family:'Montserrat';font-size:0.72rem;color:var(--gray);font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.3rem;}
+  .fld{margin:0.9rem 0;}
+  .fld label{display:block;font-size:0.78rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem;}
+  .fld input,.fld select{width:100%;padding:0.6rem;border:1px solid var(--border);border-radius:5px;font-size:0.9rem;background:var(--light);}
+  .btn{padding:0.7rem 1.3rem;border:none;border-radius:6px;font-family:'Montserrat';font-weight:700;font-size:0.8rem;letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;background:var(--red);color:#fff;}
+  .btn:disabled{opacity:0.5;cursor:default;}
+  #estado{margin-top:1rem;font-size:0.88rem;}
+  .ok{color:var(--green);font-weight:600;}
+  .err{color:var(--red);font-weight:600;}
+  pre{background:#1a1a1a;color:#e6e6e6;padding:1rem;border-radius:6px;overflow:auto;font-size:0.78rem;line-height:1.5;max-height:420px;margin-top:0.8rem;}
+  .resumen{margin-top:1rem;}
+  .resumen .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.7rem;margin-bottom:0.8rem;}
+  .card{background:var(--light);border-radius:6px;padding:0.7rem;text-align:center;}
+  .card .n{font-family:'Montserrat';font-weight:900;font-size:1.6rem;color:var(--red);}
+  .card .l{font-size:0.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.05em;}
+  .muted{color:var(--gray);font-size:0.82rem;margin-bottom:0.3rem;}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <h1>N<span>A</span>VES · Generador de Cohorte</h1>
+    <p>Acceso del coordinador / profesor</p>
+    <input type="password" id="pwd" placeholder="Contraseña" onkeydown="if(event.key==='Enter')entrar()">
+    <button onclick="entrar()">Ingresar</button>
+    <div id="login-err"></div>
+  </div>
+</div>
+
+<header>
+  <div class="h-logo">N<span>A</span>VES</div>
+  <div style="display:flex;gap:0.5rem;align-items:center">
+    <a class="h-btn" href="index.html">← Volver al sitio</a>
+    <span class="h-badge">Generador de Cohorte</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <div class="step">Paso 1 de 3 · Lectura del calendario</div>
+    <h2>Sube el calendario académico (PDF)</h2>
+    <p class="muted">Claude lee el PDF y extrae las jornadas de clase, festivos y eventos — sin que tengas que escribir nada.</p>
+    <div class="fld">
+      <label>Archivo del calendario (PDF)</label>
+      <input type="file" id="pdf" accept="application/pdf">
+    </div>
+    <div class="fld">
+      <label>Modalidad (opcional — ayuda a la lectura)</label>
+      <select id="tipo">
+        <option value="">Que Claude la detecte</option>
+        <option value="Fin de Semana">Fin de Semana</option>
+        <option value="Intensivo">Intensivo</option>
+      </select>
+    </div>
+    <div class="fld">
+      <label>Asistente de programa</label>
+      <select id="asistente">
+        <option value="">— Seleccionar —</option>
+        <option value="Olivia Mendez|olivia.mendez@inalde.edu.co">Olivia Mendez</option>
+        <option value="Elvira Vargas|elvira.vargas@inalde.edu.co">Elvira Vargas</option>
+      </select>
+    </div>
+    <div class="fld">
+      <label>Director(a) de la cohorte</label>
+      <select id="director">
+        <option value="">— Seleccionar —</option>
+        <option value="Álvaro José Moreno García|alvaro.moreno@inalde.edu.co">Álvaro José Moreno García</option>
+        <option value="Cindy Pinzón Rios|cindy.pinzon@inalde.edu.co">Cindy Pinzón Rios</option>
+        <option value="Ciro Gómez Ardila|ciro.gomez@inalde.edu.co">Ciro Gómez Ardila</option>
+        <option value="Ernesto Barrera Duque|ernesto.barrera@inalde.edu.co">Ernesto Barrera Duque</option>
+        <option value="Hugo Armando Díaz Luna|hugo.diaz@inalde.edu.co">Hugo Armando Díaz Luna</option>
+        <option value="Iván Díaz Cervantes|ivan.diaz@inalde.edu.co">Iván Díaz Cervantes</option>
+        <option value="Jorge Iván Gómez Osorio|jorge.gomez@inalde.edu.co">Jorge Iván Gómez Osorio</option>
+        <option value="Juan Diego Arbeláez Celis|juan.arbelaez@inalde.edu.co">Juan Diego Arbeláez Celis</option>
+        <option value="Juan Manuel Parra Torres|juanm.parra@inalde.edu.co">Juan Manuel Parra Torres</option>
+        <option value="Juan Pablo Dávila Velásquez|juan.davila@inalde.edu.co">Juan Pablo Dávila Velásquez</option>
+        <option value="María Camila León Rueda|maria.leon@inalde.edu.co">María Camila León Rueda</option>
+        <option value="María Piedad López Vergara|maria.lopez@inalde.edu.co">María Piedad López Vergara</option>
+        <option value="Rolando Andrés Roncancio Rachid|rolando.roncancio@unisabana.edu.co">Rolando Andrés Roncancio Rachid</option>
+        <option value="Sandra Monserrat Idrovo Carlier|sandra.idrovo@inalde.edu.co">Sandra Monserrat Idrovo Carlier</option>
+        <option value="Santiago Forero Henao|santiago.forero@inalde.edu.co">Santiago Forero Henao</option>
+        <option value="Sergio Pardo Jaramillo|sergio.pardo@inalde.edu.co">Sergio Pardo Jaramillo</option>
+      </select>
+    </div>
+    <button class="btn" id="btn-extraer" onclick="extraer()">🔍 Leer calendario con Claude</button>
+    <div id="estado"></div>
+  </div>
+
+  <div class="panel" id="panel-resultado" style="display:none">
+    <h2>Calendario extraído</h2>
+    <div id="resumen" class="resumen"></div>
+    <details>
+      <summary class="muted" style="cursor:pointer">Ver JSON completo</summary>
+      <pre id="json"></pre>
+    </details>
+    <p class="muted" style="margin-top:1rem">✔️ Cuando confirmemos que esto quedó bien, el siguiente paso (en construcción) calculará los 13 hitos y generará el sitio de la cohorte.</p>
+  </div>
+</div>
+
+<script>
+const PWD = 'Mba2026';
+function entrar(){
+  if(document.getElementById('pwd').value === PWD){
+    document.getElementById('login-screen').style.display='none';
+  } else {
+    document.getElementById('login-err').textContent = 'Contraseña incorrecta';
+  }
+}
+
+function pdfABase64(file){
+  return new Promise((res, rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>{ const s = r.result; res(s.substring(s.indexOf(',')+1)); };
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+const sleep = ms => new Promise(r=>setTimeout(r, ms));
+
+async function extraer(){
+  const est = document.getElementById('estado');
+  const btn = document.getElementById('btn-extraer');
+  const file = document.getElementById('pdf').files[0];
+  if(!file){ est.innerHTML = '<span class="err">Selecciona un PDF primero.</span>'; return; }
+
+  btn.disabled = true;
+  est.innerHTML = '⏳ Enviando el calendario…';
+  try {
+    const pdf_base64 = await pdfABase64(file);
+    const tipo = document.getElementById('tipo').value;
+    const asistente = document.getElementById('asistente').value;
+    const director = document.getElementById('director').value;
+    const jobId = 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+
+    // 1) Iniciar el trabajo de fondo (Opus lee con calma; responde 202 al instante)
+    await fetch('/.netlify/functions/extraer-calendario-background', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ jobId, pdf_base64, tipo, asistente, director })
+    });
+
+    // 2) Consultar cada 4s hasta que esté listo (hasta ~3 min)
+    est.innerHTML = '⏳ Opus está leyendo el calendario con detalle… (puede tardar 30–90 seg)';
+    let data = null;
+    for(let i=0;i<45;i++){
+      await sleep(4000);
+      const rr = await fetch('/.netlify/functions/resultado-calendario?job='+jobId);
+      const dd = await rr.json();
+      if(dd.estado === 'listo'){ data = dd; break; }
+    }
+    if(!data){ throw new Error('La lectura tardó demasiado. Intenta de nuevo.'); }
+    if(!data.ok){ throw new Error(data.error || 'Error en la extracción'); }
+
+    const d = data.datos;
+    est.innerHTML = '<span class="ok">✓ Calendario leído correctamente.</span>';
+    document.getElementById('panel-resultado').style.display = 'block';
+    document.getElementById('json').textContent = JSON.stringify(d, null, 2);
+
+    const u = data.usage || {};
+    const costo = u.input_tokens ? ((u.input_tokens * 5 + (u.output_tokens || 0) * 25) / 1e6) : null;
+    const pres = (d.presentaciones || []).join(', ') || '—';
+    const asiNombre = (data.asistente || '').split('|')[0] || '—';
+    const dirNombre = (data.director || '').split('|')[0] || '—';
+
+    document.getElementById('resumen').innerHTML = `
+      <div class="grid">
+        <div class="card"><div class="n">${(d.jornadas_clase||[]).length}</div><div class="l">Jornadas de clase</div></div>
+        <div class="card"><div class="n">${(d.festivos||[]).length}</div><div class="l">Festivos</div></div>
+        <div class="card"><div class="n">${(d.eventos||[]).length}</div><div class="l">Eventos</div></div>
+        <div class="card"><div class="n" style="font-size:1rem;padding-top:0.5rem">${d.tipo_detectado||'—'}</div><div class="l">Modalidad</div></div>
+      </div>
+      <p class="muted">Año: <strong>${d.anio||'—'}</strong> · Semana Santa (lunes): <strong>${d.semana_santa_lunes||'—'}</strong></p>
+      <p class="muted">🎤 Presentaciones NAVES: <strong>${pres}</strong> · 🎓 Grado: <strong>${d.grado||'—'}</strong></p>
+      <p class="muted">👤 Asistente: <strong>${asiNombre}</strong> · 🎓 Director(a): <strong>${dirNombre}</strong></p>
+      ${costo !== null ? `<p class="muted">Costo de esta lectura (Opus): <strong>$${costo.toFixed(3)} USD</strong></p>` : ''}
+      ${d.notas ? `<p class="muted">📝 Notas de Claude: ${d.notas}</p>` : ''}`;
+
+  } catch(e){
+    est.innerHTML = '<span class="err">✕ Error: ' + e.message + '</span>';
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

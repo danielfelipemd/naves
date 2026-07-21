@@ -1,0 +1,14 @@
+⚠️  ONE PAGERS DE LOS PROYECTOS — NO INCLUIDOS EN ESTA VERSIÓN
+================================================================
+
+Esta es la ENTREGA MÍNIMA del proyecto NAVES 2026 (solo código + documentación).
+
+Los one pagers (PDF de cada proyecto) NO vienen en este paquete.
+
+En el sistema definitivo, la información de cada proyecto y sus documentos vendrán
+de la **plataforma de gestión integral de trabajos de grado** de INALDE (ese formato ya diseñado es la
+fuente de verdad), no de archivos sueltos. Ver también la nota en `sitio/logos/`
+y §5.4 / §17.4b de la documentación técnica.
+
+Si necesita los one pagers actuales para una prueba, pídale a Juan Manuel la carpeta
+`pdfs/` o el ZIP de entrega completo (NAVES_2026_Entrega.zip).

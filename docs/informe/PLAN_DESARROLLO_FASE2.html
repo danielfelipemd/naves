@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 17mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1a1a1a; font-size: 12px; line-height: 1.5; margin: 0; }
+  .head { border-bottom: 4px solid #e30613; padding-bottom: 14px; margin-bottom: 20px; }
+  .kicker { color: #888; text-transform: uppercase; letter-spacing: 2px; font-size: 10px; margin: 0 0 6px; }
+  h1 { font-size: 23px; margin: 0 0 10px; }
+  .meta { font-size: 11px; color: #444; }
+  .meta strong { color: #1a1a1a; }
+  h2 { font-size: 15px; color: #e30613; margin: 24px 0 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 11px; }
+  th { background: #1a1a1a; color: #fff; text-align: left; padding: 7px 9px; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  td { padding: 7px 9px; border-bottom: 1px solid #ececec; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+  td.h { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .total td { border-top: 2px solid #e30613; font-weight: 700; font-size: 13px; background: #fff5f5; }
+  .cols { display: flex; gap: 14px; margin: 10px 0; }
+  .card { flex: 1; background: #fafafa; border: 1px solid #eee; border-left: 4px solid #e30613; border-radius: 4px; padding: 12px 14px; }
+  .card .n { font-size: 26px; font-weight: 800; color: #e30613; line-height: 1; }
+  .card .l { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+  .bar { height: 26px; background: #eee; border-radius: 5px; overflow: hidden; display: flex; font-size: 11px; font-weight: 700; color: #fff; margin: 6px 0 2px; }
+  .bar .done { background: #16a34a; display: flex; align-items: center; justify-content: center; }
+  .bar .todo { background: #cbd5e1; color: #475569; display: flex; align-items: center; justify-content: center; }
+  ul { margin: 6px 0 0; padding-left: 18px; }
+  ul li { margin: 3px 0; }
+  .muted { color: #888; font-size: 10px; }
+  .foot { margin-top: 24px; border-top: 1px solid #ddd; padding-top: 10px; color: #888; font-size: 10px; }
+  .ok { color: #16a34a; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <p class="kicker">Plan de desarrollo · Fase 2</p>
+    <h1>NAVES — Estado del proyecto y plan de la siguiente fase</h1>
+    <p class="meta">
+      <strong>Cliente:</strong> INALDE Business School — Programa Executive MBA &nbsp;·&nbsp;
+      <strong>Proyecto:</strong> NAVES (plataforma naves-inalde.com)<br>
+      <strong>Documento:</strong> Alcance, horas estimadas y porcentaje de avance &nbsp;·&nbsp;
+      <strong>Emitido:</strong> 2 de julio de 2026
+    </p>
+  </div>
+
+  <h2>1. Avance del sistema a hoy</h2>
+  <div class="bar">
+    <div class="done" style="width:53%">Fase 1 entregada · 53%</div>
+    <div class="todo" style="width:47%">Fase 2 pendiente · 47%</div>
+  </div>
+  <div class="cols">
+    <div class="card"><div class="n">~53%</div><div class="l">Avance actual del sistema</div></div>
+    <div class="card"><div class="n">~69 h</div><div class="l">Fase 1 — entregada</div></div>
+    <div class="card"><div class="n">~60 h</div><div class="l">Fase 2 — estimada</div></div>
+    <div class="card"><div class="n">100%</div><div class="l">Al completar la Fase 2</div></div>
+  </div>
+  <p class="muted">La Fase 2 es la que completa el sistema descrito en la documentación técnica. Al terminarla, el sistema queda al 100% de su alcance documentado.</p>
+
+  <h2>2. Lo que ya está entregado (Fase 1)</h2>
+  <ul>
+    <li><span class="ok">✓</span> <strong>Plataforma base</strong> con 3 roles (participante, profesor, super_admin): backend, autenticación segura y datos personales cifrados.</li>
+    <li><span class="ok">✓</span> <strong>Tres modalidades</strong> de trabajo de grado (Business Plan, Caso, Proyecto de Investigación) con su flujo de equipo y entrega.</li>
+    <li><span class="ok">✓</span> <strong>Formulario de anteproyecto</strong> con autoguardado, envío definitivo, validaciones y confirmación por correo.</li>
+    <li><span class="ok">✓</span> <strong>Panel administrativo:</strong> cohortes con hitos, participantes, profesores, roles, equipos y anteproyectos.</li>
+    <li><span class="ok">✓</span> <strong>Sábana de proyectos:</strong> tabla consolidada, asignación de profesores, filtros, y <strong>comunicación por correo</strong> a participantes y profesores.</li>
+    <li><span class="ok">✓</span> <strong>Vista de proyectos que buscan socios</strong> para los participantes.</li>
+  </ul>
+
+  <h2>3. Alcance y horas de la Fase 2</h2>
+  <table>
+    <thead>
+      <tr><th style="width:22px">#</th><th style="width:26%">Módulo</th><th>Qué incluye</th><th style="width:58px; text-align:right">Horas</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>A</td><td><strong>Panelistas (evaluadores)</strong></td><td>Portal de confirmación de asistencia por link personalizado (transporte y comidas por fecha); panel del coordinador con estado en tiempo real, edición de logística y envío de correos; resúmenes y exportaciones a Excel.</td><td class="h">14–18</td></tr>
+      <tr><td>B</td><td><strong>Calendario / Programación</strong></td><td>Configuración de fechas, jornadas y slots con reordenamiento visual (drag-and-drop), cálculo automático de horarios y Excel de calificación para los panelistas.</td><td class="h">12–16</td></tr>
+      <tr><td>C</td><td><strong>Base de datos interna + Portal de participantes</strong></td><td>Página de proyectos para el equipo interno (filtros y exportaciones) y portal del estudiante con su calendario de presentación (acceso por link y botón "Agregar a mi calendario").</td><td class="h">10–14</td></tr>
+      <tr><td>D</td><td><strong>Generación de contenido con IA</strong></td><td>Resúmenes y publicaciones de LinkedIn generados automáticamente leyendo el material real de cada proyecto, con revisión y aprobación humana.</td><td class="h">6–9</td></tr>
+      <tr><td>E</td><td><strong>Comunicaciones automáticas</strong></td><td>Plantillas de correo, recordatorios automáticos a panelistas sin confirmar, resumen logístico previo al evento y notificaciones dentro de la plataforma.</td><td class="h">5–8</td></tr>
+      <tr><td>F</td><td><strong>Migración de archivos e integración final</strong></td><td>Traslado de logos y documentos al almacenamiento en la nube, carga inicial de datos de la cohorte y cableado final entre módulos.</td><td class="h">4–6</td></tr>
+      <tr class="total"><td colspan="3">TOTAL FASE 2</td><td class="h">55–68</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">Estimación central: <strong>≈ 60 horas</strong> de desarrollo efectivo (diseño, codificación, pruebas y despliegue). El estimado aprovecha toda la base ya construida en la Fase 1 (autenticación, roles, envío de correos, componentes de administración), por lo que no parte de cero.</p>
+
+  <h2>4. Resumen para decisión</h2>
+  <table>
+    <thead><tr><th>Concepto</th><th style="text-align:right; width:110px">Horas</th><th style="text-align:right; width:90px">% del sistema</th></tr></thead>
+    <tbody>
+      <tr><td>Fase 1 — entregada</td><td class="h">~69 h</td><td class="h">53%</td></tr>
+      <tr><td>Fase 2 — por implementar</td><td class="h">~60 h</td><td class="h">47%</td></tr>
+      <tr class="total"><td>Sistema completo</td><td class="h">~129 h</td><td class="h">100%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="foot">
+    <strong>INALDE Business School</strong> — Programa Executive MBA · Proyecto NAVES · Plan de desarrollo Fase 2 · Emitido el 2 de julio de 2026.
+  </div>
+</body>
+</html>

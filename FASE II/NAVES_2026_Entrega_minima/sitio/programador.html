@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAVES 2026 | Generador de Programación | INALDE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--red:#e30613;--black:#0a0a0a;--text:#1a1a1a;--gray:#6b6b6b;--light:#f5f5f5;--border:#e0e0e0;--white:#fff;--green:#1a6b3c;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Roboto',sans-serif;background:var(--light);color:var(--text);}
+
+  /* LOGIN */
+  #login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#0a0a0a,#1a1a1a 60%,#2a1010);z-index:9999;display:flex;align-items:center;justify-content:center;}
+  .login-box{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);max-width:400px;width:90%;padding:3rem 2.5rem;text-align:center;}
+  .login-box h1{font-family:'Montserrat';font-size:1.6rem;font-weight:900;color:#fff;margin-bottom:0.3rem;}
+  .login-box h1 span{color:var(--red);}
+  .login-box p{color:rgba(255,255,255,0.6);font-size:0.85rem;margin-bottom:1.8rem;}
+  .login-box input{width:100%;padding:0.85rem 1rem;margin-bottom:1rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:1rem;text-align:center;letter-spacing:0.1em;}
+  .login-box input:focus{outline:none;border-color:var(--red);}
+  .login-box button{width:100%;padding:0.85rem;background:var(--red);color:#fff;border:none;font-family:'Montserrat';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border-radius:30px;font-size:0.85rem;}
+  .login-box button:hover{background:#fff;color:var(--red);}
+  #login-err{color:#ff6b6b;font-size:0.82rem;margin-top:0.8rem;min-height:18px;}
+
+  header{background:var(--black);padding:0.9rem 2rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;}
+  .h-logo{font-family:'Montserrat';font-weight:900;font-size:1.3rem;color:#fff;}
+  .h-logo span{color:var(--red);}
+  .h-right{display:flex;gap:0.6rem;align-items:center;}
+  .h-badge{background:var(--red);color:#fff;font-family:'Montserrat';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:0.35rem 0.9rem;border-radius:3px;}
+  .h-btn{background:none;border:1px solid rgba(255,255,255,0.25);color:rgba(255,255,255,0.7);font-family:'Montserrat';font-size:0.7rem;font-weight:600;letter-spacing:0.05em;padding:0.35rem 0.8rem;cursor:pointer;border-radius:3px;text-decoration:none;}
+  .h-btn:hover{border-color:#fff;color:#fff;}
+
+  .wrap{max-width:1500px;margin:0 auto;padding:1.2rem 1.5rem 4rem;display:grid;grid-template-columns:380px 1fr;gap:1.5rem;align-items:start;}
+
+  .panel{background:#fff;border:1px solid var(--border);border-radius:6px;padding:1.1rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+  .panel h2{font-family:'Montserrat';font-size:0.82rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text);margin-bottom:0.9rem;padding-bottom:0.5rem;border-bottom:2px solid var(--red);}
+  /* Columna de config: fija pero con scroll propio cuando es más alta que la pantalla */
+  .config{position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow-y:auto;}
+
+  @media(max-width:980px){
+    .wrap{grid-template-columns:1fr;padding:0.8rem 0.8rem 3rem;gap:1rem;}
+    /* En celular la config fluye con la página (sin scroll anidado) */
+    .config{position:static;max-height:none;overflow:visible;}
+    header{padding:0.8rem 1rem;}
+    .h-logo{font-size:1.1rem;}
+    .h-badge{font-size:0.62rem;padding:0.3rem 0.6rem;}
+    .ro-list{max-height:none;}
+    .ro-hora{width:auto;}
+    .ro-item{flex-wrap:wrap;}
+  }
+  .fld{margin-bottom:0.8rem;}
+  .fld label{display:block;font-size:0.72rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;}
+  .fld input,.fld select{width:100%;padding:0.45rem 0.55rem;border:1px solid var(--border);border-radius:4px;font-family:'Roboto';font-size:0.85rem;background:var(--light);}
+  .fld input:focus,.fld select:focus{outline:none;border-color:var(--red);background:#fff;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;}
+
+  .seg{display:flex;gap:0;border:1px solid var(--border);border-radius:5px;overflow:hidden;margin-bottom:0.9rem;}
+  .seg button{flex:1;padding:0.5rem;background:#fff;border:none;font-family:'Montserrat';font-size:0.72rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;color:var(--gray);}
+  .seg button.on{background:var(--red);color:#fff;}
+
+  .tiempos{background:var(--light);border-radius:5px;padding:0.7rem;margin-bottom:0.9rem;}
+  .tiempos .ti{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.35rem;font-size:0.76rem;}
+  .tiempos .ti:last-child{margin-bottom:0;}
+  .tiempos input{width:58px;padding:0.25rem;border:1px solid var(--border);border-radius:3px;text-align:center;font-size:0.8rem;}
+
+  .dia-card{border:1px solid var(--border);border-left:3px solid var(--red);border-radius:5px;padding:0.8rem;margin-bottom:0.8rem;background:#fff;}
+  .dia-card .dc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;}
+  .dia-card .dc-num{font-family:'Montserrat';font-weight:800;font-size:0.78rem;color:var(--red);}
+  .dia-card .dc-del{background:none;border:none;color:var(--gray);cursor:pointer;font-size:1rem;line-height:1;}
+  .dia-card .dc-del:hover{color:var(--red);}
+  .interr-box{background:var(--light);border-radius:4px;padding:0.5rem;margin-top:0.5rem;}
+  .interr-box .ib-t{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--gray);margin-bottom:0.35rem;}
+  .interr-row{display:grid;grid-template-columns:1fr 80px;gap:0.4rem;margin-bottom:0.35rem;align-items:center;}
+  .interr-row:last-child{margin-bottom:0;}
+  .interr-row span{font-size:0.72rem;color:var(--text);}
+  .interr-row select,.interr-row input{padding:0.3rem;font-size:0.78rem;border:1px solid var(--border);border-radius:3px;}
+  .chk{display:flex;align-items:center;gap:0.4rem;font-size:0.76rem;color:var(--text);}
+
+  .btn-add{width:100%;padding:0.5rem;background:#fff;border:1px dashed var(--red);color:var(--red);font-family:'Montserrat';font-weight:700;font-size:0.74rem;border-radius:5px;cursor:pointer;}
+  .btn-add:hover{background:#fff5f5;}
+
+  .valbar{padding:0.55rem 0.7rem;border-radius:5px;font-size:0.78rem;font-weight:600;margin-bottom:0.9rem;}
+  .valbar.ok{background:#e8f5ec;color:var(--green);}
+  .valbar.bad{background:#fdeaea;color:var(--red);}
+
+  .actions{display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:1rem;}
+  .btn{padding:0.6rem 1.1rem;border:none;border-radius:5px;font-family:'Montserrat';font-weight:700;font-size:0.76rem;letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;}
+  .btn-print{background:var(--black);color:#fff;}
+  .btn-xls{background:var(--green);color:#fff;}
+  .btn-json{background:#224d7c;color:#fff;}
+  .btn-json2{background:#fff;color:#224d7c;border:1px solid #224d7c;}
+  .btn:hover{opacity:0.88;}
+
+  .save-bar{display:flex;justify-content:space-between;align-items:center;gap:0.5rem;background:var(--light);border-radius:5px;padding:0.4rem 0.6rem;margin-bottom:0.9rem;}
+  #save-ind{font-size:0.74rem;color:var(--gray);font-weight:600;}
+  .save-bar button{background:none;border:1px solid var(--border);border-radius:4px;font-size:0.72rem;font-weight:600;color:var(--gray);padding:0.25rem 0.6rem;cursor:pointer;}
+  .save-bar button:hover{border-color:var(--red);color:var(--red);}
+
+  /* PREVIEW */
+  #preview .dia-prog{background:#fff;border:1px solid var(--border);border-radius:6px;margin-bottom:1.3rem;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+  .dp-head{background:var(--black);color:#fff;padding:0.7rem 1.1rem;}
+  .dp-head .dp-fecha{font-family:'Montserrat';font-weight:900;font-size:1rem;}
+  .dp-head .dp-fecha span{color:var(--red);}
+  .dp-head .dp-sub{font-size:0.74rem;color:rgba(255,255,255,0.6);margin-top:0.15rem;}
+  table.prog{width:100%;border-collapse:collapse;}
+  table.prog td{padding:0.5rem 0.7rem;border-bottom:1px solid var(--border);font-size:0.84rem;vertical-align:top;}
+  table.prog tr:last-child td{border-bottom:none;}
+  .pc-hora{width:110px;font-family:'Montserrat';font-weight:700;font-size:0.78rem;color:var(--text);white-space:nowrap;}
+  .pc-slot{width:38px;text-align:center;font-family:'Montserrat';font-weight:900;color:#ccc;}
+  .pc-proj strong{font-family:'Montserrat';font-size:0.9rem;}
+  .pc-proj .pc-aut{color:var(--gray);font-size:0.76rem;margin-top:0.1rem;}
+  .pc-sector{width:150px;}
+  .badge{display:inline-block;color:#fff;font-family:'Montserrat';font-size:0.62rem;font-weight:700;letter-spacing:0.03em;padding:0.18rem 0.5rem;border-radius:3px;}
+  tr.ev td{background:#ffe066;}
+  tr.ev .pc-ev{font-family:'Montserrat';font-weight:700;font-size:0.82rem;color:var(--text);}
+  tr.ev .pc-ev small{display:block;color:#7a5c00;font-weight:400;font-size:0.74rem;margin-top:0.1rem;}
+  tr.ev.alm td{background:#ffe066;}
+  tr.ev.cierre td{background:#ffe066;}
+
+  .col-right{display:flex;flex-direction:column;gap:1.5rem;}
+
+  /* Auditoría */
+  .audit{padding:0.6rem 0.8rem;border-radius:5px;font-size:0.82rem;font-weight:600;}
+  .audit.ok{background:#e8f5ec;color:var(--green);}
+  .audit.bad{background:#fdeaea;color:var(--red);}
+  .audit ul{margin:0.4rem 0 0 1.1rem;font-weight:400;}
+  .audit li{margin-bottom:0.15rem;}
+
+  /* Solicitudes */
+  .sol-card{border:1px solid var(--border);border-left:3px solid var(--gray);border-radius:5px;padding:0.6rem;margin-bottom:0.6rem;}
+  .sol-card.sol-ok{border-left-color:var(--green);}
+  .sol-card.sol-warn{border-left-color:#e65100;}
+  .sol-r1{display:flex;gap:0.4rem;align-items:center;margin-bottom:0.4rem;flex-wrap:wrap;}
+  .sol-r1 select,.sol-r1 input{padding:0.32rem;border:1px solid var(--border);border-radius:4px;font-size:0.78rem;}
+  .sol-r1 select{flex:1;min-width:90px;}
+  .sol-del{margin-left:auto;background:none;border:none;color:var(--gray);cursor:pointer;font-size:0.95rem;}
+  .sol-del:hover{color:var(--red);}
+  .sol-nota{width:100%;padding:0.32rem;border:1px solid var(--border);border-radius:4px;font-size:0.78rem;margin-bottom:0.4rem;}
+  .sol-estado{font-size:0.76rem;font-weight:600;}
+  .sol-ok .sol-estado{color:var(--green);}
+  .sol-warn .sol-estado{color:#e65100;}
+
+  /* Reordenar */
+  .ro-list{position:relative;list-style:none;max-height:460px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;}
+  .ro-day{list-style:none;background:var(--black);color:#fff;font-family:'Montserrat';font-weight:800;font-size:0.68rem;letter-spacing:0.06em;text-transform:uppercase;padding:0.35rem 0.6rem;position:sticky;top:0;z-index:2;}
+  .ro-item{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border-bottom:1px solid var(--border);background:#fff;font-size:0.8rem;user-select:none;}
+  .ro-item:last-child{border-bottom:none;}
+  .ro-item:hover{background:#fafafa;}
+  .ro-item.dragging{opacity:0.35;}
+  .ro-handle{color:#bbb;cursor:grab;font-size:1.1rem;touch-action:none;padding:0 0.15rem;}
+  .ro-handle:active{cursor:grabbing;}
+  .drag-ghost{position:fixed;z-index:10000;pointer-events:none;background:var(--black);color:#fff;border-radius:6px;padding:0.4rem 0.7rem;font-family:'Montserrat';font-weight:700;font-size:0.8rem;box-shadow:0 6px 18px rgba(0,0,0,0.35);display:flex;gap:0.6rem;align-items:center;white-space:nowrap;}
+  .drag-ghost .dg-slot{background:var(--red);padding:0.12rem 0.5rem;border-radius:3px;font-weight:800;}
+  .drag-line{position:absolute;left:0;right:0;height:3px;background:var(--red);display:none;pointer-events:none;border-radius:2px;box-shadow:0 0 0 1px rgba(227,6,19,0.3);}
+  .ro-slot{font-family:'Montserrat';font-weight:900;color:#ccc;width:24px;text-align:center;}
+  .ro-hora{font-family:'Montserrat';font-weight:700;font-size:0.7rem;color:var(--gray);white-space:nowrap;width:110px;}
+  .ro-proj{flex:1;font-family:'Montserrat';font-weight:700;font-size:0.82rem;min-width:80px;}
+  .ro-btns{display:flex;gap:0.2rem;align-items:center;}
+  .ro-btns button{background:#fff;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:0.65rem;padding:0.15rem 0.35rem;}
+  .ro-btns button:hover:not(:disabled){border-color:var(--red);color:var(--red);}
+  .ro-btns button:disabled{opacity:0.3;cursor:default;}
+  .ro-to{width:42px;padding:0.2rem;border:1px solid var(--border);border-radius:3px;font-size:0.72rem;text-align:center;}
+
+  .print-only{display:none;}
+  @media print{
+    header,.config,.actions,#login-screen,.no-print{display:none!important;}
+    .wrap{display:block;max-width:100%;padding:0;}
+    .col-right{display:block;}
+    .panel{border:none;box-shadow:none;padding:0;}
+    /* Un día por página */
+    #preview .dia-prog{break-inside:avoid;break-after:page;page-break-after:always;margin:0;box-shadow:none;}
+    #preview .dia-prog:last-child{break-after:auto;page-break-after:auto;}
+    .print-only{display:block;}
+    body{background:#fff;}
+    @page{margin:1.2cm;}
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <h1>N<span>A</span>VES · Programador</h1>
+    <p>Acceso exclusivo del coordinador / profesor</p>
+    <input type="password" id="pwd" placeholder="Contraseña" onkeydown="if(event.key==='Enter')entrar()">
+    <button onclick="entrar()">Ingresar</button>
+    <div id="login-err"></div>
+  </div>
+</div>
+
+<header>
+  <div class="h-logo">N<span>A</span>VES <span>2026</span></div>
+  <div class="h-right">
+    <a class="h-btn" href="index.html">← Volver al sitio</a>
+    <span class="h-badge">Generador de Programación</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- CONFIG -->
+  <div class="panel config">
+    <h2>Configuración</h2>
+
+    <div class="save-bar">
+      <span id="save-ind">☁ Auto-guardado en la nube</span>
+      <span style="display:flex;gap:0.35rem">
+        <button onclick="cargarNube(true)" title="Traer la última versión guardada (por si otro coordinador la editó)">↻ Cargar nube</button>
+        <button onclick="restablecer()" title="Volver a los valores por defecto">↺ Restablecer</button>
+      </span>
+    </div>
+
+    <div class="fld">
+      <label>Nombre del evento</label>
+      <input type="text" id="cfg-evento" value="NAVES 2026" onchange="onCfg()">
+    </div>
+
+    <label style="display:block;font-size:0.72rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;">Tipo de programa</label>
+    <div class="seg" id="seg-tipo">
+      <button data-tipo="FS" class="on" onclick="setTipo('FS')">Fin de semana</button>
+      <button data-tipo="INT" onclick="setTipo('INT')">Intensivo</button>
+    </div>
+
+    <div class="tiempos">
+      <div class="ti"><span>Exposición (min)</span><input type="number" id="t-expo" value="20" min="1" onchange="onCfg()"></div>
+      <div class="ti"><span>Transición entre slots (min)</span><input type="number" id="t-trans" value="5" min="0" onchange="onCfg()"></div>
+      <div class="ti"><span>Foto inicial (min)</span><input type="number" id="t-foto" value="10" min="0" onchange="onCfg()"></div>
+      <div class="ti"><span>Cierre / foto final (min)</span><input type="number" id="t-cierre" value="20" min="0" onchange="onCfg()"></div>
+    </div>
+
+    <div id="val" class="valbar ok"></div>
+
+    <div id="dias-cfg"></div>
+
+    <button class="btn-add" onclick="agregarDia()">+ Agregar día</button>
+  </div>
+
+  <!-- COLUMNA DERECHA -->
+  <div class="col-right">
+
+    <div class="panel no-print">
+      <h2>Auditoría</h2>
+      <div id="audit" class="audit ok"></div>
+    </div>
+
+    <div class="panel no-print">
+      <h2>Solicitudes especiales</h2>
+      <p style="font-size:0.76rem;color:var(--gray);margin-bottom:0.7rem">El sistema solo señala si el slot actual cumple la solicitud (✓ / ⚠). El control de los slots es suyo.</p>
+      <div id="solicitudes"></div>
+    </div>
+
+    <div class="panel no-print">
+      <h2>Reordenar presentaciones</h2>
+      <p style="font-size:0.76rem;color:var(--gray);margin-bottom:0.6rem">Arrastre las filas (o use ▲ ▼ / “mover a slot #”). Cada cambio recalcula y audita toda la programación.</p>
+      <button class="btn-add" style="margin-bottom:0.7rem" onclick="agruparPorSector()">⇅ Agrupar por sector (afines juntos)</button>
+      <div id="reorden"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Vista previa del cronograma</h2>
+      <div class="actions">
+        <button class="btn btn-print" onclick="window.print()">🖨 Imprimir cronograma</button>
+        <button class="btn btn-xls" onclick="exportarExcel()">⬇ Excel de calificación (panelistas)</button>
+        <button class="btn btn-json" onclick="exportarJSON()" title="Exporta la programación (incluye el cronograma calculado) para regenerar el index">⬇ Exportar programación (JSON)</button>
+        <button class="btn btn-json2" onclick="document.getElementById('imp-json').click()">⬆ Importar programación</button>
+        <input type="file" id="imp-json" accept="application/json,.json" style="display:none" onchange="importarJSON(this)">
+      </div>
+      <div class="print-only" id="print-title" style="text-align:center;margin-bottom:0.8rem;font-family:'Montserrat';font-weight:900;font-size:1.2rem;"></div>
+      <div id="preview"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+const PWD = 'Mba2026';
+
+// JSONbin de la PROGRAMACIÓN (separado del de logística). Permite que varios
+// coordinadores editen la misma programación; el guardado local es respaldo offline.
+const PROG_BIN_ID  = '6a2f33e2da38895dfec095a4';
+const PROG_BIN_KEY = '$2a$10$qBXsMcldU3zo7WzTazFhWeOrAvogSvSHw7bvSUBGWonD7zbLdj9hG';
+const PROG_BIN_URL = `https://api.jsonbin.io/v3/b/${PROG_BIN_ID}`;
+
+async function entrar(){
+  if(document.getElementById('pwd').value === PWD){
+    document.getElementById('login-screen').style.display='none';
+    setIndicador('☁ Conectando…');
+    const cargado = await cargarNube();   // primero intenta la nube (compartida)
+    if(!cargado) restaurarLocal();        // si la nube está vacía o falla, usa el respaldo local
+    recomputar();
+    if(cargado) setIndicador('☁ Cargado de la nube');
+  } else {
+    document.getElementById('login-err').textContent = 'Contraseña incorrecta';
+  }
+}
+
+const PROYECTOS_BASE = [
+  {slot:1, proyecto:"Bevo", autores:"Silvio Andrés Terán Calvache, Angela María Serna Castrillón, Camila Andrea Tarazona Moreno", sector:"RRHH / Bienestar"},
+  {slot:2, proyecto:"SATORI", autores:"Rina Miroshlawa Molina Vargas", sector:"RRHH / Bienestar"},
+  {slot:3, proyecto:"VERIMED", autores:"Zain Pena Zea, Carlos Daniel Rodriguez Calderon, Jeisson Fernando Lancheros Jimenez", sector:"HealthTech / Salud"},
+  {slot:4, proyecto:"Chargehub", autores:"Diana Marcela Bruges Prada, Andrés Felipe Solano Hernández", sector:"Movilidad / Energía"},
+  {slot:5, proyecto:"Plug&GoEV", autores:"Ginna Lizeth Moncada Moreno, Ronald Jaimes Prada, Bibiana Carolina Baez Castro", sector:"Movilidad / Energía"},
+  {slot:6, proyecto:"Bio Value", autores:"Maria Wills Salas, Luis Alberto Gonzalez Miguel, Juan Sebastian Uribe Barcha", sector:"AgriTech / Sostenibilidad"},
+  {slot:7, proyecto:"New Car Now", autores:"Santiago Romero Herrera", sector:"Movilidad / Energía"},
+  {slot:8, proyecto:"güdplant", autores:"Luis Miguel Olarte, Oscar Daniel Lopez, Nicolas Trujillo", sector:"AgriTech / Sostenibilidad"},
+  {slot:9, proyecto:"Grey2Blue", autores:"Andrea Lora, Juliana Munar", sector:"AgriTech / Sostenibilidad"},
+  {slot:10, proyecto:"Jornalia", autores:"Jenny Forero, Silvana Morales", sector:"AgriTech / Sostenibilidad"},
+  {slot:11, proyecto:"AKOS", autores:"Héctor Rodrigo Arias Cueca, Cesar Julián Pérez Garavito", sector:"FinTech / Financiero"},
+  {slot:12, proyecto:"FioYa", autores:"Pablo Molina", sector:"FinTech / Financiero"},
+  {slot:13, proyecto:"Mony", autores:"Sergio Andres Espinosa Silva, Javier Garcia Gutierrez", sector:"FinTech / Financiero"},
+  {slot:14, proyecto:"sabIO", autores:"Marcel Holguín, Andrés Cortés", sector:"FinTech / Financiero"},
+  {slot:15, proyecto:"Verifika", autores:"Andres Camilo Ramirez Rodriguez", sector:"FinTech / Financiero"},
+  {slot:16, proyecto:"AMIGO", autores:"Andres Camilo Martinez Socota", sector:"IA / Tecnología"},
+  {slot:17, proyecto:"ARCO", autores:"Laura Mariño Arévalo, Julián Camilo Jiménez Moreno, Jhon Alexander Alarcón Hernández", sector:"IA / Tecnología"},
+  {slot:18, proyecto:"KLAR", autores:"Carlos Alberto Rodriguez Hernandez", sector:"IA / Tecnología"},
+  {slot:19, proyecto:"PLICS", autores:"Laura Lerma, Andres Vasquez, Cristian Hernandez", sector:"IA / Tecnología"},
+  {slot:20, proyecto:"Zafiro", autores:"Gerardo Jimenez, Daniel Pabon", sector:"IA / Tecnología"},
+  {slot:21, proyecto:"T-HEALTH", autores:"Carlos Enrique Manquillo, Luis Geovanni Florez Diaz", sector:"HealthTech / Salud"},
+  {slot:22, proyecto:"La Etapa Café", autores:"Juan Sebastián López, John Segura Monroy, Claudia Estévez Prada", sector:"Alimentos / F&B"},
+  {slot:23, proyecto:"Viora", autores:"Alexandra Guarín, Juan José Ordoñez, Edwin Molano", sector:"HealthTech / Salud"},
+  {slot:24, proyecto:"Moovday", autores:"Julio César Riaño Rico, Germán Buitrago Gónzalez", sector:"Salud / Deporte"},
+  {slot:25, proyecto:"OVILAND", autores:"Ginna Fernanda Romero Rincón", sector:"Alimentos / F&B"},
+  {slot:26, proyecto:"SABE", autores:"Diana Mireya Martinez Gomez, Mayra Alexandra Puello Villarruel, Eliana Lozano Romero", sector:"Alimentos / F&B"},
+  {slot:27, proyecto:"Ready2", autores:"Mabel Adriana Herrera Bermúdez", sector:"Alimentos / F&B"},
+  {slot:28, proyecto:"Segunda Mesa", autores:"Katia Ogaza, Camila Alvarez", sector:"Alimentos / F&B"},
+  {slot:29, proyecto:"VecinoPro", autores:"Oriana Rocio Cendales Reyes", sector:"IA / Tecnología"},
+  {slot:30, proyecto:"HERITAGEBOX", autores:"Patricio Javier Alvarado Strange", sector:"Otros"},
+  {slot:31, proyecto:"Avia Style", autores:"Elkin Ricardo Ostos Salcedo", sector:"Otros"},
+  {slot:32, proyecto:"TRADECOM ECUADOR", autores:"Mateo Camilo de Wasseige Duperly", sector:"Otros"},
+  {slot:33, proyecto:"Broker LLM", autores:"Edwin Muñoz Aristizabal", sector:"IA / Tecnología"},
+  {slot:34, proyecto:"CLIC", autores:"Germán Acosta", sector:"IA / Tecnología"},
+];
+
+const SECTOR_COLORS = {
+  "FinTech / Financiero":"#1a6b3c","IA / Tecnología":"#4a1a8e","HealthTech / Salud":"#8a0a1a",
+  "Movilidad / Energía":"#0a5b8a","Alimentos / F&B":"#8a3d0a","AgriTech / Sostenibilidad":"#3d6b0a",
+  "RRHH / Bienestar":"#1a4a6b","Salud / Deporte":"#0a6b5b","Otros":"#4a4a4a"
+};
+
+const BLOQUE = 5;            // presentaciones por bloque
+const VENTANA_ALM = [690, 870]; // ventana almuerzo: 11:30–14:30 (min desde medianoche)
+
+// Defaults por tipo de programa (la fecha real `fechaISO` define el orden cronológico)
+const DEFAULTS = {
+  FS: [
+    {fechaISO:'2026-06-12', inicio:'13:50', foto:true,  intro:20, n:10},
+    {fechaISO:'2026-06-13', inicio:'07:20', foto:false, intro:5,  n:10},
+    {fechaISO:'2026-06-19', inicio:'14:00', foto:true,  intro:20, n:10},
+    {fechaISO:'2026-06-20', inicio:'08:55', foto:false, intro:20, n:4},
+  ],
+  INT: [
+    {fechaISO:'2026-11-16', inicio:'11:00', foto:true,  intro:20, n:15},
+    {fechaISO:'2026-11-17', inicio:'07:00', foto:false, intro:5,  n:14},
+    {fechaISO:'2026-11-18', inicio:'07:00', foto:false, intro:5,  n:5},
+  ]
+};
+
+// Título legible a partir de la fecha ISO: "Viernes 12 de junio"
+function fechaTitulo(iso){
+  if(!iso) return 'Día sin fecha';
+  const d = new Date(iso + 'T00:00:00');
+  if(isNaN(d)) return 'Día sin fecha';
+  const dias  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  return `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}`;
+}
+
+// Ordena los días cronológicamente (por fecha, luego por hora de inicio)
+function ordenarDias(){
+  estado.dias.sort((a,b)=>
+    (a.fechaISO||'').localeCompare(b.fechaISO||'') || (toMin(a.inicio)-toMin(b.inicio))
+  );
+}
+
+// Orden de afinidad de sectores (para "Agrupar por sector"): cercanos quedan juntos
+const SECTOR_AFINIDAD = [
+  "FinTech / Financiero","IA / Tecnología","HealthTech / Salud","Salud / Deporte",
+  "Alimentos / F&B","AgriTech / Sostenibilidad","Movilidad / Energía","RRHH / Bienestar","Otros"
+];
+
+const TIPOS_SOLICITUD = {
+  temprano:'Temprano (primer bloque del día)',
+  tarde:'Tarde (último bloque del día)',
+  dia:'Día específico',
+  hora:'Hora aproximada'
+};
+
+let estado = {
+  tipo:'FS',
+  dias: clonarDefault('FS'),
+  orden: PROYECTOS_BASE.map(p => ({...p})),   // copia reordenable; el slot = posición+1
+  solicitudes: []                              // máx 4: {proyecto, tipo, detalle, nota}
+};
+
+function clonarDefault(tipo){
+  return DEFAULTS[tipo].map(d => ({...d, fecha: fechaTitulo(d.fechaISO), interr:[]}));
+}
+
+// ---------- Helpers de tiempo ----------
+const toMin = s => { const [h,m]=s.split(':').map(Number); return h*60+m; };
+const toHHMM = m => { m=Math.round(m); const h=Math.floor(m/60)%24; const mm=m%60; return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'); };
+const rango = (a,b) => toHHMM(a)+'–'+toHHMM(b);
+
+function tiempos(){
+  return {
+    expo: +document.getElementById('t-expo').value || 20,
+    trans:+document.getElementById('t-trans').value || 5,
+    foto: +document.getElementById('t-foto').value || 10,
+    cierre:+document.getElementById('t-cierre').value || 20,
+  };
+}
+
+// ---------- Motor: construye las filas de un día ----------
+function construirDia(dia, proyectos, slotBase, esUltimoDia, T){
+  const filas = [];
+  const introMin = (+dia.intro||0);
+  const tSlot1 = toMin(dia.inicio);              // hora de la 1ª presentación (ancla)
+  // La foto y la introducción se programan HACIA ATRÁS, terminando justo antes del slot 1
+  let t = tSlot1 - T.trans - introMin - (dia.foto ? T.foto : 0);
+  if(dia.foto){ filas.push({tipo:'foto', desc:'Toma de foto de grupo — Puerta principal', ini:t, fin:t+T.foto}); t+=T.foto; }
+  filas.push({tipo:'intro', desc:'Introducción', ini:t, fin:t+introMin}); t+=introMin;
+  t+=T.trans;   // t == tSlot1
+  const total = proyectos.length;
+  let bloqueIdx = 0;        // índice de interrupción interna
+  for(let i=0;i<total;i++){
+    const p = proyectos[i];
+    filas.push({tipo:'proyecto', slot:slotBase+i, proyecto:p.proyecto, autores:p.autores, sector:p.sector, ini:t, fin:t+T.expo});
+    t+=T.expo;
+    const count = i+1;
+    const finBloque = (count % BLOQUE === 0);
+    const ultimo = (i === total-1);
+    if(finBloque || ultimo){
+      const gIni = slotBase + (count - ((count-1)%BLOQUE) - 1);
+      const gFin = slotBase + i;
+      const grupos = gIni===gFin ? `grupo ${gIni}` : `grupos ${gIni} a ${gFin}`;
+      t+=T.trans;
+      if(ultimo){
+        const titulo = esUltimoDia ? 'Evaluación y Cierre' : 'Cierre de jornada';
+        filas.push({tipo:'cierre', desc:`${titulo} — Toma de foto ${grupos}`, ini:t, fin:t+T.cierre}); t+=T.cierre;
+      } else {
+        const cfg = dia.interr[bloqueIdx] || {tipo:'break', min:30, auto:true};
+        const etq = cfg.tipo==='almuerzo' ? 'Almuerzo' : 'Break';
+        filas.push({tipo:cfg.tipo, desc:`${etq} — Toma de foto ${grupos}`, ini:t, fin:t+cfg.min}); t+=cfg.min;
+        t+=T.trans;
+        bloqueIdx++;
+      }
+    } else {
+      t+=T.trans;
+    }
+  }
+  return filas;
+}
+
+// Asegura que cada día tenga el nº correcto de interrupciones internas, con defaults inteligentes
+function sincronizarInterrupciones(){
+  const T = tiempos();
+  let slotBase = 1;
+  estado.dias.forEach((dia,di) => {
+    const nBloques = Math.ceil(dia.n / BLOQUE);
+    const nInternas = Math.max(0, nBloques - 1);
+    // ajustar tamaño del arreglo
+    while(dia.interr.length < nInternas) dia.interr.push({tipo:'break', min:30, auto:true});
+    dia.interr.length = nInternas;
+    // primera pasada para estimar horas y aplicar defaults automáticos
+    const proyectos = estado.orden.slice(slotBase-1, slotBase-1+dia.n);
+    const filas = construirDia(dia, proyectos, slotBase, di===estado.dias.length-1, T);
+    let k=0;
+    filas.forEach(f=>{
+      if(f.tipo==='break'||f.tipo==='almuerzo'){
+        const cfg = dia.interr[k];
+        if(cfg && cfg.auto){
+          if(f.ini>=VENTANA_ALM[0] && f.ini<=VENTANA_ALM[1]){ cfg.tipo='almuerzo'; cfg.min=60; }
+          else { cfg.tipo='break'; cfg.min=30; }
+        }
+        k++;
+      }
+    });
+    slotBase += dia.n;
+  });
+}
+
+// ---------- Cálculo central: una sola fuente de verdad ----------
+// Devuelve {dias:[{dia,di,filas,primerInterr,ultimoInterr}], slots:[{slot,proyecto,...,diaIdx,diaFecha,ini,fin}]}
+function computarTodo(){
+  const T = tiempos();
+  const dias = [];
+  const slots = [];
+  let slotBase = 1;
+  estado.dias.forEach((dia,di)=>{
+    const proyectos = estado.orden.slice(slotBase-1, slotBase-1+dia.n);
+    const filas = construirDia(dia, proyectos, slotBase, di===estado.dias.length-1, T);
+    const interrInis = filas.filter(f=>f.tipo==='break'||f.tipo==='almuerzo').map(f=>f.ini);
+    dias.push({
+      dia, di, filas,
+      primerInterr: interrInis.length? Math.min(...interrInis): null,
+      ultimoInterr: interrInis.length? Math.max(...interrInis): null
+    });
+    filas.forEach(f=>{
+      if(f.tipo==='proyecto'){
+        slots.push({slot:f.slot, proyecto:f.proyecto, autores:f.autores, sector:f.sector,
+                    diaIdx:di, diaFecha:dia.fecha, ini:f.ini, fin:f.fin});
+      }
+    });
+    slotBase += dia.n;
+  });
+  return {dias, slots};
+}
+
+// ---------- Recalcular todo y renderizar ----------
+function recomputar(){
+  ordenarDias();
+  sincronizarInterrupciones();
+  const calc = computarTodo();
+  renderConfig();
+  renderPreview(calc);
+  renderReorden(calc);
+  renderSolicitudes(calc);
+  renderAuditoria(calc);
+  guardarLocal();
+  programarGuardadoNube();
+}
+
+function onCfg(){
+  estado.dias.forEach((dia,i)=>{
+    dia.fechaISO = val(`d-fechaiso-${i}`, dia.fechaISO);
+    dia.fecha    = fechaTitulo(dia.fechaISO);   // título derivado de la fecha
+    dia.inicio = val(`d-inicio-${i}`, dia.inicio);
+    dia.intro  = +val(`d-intro-${i}`, dia.intro);
+    dia.n      = +val(`d-n-${i}`, dia.n);
+    dia.foto   = document.getElementById(`d-foto-${i}`) ? document.getElementById(`d-foto-${i}`).checked : dia.foto;
+    (dia.interr||[]).forEach((c,j)=>{
+      const ts=document.getElementById(`i-tipo-${i}-${j}`), ms=document.getElementById(`i-min-${i}-${j}`);
+      if(ts){ if(ts.value!==c.tipo){ c.tipo=ts.value; c.auto=false; } }
+      if(ms){ if(+ms.value!==c.min){ c.min=+ms.value; c.auto=false; } }
+    });
+  });
+  recomputar();
+}
+const val = (id,def)=>{ const el=document.getElementById(id); return el? el.value : def; };
+
+function setTipo(tipo){
+  if(tipo===estado.tipo) return;
+  estado.tipo = tipo;
+  estado.dias = clonarDefault(tipo);
+  document.querySelectorAll('#seg-tipo button').forEach(b=>b.classList.toggle('on', b.dataset.tipo===tipo));
+  recomputar();
+}
+
+function agregarDia(){
+  onCfg();
+  // Propone la fecha del día siguiente al último, para que entre ordenado
+  let iso = '';
+  const ult = estado.dias[estado.dias.length-1];
+  if(ult && ult.fechaISO){
+    const d = new Date(ult.fechaISO + 'T00:00:00');
+    d.setDate(d.getDate()+1);
+    iso = d.toISOString().slice(0,10);
+  }
+  estado.dias.push({fechaISO:iso, fecha:fechaTitulo(iso), inicio:'08:00', foto:false, intro:5, n:5, interr:[]});
+  recomputar();
+}
+function eliminarDia(i){
+  onCfg();
+  estado.dias.splice(i,1);
+  recomputar();
+}
+
+// ---------- Render config ----------
+function renderConfig(){
+  // validación total
+  const totalAsignado = estado.dias.reduce((s,d)=>s+(+d.n||0),0);
+  const totalReal = PROYECTOS_BASE.length;
+  const vb = document.getElementById('val');
+  if(totalAsignado===totalReal){ vb.className='valbar ok'; vb.textContent=`✓ ${totalAsignado} de ${totalReal} proyectos asignados`; }
+  else { vb.className='valbar bad'; vb.textContent=`⚠ ${totalAsignado} asignados de ${totalReal} — ajuste el nº por día`; }
+
+  let slotBase=1;
+  const html = estado.dias.map((dia,i)=>{
+    const interrHTML = (dia.interr||[]).map((c,j)=>`
+      <div class="interr-row">
+        <select id="i-tipo-${i}-${j}" onchange="onCfg()">
+          <option value="break" ${c.tipo==='break'?'selected':''}>Break</option>
+          <option value="almuerzo" ${c.tipo==='almuerzo'?'selected':''}>Almuerzo</option>
+        </select>
+        <input type="number" id="i-min-${i}-${j}" value="${c.min}" min="0" onchange="onCfg()" title="minutos">
+      </div>`).join('');
+    const interrBox = (dia.interr&&dia.interr.length) ? `
+      <div class="interr-box">
+        <div class="ib-t">Interrupciones (break / almuerzo · min)</div>
+        ${interrHTML}
+      </div>` : '';
+    const card = `
+      <div class="dia-card">
+        <div class="dc-head">
+          <span class="dc-num">DÍA ${i+1} · ${dia.fecha}</span>
+          <button class="dc-del" onclick="eliminarDia(${i})" title="Eliminar día">✕</button>
+        </div>
+        <div class="fld"><label>Fecha</label><input type="date" id="d-fechaiso-${i}" value="${dia.fechaISO||''}" onchange="onCfg()"></div>
+        <div class="row3">
+          <div class="fld"><label>Inicio</label><input type="time" id="d-inicio-${i}" value="${dia.inicio}" onchange="onCfg()"></div>
+          <div class="fld"><label>Intro (min)</label><input type="number" id="d-intro-${i}" value="${dia.intro}" min="0" onchange="onCfg()"></div>
+          <div class="fld"><label># Proy.</label><input type="number" id="d-n-${i}" value="${dia.n}" min="0" onchange="onCfg()"></div>
+        </div>
+        <label class="chk"><input type="checkbox" id="d-foto-${i}" ${dia.foto?'checked':''} onchange="onCfg()"> Foto inicial en la puerta</label>
+        ${interrBox}
+      </div>`;
+    slotBase += dia.n;
+    return card;
+  }).join('');
+  document.getElementById('dias-cfg').innerHTML = html;
+}
+
+// ---------- Render preview ----------
+function renderPreview(calc){
+  calc = calc || computarTodo();
+  document.getElementById('print-title').textContent =
+    `${document.getElementById('cfg-evento').value} — Programación de presentaciones`;
+  let html='';
+  calc.dias.forEach(({dia,filas})=>{
+    const fin = filas.length? filas[filas.length-1].fin : toMin(dia.inicio);
+    const apertura = filas.length? filas[0].ini : toMin(dia.inicio);
+    html += `<div class="dia-prog">
+      <div class="dp-head">
+        <div class="dp-fecha">📅 ${dia.fecha}</div>
+        <div class="dp-sub">Apertura ${toHHMM(apertura)} · 1ª presentación ${dia.inicio} · Fin ${toHHMM(fin)} · ${dia.n} presentaciones</div>
+      </div>
+      <table class="prog"><tbody>
+        ${filas.map(f=>filaHTML(f)).join('')}
+      </tbody></table>
+    </div>`;
+  });
+  document.getElementById('preview').innerHTML = html ||
+    '<p style="color:var(--gray);font-size:0.85rem">Sin días configurados.</p>';
+}
+
+function filaHTML(f){
+  if(f.tipo==='proyecto'){
+    const col = SECTOR_COLORS[f.sector]||'#444';
+    return `<tr>
+      <td class="pc-hora">${rango(f.ini,f.fin)}</td>
+      <td class="pc-slot">${f.slot}</td>
+      <td class="pc-proj"><strong>${f.proyecto}</strong><div class="pc-aut">${f.autores}</div></td>
+      <td class="pc-sector"><span class="badge" style="background:${col}">${f.sector}</span></td>
+    </tr>`;
+  }
+  const cls = f.tipo==='almuerzo'?'ev alm':(f.tipo==='cierre'?'ev cierre':'ev');
+  const partes = f.desc.split(' — ');
+  const main = partes[0]; const sub = partes[1]?`<small>${partes[1]}</small>`:'';
+  return `<tr class="${cls}">
+    <td class="pc-hora">${rango(f.ini,f.fin)}</td>
+    <td class="pc-slot"></td>
+    <td class="pc-ev" colspan="2">${main}${sub}</td>
+  </tr>`;
+}
+
+// ---------- Reorden de proyectos ----------
+function moverProyecto(from, to){
+  if(to<0 || to>=estado.orden.length || from===to) return;
+  const [it] = estado.orden.splice(from,1);
+  estado.orden.splice(to,0,it);
+  recomputar();
+}
+function moverASlot(from, slotDestino){
+  moverProyecto(from, Math.max(0, Math.min(estado.orden.length-1, slotDestino-1)));
+}
+function agruparPorSector(){
+  if(!confirm('Esto reordena todos los proyectos agrupando sectores afines y descarta el orden manual actual. ¿Continuar?')) return;
+  const idx = s => { const i=SECTOR_AFINIDAD.indexOf(s); return i<0?999:i; };
+  estado.orden = estado.orden
+    .map((p,i)=>({p,i}))
+    .sort((a,b)=> (idx(a.p.sector)-idx(b.p.sector)) || (a.i-b.i))
+    .map(x=>x.p);
+  recomputar();
+}
+
+// ---------- Arrastre con pointer events (mouse + táctil) ----------
+let drag = null;
+
+function dragStart(e, from){
+  e.preventDefault();
+  const list = document.querySelector('.ro-list');
+  if(!list) return;
+  const item = list.querySelectorAll('.ro-item')[from];
+  if(item) item.classList.add('dragging');
+  const ghost = document.createElement('div');
+  ghost.className = 'drag-ghost';
+  ghost.innerHTML = `<span>${estado.orden[from].proyecto}</span><span class="dg-slot">→ slot ?</span>`;
+  document.body.appendChild(ghost);
+  const line = document.createElement('div');
+  line.className = 'drag-line';
+  list.appendChild(line);
+  drag = { from, list, ghost, line, item, target: from };
+  document.body.style.userSelect = 'none';
+  window.addEventListener('pointermove', dragMove);
+  window.addEventListener('pointerup', dragEnd);
+  dragMove(e);
+}
+
+function itemsRects(){
+  return [...drag.list.querySelectorAll('.ro-item')].map((el,i)=>({i, rect:el.getBoundingClientRect()}));
+}
+function insercion(y){
+  const items = itemsRects();
+  for(const it of items){ if(y < it.rect.top + it.rect.height/2) return it.i; }
+  return items.length;
+}
+
+function dragMove(e){
+  if(!drag) return;
+  if(e.cancelable) e.preventDefault();
+  // auto-scroll cerca de los bordes de la lista
+  const lr = drag.list.getBoundingClientRect();
+  if(e.clientY < lr.top+28) drag.list.scrollTop -= 10;
+  else if(e.clientY > lr.bottom-28) drag.list.scrollTop += 10;
+
+  const ins = insercion(e.clientY);
+  const finalIndex = (drag.from < ins) ? ins-1 : ins;
+  drag.target = finalIndex;
+
+  drag.ghost.style.left = (e.clientX + 14) + 'px';
+  drag.ghost.style.top  = (e.clientY + 14) + 'px';
+  drag.ghost.querySelector('.dg-slot').textContent = '→ slot ' + (finalIndex + 1);
+
+  const items = itemsRects();
+  let y;
+  if(ins < items.length) y = items[ins].rect.top - lr.top + drag.list.scrollTop;
+  else y = items.length ? (items[items.length-1].rect.bottom - lr.top + drag.list.scrollTop) : 0;
+  drag.line.style.top = y + 'px';
+  drag.line.style.display = 'block';
+}
+
+function dragEnd(){
+  if(!drag) return;
+  window.removeEventListener('pointermove', dragMove);
+  window.removeEventListener('pointerup', dragEnd);
+  document.body.style.userSelect = '';
+  const {from, target, ghost, line, item} = drag;
+  if(ghost) ghost.remove();
+  if(line) line.remove();
+  if(item) item.classList.remove('dragging');
+  drag = null;
+  if(typeof target === 'number' && target !== from) moverProyecto(from, target);
+}
+
+function renderReorden(calc){
+  calc = calc || computarTodo();
+  const cont = document.getElementById('reorden');
+  if(!cont) return;
+  const N = calc.slots.length;
+  let html = '<ol class="ro-list">';
+  let lastDay = -1;
+  calc.slots.forEach((s,i)=>{
+    if(s.diaIdx !== lastDay){
+      lastDay = s.diaIdx;
+      html += `<li class="ro-day">📅 ${s.diaFecha}</li>`;
+    }
+    const col = SECTOR_COLORS[s.sector]||'#444';
+    html += `<li class="ro-item">
+      <span class="ro-handle" onpointerdown="dragStart(event,${i})" title="Arrastrar para mover">⠿</span>
+      <span class="ro-slot">${s.slot}</span>
+      <span class="ro-hora">${toHHMM(s.ini)}</span>
+      <span class="ro-proj">${s.proyecto}</span>
+      <span class="badge" style="background:${col}">${s.sector}</span>
+      <span class="ro-btns">
+        <button onclick="moverProyecto(${i},${i-1})" title="Subir" ${i===0?'disabled':''}>▲</button>
+        <button onclick="moverProyecto(${i},${i+1})" title="Bajar" ${i===N-1?'disabled':''}>▼</button>
+        <input type="number" class="ro-to" min="1" max="${N}" placeholder="#"
+          title="Mover a slot…" onchange="moverASlot(${i}, +this.value)">
+      </span>
+    </li>`;
+  });
+  html += '</ol>';
+  cont.innerHTML = html;
+}
+
+// ---------- Solicitudes especiales ----------
+function agregarSolicitud(){
+  if(estado.solicitudes.length>=4){ return; }
+  estado.solicitudes.push({proyecto: (estado.orden[0]||{}).proyecto||'', tipo:'temprano', detalle:'', nota:''});
+  recomputar();
+}
+function eliminarSolicitud(i){ estado.solicitudes.splice(i,1); recomputar(); }
+function onSolicitud(){
+  estado.solicitudes.forEach((s,i)=>{
+    s.proyecto = val(`sol-proj-${i}`, s.proyecto);
+    s.tipo     = val(`sol-tipo-${i}`, s.tipo);
+    s.detalle  = val(`sol-det-${i}`, s.detalle);
+    s.nota     = val(`sol-nota-${i}`, s.nota);
+  });
+  recomputar();
+}
+
+// Evalúa si una solicitud se cumple con la programación actual
+function evaluarSolicitud(s, calc){
+  const slot = calc.slots.find(x=>x.proyecto===s.proyecto);
+  if(!slot) return {ok:false, txt:'Proyecto no encontrado'};
+  const dia = calc.dias[slot.diaIdx];
+  const actual = `${slot.diaFecha.replace(/ de .*/,'')} · ${toHHMM(slot.ini)} (slot ${slot.slot})`;
+  if(s.tipo==='temprano'){
+    const ok = dia.primerInterr===null ? true : slot.ini < dia.primerInterr;
+    return {ok, txt: ok? `Presenta temprano — ${actual}` : `Pedido temprano, pero está en ${actual}`};
+  }
+  if(s.tipo==='tarde'){
+    const ok = dia.ultimoInterr===null ? true : slot.ini > dia.ultimoInterr;
+    return {ok, txt: ok? `Presenta tarde — ${actual}` : `Pedido tarde, pero está en ${actual}`};
+  }
+  if(s.tipo==='dia'){
+    const ok = s.detalle && slot.diaFecha===s.detalle;
+    return {ok, txt: ok? `En ${slot.diaFecha.replace(/ de .*/,'')} ✓` : `Pedido ${ (s.detalle||'—').replace(/ de .*/,'') }, pero está en ${actual}`};
+  }
+  if(s.tipo==='hora'){
+    if(!s.detalle) return {ok:false, txt:'Defina la hora pedida'};
+    const dif = Math.abs(slot.ini - toMin(s.detalle));
+    const ok = dif<=30;
+    return {ok, txt: ok? `~${s.detalle} ✓ (real ${toHHMM(slot.ini)})` : `Pedido ~${s.detalle}, pero está a las ${toHHMM(slot.ini)}`};
+  }
+  return {ok:false, txt:''};
+}
+
+function renderSolicitudes(calc){
+  calc = calc || computarTodo();
+  const cont = document.getElementById('solicitudes');
+  if(!cont) return;
+  const opcionesProj = estado.orden.map(p=>p.proyecto);
+  const opcionesDia  = estado.dias.map(d=>d.fecha);
+  const filas = estado.solicitudes.map((s,i)=>{
+    const ev = evaluarSolicitud(s, calc);
+    const detalleCtrl = s.tipo==='dia'
+      ? `<select id="sol-det-${i}" onchange="onSolicitud()">${opcionesDia.map(d=>`<option ${d===s.detalle?'selected':''}>${d}</option>`).join('')}</select>`
+      : s.tipo==='hora'
+      ? `<input type="time" id="sol-det-${i}" value="${s.detalle||''}" onchange="onSolicitud()">`
+      : `<span style="color:#bbb;font-size:0.72rem">—</span>`;
+    return `<div class="sol-card ${ev.ok?'sol-ok':'sol-warn'}">
+      <div class="sol-r1">
+        <select id="sol-proj-${i}" onchange="onSolicitud()">
+          ${opcionesProj.map(p=>`<option ${p===s.proyecto?'selected':''}>${p}</option>`).join('')}
+        </select>
+        <select id="sol-tipo-${i}" onchange="onSolicitud()">
+          ${Object.entries(TIPOS_SOLICITUD).map(([k,v])=>`<option value="${k}" ${k===s.tipo?'selected':''}>${v}</option>`).join('')}
+        </select>
+        ${detalleCtrl}
+        <button class="sol-del" onclick="eliminarSolicitud(${i})" title="Quitar">✕</button>
+      </div>
+      <input class="sol-nota" id="sol-nota-${i}" value="${(s.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota (opcional)" onchange="onSolicitud()">
+      <div class="sol-estado">${ev.ok?'✓':'⚠'} ${ev.txt}</div>
+    </div>`;
+  }).join('');
+  const btn = estado.solicitudes.length<4
+    ? `<button class="btn-add" onclick="agregarSolicitud()">+ Agregar solicitud (${estado.solicitudes.length}/4)</button>`
+    : `<div style="font-size:0.74rem;color:var(--gray);text-align:center">Máximo de 4 solicitudes</div>`;
+  cont.innerHTML = (filas||'<p style="font-size:0.78rem;color:var(--gray);margin-bottom:0.6rem">Sin solicitudes registradas.</p>') + btn;
+}
+
+// ---------- Auditoría ----------
+function renderAuditoria(calc){
+  calc = calc || computarTodo();
+  const cont = document.getElementById('audit');
+  if(!cont) return;
+  const problemas = [];
+  // 1) integridad del conjunto de proyectos
+  const base = PROYECTOS_BASE.map(p=>p.proyecto).sort();
+  const act  = estado.orden.map(p=>p.proyecto).sort();
+  const dup  = act.filter((x,i)=>act.indexOf(x)!==i);
+  if(dup.length) problemas.push('Proyectos duplicados: '+[...new Set(dup)].join(', '));
+  const faltan = base.filter(x=>!act.includes(x));
+  if(faltan.length) problemas.push('Proyectos faltantes: '+faltan.join(', '));
+  // 2) suma de proyectos por día
+  const suma = estado.dias.reduce((s,d)=>s+(+d.n||0),0);
+  if(suma!==estado.orden.length) problemas.push(`Asignados ${suma} de ${estado.orden.length} proyectos`);
+  // 3) días con 0 proyectos
+  estado.dias.forEach((d,i)=>{ if((+d.n||0)<=0) problemas.push(`Día ${i+1} (${d.fecha}) sin proyectos`); });
+  // 4) solapamientos / orden temporal dentro de cada día
+  calc.dias.forEach(({dia,filas})=>{
+    for(let k=1;k<filas.length;k++){
+      if(filas[k].ini < filas[k-1].fin){ problemas.push(`Solapamiento en ${dia.fecha} a las ${toHHMM(filas[k].ini)}`); break; }
+    }
+  });
+  // 5) slots consecutivos 1..N
+  const slotsNum = calc.slots.map(s=>s.slot);
+  const consec = slotsNum.every((v,i)=>v===i+1);
+  if(!consec) problemas.push('Numeración de slots no consecutiva');
+
+  if(problemas.length===0){
+    const ultimo = calc.dias.length? calc.dias[calc.dias.length-1].filas.slice(-1)[0] : null;
+    cont.className='audit ok';
+    cont.innerHTML = `✓ Programación íntegra — ${calc.slots.length} proyectos en ${estado.dias.length} días, sin solapamientos.`;
+  } else {
+    cont.className='audit bad';
+    cont.innerHTML = `⚠ ${problemas.length} problema(s):<ul>${problemas.map(p=>`<li>${p}</li>`).join('')}</ul>`;
+  }
+}
+
+// ---------- Persistencia (fuente única de la verdad) ----------
+const LS_KEY = 'naves_programacion_v1';
+
+function snapshot(){
+  return {
+    v:1,
+    evento: document.getElementById('cfg-evento').value,
+    tipo: estado.tipo,
+    tiempos: tiempos(),
+    dias: estado.dias,
+    orden: estado.orden,
+    solicitudes: estado.solicitudes
+  };
+}
+
+function restore(s){
+  if(!s) return false;
+  estado.tipo = s.tipo || 'FS';
+  estado.dias = s.dias || clonarDefault(estado.tipo);
+  estado.orden = (s.orden && s.orden.length) ? s.orden : PROYECTOS_BASE.map(p=>({...p}));
+  estado.solicitudes = s.solicitudes || [];
+  if(document.getElementById('cfg-evento')) document.getElementById('cfg-evento').value = s.evento || 'NAVES 2026';
+  if(s.tiempos){
+    document.getElementById('t-expo').value   = s.tiempos.expo;
+    document.getElementById('t-trans').value  = s.tiempos.trans;
+    document.getElementById('t-foto').value   = s.tiempos.foto;
+    document.getElementById('t-cierre').value = s.tiempos.cierre;
+  }
+  document.querySelectorAll('#seg-tipo button').forEach(b=>b.classList.toggle('on', b.dataset.tipo===estado.tipo));
+  return true;
+}
+
+function setIndicador(txt){
+  const el = document.getElementById('save-ind');
+  if(el) el.textContent = txt;
+}
+const horaCorta = () => new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+
+function guardarLocal(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(snapshot())); }catch(e){}
+}
+
+// ---------- Persistencia en la nube (JSONbin, compartida) ----------
+let nubeTimer = null;
+function programarGuardadoNube(){
+  clearTimeout(nubeTimer);
+  setIndicador('☁ Guardando…');
+  nubeTimer = setTimeout(guardarNube, 1500);  // debounce: guarda 1.5s tras el último cambio
+}
+async function guardarNube(){
+  try{
+    await fetch(PROG_BIN_URL, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Master-Key':PROG_BIN_KEY},
+      body: JSON.stringify({programacion: snapshot()})
+    });
+    setIndicador('☁ Guardado en la nube ' + horaCorta());
+  }catch(e){ setIndicador('⚠ Sin conexión — guardado solo local'); }
+}
+async function cargarNube(manual){
+  try{
+    const r = await fetch(PROG_BIN_URL + '/latest', {headers:{'X-Master-Key':PROG_BIN_KEY}});
+    const j = await r.json();
+    const prog = j.record && j.record.programacion;
+    if(prog){
+      restore(prog);
+      if(manual){ recomputar(); setIndicador('☁ Cargado de la nube ' + horaCorta()); }
+      return true;
+    }
+    if(manual) setIndicador('☁ La nube está vacía');
+  }catch(e){ if(manual) setIndicador('⚠ Error al cargar de la nube'); }
+  return false;
+}
+
+function restaurarLocal(){
+  try{
+    const s = localStorage.getItem(LS_KEY);
+    if(s){ return restore(JSON.parse(s)); }
+  }catch(e){}
+  return false;
+}
+
+function restablecer(){
+  if(!confirm('Esto borra la programación guardada y vuelve a los valores por defecto. ¿Continuar?')) return;
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  estado = { tipo:'FS', dias: clonarDefault('FS'), orden: PROYECTOS_BASE.map(p=>({...p})), solicitudes: [] };
+  document.getElementById('cfg-evento').value = 'NAVES 2026';
+  document.getElementById('t-expo').value=20; document.getElementById('t-trans').value=5;
+  document.getElementById('t-foto').value=10; document.getElementById('t-cierre').value=20;
+  document.querySelectorAll('#seg-tipo button').forEach(b=>b.classList.toggle('on', b.dataset.tipo==='FS'));
+  recomputar();
+}
+
+// ---------- Exportar / Importar la programación (JSON) ----------
+// El JSON incluye el cronograma ya calculado: es lo que consumirá naves_generator.py
+// para regenerar index.html en orden de presentación (fuente única de la verdad).
+function exportarJSON(){
+  const calc = computarTodo();
+  const cronograma = [];
+  calc.dias.forEach(d=>{
+    d.filas.forEach(f=>{
+      if(f.tipo==='proyecto'){
+        cronograma.push({dia:d.di+1, fecha:d.dia.fecha, slot:f.slot, proyecto:f.proyecto,
+                         autores:f.autores, sector:f.sector, inicio:toHHMM(f.ini), fin:toHHMM(f.fin)});
+      }
+    });
+  });
+  const data = {...snapshot(), generado:new Date().toISOString(), cronograma};
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(data.evento||'NAVES').replace(/\s+/g,'_')}_programacion.json`;
+  a.click();
+}
+
+function importarJSON(input){
+  const file = input.files[0];
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{ restore(JSON.parse(r.result)); recomputar(); }
+    catch(e){ alert('Archivo de programación inválido.'); }
+    input.value = '';
+  };
+  r.readAsText(file);
+}
+
+// ---------- Exportar Excel de calificación (ExcelJS: estilos, colores, bordes) ----------
+async function exportarExcel(){
+  const T = tiempos();
+  const evento = document.getElementById('cfg-evento').value;
+  const wb = new ExcelJS.Workbook();
+
+  const AMARILLO = 'FFFFE066';   // filas de actividad (foto, intro, break, almuerzo, cierre)
+  const NEGRO    = 'FF1A1A1A';   // encabezado
+  const GRIS     = 'FFBFBFBF';   // bordes
+  const thin   = {style:'thin', color:{argb:GRIS}};
+  const borde  = {top:thin, left:thin, bottom:thin, right:thin};
+  const fill = argb => ({type:'pattern', pattern:'solid', fgColor:{argb}});
+
+  let slotBase = 1;
+  estado.dias.forEach((dia,di)=>{
+    const proyectos = estado.orden.slice(slotBase-1, slotBase-1+dia.n);
+    const filas = construirDia(dia, proyectos, slotBase, di===estado.dias.length-1, T);
+    const nombreHoja = (dia.fecha.replace(/[\\/?*\[\]:]/g,'').slice(0,31)) || ('Día '+(di+1));
+    const ws = wb.addWorksheet(nombreHoja, {views:[{showGridLines:false}]});
+
+    ws.columns = [
+      {width:8}, {width:11}, {width:11}, {width:28}, {width:60}, {width:20}, {width:20}, {width:20}
+    ];
+
+    // Título
+    ws.addRow([`${evento} — Hoja de calificación del panelista`]);
+    ws.mergeCells('A1:H1');
+    ws.getCell('A1').font = {bold:true, size:24};
+    ws.getRow(1).height = 34;
+    // Fecha
+    ws.addRow([dia.fecha]);
+    ws.mergeCells('A2:H2');
+    ws.getCell('A2').font = {bold:true, size:24, color:{argb:'FF6B6B6B'}};
+    ws.getRow(2).height = 30;
+    // Panelista (línea para escribir a mano)
+    ws.addRow(['Panelista:']);
+    ws.mergeCells('B3:H3');
+    ws.getCell('A3').font = {bold:true, size:24};
+    ws.getCell('B3').border = {bottom:{style:'medium', color:{argb:NEGRO}}};
+    ws.getRow(3).height = 40;
+    ws.addRow([]); // fila 4 en blanco
+
+    // Encabezado (fila 5)
+    const head = ws.addRow(['Slot','Inicio','Fin','Proyecto / Actividad','Autores',
+                            'Calif. presentación (1–5)','Calif. proyecto (1–5)','¿Invertiría? (Sí/No)']);
+    head.height = 56;
+    head.eachCell(c=>{
+      c.font = {bold:true, size:24, color:{argb:'FFFFFFFF'}};
+      c.fill = fill(NEGRO);
+      c.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+      c.border = borde;
+    });
+
+    // Filas de datos
+    filas.forEach(f=>{
+      const esProy = f.tipo==='proyecto';
+      const r = ws.addRow(esProy
+        ? [f.slot, toHHMM(f.ini), toHHMM(f.fin), f.proyecto, f.autores, '', '', '']
+        : ['', toHHMM(f.ini), toHHMM(f.fin), f.desc, '', '', '', '']);
+      r.height = esProy ? 100 : 46;   // proyectos más altos: espacio para escribir a mano y para autores largos
+      r.eachCell({includeEmpty:true}, (c,col)=>{
+        c.border = borde;
+        c.font = {size:24};
+        c.alignment = {vertical:'middle', wrapText:true,
+                       horizontal: (col===4||col===5)?'left':'center'};
+        if(!esProy) c.fill = fill(AMARILLO);   // amarillo en TODAS las filas de actividad
+      });
+      if(!esProy){
+        // La descripción de la actividad se fusiona SOLO en D–E; F, G, H quedan continuas
+        ws.mergeCells(`D${r.number}:E${r.number}`);
+        ws.getCell(`D${r.number}`).alignment = {vertical:'middle', horizontal:'left', wrapText:true};
+        ws.getCell(`D${r.number}`).font = {size:24, bold:true};
+      }
+    });
+
+    slotBase += dia.n;
+  });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${evento.replace(/\s+/g,'_')}_Calificacion_Panelistas.xlsx`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>

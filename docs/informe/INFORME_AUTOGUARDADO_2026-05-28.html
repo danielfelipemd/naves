@@ -1,0 +1,265 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"/>
+<title>Informe autoguardado anteproyecto NAVES</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>@page {
+  size: Letter;
+  margin: 60px 50px 70px;
+  @bottom-center {
+    content: "NAVES — INALDE Business School · Manual de usuario";
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+}
+
+body {
+  font-family: 'Roboto', -apple-system, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a1a;
+  line-height: 1.55;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  color: #1a1a1a;
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  border-bottom: 3px solid #e30613;
+  padding-bottom: 8pt;
+  margin-top: 24pt;
+  margin-bottom: 16pt;
+}
+
+h1:first-of-type {
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #e30613;
+  margin-top: 22pt;
+  margin-bottom: 10pt;
+  page-break-before: auto;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  margin-top: 16pt;
+  margin-bottom: 8pt;
+}
+
+h4 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #9f885f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 14pt;
+  margin-bottom: 6pt;
+}
+
+p {
+  margin: 6pt 0;
+}
+
+a {
+  color: #e30613;
+  text-decoration: none;
+}
+
+code {
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 9pt;
+  background: #f5f5f5;
+  padding: 1pt 4pt;
+  border-radius: 2pt;
+  color: #b30510;
+}
+
+pre {
+  background: #f5f5f5;
+  border-left: 3px solid #e30613;
+  padding: 10pt;
+  font-size: 9pt;
+  page-break-inside: avoid;
+}
+
+blockquote {
+  border-left: 4px solid #224d7c;
+  background: #f0f4f9;
+  margin: 10pt 0;
+  padding: 8pt 14pt;
+  font-style: italic;
+  color: #224d7c;
+  page-break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12pt 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+th {
+  background: #e30613;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6pt 8pt;
+  text-align: left;
+  border: 1px solid #e30613;
+}
+
+td {
+  padding: 5pt 8pt;
+  border: 1px solid #e8e8e8;
+  vertical-align: top;
+}
+
+tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+img {
+  max-width: 100%;
+  border: 1px solid #e8e8e8;
+  border-radius: 4pt;
+  margin: 10pt 0;
+  page-break-inside: avoid;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 20pt 0;
+}
+
+ul, ol {
+  margin: 6pt 0 6pt 18pt;
+}
+
+li {
+  margin: 3pt 0;
+}
+
+strong {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Avoid awkward breaks */
+img + p, p + img, h2 + img, h3 + img, h4 + img {
+  page-break-before: avoid;
+}
+
+@page { @bottom-center { content: "NAVES — INALDE Business School · Informe autoguardado · 28 mayo 2026"; font-family: 'Roboto', sans-serif; font-size: 8pt; color: #6b6b6b; } }
+blockquote { border-left: 4px solid #9f885f; background: #fff8e6; padding: 8pt 12pt; margin: 10pt 0; font-style: normal; }
+table { width: 100%; border-collapse: collapse; margin: 10pt 0; font-size: 9.5pt; }
+th { background: #f3f4f6; text-align: left; padding: 6pt 8pt; border-bottom: 2px solid #e30613; }
+td { padding: 6pt 8pt; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+hr { border: 0; border-top: 1px solid #e5e7eb; margin: 18pt 0; }
+ul { margin: 6pt 0; padding-left: 22pt; } li { margin: 3pt 0; }
+</style></head><body><h1>Mejoras al autoguardado del Anteproyecto NAVES</h1>
+<p><strong>Cliente:</strong> INALDE Business School — Programa MBA <strong>Proyecto:</strong> NAVES (New Business Adventures) — Plataforma de gestión del trabajo de grado <strong>Fecha:</strong> 28 de mayo de 2026</p>
+<hr/>
+<h2>1. Problema reportado</h2>
+<p>Mientras los participantes diligenciaban el anteproyecto:</p>
+<ul>
+<li>Algunos veían el mensaje rojo <strong>«⚠ No se pudo autoguardar — usa "Guardar borrador"»</strong>.</li>
+<li>Si la sesión se les caía (token expirado, cierre accidental, refresh), perdían lo escrito.</li>
+<li>Un caso documentado: una participante perdió varias horas de trabajo.</li>
+</ul>
+<hr/>
+<h2>2. Diagnóstico técnico</h2>
+<p>Encontramos <strong>cuatro problemas independientes</strong> que se sumaban al síntoma.</p>
+<h3>2.1 Autoguardado con debounce muy largo</h3>
+<p>El sistema esperaba 3 segundos sin tipear para guardar. Un participante que escribiera continuamente nunca disparaba el guardado.</p>
+<h3>2.2 El servidor rechazaba guardar borradores incompletos</h3>
+<p>El backend exigía que el "Nombre del proyecto" estuviera lleno para guardar. Como el autoguardado dispara desde el primer campo que el participante toca (que no siempre es el nombre), el servidor respondía con error y los participantes veían el mensaje rojo en pantalla.</p>
+<h3>2.3 El "guardado forzado cada 30 segundos" enviaba datos antiguos</h3>
+<p>El intervalo de respaldo capturaba el estado del formulario al inicio (vacío) y lo seguía mandando cada 30 segundos en lugar del estado actual. Este envío fallaba constantemente.</p>
+<h3>2.4 No había respaldo local</h3>
+<p>Si la sesión se caía, no quedaba copia en el navegador. El participante perdía todo.</p>
+<hr/>
+<h2>3. Soluciones implementadas</h2>
+<h3>3.1 Autoguardado inmediato (≈ 1 segundo)</h3>
+<p>Reducido el tiempo de debounce de 3 s a 1 s. Cualquier cambio en cualquier campo dispara el guardado al servidor casi al instante.</p>
+<h3>3.2 Respaldo local en el navegador (cada 250 ms)</h3>
+<p>El navegador escribe una copia espejo del trabajo cada 250 milisegundos. Esta copia <strong>sobrevive</strong> a:</p>
+<ul>
+<li>Cierre del navegador.</li>
+<li>Pérdida de sesión.</li>
+<li>Logout accidental.</li>
+<li>Token de seguridad expirado.</li>
+</ul>
+<h3>3.3 Recuperación automática al volver a entrar</h3>
+<p>Al volver al formulario, el sistema compara la copia local contra la del servidor. Si la local es más nueva (porque algo falló al sincronizar antes), la <strong>restaura automáticamente</strong> y la persiste al servidor. El participante ve un banner amarillo:</p>
+<blockquote><p>🔄 <strong>Recuperamos tu progreso del intento anterior</strong>  Detectamos cambios guardados localmente que aún no se habían enviado al servidor. Los cargamos automáticamente para que no pierdas tu trabajo.</p></blockquote>
+<p>El banner permanece visible hasta que el participante lo cierre con la "×".</p>
+<h3>3.4 Guardado forzado cada 30 segundos (corregido)</h3>
+<p>Ahora envía siempre el estado actual del formulario, no el inicial.</p>
+<h3>3.5 El servidor ahora acepta borradores parciales</h3>
+<p>Aflojamos las validaciones del guardado de borrador. El servidor admite que el participante esté a medio llenar el formulario. Las validaciones estrictas (campos obligatorios, mínimo 5 hitos, flags del equipo respondidos) se aplican <strong>solo al momento de "Enviar anteproyecto"</strong>, no antes — que es lo correcto.</p>
+<hr/>
+<h2>4. Pruebas realizadas (verificación end-to-end)</h2>
+<p>Simulamos a un participante real con un usuario de prueba dedicado y ejecutamos el flujo completo:</p>
+<table><thead><tr><th>Paso</th><th>Resultado</th></tr></thead><tbody>
+<tr><td>Login + cambio de clave inicial</td><td>OK</td></tr>
+<tr><td>Perfil emprendedor (rol, emociones, preocupaciones)</td><td>OK</td></tr>
+<tr><td>Selección de modalidad Business Plan (irreversible)</td><td>OK</td></tr>
+<tr><td>Creación de equipo</td><td>OK</td></tr>
+<tr><td>Llenado de los 11 campos del Canvas de negocio</td><td>OK</td></tr>
+<tr><td>Sector, CIIU y tipo de proyecto</td><td>OK</td></tr>
+<tr><td>5 hitos del cronograma con fechas</td><td>OK</td></tr>
+<tr><td>Respuesta a flags del equipo (socios / asociación)</td><td>OK</td></tr>
+<tr><td><strong>Envío del anteproyecto → estado "enviado" confirmado en base de datos</strong></td><td>OK</td></tr>
+</tbody></table>
+<p><strong>Verificaciones específicas del fix:</strong></p>
+<table><thead><tr><th>Escenario</th><th>Antes</th><th>Ahora</th></tr></thead><tbody>
+<tr><td>Guardar con campos vacíos durante la escritura</td><td>Error en rojo</td><td>Sin error</td></tr>
+<tr><td>Recuperar trabajo tras logout / sesión caída</td><td>Pérdida total</td><td>Recuperado automáticamente</td></tr>
+<tr><td>Enviar sin nombre de proyecto</td><td>Error genérico</td><td>Mensaje claro: "Cada proyecto debe tener un nombre"</td></tr>
+<tr><td>Enviar sin tipo (emprendimiento / intraemprendimiento)</td><td>Pasaba</td><td>Mensaje claro: "Elige el tipo del proyecto"</td></tr>
+<tr><td>Enviar sin responder flags del equipo</td><td>Error genérico</td><td>Mensaje claro</td></tr>
+</tbody></table>
+<p>Todos los datos de prueba fueron eliminados después de la verificación.</p>
+<hr/>
+<h2>5. Impacto para los participantes</h2>
+<table><thead><tr><th>Antes</th><th>Ahora</th></tr></thead><tbody>
+<tr><td>Debían recordar tocar "Guardar borrador" cada cierto tiempo.</td><td>Todo se guarda solo desde el primer carácter.</td></tr>
+<tr><td>Si la sesión expiraba, perdían el trabajo.</td><td>El navegador guarda una copia local de respaldo cada fracción de segundo.</td></tr>
+<tr><td>Mensajes rojos confusos durante el llenado.</td><td>Mensaje verde "✓ Guardado automáticamente" o aviso claro de qué falta.</td></tr>
+<tr><td>Sin aviso si se recuperaba trabajo.</td><td>Banner amarillo visible explicando la recuperación.</td></tr>
+<tr><td>Mensajes de error vagos al enviar.</td><td>Mensajes específicos indicando qué corregir.</td></tr>
+</tbody></table>
+<hr/>
+<h2>6. Despliegue</h2>
+<p>Los cambios están <strong>en producción</strong> (www.naves-inalde.com) desde hoy, 28 de mayo de 2026, antes de la fecha límite de entrega (29 de mayo a las 6:00 p. m.). Los participantes que están actualmente llenando el formulario ya están protegidos.</p>
+<hr/>
+<h2>7. Tiempo dedicado</h2>
+<table><thead><tr><th>Etapa</th><th>Tramo</th><th>Tiempo</th></tr></thead><tbody>
+<tr><td>Pruebas end-to-end con Playwright, hallazgo de tres bugs adicionales y aplicación de fixes (validación de borrador, closure stale, banner persistente)</td><td>02:38 → 03:21</td><td>43 min</td></tr>
+<tr><td>Ronda final: enums/regex permisivos en borrador, validaciones movidas al envío, verificación con llamadas reales contra producción</td><td>03:21 → 03:50</td><td>29 min</td></tr>
+<tr><td><strong>Total dedicado en esta sesión</strong></td><td>02:38 → 03:50</td><td><strong>≈ 1 h 12 min</strong></td></tr>
+</tbody></table>
+<p>Incluye: diagnóstico, implementación, despliegue, pruebas end-to-end simulando un participante real (login, llenado del formulario completo y envío en producción), verificación en base de datos y limpieza de las evidencias.</p>
+<hr/>
+<h2>8. Cierre</h2>
+<p>El sistema queda funcionando correctamente. El caso reportado no se debe repetir y, si por algún motivo externo (corte de internet, cierre del computador) se interrumpe el llenado, el trabajo ya no se pierde — se restaura automáticamente al volver a entrar.</p></body></html>

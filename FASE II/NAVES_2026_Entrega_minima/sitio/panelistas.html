@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAVES 2026 | Panel de Evaluación | INALDE Business School</title>
+  <!-- Open Graph para WhatsApp y redes sociales -->
+  <meta property="og:type"        content="website">
+  <meta property="og:url"         content="https://navesfs.netlify.app/panelistas.html">
+  <meta property="og:title"       content="NAVES 2026 | Panel de Evaluación | INALDE Business School">
+  <meta property="og:description" content="Proyectos del Executive MBA FS 2024-2026. Revise los emprendimientos y confirme su asistencia como panelista.">
+  <meta property="og:image"       content="https://navesfs.netlify.app/og-panelistas.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height"content="630">
+  <meta name="twitter:card"       content="summary_large_image">
+  <meta name="twitter:image"      content="https://navesfs.netlify.app/og-panelistas.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#e30613;--black:#0a0a0a;--text:#1a1a1a;--gray:#6b6b6b;--light:#f5f5f5;--border:#e0e0e0;--white:#fff;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Roboto',sans-serif;background:var(--light);color:var(--text);}
+
+    /* HEADER */
+    header{background:var(--white);border-bottom:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+    .header-top{background:var(--black);padding:0.4rem 2rem;text-align:right;}
+    .header-top span{color:rgba(255,255,255,0.7);font-family:'Montserrat',sans-serif;font-size:0.72rem;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;}
+    .header-main{padding:0.9rem 2rem;display:flex;justify-content:space-between;align-items:center;max-width:1200px;margin:0 auto;}
+    .sep{width:1px;height:40px;background:var(--border);margin:0 1rem;}
+    .prog-label{font-family:'Montserrat',sans-serif;font-size:0.65rem;font-weight:600;color:var(--gray);letter-spacing:0.15em;text-transform:uppercase;}
+    .prog-name{font-family:'Montserrat',sans-serif;font-size:1.2rem;font-weight:900;}
+    .prog-name span{color:var(--red);}
+    .badge-panel{background:var(--red);color:#fff;font-family:'Montserrat',sans-serif;font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:0.35rem 0.9rem;border-radius:3px;}
+
+    /* HERO */
+    .hero{background:linear-gradient(135deg,#0a0a0a 0%,#1a1a1a 60%,#2a1010 100%);padding:3rem 2rem 2.5rem;position:relative;overflow:hidden;}
+    .hero::after{content:'';position:absolute;left:0;top:0;width:4px;height:100%;background:var(--red);}
+    .hero-inner{max-width:1200px;margin:0 auto;padding-left:1rem;}
+    .hero-badge{display:inline-block;background:var(--red);color:#fff;padding:0.4rem 1.2rem;font-family:'Montserrat',sans-serif;font-size:0.72rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:1rem;border-radius:3px;}
+    .hero h1{font-family:'Montserrat',sans-serif;font-size:2.4rem;font-weight:900;color:#fff;margin-bottom:0.4rem;}
+    .hero h1 span{color:var(--red);}
+    .hero-sub{color:rgba(255,255,255,0.75);font-size:1rem;margin-bottom:1rem;}
+    .hero-instrucciones{background:rgba(255,255,255,0.07);border-left:3px solid var(--red);padding:1rem 1.2rem;max-width:700px;color:rgba(255,255,255,0.85);font-size:0.9rem;line-height:1.7;}
+    .hero-instrucciones strong{color:#fff;}
+
+    /* CONTENIDO */
+    .contenido{max-width:1200px;margin:2rem auto;padding:0 2rem 4rem;}
+
+    /* JORNADA CARD */
+    .jornada-card{background:var(--white);border:1px solid var(--border);border-top:4px solid var(--red);margin-bottom:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+    .jornada-header{background:#1a1a1a;padding:1rem 1.5rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;}
+    .jornada-num{font-family:'Montserrat',sans-serif;font-size:0.7rem;font-weight:800;color:var(--red);letter-spacing:0.15em;text-transform:uppercase;background:rgba(227,6,19,0.15);border:1px solid rgba(227,6,19,0.3);padding:0.3rem 0.8rem;border-radius:3px;white-space:nowrap;}
+    .jornada-dia{font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:700;color:#fff;}
+    .jornada-hora{font-family:'Roboto',sans-serif;font-size:0.85rem;color:rgba(255,255,255,0.6);margin-top:0.1rem;}
+    .jornada-count{margin-left:auto;font-family:'Montserrat',sans-serif;font-size:0.7rem;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;}
+    .jornada-body{padding:0.5rem 0;}
+
+    /* PROYECTO ROW */
+    .proj-row{display:flex;align-items:flex-start;gap:1.2rem;padding:0.9rem 1.5rem;border-bottom:1px solid var(--border);}
+    .proj-row:last-child{border-bottom:none;}
+    .proj-row:hover{background:#fafafa;}
+    .proj-slot{min-width:48px;text-align:center;font-family:'Montserrat',sans-serif;font-size:1.1rem;font-weight:900;color:#ccc;line-height:1;}
+    .proj-time{display:block;font-family:'Roboto',sans-serif;font-size:0.7rem;font-weight:400;color:#bbb;margin-top:3px;}
+    .proj-logo{min-width:60px;display:flex;align-items:center;justify-content:center;}
+    .p-logo{max-width:56px;max-height:44px;object-fit:contain;border:1px solid var(--border);padding:2px;}
+    .p-logo-ph{width:52px;height:40px;background:var(--light);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.8rem;color:var(--gray);}
+    .proj-info{flex:1;}
+    .proj-name{font-family:'Montserrat',sans-serif;font-size:0.95rem;font-weight:800;color:var(--text);margin-bottom:0.2rem;}
+    .proj-authors{font-size:0.78rem;color:var(--gray);margin-bottom:0.4rem;}
+    .proj-resumen{font-size:0.82rem;color:#444;line-height:1.55;}
+    .proj-dl{min-width:110px;display:flex;align-items:center;justify-content:flex-end;}
+    .btn-op{display:inline-block;padding:0.35rem 0.7rem;background:#fff5f5;color:var(--red);border:1px solid var(--red);font-family:'Montserrat',sans-serif;font-size:0.67rem;font-weight:700;letter-spacing:0.04em;text-decoration:none;border-radius:3px;transition:all 0.2s;white-space:nowrap;}
+    .btn-op:hover{background:var(--red);color:#fff;}
+
+    /* FOOTER JORNADA */
+    .jornada-footer{padding:1rem 1.5rem;background:#f9f9f9;border-top:1px solid var(--border);}
+    .evento-jor{background:#ffe066;border-left:4px solid var(--red);padding:0.65rem 1rem;margin:0.45rem 0;display:flex;flex-wrap:wrap;gap:0.45rem;align-items:baseline;border-radius:4px;}
+    .evento-jor .ev-hora{font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.8rem;color:var(--text);white-space:nowrap;}
+    .evento-jor .ev-titulo{font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.82rem;color:var(--text);}
+    .evento-jor .ev-nota{color:var(--gray);font-size:0.78rem;}
+    .btn-asistir{background:var(--red);color:#fff;border:none;padding:0.75rem 1.8rem;font-family:'Montserrat',sans-serif;font-size:0.82rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all 0.2s;}
+    .btn-asistir:hover{background:#c00510;transform:translateY(-1px);}
+    .btn-asistir:disabled{background:#999;cursor:default;transform:none;}
+
+    /* FORMULARIO */
+    .form-container{margin-top:1rem;padding:1.2rem;background:#fff;border:1px solid var(--border);border-radius:3px;animation:slideDown 0.25s ease-out;}
+    @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+    .form-row{display:flex;gap:0.8rem;flex-wrap:wrap;align-items:flex-end;}
+    .form-group{flex:1;min-width:200px;}
+    .form-group label{display:block;font-family:'Montserrat',sans-serif;font-size:0.75rem;font-weight:600;color:var(--text);margin-bottom:0.4rem;letter-spacing:0.03em;}
+    .req{color:var(--red);}
+    .form-group input{width:100%;padding:0.6rem 0.8rem;border:1px solid var(--border);border-bottom:2px solid var(--text);font-family:'Roboto',sans-serif;font-size:0.9rem;background:var(--light);}
+    .form-group input:focus{outline:none;border-bottom-color:var(--red);background:#fff;}
+    .btn-confirmar{padding:0.65rem 1.4rem;background:#1a1a1a;color:#fff;border:none;font-family:'Montserrat',sans-serif;font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;border-radius:3px;white-space:nowrap;transition:all 0.2s;}
+    .btn-confirmar:hover{background:var(--red);}
+    .form-success{margin-top:0.8rem;padding:0.75rem 1rem;background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9;font-family:'Roboto',sans-serif;font-size:0.88rem;border-radius:3px;}
+
+
+    /* ─── MODAL ONE PAGER ─── */
+    .modal-overlay{
+      display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);
+      z-index:9999;align-items:center;justify-content:center;padding:1rem;
+    }
+    .modal-overlay.open{display:flex;}
+    .modal-box{
+      background:#1a1a1a;width:100%;max-width:860px;max-height:92vh;
+      display:flex;flex-direction:column;border-top:4px solid var(--red);
+      box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:modalIn 0.2s ease-out;
+    }
+    @keyframes modalIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+    .modal-header{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:0.8rem 1.2rem;border-bottom:1px solid rgba(255,255,255,0.1);
+      flex-shrink:0;
+    }
+    .modal-title{font-family:'Montserrat',sans-serif;font-size:0.82rem;font-weight:700;
+      color:#fff;letter-spacing:0.06em;text-transform:uppercase;}
+    .modal-close{
+      background:none;border:none;color:rgba(255,255,255,0.6);font-size:1.6rem;
+      cursor:pointer;line-height:1;padding:0 0.3rem;transition:color 0.2s;
+    }
+    .modal-close:hover{color:#fff;}
+    .modal-content{flex:1;overflow:auto;background:#f5f5f5;}
+    .modal-content iframe{width:100%;height:100%;min-height:70vh;border:none;display:block;}
+    .modal-content img{width:100%;height:auto;display:block;}
+    .modal-footer{
+      padding:0.6rem 1.2rem;display:flex;justify-content:space-between;align-items:center;
+      border-top:1px solid rgba(255,255,255,0.1);flex-shrink:0;
+    }
+    .modal-footer a{
+      color:var(--red);font-family:'Montserrat',sans-serif;font-size:0.72rem;
+      font-weight:700;text-decoration:none;letter-spacing:0.05em;
+    }
+    .modal-footer a:hover{text-decoration:underline;}
+    .modal-hint{font-size:0.72rem;color:rgba(255,255,255,0.4);}
+
+    /* ─── MODAL LOGÍSTICA ─── */
+    .modal-log-box{background:#fff;width:100%;max-width:520px;border-top:4px solid var(--red);box-shadow:0 20px 60px rgba(0,0,0,0.8);animation:modalIn 0.2s ease-out;border-radius:0 0 3px 3px;}
+    .modal-log-header{display:flex;justify-content:space-between;align-items:center;padding:0.9rem 1.2rem;background:#1a1a1a;}
+    .modal-log-title{font-family:'Montserrat',sans-serif;font-size:0.78rem;font-weight:700;color:#fff;letter-spacing:0.06em;text-transform:uppercase;}
+    .modal-log-body{padding:1.4rem 1.4rem 1rem;}
+    .modal-log-intro{font-family:'Roboto',sans-serif;font-size:0.9rem;color:var(--text);margin:0 0 1.3rem;line-height:1.5;}
+    .log-section{margin-bottom:1.1rem;padding-bottom:1.1rem;border-bottom:1px solid var(--border);}
+    .log-section:last-of-type{border-bottom:none;margin-bottom:0;}
+    .log-question{font-family:'Montserrat',sans-serif;font-size:0.82rem;font-weight:700;color:var(--text);margin-bottom:0.55rem;letter-spacing:0.02em;}
+    .log-tag{font-size:0.62rem;background:var(--red);color:#fff;padding:0.15rem 0.5rem;border-radius:10px;font-weight:700;letter-spacing:0.05em;vertical-align:middle;margin-left:0.4rem;}
+    .log-radios{display:flex;gap:1.4rem;flex-wrap:wrap;}
+    .log-radio{display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-family:'Roboto',sans-serif;font-size:0.9rem;color:var(--text);}
+    .log-radio input[type="radio"]{accent-color:var(--red);width:15px;height:15px;cursor:pointer;flex-shrink:0;}
+    .log-sub{display:flex;gap:0.8rem;flex-wrap:wrap;margin-top:0.7rem;padding:1rem;background:var(--light);border:1px solid var(--border);border-radius:3px;}
+    .log-field{flex:1;min-width:180px;}
+    .log-field-sm{flex:0 0 130px;min-width:120px;}
+    .log-field label{display:block;font-family:'Montserrat',sans-serif;font-size:0.72rem;font-weight:700;color:var(--text);margin-bottom:0.35rem;letter-spacing:0.03em;}
+    .log-field input{width:100%;box-sizing:border-box;padding:0.55rem 0.75rem;border:1px solid var(--border);border-bottom:2px solid var(--text);font-family:'Roboto',sans-serif;font-size:0.88rem;background:var(--light);}
+    .log-field input:focus{outline:none;border-bottom-color:var(--red);background:#fff;}
+    .log-fecha-info{font-family:'Roboto',sans-serif;font-size:0.85rem;color:var(--text);padding:0.5rem 0.75rem;background:#f0f4ff;border-left:3px solid #3a5bd9;border-radius:2px;}
+    .log-fecha-titulo{font-family:'Montserrat',sans-serif;font-size:0.72rem;font-weight:700;color:var(--text);letter-spacing:0.03em;margin-bottom:0.5rem;}
+    .log-fechas-checks{display:flex;flex-wrap:wrap;gap:0.4rem 1rem;}
+    .log-fecha-check{display:flex;align-items:center;gap:0.4rem;font-family:'Roboto',sans-serif;font-size:0.85rem;color:var(--text);cursor:pointer;padding:0.3rem 0;}
+    .log-fecha-check input[type="checkbox"]{width:15px;height:15px;accent-color:var(--red);cursor:pointer;}
+    .log-actions{display:flex;gap:0.8rem;align-items:center;padding-top:0.9rem;flex-wrap:wrap;}
+    .btn-log-guardar{padding:0.7rem 1.6rem;background:#1a1a1a;color:#fff;border:none;font-family:'Montserrat',sans-serif;font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all 0.2s;}
+    .btn-log-guardar:hover{background:var(--red);}
+    .btn-log-guardar:disabled{background:#888;cursor:default;}
+    .btn-log-omitir{padding:0.7rem 0.8rem;background:none;color:var(--gray);border:none;font-family:'Roboto',sans-serif;font-size:0.82rem;cursor:pointer;text-decoration:underline;}
+    .btn-log-omitir:hover{color:var(--text);}
+    @media(max-width:600px){.log-sub{flex-direction:column;}.log-field,.log-field-sm{min-width:100%;flex:none;}}
+
+    /* FOOTER */
+    footer{background:var(--black);color:rgba(255,255,255,0.5);text-align:center;padding:2rem;font-family:'Montserrat',sans-serif;font-size:0.75rem;letter-spacing:0.05em;}
+    footer a{color:var(--red);text-decoration:none;}
+
+
+    /* TODAS LAS JORNADAS */
+    .todas-banner{background:linear-gradient(135deg,#1a1a1a 0%,#2a1010 100%);border-left:4px solid var(--red);padding:1.5rem 2rem;margin-bottom:2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;}
+    .todas-texto{color:#fff;font-family:'Montserrat',sans-serif;}
+    .todas-titulo{font-size:1rem;font-weight:800;margin-bottom:0.2rem;}
+    .todas-sub{font-size:0.8rem;color:rgba(255,255,255,0.6);font-family:'Roboto',sans-serif;}
+    .btn-todas{background:var(--red);color:#fff;border:none;padding:0.8rem 2rem;font-family:'Montserrat',sans-serif;font-size:0.82rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all 0.2s;white-space:nowrap;}
+    .btn-todas:hover{background:#c00510;transform:translateY(-1px);}
+    .btn-todas:disabled{background:#666;cursor:default;transform:none;}
+    .todas-form{width:100%;margin-top:1rem;padding:1.2rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:3px;animation:slideDown 0.25s ease-out;}
+    .todas-form .form-row{display:flex;gap:0.8rem;flex-wrap:wrap;align-items:flex-end;}
+    .todas-form .form-group label{color:rgba(255,255,255,0.8);}
+    .todas-form .form-group input{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);color:#fff;}
+    .todas-form .form-group input::placeholder{color:rgba(255,255,255,0.4);}
+    .todas-form .form-group input:focus{background:rgba(255,255,255,0.12);border-bottom-color:var(--red);}
+    .todas-success{margin-top:0.8rem;padding:0.75rem 1rem;background:rgba(26,107,60,0.3);color:#7ddb9e;border:1px solid rgba(26,107,60,0.5);font-size:0.88rem;border-radius:3px;}
+
+    @media(max-width:768px){
+      /* Header */
+      .header-top{display:none;}
+      .header-main{padding:0.6rem 1rem;}
+      .prog-name{font-size:1rem;}
+      .badge-panel{font-size:0.62rem;padding:0.25rem 0.6rem;}
+
+      /* Hero */
+      .hero{padding:1.5rem 1rem 1.2rem;}
+      .hero h1{font-size:1.6rem;}
+      .hero-sub{font-size:0.85rem;}
+      .hero-instrucciones{font-size:0.82rem;padding:0.8rem 1rem;}
+
+      /* Todas las jornadas */
+      .todas-banner{flex-direction:column;align-items:flex-start;padding:1rem;}
+      .btn-todas{width:100%;text-align:center;font-size:0.72rem;padding:0.7rem 0.5rem;}
+      .todas-form .form-row{flex-direction:column;}
+
+      /* Contenido */
+      .contenido{padding:0 0.75rem 3rem;}
+
+      /* Jornada card */
+      .jornada-header{padding:0.8rem 1rem;gap:0.8rem;}
+      .jornada-num{font-size:0.65rem;}
+      .jornada-dia{font-size:0.9rem;}
+      .jornada-count{display:none;}
+
+      /* Proyecto row — apilado verticalmente en móvil */
+      .proj-row{
+        flex-direction:column;
+        gap:0.6rem;
+        padding:1rem;
+        border-bottom:1px solid var(--border);
+      }
+      .proj-slot{
+        display:flex;align-items:center;gap:0.6rem;
+        font-size:0.85rem;
+      }
+      .proj-slot .proj-time{display:inline;margin-top:0;color:var(--gray);}
+      .proj-logo{justify-content:flex-start;}
+      .p-logo{max-width:70px;max-height:55px;}
+      .proj-name{font-size:1rem;}
+      .proj-authors{font-size:0.8rem;}
+      .proj-resumen{font-size:0.82rem;}
+      .proj-dl{width:100%;justify-content:flex-start;margin-top:0.2rem;}
+      .btn-op{padding:0.5rem 1rem;font-size:0.72rem;width:100%;text-align:center;}
+
+      /* Footer jornada */
+      .jornada-footer{padding:0.8rem 1rem;}
+      .btn-asistir{width:100%;text-align:center;padding:0.85rem;}
+      .form-container{padding:0.8rem;}
+      .form-row{flex-direction:column;}
+      .btn-confirmar{width:100%;padding:0.75rem;}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-top" style="display:flex;justify-content:space-between;align-items:center;"><span>Executive MBA FS · Cohorte 2024 – 2026</span><a href="/admin.html" style="color:rgba(255,255,255,0.5);font-family:'Montserrat',sans-serif;font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;">⚙ Admin</a></div>
+  <div class="header-main">
+    <div style="display:flex;align-items:center;">
+      <div class="sep" style="margin-left:0;"></div>
+      <div>
+        <div class="prog-label">Trabajo de grado</div>
+        <div class="prog-name">N<span>A</span>VES <span>2026</span></div>
+      </div>
+    </div>
+    <span class="badge-panel">Panel de Evaluación</span>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">Executive MBA FS · INALDE Business School</div>
+    <h1>Proyectos <span>NAVES</span> 2026</h1>
+    <p class="hero-sub">Guía para panelistas — Presentaciones 12, 13, 19 y 20 de junio de 2026</p>
+    <div class="hero-instrucciones">
+      <strong>Estimado panelista:</strong> A continuación encontrará los proyectos organizados por jornada.
+      Cada jornada tiene una duración de aproximadamente 2 horas con 5 presentaciones de 20 minutos cada una.
+      Puede revisar el resumen y descargar el One Pager de cada emprendimiento.
+      <br><br>
+      Para confirmar su asistencia a una jornada, haga clic en <strong>"Quiero asistir a esta jornada"</strong>
+      al final de cada bloque e ingrese su nombre y correo.
+    </div>
+  </div>
+</div>
+
+
+<div class="contenido" style="padding-bottom:0;">
+  <div class="todas-banner" id="todas-banner">
+    <div class="todas-texto">
+      <div class="todas-titulo">¿Desea asistir a todas las jornadas?</div>
+      <div class="todas-sub">Confirme su asistencia completa con un solo clic — 7 jornadas, 34 presentaciones</div>
+    </div>
+    <button class="btn-todas" id="btn-todas" onclick="showTodasForm()">
+      ✋ Quiero asistir a todas las jornadas
+    </button>
+    <div class="todas-form" id="todas-form" style="display:none;">
+      <form name="confirmacion-todas-jornadas" method="POST" data-netlify="true"
+            netlify-honeypot="bot-field" onsubmit="handleTodasSubmit(event)">
+        <input type="hidden" name="form-name" value="confirmacion-todas-jornadas">
+        <input type="hidden" name="jornada" value="TODAS las jornadas — 12, 13, 19 y 20 de junio">
+        <input type="hidden" name="bot-field">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre completo <span class="req">*</span></label>
+            <input type="text" name="nombre" required placeholder="Su nombre">
+          </div>
+          <div class="form-group">
+            <label>Correo electrónico <span class="req">*</span></label>
+            <input type="email" name="email" required placeholder="su@email.com">
+          </div>
+          <button type="submit" class="btn-confirmar">Confirmar todas</button>
+        </div>
+        <div class="todas-success" id="todas-success" style="display:none;">
+          ✅ ¡Confirmación enviada! Le esperamos en todas las jornadas.
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="contenido">
+
+    <div class="jornada-card" id="jornada-1">
+      <div class="jornada-header">
+        <div class="jornada-num">Jornada 1</div>
+        <div class="jornada-info">
+          <div class="jornada-dia">Viernes 12 de junio</div>
+          <div class="jornada-hora">🕐 13:50 – 15:50</div>
+        </div>
+        <div class="jornada-count">5 presentaciones</div>
+      </div>
+      <div class="jornada-body">
+        <div class="evento-jor"><span class="ev-hora">🕐 13:15 – 13:25</span><span class="ev-titulo">Toma de foto de grupo — Puerta principal</span><span class="ev-nota">(Por favor estar ahí 5 min antes)</span></div>
+        <div class="evento-jor"><span class="ev-hora">🕐 13:25 – 13:45</span><span class="ev-titulo">Introducción</span></div>
+        <div class="proj-row">
+          <div class="proj-slot">1<span class="proj-time">13:50</span></div>
+          <div class="proj-logo"><img src="logos/Bevo.jpg" alt="Bevo" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Bevo</div>
+            <div class="proj-authors">Silvio Andrés Terán Calvache, Angela María Serna Castrillón, Camila Andrea Tarazona Moreno</div>
+            <div class="proj-resumen">Plataforma de bienestar corporativo donde la empresa asigna saldo, el colaborador elige experiencias y la plataforma mide uso, adopción y ROI.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Bevo_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">2<span class="proj-time">14:15</span></div>
+          <div class="proj-logo"><img src="logos/SATORI.jpg" alt="SATORI" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">SATORI</div>
+            <div class="proj-authors">Rina Miroshlawa Molina Vargas</div>
+            <div class="proj-resumen">Plataforma de empleabilidad para talento senior 50+. Conecta experiencia con empresas mediante matching, validación y formación para proyectos y mentorías flexibles.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/SATORI_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">3<span class="proj-time">14:40</span></div>
+          <div class="proj-logo"><img src="logos/VERIMED.jpg" alt="VERIMED" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">VERIMED</div>
+            <div class="proj-authors">Zain Pena Zea, Carlos Daniel Rodriguez Calderon, Jeisson Fernando Lancheros Jimenez</div>
+            <div class="proj-resumen">Sistema de gestión predictiva del riesgo en salud para aseguradoras y EPS. Anticipa eventos costosos y mejora la rentabilidad del portafolio.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/VERIMED_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">4<span class="proj-time">15:05</span></div>
+          <div class="proj-logo"><img src="logos/Chargehub.jpeg" alt="Chargehub" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Chargehub</div>
+            <div class="proj-authors">Diana Marcela Bruges Prada, Andrés Felipe Solano Hernández</div>
+            <div class="proj-resumen">Hub de carga rápida DC para vehículos eléctricos en Bogotá integrado con cafetería de especialidad. Carga en 45 minutos con experiencia premium.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Chargehub_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">5<span class="proj-time">15:30</span></div>
+          <div class="proj-logo"><img src="logos/Plug_GoEV.jpg" alt="Plug&GoEV" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Plug&GoEV</div>
+            <div class="proj-authors">Ginna Lizeth Moncada Moreno, Ronald Jaimes Prada, Bibiana Carolina Baez Castro</div>
+            <div class="proj-resumen">Soluciones integrales de carga para vehículos eléctricos en Colombia, frente a una brecha de 174 vehículos eléctricos por cada punto de carga pública. Infraestructura para acelerar la electromovilidad.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Plug_GoEV_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="evento-jor"><span class="ev-hora">🕐 15:55 – 16:25</span><span class="ev-titulo">Break</span><span class="ev-nota">(Toma de foto grupos 1 a 5 · Sala de Estar)</span></div>
+        </div>
+      <div class="jornada-footer">
+        <button class="btn-asistir" onclick="showForm(1, 'Jornada 1 — Viernes 12 de junio · 13:50 – 15:50')">
+          ✋ Quiero asistir a esta jornada
+        </button>
+        <div class="form-container" id="form-1" style="display:none;">
+          <form name="confirmacion-jornada" method="POST" data-netlify="true"
+                onsubmit="handleSubmit(event, 1)">
+            <input type="hidden" name="form-name" value="confirmacion-jornada">
+            <input type="hidden" name="instruccion" value="Por favor ponerse en contacto con este panelista para coordinar transporte.">
+            <input type="hidden" name="jornada" value="Jornada 1 — Viernes 12 de junio · 13:50 – 15:50">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nombre completo <span class="req">*</span></label>
+                <input type="text" name="nombre" required placeholder="Su nombre">
+              </div>
+              <div class="form-group">
+                <label>Correo electrónico <span class="req">*</span></label>
+                <input type="email" name="email" required placeholder="su@email.com">
+              </div>
+              <button type="submit" class="btn-confirmar">Confirmar asistencia</button>
+            </div>
+            <div class="form-success" id="success-1" style="display:none;">
+              ✅ ¡Confirmación enviada! Le esperamos el Viernes 12 de junio.
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="jornada-card" id="jornada-2">
+      <div class="jornada-header">
+        <div class="jornada-num">Jornada 2</div>
+        <div class="jornada-info">
+          <div class="jornada-dia">Viernes 12 de junio</div>
+          <div class="jornada-hora">🕐 16:30 – 18:30</div>
+        </div>
+        <div class="jornada-count">5 presentaciones</div>
+      </div>
+      <div class="jornada-body">
+        <div class="proj-row">
+          <div class="proj-slot">6<span class="proj-time">16:30</span></div>
+          <div class="proj-logo"><img src="logos/Bio_Value.jpeg" alt="Bio Value" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Bio Value</div>
+            <div class="proj-authors">Maria Wills Salas, Luis Alberto Gonzalez Miguel, Juan Sebastian Uribe Barcha</div>
+            <div class="proj-resumen">Hilados bio-based trazables para cadenas textiles premium. Transforma fibras naturales en hilos y blends de alto desempeño con trazabilidad verificable, conectando biodiversidad colombiana con marcas globales.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Bio_Value_resumen.png" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">7<span class="proj-time">16:55</span></div>
+          <div class="proj-logo"><img src="logos/New_Car_Now.jpg" alt="New Car Now" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">New Car Now</div>
+            <div class="proj-authors">Santiago Romero Herrera</div>
+            <div class="proj-resumen">Plataforma digital que simplifica la compra y financiamiento de vehículos nuevos, conectando compradores con concesionarios y entidades financieras.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/New_Car_Now_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">8<span class="proj-time">17:20</span></div>
+          <div class="proj-logo"><img src="logos/gu_dplant.jpg" alt="güdplant" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">güdplant</div>
+            <div class="proj-authors">Luis Miguel Olarte, Oscar Daniel Lopez, Nicolas Trujillo</div>
+            <div class="proj-resumen">Exporta plantas tropicales desde Colombia a EE.UU. a un costo 1,72x menor que un grower en Florida. Certificación ICA-APHIS validada en campo.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/gu_dplant_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">9<span class="proj-time">17:45</span></div>
+          <div class="proj-logo"><img src="logos/Grey2Blue.jpeg" alt="Grey2Blue" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Grey2Blue</div>
+            <div class="proj-authors">Andrea Lora, Juliana Munar</div>
+            <div class="proj-resumen">Sistema de reúso de aguas grises domiciliarias para hogares. Reduce el consumo de agua potable con tecnología accesible y sostenible.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Grey2Blue_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">10<span class="proj-time">18:10</span></div>
+          <div class="proj-logo"><img src="logos/Jornalia.jpg" alt="Jornalia" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Jornalia</div>
+            <div class="proj-authors">Jenny Forero, Silvana Morales</div>
+            <div class="proj-resumen">Plataforma que resuelve la escasez de mano de obra agrícola. Modelo B2B y B2C asset-light que dignifica al jornalero y elimina intermediarios.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Jornalia_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="evento-jor"><span class="ev-hora">🕐 18:35 – 18:55</span><span class="ev-titulo">Toma de foto grupos 6 al 10</span><span class="ev-nota">(Sala de Estar)</span></div>
+        </div>
+      <div class="jornada-footer">
+        <button class="btn-asistir" onclick="showForm(2, 'Jornada 2 — Viernes 12 de junio · 16:30 – 18:30')">
+          ✋ Quiero asistir a esta jornada
+        </button>
+        <div class="form-container" id="form-2" style="display:none;">
+          <form name="confirmacion-jornada" method="POST" data-netlify="true"
+                onsubmit="handleSubmit(event, 2)">
+            <input type="hidden" name="form-name" value="confirmacion-jornada">
+            <input type="hidden" name="instruccion" value="Por favor ponerse en contacto con este panelista para coordinar transporte.">
+            <input type="hidden" name="jornada" value="Jornada 2 — Viernes 12 de junio · 16:30 – 18:30">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nombre completo <span class="req">*</span></label>
+                <input type="text" name="nombre" required placeholder="Su nombre">
+              </div>
+              <div class="form-group">
+                <label>Correo electrónico <span class="req">*</span></label>
+                <input type="email" name="email" required placeholder="su@email.com">
+              </div>
+              <button type="submit" class="btn-confirmar">Confirmar asistencia</button>
+            </div>
+            <div class="form-success" id="success-2" style="display:none;">
+              ✅ ¡Confirmación enviada! Le esperamos el Viernes 12 de junio.
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="jornada-card" id="jornada-3">
+      <div class="jornada-header">
+        <div class="jornada-num">Jornada 3</div>
+        <div class="jornada-info">
+          <div class="jornada-dia">Sábado 13 de junio</div>
+          <div class="jornada-hora">🕐 07:20 – 09:20</div>
+        </div>
+        <div class="jornada-count">5 presentaciones</div>
+      </div>
+      <div class="jornada-body">
+        <div class="evento-jor"><span class="ev-hora">🕐 07:10 – 07:15</span><span class="ev-titulo">Introducción</span></div>
+        <div class="proj-row">
+          <div class="proj-slot">11<span class="proj-time">07:20</span></div>
+          <div class="proj-logo"><img src="logos/AKOS.jpg" alt="AKOS" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">AKOS</div>
+            <div class="proj-authors">Héctor Rodrigo Arias Cueca, Cesar Julián Pérez Garavito</div>
+            <div class="proj-resumen">Financia procedimientos médicos y medicamentos urgentes no cubiertos por el sistema público de salud. Aprobación en menos de 5 minutos, desembolso directo al proveedor médico.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/AKOS_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">12<span class="proj-time">07:45</span></div>
+          <div class="proj-logo"><img src="logos/Fioya.jpg" alt="FioYa" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">FioYa</div>
+            <div class="proj-authors">Pablo Molina</div>
+            <div class="proj-resumen">Digitaliza el sistema de fiado en tiendas de barrio, conectando tenderos y clientes con fuentes de fondeo formal. Validado con 90% de intención de uso.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Fioya_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">13<span class="proj-time">08:10</span></div>
+          <div class="proj-logo"><img src="logos/Mony.jpg" alt="Mony" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Mony</div>
+            <div class="proj-authors">Sergio Andres Espinosa Silva, Javier Garcia Gutierrez</div>
+            <div class="proj-resumen">Fintech social de inclusión: construye hábitos financieros saludables para madres cabeza de familia por WhatsApp, financiados por su empleador. El ahorro con matching habilita educación, scoring y mejores productos.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Mony_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">14<span class="proj-time">08:35</span></div>
+          <div class="proj-logo"><img src="logos/sabIO.jpg" alt="sabIO" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">sabIO</div>
+            <div class="proj-authors">Marcel Holguín, Andrés Cortés</div>
+            <div class="proj-resumen">Plataforma FinTech que conecta colaboradores con fondos de pensiones voluntarias (FPV) de manera simple y accesible. Bienestar financiero a largo plazo.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/sabIO_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">15<span class="proj-time">09:00</span></div>
+          <div class="proj-logo"><img src="logos/Verifika.jpg" alt="Verifika" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Verifika</div>
+            <div class="proj-authors">Andres Camilo Ramirez Rodriguez</div>
+            <div class="proj-resumen">Plataforma SaaS que valida pagos digitales sin exponer información del negocio. Protege a micronegocios del fraude con comprobantes falsos de Nequi y otras plataformas.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Verifika_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="evento-jor"><span class="ev-hora">🕐 09:25 – 09:55</span><span class="ev-titulo">Break</span><span class="ev-nota">(Toma de foto grupos 11 al 15 · Sala de Estar)</span></div>
+        </div>
+      <div class="jornada-footer">
+        <button class="btn-asistir" onclick="showForm(3, 'Jornada 3 — Sábado 13 de junio · 07:20 – 09:20')">
+          ✋ Quiero asistir a esta jornada
+        </button>
+        <div class="form-container" id="form-3" style="display:none;">
+          <form name="confirmacion-jornada" method="POST" data-netlify="true"
+                onsubmit="handleSubmit(event, 3)">
+            <input type="hidden" name="form-name" value="confirmacion-jornada">
+            <input type="hidden" name="instruccion" value="Por favor ponerse en contacto con este panelista para coordinar transporte.">
+            <input type="hidden" name="jornada" value="Jornada 3 — Sábado 13 de junio · 07:20 – 09:20">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nombre completo <span class="req">*</span></label>
+                <input type="text" name="nombre" required placeholder="Su nombre">
+              </div>
+              <div class="form-group">
+                <label>Correo electrónico <span class="req">*</span></label>
+                <input type="email" name="email" required placeholder="su@email.com">
+              </div>
+              <button type="submit" class="btn-confirmar">Confirmar asistencia</button>
+            </div>
+            <div class="form-success" id="success-3" style="display:none;">
+              ✅ ¡Confirmación enviada! Le esperamos el Sábado 13 de junio.
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="jornada-card" id="jornada-4">
+      <div class="jornada-header">
+        <div class="jornada-num">Jornada 4</div>
+        <div class="jornada-info">
+          <div class="jornada-dia">Sábado 13 de junio</div>
+          <div class="jornada-hora">🕐 10:00 – 12:00</div>
+        </div>
+        <div class="jornada-count">5 presentaciones</div>
+      </div>
+      <div class="jornada-body">
+        <div class="proj-row">
+          <div class="proj-slot">16<span class="proj-time">10:00</span></div>
+          <div class="proj-logo"><img src="logos/AMIGO.jpg" alt="AMIGO" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">AMIGO</div>
+            <div class="proj-authors">Andres Camilo Martinez Socota</div>
+            <div class="proj-resumen">Plataforma de agentes con IA que ejecuta gestiones reales por WhatsApp en Colombia y México. Automatiza lo rutinario para que las personas dediquen su tiempo a lo que importa.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/AMIGO_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">17<span class="proj-time">10:25</span></div>
+          <div class="proj-logo"><img src="logos/ARCO.jpg" alt="ARCO" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">ARCO</div>
+            <div class="proj-authors">Laura Mariño Arévalo, Julián Camilo Jiménez Moreno, Jhon Alexander Alarcón Hernández</div>
+            <div class="proj-resumen">Ecosistema comercial con IA para pymes B2B. Agente de voz que cubre el ciclo completo de ventas: prospección, seguimiento y recaudo, sin digitar.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/ARCO_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">18<span class="proj-time">10:50</span></div>
+          <div class="proj-logo"><img src="logos/KLAR.jpg" alt="KLAR" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">KLAR</div>
+            <div class="proj-authors">Carlos Alberto Rodriguez Hernandez</div>
+            <div class="proj-resumen">WMS conversacional con IA para empresas medianas con alta rotación de personal. Reduce errores de picking y mermas sin necesitar capacitación extensa.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/KLAR_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">19<span class="proj-time">11:15</span></div>
+          <div class="proj-logo"><img src="logos/PLICS.jpg" alt="PLICS" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">PLICS</div>
+            <div class="proj-authors">Laura Lerma, Andres Vasquez, Cristian Hernandez</div>
+            <div class="proj-resumen">e-Procurement B2B SaaS para las áreas de Compras de medianas empresas en LATAM. Convierte el sourcing disperso en un proceso estructurado y trazable, con comparador de TCO, expediente auditable e integración al ERP.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/PLICS_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">20<span class="proj-time">11:40</span></div>
+          <div class="proj-logo"><img src="logos/Zafiro.jpg" alt="Zafiro" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Zafiro</div>
+            <div class="proj-authors">Gerardo Jimenez, Daniel Pabon</div>
+            <div class="proj-resumen">Manufactura de conectores ensamblados MMC y jumpers de fibra óptica de alta precisión para el despliegue de IA en data centers de CALA y EE.UU. Reduce semanas de espera en proyectos críticos de hyperscalers e integradores.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Zafiro_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="evento-jor"><span class="ev-hora">🕐 12:05 – 12:25</span><span class="ev-titulo">Toma de foto grupos 15 al 20</span><span class="ev-nota">(Sala de Estar)</span></div>
+        </div>
+      <div class="jornada-footer">
+        <button class="btn-asistir" onclick="showForm(4, 'Jornada 4 — Sábado 13 de junio · 10:00 – 12:00')">
+          ✋ Quiero asistir a esta jornada
+        </button>
+        <div class="form-container" id="form-4" style="display:none;">
+          <form name="confirmacion-jornada" method="POST" data-netlify="true"
+                onsubmit="handleSubmit(event, 4)">
+            <input type="hidden" name="form-name" value="confirmacion-jornada">
+            <input type="hidden" name="instruccion" value="Por favor ponerse en contacto con este panelista para coordinar transporte.">
+            <input type="hidden" name="jornada" value="Jornada 4 — Sábado 13 de junio · 10:00 – 12:00">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nombre completo <span class="req">*</span></label>
+                <input type="text" name="nombre" required placeholder="Su nombre">
+              </div>
+              <div class="form-group">
+                <label>Correo electrónico <span class="req">*</span></label>
+                <input type="email" name="email" required placeholder="su@email.com">
+              </div>
+              <button type="submit" class="btn-confirmar">Confirmar asistencia</button>
+            </div>
+            <div class="form-success" id="success-4" style="display:none;">
+              ✅ ¡Confirmación enviada! Le esperamos el Sábado 13 de junio.
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="jornada-card" id="jornada-5">
+      <div class="jornada-header">
+        <div class="jornada-num">Jornada 5</div>
+        <div class="jornada-info">
+          <div class="jornada-dia">Viernes 19 de junio</div>
+          <div class="jornada-hora">🕐 14:00 – 16:00</div>
+        </div>
+        <div class="jornada-count">5 presentaciones</div>
+      </div>
+      <div class="jornada-body">
+        <div class="evento-jor"><span class="ev-hora">🕐 13:30 – 13:40</span><span class="ev-titulo">Toma de foto de grupo — Puerta principal</span><span class="ev-nota">(Por favor estar ahí 5 min antes)</span></div>
+        <div class="evento-jor"><span class="ev-hora">🕐 13:35 – 13:55</span><span class="ev-titulo">Introducción</span></div>
+        <div class="proj-row">
+          <div class="proj-slot">21<span class="proj-time">14:00</span></div>
+          <div class="proj-logo"><img src="logos/T-HEALTH.jpg" alt="T-HEALTH" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">T-HEALTH</div>
+            <div class="proj-authors">Carlos Enrique Manquillo, Luis Geovanni Florez Diaz</div>
+            <div class="proj-resumen">Monitoreo remoto predictivo de pacientes para EPS, aseguradoras y población envejeciente. Identifica el deterioro clínico 48-72 horas antes del evento crítico con IoT clínico, reduciendo 25-30% las hospitalizaciones evitables.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/T-HEALTH_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">22<span class="proj-time">14:25</span></div>
+          <div class="proj-logo"><img src="logos/La_Etapa_Cafe.jpg" alt="La Etapa Café" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">La Etapa Café</div>
+            <div class="proj-authors">Juan Sebastián López, John Segura Monroy, Claudia Estévez Prada</div>
+            <div class="proj-resumen">Primera cadena de cafeterías premium especializada en el cierre de ruta para ciclistas amateur en Colombia. Café y desayunos pensados para el ciclista, parqueadero seguro de bicicletas y comunidad.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/La_Etapa_Cafe_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">23<span class="proj-time">14:50</span></div>
+          <div class="proj-logo"><img src="logos/Viora.jpg" alt="Viora" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Viora</div>
+            <div class="proj-authors">Alexandra Guarín, Juan José Ordoñez, Edwin Molano</div>
+            <div class="proj-resumen">Ayuda a adultos latinoamericanos con sobrepeso a lograr pérdida de peso sostenida con acompañamiento clínico continuo e inteligencia artificial.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Viora_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">24<span class="proj-time">15:15</span></div>
+          <div class="proj-logo"><img src="logos/Moovday.jpg" alt="Moovday" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Moovday</div>
+            <div class="proj-authors">Julio César Riaño Rico, Germán Buitrago Gónzalez</div>
+            <div class="proj-resumen">Red de clubes wellness que ayuda a personas sedentarias a convertir la intención en hábito sostenible. Conecta cuerpo, mente y emociones con su metodología Emotional Energy Training™ y acompañamiento profesional integral.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Moovday_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">25<span class="proj-time">15:40</span></div>
+          <div class="proj-logo"><img src="logos/Oviland.jpg" alt="OVILAND" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">OVILAND</div>
+            <div class="proj-authors">Ginna Fernanda Romero Rincón</div>
+            <div class="proj-resumen">Convierte el huevo no conforme en ovoproductos industriales B2B y snacks proteicos B2C. Captura un mercado sub-penetrado al 6,8% con crecimiento del 12% anual.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Oviland_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="evento-jor"><span class="ev-hora">🕐 16:05 – 16:35</span><span class="ev-titulo">Break</span><span class="ev-nota">(Toma de foto grupos 21 a 25 · Sala de Estar)</span></div>
+        </div>
+      <div class="jornada-footer">
+        <button class="btn-asistir" onclick="showForm(5, 'Jornada 5 — Viernes 19 de junio · 14:00 – 16:00')">
+          ✋ Quiero asistir a esta jornada
+        </button>
+        <div class="form-container" id="form-5" style="display:none;">
+          <form name="confirmacion-jornada" method="POST" data-netlify="true"
+                onsubmit="handleSubmit(event, 5)">
+            <input type="hidden" name="form-name" value="confirmacion-jornada">
+            <input type="hidden" name="instruccion" value="Por favor ponerse en contacto con este panelista para coordinar transporte.">
+            <input type="hidden" name="jornada" value="Jornada 5 — Viernes 19 de junio · 14:00 – 16:00">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nombre completo <span class="req">*</span></label>
+                <input type="text" name="nombre" required placeholder="Su nombre">
+              </div>
+              <div class="form-group">
+                <label>Correo electrónico <span class="req">*</span></label>
+                <input type="email" name="email" required placeholder="su@email.com">
+              </div>
+              <button type="submit" class="btn-confirmar">Confirmar asistencia</button>
+            </div>
+            <div class="form-success" id="success-5" style="display:none;">
+              ✅ ¡Confirmación enviada! Le esperamos el Viernes 19 de junio.
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="jornada-card" id="jornada-6">
+      <div class="jornada-header">
+        <div class="jornada-num">Jornada 6</div>
+        <div class="jornada-info">
+          <div class="jornada-dia">Viernes 19 de junio</div>
+          <div class="jornada-hora">🕐 16:40 – 18:40</div>
+        </div>
+        <div class="jornada-count">5 presentaciones</div>
+      </div>
+      <div class="jornada-body">
+        <div class="proj-row">
+          <div class="proj-slot">26<span class="proj-time">16:40</span></div>
+          <div class="proj-logo"><img src="logos/SABE.jpeg" alt="SABE" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">SABE</div>
+            <div class="proj-authors">Diana Mireya Martinez Gomez, Mayra Alexandra Puello Villarruel, Eliana Lozano Romero</div>
+            <div class="proj-resumen">SABE cierra la brecha entre la intención de comer y la capacidad real de hacerlo por medio de una experiencia gastronómica que integra sabor excepcional, transparencia nutricional, conveniencia y precio asequible, con el objetivo de transformar la salud del comensal a través de la nutrición.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/SABE_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">27<span class="proj-time">17:05</span></div>
+          <div class="proj-logo"><img src="logos/Ready2.png" alt="Ready2" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Ready2</div>
+            <div class="proj-authors">Mabel Adriana Herrera Bermúdez</div>
+            <div class="proj-resumen">Cócteles de autor premium listos para disfrutar (RTD): destilados premium, jugos prensados en frío y cero ingredientes artificiales. La experiencia de un cóctel sofisticado, sin preparación, para momentos sociales.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Ready2_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">28<span class="proj-time">17:30</span></div>
+          <div class="proj-logo"><img src="logos/Segunda_Mesa.jpg" alt="Segunda Mesa" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Segunda Mesa</div>
+            <div class="proj-authors">Katia Ogaza, Camila Alvarez</div>
+            <div class="proj-resumen">Ayuda a fabricantes de alimentos a monetizar inventario próximo a vencerse, reduciendo la merma y conectando productos a precio justo con consumidores.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Segunda_Mesa_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">29<span class="proj-time">17:55</span></div>
+          <div class="proj-logo"><img src="logos/VecinoPro.jpg" alt="VecinoPro" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">VecinoPro</div>
+            <div class="proj-authors">Oriana Rocio Cendales Reyes</div>
+            <div class="proj-resumen">Asistente IA conversacional para tiendas de barrio. Controla inventario, mejora las compras y vende con POS simple, generando más rentabilidad al tendero.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/VecinoPro_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">30<span class="proj-time">18:20</span></div>
+          <div class="proj-logo"><img src="logos/HERITAGEBOX.jpg" alt="HERITAGEBOX" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">HERITAGEBOX</div>
+            <div class="proj-authors">Patricio Javier Alvarado Strange</div>
+            <div class="proj-resumen">Plataforma editorial de colecciones premium de cultura y patrimonio. Convierte visitas culturales en objetos coleccionables museum-grade con relato curatorial.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/HERITAGEBOX_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="evento-jor"><span class="ev-hora">🕐 18:45 – 19:05</span><span class="ev-titulo">Toma de foto grupos 26 al 30</span><span class="ev-nota">(Sala de Estar)</span></div>
+        </div>
+      <div class="jornada-footer">
+        <button class="btn-asistir" onclick="showForm(6, 'Jornada 6 — Viernes 19 de junio · 16:40 – 18:40')">
+          ✋ Quiero asistir a esta jornada
+        </button>
+        <div class="form-container" id="form-6" style="display:none;">
+          <form name="confirmacion-jornada" method="POST" data-netlify="true"
+                onsubmit="handleSubmit(event, 6)">
+            <input type="hidden" name="form-name" value="confirmacion-jornada">
+            <input type="hidden" name="instruccion" value="Por favor ponerse en contacto con este panelista para coordinar transporte.">
+            <input type="hidden" name="jornada" value="Jornada 6 — Viernes 19 de junio · 16:40 – 18:40">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nombre completo <span class="req">*</span></label>
+                <input type="text" name="nombre" required placeholder="Su nombre">
+              </div>
+              <div class="form-group">
+                <label>Correo electrónico <span class="req">*</span></label>
+                <input type="email" name="email" required placeholder="su@email.com">
+              </div>
+              <button type="submit" class="btn-confirmar">Confirmar asistencia</button>
+            </div>
+            <div class="form-success" id="success-6" style="display:none;">
+              ✅ ¡Confirmación enviada! Le esperamos el Viernes 19 de junio.
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="jornada-card" id="jornada-7">
+      <div class="jornada-header">
+        <div class="jornada-num">Jornada 7</div>
+        <div class="jornada-info">
+          <div class="jornada-dia">Sábado 20 de junio</div>
+          <div class="jornada-hora">🕐 08:55 – 10:30</div>
+        </div>
+        <div class="jornada-count">4 presentaciones</div>
+      </div>
+      <div class="jornada-body">
+        <div class="evento-jor"><span class="ev-hora">🕐 08:30 – 08:50</span><span class="ev-titulo">Introducción</span></div>
+        <div class="proj-row">
+          <div class="proj-slot">31<span class="proj-time">08:55</span></div>
+          <div class="proj-logo"><img src="logos/Avia_Style.jpg" alt="Avia Style" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Avia Style</div>
+            <div class="proj-authors">Elkin Ricardo Ostos Salcedo</div>
+            <div class="proj-resumen">Habilitador de dotación llave en mano (Furniture as a Service) para el pool de rentas de AVIA Suites. Estandariza y amobla los apartamentos para que operen en renta turística de forma legal, transparente y equitativa.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Avia_Style_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">32<span class="proj-time">09:20</span></div>
+          <div class="proj-logo"><img src="logos/TRADECOM_ECUADOR.jpg" alt="TRADECOM ECUADOR" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">TRADECOM ECUADOR</div>
+            <div class="proj-authors">Mateo Camilo de Wasseige Duperly</div>
+            <div class="proj-resumen">Distribuidor especializado de insumos, repuestos y consumibles para la industria del cartón corrugado en Ecuador. Filial de Tradecom Colombia desde 2027.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/TRADECOM_ECUADOR_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">33<span class="proj-time">09:45</span></div>
+          <div class="proj-logo"><img src="logos/Broker_LLM.jpg" alt="Broker LLM" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">Broker LLM</div>
+            <div class="proj-authors">Edwin Muñoz Aristizabal</div>
+            <div class="proj-resumen">HyperGenIA orquesta el modelo LLM óptimo entre más de 20 opciones por proceso. Reduce costos un 30% y garantiza logs auditables para sectores regulados.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/Broker_LLM_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="proj-row">
+          <div class="proj-slot">34<span class="proj-time">10:10</span></div>
+          <div class="proj-logo"><img src="logos/CLIC.png" alt="CLIC" class="p-logo"></div>
+          <div class="proj-info">
+            <div class="proj-name">CLIC</div>
+            <div class="proj-authors">Germán Acosta</div>
+            <div class="proj-resumen">Centro Latinoamericano de Innovación Cuántica: hub regional que acelera el time-to-discovery en I+D deep tech intensivo, conectando talento PhD y capacidades de computación cuántica para empresas e instituciones de la región.</div>
+          </div>
+          <div class="proj-dl"><a href="pdfs/CLIC_resumen.pdf" target="_blank" class="btn-op">⬇ One Pager</a></div>
+        </div>
+        <div class="evento-jor"><span class="ev-hora">🕐 10:35 – 11:10</span><span class="ev-titulo">Evaluación y Cierre</span><span class="ev-nota">(Toma de foto grupos 31 a 34 · Sala de Estar)</span></div>
+        </div>
+      <div class="jornada-footer">
+        <button class="btn-asistir" onclick="showForm(7, 'Jornada 7 — Sábado 20 de junio · 08:55 – 10:30')">
+          ✋ Quiero asistir a esta jornada
+        </button>
+        <div class="form-container" id="form-7" style="display:none;">
+          <form name="confirmacion-jornada" method="POST" data-netlify="true"
+                onsubmit="handleSubmit(event, 7)">
+            <input type="hidden" name="form-name" value="confirmacion-jornada">
+            <input type="hidden" name="instruccion" value="Por favor ponerse en contacto con este panelista para coordinar transporte.">
+            <input type="hidden" name="jornada" value="Jornada 7 — Sábado 20 de junio · 08:55 – 10:30">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nombre completo <span class="req">*</span></label>
+                <input type="text" name="nombre" required placeholder="Su nombre">
+              </div>
+              <div class="form-group">
+                <label>Correo electrónico <span class="req">*</span></label>
+                <input type="email" name="email" required placeholder="su@email.com">
+              </div>
+              <button type="submit" class="btn-confirmar">Confirmar asistencia</button>
+            </div>
+            <div class="form-success" id="success-7" style="display:none;">
+              ✅ ¡Confirmación enviada! Le esperamos el Sábado 20 de junio.
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+</div>
+
+<footer>
+  <p>&copy; 2026 <a href="https://www.inalde.edu.co" target="_blank">INALDE Business School</a> — Universidad de La Sabana</p>
+  <p style="margin-top:0.4rem;">NAVES — Nuevas Aventuras Empresariales · Executive MBA FS 2024–2026</p>
+</footer>
+
+<script>var emailjs=function(e){"use strict";class t{constructor(){let e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:0,t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:"Network Error";this.status=e,this.text=t}}const i={origin:"https://api.emailjs.com",blockHeadless:!1,storageProvider:(()=>{if("undefined"!=typeof localStorage)return{get:e=>Promise.resolve(localStorage.getItem(e)),set:(e,t)=>Promise.resolve(localStorage.setItem(e,t)),remove:e=>Promise.resolve(localStorage.removeItem(e))}})()},r=e=>e?"string"==typeof e?{publicKey:e}:"[object Object]"===e.toString()?e:{}:{},o=function(e){let t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:"https://api.emailjs.com";if(!e)return;const o=r(e);i.publicKey=o.publicKey,i.blockHeadless=o.blockHeadless,i.storageProvider=o.storageProvider,i.blockList=o.blockList,i.limitRate=o.limitRate,i.origin=o.origin||t},a=async function(e,r){let o=arguments.length>2&&void 0!==arguments[2]?arguments[2]:{};const a=await fetch(i.origin+e,{method:"POST",headers:o,body:r}),s=await a.text(),n=new t(a.status,s);if(a.ok)return n;throw n},s=(e,t,i)=>{if(!e||"string"!=typeof e)throw"The public key is required. Visit https://dashboard.emailjs.com/admin/account";if(!t||"string"!=typeof t)throw"The service ID is required. Visit https://dashboard.emailjs.com/admin";if(!i||"string"!=typeof i)throw"The template ID is required. Visit https://dashboard.emailjs.com/admin/templates"},n=e=>e.webdriver||!e.languages||0===e.languages.length,l=()=>new t(451,"Unavailable For Headless Browser"),c=(e,t)=>{if((e=>!e.list?.length||!e.watchVariable)(e))return!1;((e,t)=>{if(!Array.isArray(e))throw"The BlockList list has to be an array";if("string"!=typeof t)throw"The BlockList watchVariable has to be a string"})(e.list,e.watchVariable);const i=(r=t,o=e.watchVariable,r instanceof FormData?r.get(o):r[o]);var r,o;return"string"==typeof i&&e.list.includes(i)},d=()=>new t(403,"Forbidden"),m=async(e,t,i)=>{if(!t.throttle||!i)return!1;((e,t)=>{if("number"!=typeof e||e<0)throw"The LimitRate throttle has to be a positive number";if(t&&"string"!=typeof t)throw"The LimitRate ID has to be a non-empty string"})(t.throttle,t.id);const r=t.id||e,o=await(async(e,t,i)=>{const r=Number(await i.get(e)||0);return t-Date.now()+r})(r,t.throttle,i);return o>0||(await i.set(r,Date.now().toString()),!1)},h=()=>new t(429,"Too Many Requests"),p=async(e,t,o,p)=>{const u=r(p),b=u.publicKey||i.publicKey,g=u.blockHeadless||i.blockHeadless,f=u.storageProvider||i.storageProvider,w={...i.blockList,...u.blockList},y={...i.limitRate,...u.limitRate};if(g&&n(navigator))return Promise.reject(l());if(s(b,e,t),(e=>{if(e&&"[object Object]"!==e.toString())throw"The template params have to be the object. Visit https://www.emailjs.com/docs/sdk/send/"})(o),o&&c(w,o))return Promise.reject(d());if(await m(location.pathname,y,f))return Promise.reject(h());const v={lib_version:"4.4.1",user_id:b,service_id:e,template_id:t,template_params:o};return a("/api/v1.0/email/send",JSON.stringify(v),{"Content-type":"application/json"})},u=async(e,t,o,p)=>{const u=r(p),b=u.publicKey||i.publicKey,g=u.blockHeadless||i.blockHeadless,f=i.storageProvider||u.storageProvider,w={...i.blockList,...u.blockList},y={...i.limitRate,...u.limitRate};if(g&&n(navigator))return Promise.reject(l());const v=(e=>"string"==typeof e?document.querySelector(e):e)(o);s(b,e,t),(e=>{if(!e||"FORM"!==e.nodeName)throw"The 3rd parameter is expected to be the HTML form element or the style selector of the form"})(v);const j=new FormData(v);return c(w,j)?Promise.reject(d()):await m(location.pathname,y,f)?Promise.reject(h()):(j.append("lib_version","4.4.1"),j.append("service_id",e),j.append("template_id",t),j.append("user_id",b),a("/api/v1.0/email/send-form",j))};var b={init:o,send:p,sendForm:u,EmailJSResponseStatus:t};return e.EmailJSResponseStatus=t,e.default=b,e.init=o,e.send=p,e.sendForm=u,Object.defineProperty(e,"__esModule",{value:!0}),e}({});</script>
+<script>
+
+  function showTodasForm() {
+    const f = document.getElementById('todas-form');
+    const btn = document.getElementById('btn-todas');
+    if (f.style.display === 'none') {
+      f.style.display = 'block';
+      btn.textContent = '✕ Cancelar';
+      btn.style.background = '#555';
+    } else {
+      f.style.display = 'none';
+      btn.textContent = '✋ Quiero asistir a todas las jornadas';
+      btn.style.background = '';
+    }
+  }
+
+  emailjs.init('LKIjrtq_CeLR_3Do6');
+
+  function enviarConfirmacion(nombre, email, jornada) {
+    emailjs.send('service_6g8bgqk', 'template_jow68si', {
+      nombre: nombre,
+      email:  email,
+      jornada: jornada
+    }).catch(function(err) {
+      console.warn('EmailJS error:', JSON.stringify(err));
+    });
+  }
+
+  function handleTodasSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const data = new FormData(form);
+    const nombre  = form.querySelector('[name="nombre"]').value;
+    const email   = form.querySelector('[name="email"]').value;
+    const jornada = form.querySelector('[name="jornada"]').value;
+    fetch('/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams(data).toString()
+    })
+    .then(() => {
+      enviarConfirmacion(nombre, email, jornada);
+      registrarEnBin(nombre, email, jornada);
+      _logNombre = nombre;
+      form.style.display = 'none';
+      _pendingSuccessInfo = { type: 'todas' };
+      mostrarLogistica(email, jornada);
+    })
+    .catch(() => { alert('Hubo un error. Por favor intente de nuevo.'); });
+  }
+
+  function showForm(num, label) {
+    const fc = document.getElementById('form-' + num);
+    const btn = fc.previousElementSibling;
+    if (fc.style.display === 'none') {
+      fc.style.display = 'block';
+      btn.textContent = '✕ Cancelar';
+      btn.style.background = '#555';
+    } else {
+      fc.style.display = 'none';
+      btn.textContent = '✋ Quiero asistir a esta jornada';
+      btn.style.background = '';
+    }
+  }
+
+  function handleSubmit(event, num) {
+    event.preventDefault();
+    const form = event.target;
+    const data = new FormData(form);
+    const nombre  = form.querySelector('[name="nombre"]').value;
+    const email   = form.querySelector('[name="email"]').value;
+    const jornada = form.querySelector('[name="jornada"]').value;
+
+    fetch('/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams(data).toString()
+    })
+    .then(() => {
+      enviarConfirmacion(nombre, email, jornada);
+      registrarEnBin(nombre, email, jornada);
+      _logNombre = nombre;
+      form.style.display = 'none';
+      _pendingSuccessInfo = { type: 'individual', num: num };
+      mostrarLogistica(email, jornada);
+    })
+    .catch(() => {
+      alert('Hubo un error. Por favor intente de nuevo.');
+    });
+  }
+
+  /* ── LOGÍSTICA SELF-SERVICE ── */
+  var _logEmail = '';
+  var _logNombre = '';
+  var _logJornada = '';
+  var _pendingSuccessInfo = null;
+  var LOG_BIN_URL = 'https://api.jsonbin.io/v3/b/6a2874d6f5f4af5e29d436aa';
+  var LOG_BIN_KEY = '$2a$10$qBXsMcldU3zo7WzTazFhWeOrAvogSvSHw7bvSUBGWonD7zbLdj9hG';
+
+  /* Registra la confirmación en JSONbin apenas se envía el formulario,
+     con nombre y jornada, para que el admin vea registros nuevos aunque
+     la persona cierre el modal de logística sin guardar. */
+  function registrarEnBin(nombre, email, jornada) {
+    fetch(LOG_BIN_URL + '/latest', { headers: { 'X-Master-Key': LOG_BIN_KEY } })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        var logistica = (j.record && j.record.logistica) ? j.record.logistica : {};
+        var prev = logistica[email] || {};
+        // Acumular jornadas: una persona puede confirmar varias jornadas individuales
+        var jors = prev.jornadas_confirmadas || (prev.jornada ? [prev.jornada] : []);
+        if (jors.indexOf(jornada) === -1) jors.push(jornada);
+        logistica[email] = Object.assign({}, prev, {
+          nombre: nombre,
+          jornada: jornada,
+          jornadas_confirmadas: jors,
+          confirmado_at: new Date().toISOString()
+        });
+        return fetch(LOG_BIN_URL, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Master-Key': LOG_BIN_KEY },
+          body: JSON.stringify({ logistica: logistica })
+        });
+      })
+      .catch(function(e){ console.warn('Error registrando confirmación:', e); });
+  }
+
+  function mostrarLogistica(email, jornada) {
+    _logEmail   = email;
+    _logJornada = jornada;
+    // Reset campos
+    document.querySelectorAll('input[name="l-transporte"]').forEach(function(r){ r.checked = false; });
+    document.getElementById('l-direccion').value = '';
+    document.getElementById('l-hora').value = '';
+    document.getElementById('l-transport-details').style.display = 'none';
+    var btnG = document.getElementById('btn-log-guardar');
+    btnG.disabled = false;
+    btnG.textContent = 'Guardar preferencias';
+    // Determinar fechas aplicables
+    var j = jornada.toLowerCase();
+    var esTodas = j.indexOf('todas') !== -1;
+    var tieneV12 = j.indexOf('12') !== -1 || esTodas;
+    var tieneV19 = j.indexOf('19') !== -1 || esTodas;
+    var tieneS13 = j.indexOf('13') !== -1 || esTodas;
+    var tieneS20 = j.indexOf('20') !== -1 || esTodas;
+    // Transporte — fechas
+    document.getElementById('l-fecha-todas').style.display = esTodas ? 'block' : 'none';
+    document.getElementById('l-fecha-individual').style.display = esTodas ? 'none' : 'block';
+    if (!esTodas) {
+      var fechaLabel = jornada.replace(/·.*$/, '').replace(/^Jornada \d+ — /, '').trim();
+      document.getElementById('l-fecha-label').textContent = fechaLabel;
+    } else {
+      document.querySelectorAll('input[name="l-fecha"]').forEach(function(cb){ cb.checked = true; });
+    }
+    // Almuerzo — mostrar/ocultar filas y marcar por defecto
+    document.getElementById('l-alm-row-v12').style.display = tieneV12 ? 'flex' : 'none';
+    document.getElementById('l-alm-row-v19').style.display = tieneV19 ? 'flex' : 'none';
+    document.getElementById('l-alm-cb-v12').checked = tieneV12;
+    document.getElementById('l-alm-cb-v19').checked = tieneV19;
+    document.getElementById('l-almuerzo-section').style.display = (tieneV12 || tieneV19) ? 'block' : 'none';
+    // Desayuno — mostrar/ocultar filas y marcar por defecto
+    document.getElementById('l-des-row-s13').style.display = tieneS13 ? 'flex' : 'none';
+    document.getElementById('l-des-row-s20').style.display = tieneS20 ? 'flex' : 'none';
+    document.getElementById('l-des-cb-s13').checked = tieneS13;
+    document.getElementById('l-des-cb-s20').checked = tieneS20;
+    document.getElementById('l-desayuno-section').style.display = (tieneS13 || tieneS20) ? 'block' : 'none';
+    document.getElementById('modal-logistica').classList.add('open');
+  }
+
+  function toggleLogTransporte(el) {
+    // Usar el elemento clickeado directamente (más confiable que querySelector :checked)
+    var mostrar = el ? (el.value === 'si') : (document.querySelector('input[name="l-transporte"]:checked') || {}).value === 'si';
+    document.getElementById('l-transport-details').style.display = mostrar ? 'block' : 'none';
+  }
+
+  async function guardarLogisticaPanelista() {
+    var transporte = (document.querySelector('input[name="l-transporte"]:checked') || {}).value || null;
+    var direccion  = document.getElementById('l-direccion').value.trim() || null;
+    var hora       = document.getElementById('l-hora').value || null;
+    var fechasAlmuerzo = [];
+    document.querySelectorAll('input[name="l-almuerzo-fecha"]:checked').forEach(function(cb){ fechasAlmuerzo.push(cb.value); });
+    var fechasDesayuno = [];
+    document.querySelectorAll('input[name="l-desayuno-fecha"]:checked').forEach(function(cb){ fechasDesayuno.push(cb.value); });
+    // Recoger fechas de transporte
+    var fechasTransporte = null;
+    if (transporte === 'si') {
+      var esTodas = _logJornada.toLowerCase().indexOf('todas') !== -1;
+      if (esTodas) {
+        fechasTransporte = [];
+        document.querySelectorAll('input[name="l-fecha"]:checked').forEach(function(cb){ fechasTransporte.push(cb.value); });
+        if (!fechasTransporte.length) fechasTransporte = null;
+      } else {
+        fechasTransporte = [_logJornada.replace(/·.*$/, '').replace(/^Jornada \d+ — /, '').trim()];
+      }
+    }
+    var btnG = document.getElementById('btn-log-guardar');
+    btnG.disabled = true;
+    btnG.textContent = 'Guardando...';
+    try {
+      var r = await fetch(LOG_BIN_URL + '/latest', { headers: { 'X-Master-Key': LOG_BIN_KEY } });
+      var j = await r.json();
+      var logistica = (j.record && j.record.logistica) ? j.record.logistica : {};
+      var registro = Object.assign({}, logistica[_logEmail] || {}, {
+        transporte: transporte, direccion: direccion, hora: hora,
+        fechas_transporte: fechasTransporte,
+        fechas_almuerzo: fechasAlmuerzo.length ? fechasAlmuerzo : null,
+        fechas_desayuno: fechasDesayuno.length ? fechasDesayuno : null
+      });
+      if (_logNombre)  registro.nombre  = _logNombre;
+      if (_logJornada) registro.jornada = _logJornada;
+      logistica[_logEmail] = registro;
+      await fetch(LOG_BIN_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': LOG_BIN_KEY },
+        body: JSON.stringify({ logistica: logistica })
+      });
+    } catch(e) {
+      console.warn('Error guardando logistica:', e);
+    }
+    document.getElementById('modal-logistica').classList.remove('open');
+    mostrarExito();
+  }
+
+  function cerrarLogistica() {
+    document.getElementById('modal-logistica').classList.remove('open');
+    mostrarExito();
+  }
+
+  function mostrarExito() {
+    var info = _pendingSuccessInfo;
+    if (!info) return;
+    _pendingSuccessInfo = null;
+    if (info.type === 'individual') {
+      document.getElementById('success-' + info.num).style.display = 'block';
+      var btn = document.getElementById('form-' + info.num).previousElementSibling;
+      btn.disabled = true;
+      btn.textContent = '✅ Asistencia confirmada';
+      btn.style.background = '#1a6b3c';
+    } else if (info.type === 'todas') {
+      document.getElementById('todas-success').style.display = 'block';
+      var btn2 = document.getElementById('btn-todas');
+      btn2.disabled = true;
+      btn2.textContent = '✅ Asistencia completa confirmada';
+      btn2.style.background = '#1a6b3c';
+    }
+  }
+</script>
+
+    <div class="modal-content" id="modal-content"></div>
+    <div class="modal-footer">
+      <a href="#" id="modal-download" target="_blank">⬇ Abrir en nueva pestaña</a>
+      <span class="modal-hint">Presione ESC para cerrar</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LOGÍSTICA SELF-SERVICE -->
+<div class="modal-overlay" id="modal-logistica">
+  <div class="modal-log-box">
+    <div class="modal-log-header">
+      <span class="modal-log-title">Coordine su visita</span>
+      <button class="modal-close" onclick="cerrarLogistica()">×</button>
+    </div>
+    <div class="modal-log-body">
+      <p class="modal-log-intro">¡Confirmación recibida! Para facilitarle la visita, cuéntenos un poco más:</p>
+
+      <!-- Transporte -->
+      <div class="log-section">
+        <div class="log-question">¿Necesita que lo recojamos?</div>
+        <div class="log-radios">
+          <label class="log-radio">
+            <input type="radio" name="l-transporte" value="si" onclick="toggleLogTransporte(this)">
+            <span>Sí, necesito transporte</span>
+          </label>
+          <label class="log-radio">
+            <input type="radio" name="l-transporte" value="no" onclick="toggleLogTransporte(this)">
+            <span>No, iré por mi cuenta</span>
+          </label>
+        </div>
+        <div id="l-transport-details" style="display:none;">
+          <!-- Fechas: individual (texto) -->
+          <div id="l-fecha-individual" style="display:none; margin-bottom:0.8rem;">
+            <div class="log-fecha-info">📅 Fecha: <strong id="l-fecha-label"></strong></div>
+          </div>
+          <!-- Fechas: todas (checkboxes) -->
+          <div id="l-fecha-todas" style="display:none; margin-bottom:0.8rem;">
+            <div class="log-fecha-titulo">📅 ¿Para cuáles fechas necesita transporte?</div>
+            <div class="log-fechas-checks">
+              <label class="log-fecha-check"><input type="checkbox" name="l-fecha" value="Viernes 12 de junio"> Viernes 12 de junio</label>
+              <label class="log-fecha-check"><input type="checkbox" name="l-fecha" value="Sábado 13 de junio"> Sábado 13 de junio</label>
+              <label class="log-fecha-check"><input type="checkbox" name="l-fecha" value="Viernes 19 de junio"> Viernes 19 de junio</label>
+              <label class="log-fecha-check"><input type="checkbox" name="l-fecha" value="Sábado 20 de junio"> Sábado 20 de junio</label>
+            </div>
+          </div>
+          <div class="log-sub">
+            <div class="log-field">
+              <label>Dirección de recogida</label>
+              <input type="text" id="l-direccion" placeholder="Ej: Cra 15 #85-32, Bogotá">
+            </div>
+            <div class="log-field log-field-sm">
+              <label>Hora preferida</label>
+              <input type="time" id="l-hora">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Almuerzo (solo Viernes) -->
+      <div id="l-almuerzo-section" style="display:none;">
+        <div class="log-section">
+          <div class="log-question">¿Cuáles Viernes va a almorzar con nosotros? <span class="log-tag">Viernes</span></div>
+          <div class="log-fechas-checks" style="margin-top:0.5rem;">
+            <label class="log-fecha-check" id="l-alm-row-v12"><input type="checkbox" id="l-alm-cb-v12" name="l-almuerzo-fecha" value="Viernes 12 de junio"> Viernes 12 de junio</label>
+            <label class="log-fecha-check" id="l-alm-row-v19"><input type="checkbox" id="l-alm-cb-v19" name="l-almuerzo-fecha" value="Viernes 19 de junio"> Viernes 19 de junio</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desayuno (solo Sábado) -->
+      <div id="l-desayuno-section" style="display:none;">
+        <div class="log-section">
+          <div class="log-question">¿Cuáles Sábados va a desayunar con nosotros? <span class="log-tag">Sábado</span></div>
+          <div class="log-fechas-checks" style="margin-top:0.5rem;">
+            <label class="log-fecha-check" id="l-des-row-s13"><input type="checkbox" id="l-des-cb-s13" name="l-desayuno-fecha" value="Sábado 13 de junio"> Sábado 13 de junio</label>
+            <label class="log-fecha-check" id="l-des-row-s20"><input type="checkbox" id="l-des-cb-s20" name="l-desayuno-fecha" value="Sábado 20 de junio"> Sábado 20 de junio</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="log-actions">
+        <button class="btn-log-guardar" id="btn-log-guardar" onclick="guardarLogisticaPanelista()">Guardar preferencias</button>
+        <button class="btn-log-omitir" onclick="cerrarLogistica()">Omitir por ahora</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

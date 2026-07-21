@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1a1a1a; font-size: 12px; line-height: 1.5; margin: 0; }
+  .head { border-bottom: 4px solid #e30613; padding-bottom: 14px; margin-bottom: 22px; }
+  .kicker { color: #888; text-transform: uppercase; letter-spacing: 2px; font-size: 10px; margin: 0 0 6px; }
+  h1 { font-size: 24px; margin: 0 0 10px; color: #1a1a1a; }
+  .meta { font-size: 11px; color: #444; }
+  .meta strong { color: #1a1a1a; }
+  h2 { font-size: 15px; color: #e30613; margin: 26px 0 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 11px; }
+  th { background: #1a1a1a; color: #fff; text-align: left; padding: 7px 9px; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  td { padding: 7px 9px; border-bottom: 1px solid #ececec; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+  td.h { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .total td { border-top: 2px solid #e30613; font-weight: 700; font-size: 13px; background: #fff5f5; }
+  .box { background: #fafafa; border-left: 4px solid #e30613; padding: 12px 16px; margin: 12px 0; }
+  .big { font-size: 30px; font-weight: 800; color: #e30613; }
+  ol { margin: 6px 0 0; padding-left: 18px; }
+  ol li { margin: 4px 0; }
+  .muted { color: #888; font-size: 10px; }
+  .foot { margin-top: 26px; border-top: 1px solid #ddd; padding-top: 10px; color: #888; font-size: 10px; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <p class="kicker">Informe de horas · Desarrollo</p>
+    <h1>NAVES — Plataforma de gestión del trabajo de grado</h1>
+    <p class="meta">
+      <strong>Cliente:</strong> INALDE Business School — Programa MBA &nbsp;·&nbsp;
+      <strong>Proyecto:</strong> NAVES (New Business Adventures)<br>
+      <strong>Fase:</strong> 1 (Desarrollo, ajustes y puesta en producción) &nbsp;·&nbsp;
+      <strong>Periodo:</strong> 2 de mayo – 1 de julio de 2026 &nbsp;·&nbsp;
+      <strong>Emitido:</strong> 2 de julio de 2026
+    </p>
+  </div>
+
+  <h2>1. Resumen de horas por jornada</h2>
+  <table>
+    <thead>
+      <tr><th style="width:78px">Fecha</th><th>Actividad</th><th style="width:58px; text-align:right">Horas</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>2–4 may</td><td><strong>Build inicial.</strong> Infraestructura (EasyPanel, Supabase), arquitectura y seguridad (JWT propio, cifrado PII), y codificación/entrega del sistema base con 3 roles.</td><td class="h">17,0</td></tr>
+      <tr><td>9–10 may</td><td><strong>3 modalidades de trabajo de grado</strong> (Business Plan, Caso, Proyecto de Investigación) con carga de archivos, más "ajustes 1C" (hitos por cohorte, roles masivos, soft-delete de profesores).</td><td class="h">12,0</td></tr>
+      <tr><td>11 may</td><td>Auditoría E2E y correcciones de fechas/hitos y tipografía.</td><td class="h">2,0</td></tr>
+      <tr><td>14 may</td><td>Correcciones menores y traducción de errores de validación a mensajes legibles.</td><td class="h">1,0</td></tr>
+      <tr><td>26 may</td><td><strong>UX del participante.</strong> Dropdown de compañeros, emprendimiento previo, cronología de hitos, email de confirmación de envío, viñetas, cambio de modalidad y diseño responsive (tablet/móvil).</td><td class="h">7,5</td></tr>
+      <tr><td>27 may</td><td><strong>Sábana de proyectos (tabla resumen).</strong> Tabla tipo "Base de Datos", columnas Sector·CIIU·Problema·Solución, edición de profesores, correo consolidado, banderas socios/asociación, asignación de profesor, plantilla Excel de fechas y validaciones.</td><td class="h">12,0</td></tr>
+      <tr><td>28 may</td><td><strong>Autoguardado robusto</strong> del anteproyecto y envío definitivo autosuficiente (independiente del autoguardado).</td><td class="h">6,2</td></tr>
+      <tr><td>29 may</td><td>Ajustes de QA sobre el flujo del anteproyecto.</td><td class="h">4,0</td></tr>
+      <tr><td>30 may</td><td>Auditoría QA E2E en producción con evidencia (screenshots).</td><td class="h">1,7</td></tr>
+      <tr><td>3 jun</td><td><strong>Tabla de anteproyectos y sábana.</strong> Cohortes activas, estado real por modalidad, filtros, columna sector, borrar equipo, chips por profesor, detalle sincronizado y optimización del resumen.</td><td class="h">3,0</td></tr>
+      <tr><td>1 jul</td><td><strong>Sistema de "Comunicar".</strong> Envío de correos en serie en segundo plano, comunicación por proyecto, filtro/ícono de comunicado, modal de borrado, vista "Sábana de proyectos" para el participante, plantillas de correo (proyecto/profesor/agenda) y estabilización.</td><td class="h">2,5</td></tr>
+      <tr class="total"><td colspan="2">TOTAL FASE 1</td><td class="h">68,9</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">Horas efectivas de trabajo (diseño, codificación, pruebas locales, despliegue y verificación en producción). Los timestamps de los commits reflejan el momento del <em>push</em>, no la duración del trabajo previo.</p>
+
+  <h2>2. Total facturable</h2>
+  <div class="box">
+    <span class="big">≈ 69 horas</span>
+    <p style="margin:6px 0 0">Total estimado de la Fase 1 (68,9 h). Fuentes: 5 informes de desarrollo/auditoría con horas registradas + historial de <strong>221 commits</strong> del repositorio para las jornadas sin informe.</p>
+  </div>
+
+  <h2>3. Qué se entregó en la Fase 1</h2>
+  <ol>
+    <li><strong>Sistema base NAVES</strong> con 3 roles (participante, profesor, super_admin): backend Node/Express + React + Supabase, desplegado en EasyPanel, con autenticación por JWT propio y datos personales (PII) cifrados.</li>
+    <li><strong>Tres modalidades</strong> de trabajo de grado con su flujo de conformación de equipo y entrega (formulario o carga de archivos).</li>
+    <li><strong>Formulario de anteproyecto</strong> completo con autoguardado, envío definitivo, validaciones y confirmación por correo.</li>
+    <li><strong>Panel administrativo:</strong> cohortes con hitos, participantes, profesores, roles, equipos y anteproyectos.</li>
+    <li><strong>Sábana de proyectos:</strong> tabla resumen consolidada, asignación de profesores, filtros, borrado y <strong>comunicación masiva por correo</strong> (participantes y profesores) con envío en segundo plano y control de límites del proveedor.</li>
+    <li><strong>Vista para participantes</strong> de los proyectos que buscan socios.</li>
+    <li><strong>Auditorías de calidad (QA)</strong> y correcciones de estabilidad en producción.</li>
+  </ol>
+
+  <div class="foot">
+    <strong>INALDE Business School</strong> — Programa MBA · Proyecto NAVES · Informe de horas Fase 1 · Emitido el 2 de julio de 2026.
+  </div>
+</body>
+</html>

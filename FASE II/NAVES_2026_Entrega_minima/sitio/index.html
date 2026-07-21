@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAVES 2026 | Proyectos Executive MBA FS | INALDE Business School</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--red:#e30613;--black:#0a0a0a;--text:#1a1a1a;--gray:#6b6b6b;--light:#f5f5f5;--border:#e0e0e0;--white:#fff;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Roboto',sans-serif;background:var(--light);color:var(--text);}
+    header{background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+    .header-top{background:var(--black);padding:0.4rem 2rem;text-align:right;}
+    .header-top span{color:rgba(255,255,255,0.7);font-family:'Montserrat',sans-serif;font-size:0.72rem;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;}
+    .header-main{padding:0.8rem 2rem;display:flex;justify-content:space-between;align-items:center;max-width:1600px;margin:0 auto;}
+    .logo-area{display:flex;align-items:center;gap:1.2rem;}
+    .sep{width:1px;height:40px;background:var(--border);}
+    .prog-label{font-family:'Montserrat',sans-serif;font-size:0.65rem;font-weight:600;color:var(--gray);letter-spacing:0.15em;text-transform:uppercase;}
+    .prog-name{font-family:'Montserrat',sans-serif;font-size:1.2rem;font-weight:900;color:var(--text);}
+    .prog-name span{color:var(--red);}
+    .hero{background:linear-gradient(135deg,#0a0a0a 0%,#1a1a1a 60%,#2a1010 100%);padding:2.5rem 2rem 2rem;position:relative;overflow:hidden;}
+    .hero::after{content:'';position:absolute;left:0;top:0;width:4px;height:100%;background:var(--red);}
+    .hero-inner{max-width:1600px;margin:0 auto;padding-left:1rem;}
+    .hero-badge{display:inline-block;background:var(--red);color:#fff;padding:0.4rem 1.2rem;font-family:'Montserrat',sans-serif;font-size:0.72rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:1rem;border-radius:3px;}
+    .hero h1{font-family:'Montserrat',sans-serif;font-size:2.2rem;font-weight:900;color:#fff;margin-bottom:0.4rem;}
+    .hero h1 span{color:var(--red);}
+    .hero-sub{color:rgba(255,255,255,0.7);font-size:0.95rem;margin-bottom:1.2rem;}
+    .stats{display:flex;gap:2rem;flex-wrap:wrap;}
+    .stat-num{font-family:'Montserrat',sans-serif;font-size:2rem;font-weight:900;color:var(--red);line-height:1;}
+    .stat-label{font-size:0.72rem;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.1em;margin-top:0.2rem;}
+    .controls{background:var(--white);border-bottom:1px solid var(--border);padding:0.8rem 2rem;position:sticky;top:73px;z-index:99;}
+    .controls-inner{max-width:1600px;margin:0 auto;display:flex;gap:0.7rem;flex-wrap:wrap;align-items:center;}
+    .search-wrap{flex:1;min-width:180px;position:relative;}
+    .search-wrap input{width:100%;padding:0.55rem 1rem 0.55rem 2.2rem;border:1px solid var(--border);border-bottom:2px solid var(--text);font-family:'Roboto',sans-serif;font-size:0.88rem;background:var(--light);}
+    .search-wrap input:focus{outline:none;border-bottom-color:var(--red);background:#fff;}
+    .search-icon{position:absolute;left:0.6rem;top:50%;transform:translateY(-50%);color:var(--gray);}
+    .filter-btn{padding:0.4rem 0.85rem;border:1px solid var(--border);background:#fff;font-family:'Montserrat',sans-serif;font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;border-radius:3px;}
+    .filter-btn:hover,.filter-btn.active{background:var(--red);color:#fff;border-color:var(--red);}
+    .day-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+    .day-btn:hover{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+    .count-label{font-size:0.78rem;color:var(--gray);margin-left:auto;white-space:nowrap;}
+    .btn-excel{display:inline-flex;align-items:center;gap:0.3rem;padding:0.45rem 1rem;background:#1a6b3c;color:#fff;border:none;font-family:'Montserrat',sans-serif;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all 0.2s;}
+    .btn-excel:hover{background:#145530;}
+    .table-wrap{max-width:1600px;margin:1.2rem auto;padding:0 1.5rem 3rem;overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+    thead th{background:var(--text);color:#fff;padding:0.65rem 0.8rem;text-align:left;font-family:'Montserrat',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;}
+    tbody tr{border-bottom:1px solid var(--border);transition:background 0.15s;}
+    tbody tr:hover{background:#fafafa;}
+    tbody td{padding:0.65rem 0.75rem;vertical-align:middle;font-size:0.85rem;}
+    .day-header td{border-top:2px solid #333;}
+    .col-slot{width:70px;text-align:center;}
+    .slot-time{font-size:0.7rem;color:var(--gray);display:block;margin-top:2px;}
+    .col-logo{width:75px;text-align:center;}
+    .col-proyecto{width:120px;font-family:'Montserrat',sans-serif;font-size:0.85rem;font-weight:700;}
+    .col-autores{width:190px;font-size:0.78rem;color:var(--gray);}
+    .col-sector{width:130px;}
+    .col-resumen{width:240px;font-size:0.8rem;line-height:1.5;}
+    .col-linkedin{width:260px;}
+    .col-downloads{width:130px;}
+    .logo-thumb{max-width:55px;max-height:45px;object-fit:contain;border:1px solid var(--border);padding:2px;}
+    .logo-placeholder{width:52px;height:42px;background:var(--light);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.8rem;color:var(--gray);margin:0 auto;}
+    .sector-badge{display:inline-block;color:#fff;padding:0.18rem 0.5rem;font-family:'Montserrat',sans-serif;font-size:0.62rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;border-radius:3px;white-space:nowrap;}
+    .op-link{display:block;margin-top:0.4rem;font-family:'Montserrat',sans-serif;font-size:0.67rem;font-weight:700;color:var(--red);text-decoration:none;letter-spacing:0.04em;}
+    .op-link:hover{text-decoration:underline;}
+    .linkedin-text{font-size:0.76rem;line-height:1.5;color:var(--text);margin-bottom:0.4rem;}
+    .btn-copy{font-family:'Montserrat',sans-serif;font-size:0.63rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;background:none;border:1px solid var(--border);padding:0.22rem 0.55rem;cursor:pointer;color:var(--gray);transition:all 0.2s;}
+    .btn-copy:hover{background:var(--text);color:#fff;border-color:var(--text);}
+    .btn-copy.copied{background:#1a6b3c;color:#fff;border-color:#1a6b3c;}
+    .btn-dl{display:inline-block;padding:0.28rem 0.5rem;margin:0.12rem 0.08rem;font-family:'Montserrat',sans-serif;font-size:0.62rem;font-weight:700;letter-spacing:0.03em;text-decoration:none;border-radius:3px;transition:all 0.2s;white-space:nowrap;}
+    .btn-logo{background:#f0f4f8;color:#224d7c;border:1px solid #224d7c;}
+    .btn-logo:hover{background:#224d7c;color:#fff;}
+    .btn-res{background:#fff5f5;color:var(--red);border:1px solid var(--red);}
+    .btn-res:hover{background:var(--red);color:#fff;}
+    footer{background:var(--black);color:rgba(255,255,255,0.5);text-align:center;padding:2rem;font-family:'Montserrat',sans-serif;font-size:0.75rem;letter-spacing:0.05em;}
+    footer a{color:var(--red);text-decoration:none;}
+    @media(max-width:768px){.hero h1{font-size:1.6rem;}.controls-inner{flex-direction:column;align-items:stretch;}.table-wrap{padding:0 0.5rem 2rem;}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-top"><span>Executive MBA FS · Cohorte 2024 – 2026</span></div>
+  <div class="header-main">
+    <div class="logo-area">
+      <div class="sep"></div>
+      <div>
+        <div class="prog-label">Trabajo de grado</div>
+        <div class="prog-name">N<span>A</span>VES <span>2026</span></div>
+      </div>
+    </div>
+    <div style="font-family:Montserrat,sans-serif;font-size:0.72rem;font-weight:600;color:var(--gray);letter-spacing:0.08em;text-transform:uppercase;">Base de datos de proyectos</div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">Executive MBA FS</div>
+    <h1>Proyectos <span>NAVES</span> 2026</h1>
+    <p class="hero-sub">Base de datos de los proyectos del Executive MBA FS 24-26</p>
+    <div class="stats">
+      <div class="stat"><div class="stat-num">34</div><div class="stat-label">Proyectos</div></div>
+      <div class="stat"><div class="stat-num">35</div><div class="stat-label">Meta total</div></div>
+      <div class="stat"><div class="stat-num">4</div><div class="stat-label">Días de presentación</div></div>
+      <div class="stat"><div class="stat-num">8</div><div class="stat-label">Sectores</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="controls-inner">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Buscar por proyecto, autor o sector..." oninput="filterTable()">
+    </div>
+    <button class="filter-btn active" data-day="all" onclick="setDay('all',this)">Todos</button>
+    <button class="filter-btn day-btn" data-day="Viernes 12 jun" onclick="setDay('Viernes 12 jun',this)">📅 Vie 12 jun</button>
+    <button class="filter-btn day-btn" data-day="Sábado 13 jun"  onclick="setDay('Sábado 13 jun',this)">📅 Sáb 13 jun</button>
+    <button class="filter-btn day-btn" data-day="Viernes 19 jun" onclick="setDay('Viernes 19 jun',this)">📅 Vie 19 jun</button>
+    <button class="filter-btn day-btn" data-day="Sábado 20 jun"  onclick="setDay('Sábado 20 jun',this)">📅 Sáb 20 jun</button>
+    <span class="count-label" id="count-label">Mostrando 34 proyectos</span>
+    <a class="btn-excel" href="panelistas.html" style="background:var(--red);text-decoration:none;">👥 Ir a sitio de panelistas</a>
+    <button class="btn-excel" onclick="downloadExcel()">⬇ Descargar Excel</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table id="main-table">
+    <thead>
+      <tr>
+        <th>Slot</th><th>Logo</th><th>Proyecto</th><th>Autores</th>
+        <th>Sector</th><th>One Pager</th><th>Post LinkedIn</th><th>Descargas</th>
+      </tr>
+    </thead>
+    <tbody id="table-body">
+
+      <tr class="day-header" data-day="Viernes 12 jun">
+        <td colspan="8" style="background:#1a1a1a;color:#fff;padding:0.5rem 1rem;font-family:'Montserrat',sans-serif;font-size:0.8rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;">
+          📅 Viernes 12 jun
+        </td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Viernes 12 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 13:15 – 13:25 hrs. — Toma de foto de grupo — Puerta principal</span>
+          <span style="color:#6b6b6b;font-size:0.82rem;margin-left:0.6rem;">(Por favor estar ahí 5 min antes)</span>
+        </td>
+      </tr>
+
+      <tr class="evento-row" data-day="Viernes 12 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 13:25 – 13:45 hrs. — Introducción</span>
+        </td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="RRHH / Bienestar" data-proj="Bevo" data-authors="Silvio Andrés Terán Calvache, Angela María Serna Castrillón, Camila Andrea Tarazona Moreno"
+          data-resumen="Plataforma de bienestar corporativo donde la empresa asigna saldo, el colaborador elige experiencias y la plataforma mide uso, adopción y ROI." data-linkedin="Silvio Andrés Terán Calvache, Angela María Serna Castrillón y Camila Andrea Tarazona Moreno presentaron Bevo, ecosistema que convierte la inversión en bienestar en herramienta medible de retención. Bienestar corporativo que se elige, se mide y se siente. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Bevo.jpg" data-resumen-url="pdfs/Bevo_resumen.pdf">
+        <td class="col-slot"><strong>1</strong><br><span class="slot-time">13:50–14:10</span></td>
+        <td class="col-logo"><img src="logos/Bevo.jpg" alt="Bevo" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Bevo</strong></td>
+        <td class="col-autores">Silvio Andrés Terán Calvache, Angela María Serna Castrillón, Camila Andrea Tarazona Moreno</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#1a4a6b">RRHH / Bienestar</span></td>
+        <td class="col-resumen">Plataforma de bienestar corporativo donde la empresa asigna saldo, el colaborador elige experiencias y la plataforma mide uso, adopción y ROI.<a href="pdfs/Bevo_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Silvio Andrés Terán Calvache, Angela María Serna Castrillón y Camila Andrea Tarazona Moreno presentaron Bevo, ecosistema que convierte la inversión en bienestar en herramienta medible de retención. Bienestar corporativo que se elige, se mide y se siente. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Silvio Andrés Terán Calvache, Angela María Serna Castrillón y Camila Andrea Tarazona Moreno presentaron Bevo, ecosistema que convierte la inversión en bienestar en herramienta medible de retención. Bienestar corporativo que se elige, se mide y se siente. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Bevo.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Bevo_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="RRHH / Bienestar" data-proj="SATORI" data-authors="Rina Miroshlawa Molina Vargas"
+          data-resumen="Plataforma de empleabilidad para talento senior 50+. Conecta experiencia con empresas mediante matching, validación y formación para proyectos y mentorías flexibles." data-linkedin="Rina Miroshlawa Molina Vargas presentó SATORI, plataforma de empleabilidad que conecta talento senior 50+ con empresas que necesitan experiencia aplicada. La experiencia de los 50+ no caduca: SATORI la pone a trabajar. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/SATORI.jpg" data-resumen-url="pdfs/SATORI_resumen.pdf">
+        <td class="col-slot"><strong>2</strong><br><span class="slot-time">14:15–14:35</span></td>
+        <td class="col-logo"><img src="logos/SATORI.jpg" alt="SATORI" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>SATORI</strong></td>
+        <td class="col-autores">Rina Miroshlawa Molina Vargas</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#1a4a6b">RRHH / Bienestar</span></td>
+        <td class="col-resumen">Plataforma de empleabilidad para talento senior 50+. Conecta experiencia con empresas mediante matching, validación y formación para proyectos y mentorías flexibles.<a href="pdfs/SATORI_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Rina Miroshlawa Molina Vargas presentó SATORI, plataforma de empleabilidad que conecta talento senior 50+ con empresas que necesitan experiencia aplicada. La experiencia de los 50+ no caduca: SATORI la pone a trabajar. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Rina Miroshlawa Molina Vargas presentó SATORI, plataforma de empleabilidad que conecta talento senior 50+ con empresas que necesitan experiencia aplicada. La experiencia de los 50+ no caduca: SATORI la pone a trabajar. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/SATORI.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/SATORI_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="HealthTech / Salud" data-proj="VERIMED" data-authors="Zain Pena Zea, Carlos Daniel Rodriguez Calderon, Jeisson Fernando Lancheros Jimenez"
+          data-resumen="Sistema de gestión predictiva del riesgo en salud para aseguradoras y EPS. Anticipa eventos costosos y mejora la rentabilidad del portafolio." data-linkedin="Zain Pena Zea, Carlos Daniel Rodriguez Calderon y Jeisson Fernando Lancheros Jimenez presentaron VERIMED, sistema de gestión predictiva del riesgo en salud para aseguradoras y EPS. La salud predictiva transforma el sistema: de reactivo a inteligente. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/VERIMED.jpg" data-resumen-url="pdfs/VERIMED_resumen.pdf">
+        <td class="col-slot"><strong>3</strong><br><span class="slot-time">14:40–15:00</span></td>
+        <td class="col-logo"><img src="logos/VERIMED.jpg" alt="VERIMED" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>VERIMED</strong></td>
+        <td class="col-autores">Zain Pena Zea, Carlos Daniel Rodriguez Calderon, Jeisson Fernando Lancheros Jimenez</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#8a0a1a">HealthTech / Salud</span></td>
+        <td class="col-resumen">Sistema de gestión predictiva del riesgo en salud para aseguradoras y EPS. Anticipa eventos costosos y mejora la rentabilidad del portafolio.<a href="pdfs/VERIMED_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Zain Pena Zea, Carlos Daniel Rodriguez Calderon y Jeisson Fernando Lancheros Jimenez presentaron VERIMED, sistema de gestión predictiva del riesgo en salud para aseguradoras y EPS. La salud predictiva transforma el sistema: de reactivo a inteligente. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Zain Pena Zea, Carlos Daniel Rodriguez Calderon y Jeisson Fernando Lancheros Jimenez presentaron VERIMED, sistema de gestión predictiva del riesgo en salud para aseguradoras y EPS. La salud predictiva transforma el sistema: de reactivo a inteligente. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/VERIMED.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/VERIMED_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="Movilidad / Energía" data-proj="Chargehub" data-authors="Diana Marcela Bruges Prada, Andrés Felipe Solano Hernández"
+          data-resumen="Hub de carga rápida DC para vehículos eléctricos en Bogotá integrado con cafetería de especialidad. Carga en 45 minutos con experiencia premium." data-linkedin="Diana Marcela Bruges Prada y Andrés Felipe Solano Hernández presentaron Chargehub, el primer hub de carga rápida para vehículos eléctricos integrado con cafetería premium en Bogotá. Cargar tu vehículo eléctrico nunca había sido tan placentero. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Chargehub.jpeg" data-resumen-url="pdfs/Chargehub_resumen.pdf">
+        <td class="col-slot"><strong>4</strong><br><span class="slot-time">15:05–15:25</span></td>
+        <td class="col-logo"><img src="logos/Chargehub.jpeg" alt="Chargehub" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Chargehub</strong></td>
+        <td class="col-autores">Diana Marcela Bruges Prada, Andrés Felipe Solano Hernández</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#0a5b8a">Movilidad / Energía</span></td>
+        <td class="col-resumen">Hub de carga rápida DC para vehículos eléctricos en Bogotá integrado con cafetería de especialidad. Carga en 45 minutos con experiencia premium.<a href="pdfs/Chargehub_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Diana Marcela Bruges Prada y Andrés Felipe Solano Hernández presentaron Chargehub, el primer hub de carga rápida para vehículos eléctricos integrado con cafetería premium en Bogotá. Cargar tu vehículo eléctrico nunca había sido tan placentero. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Diana Marcela Bruges Prada y Andrés Felipe Solano Hernández presentaron Chargehub, el primer hub de carga rápida para vehículos eléctricos integrado con cafetería premium en Bogotá. Cargar tu vehículo eléctrico nunca había sido tan placentero. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Chargehub.jpeg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Chargehub_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="Movilidad / Energía" data-proj="Plug&GoEV" data-authors="Ginna Lizeth Moncada Moreno, Ronald Jaimes Prada, Bibiana Carolina Baez Castro"
+          data-resumen="Soluciones integrales de carga para vehículos eléctricos en Colombia, frente a una brecha de 174 vehículos eléctricos por cada punto de carga pública. Infraestructura para acelerar la electromovilidad." data-linkedin="Ginna Lizeth Moncada Moreno, Ronald Jaimes Prada y Bibiana Carolina Baez Castro presentaron Plug&amp;GoEV, soluciones integrales de carga para vehículos eléctricos en Colombia, donde hoy hay 174 vehículos por cada punto de carga pública. Cerrar la brecha de infraestructura para que la electromovilidad avance. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Plug_GoEV.jpg" data-resumen-url="pdfs/Plug_GoEV_resumen.pdf">
+        <td class="col-slot"><strong>5</strong><br><span class="slot-time">15:30–15:50</span></td>
+        <td class="col-logo"><img src="logos/Plug_GoEV.jpg" alt="Plug&GoEV" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Plug&GoEV</strong></td>
+        <td class="col-autores">Ginna Lizeth Moncada Moreno, Ronald Jaimes Prada, Bibiana Carolina Baez Castro</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#0a5b8a">Movilidad / Energía</span></td>
+        <td class="col-resumen">Soluciones integrales de carga para vehículos eléctricos en Colombia, frente a una brecha de 174 vehículos eléctricos por cada punto de carga pública. Infraestructura para acelerar la electromovilidad.<a href="pdfs/Plug_GoEV_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Ginna Lizeth Moncada Moreno, Ronald Jaimes Prada y Bibiana Carolina Baez Castro presentaron Plug&amp;GoEV, soluciones integrales de carga para vehículos eléctricos en Colombia, donde hoy hay 174 vehículos por cada punto de carga pública. Cerrar la brecha de infraestructura para que la electromovilidad avance. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Ginna Lizeth Moncada Moreno, Ronald Jaimes Prada y Bibiana Carolina Baez Castro presentaron Plug&amp;GoEV, soluciones integrales de carga para vehículos eléctricos en Colombia, donde hoy hay 174 vehículos por cada punto de carga pública. Cerrar la brecha de infraestructura para que la electromovilidad avance. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Plug_GoEV.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Plug_GoEV_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Viernes 12 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 15:55 – 16:25 hrs. — Break</span>
+          <span style="color:#6b6b6b;font-size:0.82rem;margin-left:0.6rem;">(Toma de foto grupos 1 a 5 · Sala de Estar)</span>
+        </td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="AgriTech / Sostenibilidad" data-proj="Bio Value" data-authors="Maria Wills Salas, Luis Alberto Gonzalez Miguel, Juan Sebastian Uribe Barcha"
+          data-resumen="Hilados bio-based trazables para cadenas textiles premium. Transforma fibras naturales en hilos y blends de alto desempeño con trazabilidad verificable, conectando biodiversidad colombiana con marcas globales." data-linkedin="Maria Wills Salas, Luis Alberto Gonzalez Miguel y Juan Sebastian Uribe Barcha presentaron Bio Value, hilados bio-based trazables para cadenas textiles premium que transforman fibras naturales en hilos y blends de alto desempeño. Trazabilidad verificable que conecta la biodiversidad colombiana con marcas globales. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Bio_Value.jpeg" data-resumen-url="pdfs/Bio_Value_resumen.png">
+        <td class="col-slot"><strong>6</strong><br><span class="slot-time">16:30–16:50</span></td>
+        <td class="col-logo"><img src="logos/Bio_Value.jpeg" alt="Bio Value" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Bio Value</strong></td>
+        <td class="col-autores">Maria Wills Salas, Luis Alberto Gonzalez Miguel, Juan Sebastian Uribe Barcha</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#3d6b0a">AgriTech / Sostenibilidad</span></td>
+        <td class="col-resumen">Hilados bio-based trazables para cadenas textiles premium. Transforma fibras naturales en hilos y blends de alto desempeño con trazabilidad verificable, conectando biodiversidad colombiana con marcas globales.<a href="pdfs/Bio_Value_resumen.png" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Maria Wills Salas, Luis Alberto Gonzalez Miguel y Juan Sebastian Uribe Barcha presentaron Bio Value, hilados bio-based trazables para cadenas textiles premium que transforman fibras naturales en hilos y blends de alto desempeño. Trazabilidad verificable que conecta la biodiversidad colombiana con marcas globales. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Maria Wills Salas, Luis Alberto Gonzalez Miguel y Juan Sebastian Uribe Barcha presentaron Bio Value, hilados bio-based trazables para cadenas textiles premium que transforman fibras naturales en hilos y blends de alto desempeño. Trazabilidad verificable que conecta la biodiversidad colombiana con marcas globales. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Bio_Value.jpeg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Bio_Value_resumen.png"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="Movilidad / Energía" data-proj="New Car Now" data-authors="Santiago Romero Herrera"
+          data-resumen="Plataforma digital que simplifica la compra y financiamiento de vehículos nuevos, conectando compradores con concesionarios y entidades financieras." data-linkedin="Santiago Romero Herrera presentó New Car Now, plataforma digital que simplifica la compra y financiamiento de vehículos nuevos. Comprar vehículo nunca había sido tan sencillo y transparente. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/New_Car_Now.jpg" data-resumen-url="pdfs/New_Car_Now_resumen.pdf">
+        <td class="col-slot"><strong>7</strong><br><span class="slot-time">16:55–17:15</span></td>
+        <td class="col-logo"><img src="logos/New_Car_Now.jpg" alt="New Car Now" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>New Car Now</strong></td>
+        <td class="col-autores">Santiago Romero Herrera</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#0a5b8a">Movilidad / Energía</span></td>
+        <td class="col-resumen">Plataforma digital que simplifica la compra y financiamiento de vehículos nuevos, conectando compradores con concesionarios y entidades financieras.<a href="pdfs/New_Car_Now_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Santiago Romero Herrera presentó New Car Now, plataforma digital que simplifica la compra y financiamiento de vehículos nuevos. Comprar vehículo nunca había sido tan sencillo y transparente. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Santiago Romero Herrera presentó New Car Now, plataforma digital que simplifica la compra y financiamiento de vehículos nuevos. Comprar vehículo nunca había sido tan sencillo y transparente. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/New_Car_Now.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/New_Car_Now_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="AgriTech / Sostenibilidad" data-proj="güdplant" data-authors="Luis Miguel Olarte, Oscar Daniel Lopez, Nicolas Trujillo"
+          data-resumen="Exporta plantas tropicales desde Colombia a EE.UU. a un costo 1,72x menor que un grower en Florida. Certificación ICA-APHIS validada en campo." data-linkedin="Luis Miguel Olarte, Oscar Daniel Lopez y Nicolas Trujillo presentaron güdplant, empresa exportadora de plantas tropicales a Estados Unidos. La selva tropical tiene mercado global, y ellos encontraron la ruta. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/gu_dplant.jpg" data-resumen-url="pdfs/gu_dplant_resumen.pdf">
+        <td class="col-slot"><strong>8</strong><br><span class="slot-time">17:20–17:40</span></td>
+        <td class="col-logo"><img src="logos/gu_dplant.jpg" alt="güdplant" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>güdplant</strong></td>
+        <td class="col-autores">Luis Miguel Olarte, Oscar Daniel Lopez, Nicolas Trujillo</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#3d6b0a">AgriTech / Sostenibilidad</span></td>
+        <td class="col-resumen">Exporta plantas tropicales desde Colombia a EE.UU. a un costo 1,72x menor que un grower en Florida. Certificación ICA-APHIS validada en campo.<a href="pdfs/gu_dplant_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Luis Miguel Olarte, Oscar Daniel Lopez y Nicolas Trujillo presentaron güdplant, empresa exportadora de plantas tropicales a Estados Unidos. La selva tropical tiene mercado global, y ellos encontraron la ruta. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Luis Miguel Olarte, Oscar Daniel Lopez y Nicolas Trujillo presentaron güdplant, empresa exportadora de plantas tropicales a Estados Unidos. La selva tropical tiene mercado global, y ellos encontraron la ruta. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/gu_dplant.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/gu_dplant_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="AgriTech / Sostenibilidad" data-proj="Grey2Blue" data-authors="Andrea Lora, Juliana Munar"
+          data-resumen="Sistema de reúso de aguas grises domiciliarias para hogares. Reduce el consumo de agua potable con tecnología accesible y sostenible." data-linkedin="Andrea Lora y Juliana Munar presentaron Grey2Blue, solución de reúso de aguas grises para hogares. Cada gota de agua gris es una oportunidad de sostenibilidad que no podemos desperdiciar. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Grey2Blue.jpeg" data-resumen-url="pdfs/Grey2Blue_resumen.pdf">
+        <td class="col-slot"><strong>9</strong><br><span class="slot-time">17:45–18:05</span></td>
+        <td class="col-logo"><img src="logos/Grey2Blue.jpeg" alt="Grey2Blue" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Grey2Blue</strong></td>
+        <td class="col-autores">Andrea Lora, Juliana Munar</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#3d6b0a">AgriTech / Sostenibilidad</span></td>
+        <td class="col-resumen">Sistema de reúso de aguas grises domiciliarias para hogares. Reduce el consumo de agua potable con tecnología accesible y sostenible.<a href="pdfs/Grey2Blue_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Andrea Lora y Juliana Munar presentaron Grey2Blue, solución de reúso de aguas grises para hogares. Cada gota de agua gris es una oportunidad de sostenibilidad que no podemos desperdiciar. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Andrea Lora y Juliana Munar presentaron Grey2Blue, solución de reúso de aguas grises para hogares. Cada gota de agua gris es una oportunidad de sostenibilidad que no podemos desperdiciar. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Grey2Blue.jpeg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Grey2Blue_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 12 jun" data-sector="AgriTech / Sostenibilidad" data-proj="Jornalia" data-authors="Jenny Forero, Silvana Morales"
+          data-resumen="Plataforma que resuelve la escasez de mano de obra agrícola. Modelo B2B y B2C asset-light que dignifica al jornalero y elimina intermediarios." data-linkedin="Jenny Forero y Silvana Morales presentaron Jornalia, plataforma que conecta jornaleros con productores agrícolas eliminando intermediarios. El campo tiene solución, y nació en un aula del Executive MBA. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Jornalia.jpg" data-resumen-url="pdfs/Jornalia_resumen.pdf">
+        <td class="col-slot"><strong>10</strong><br><span class="slot-time">18:10–18:30</span></td>
+        <td class="col-logo"><img src="logos/Jornalia.jpg" alt="Jornalia" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Jornalia</strong></td>
+        <td class="col-autores">Jenny Forero, Silvana Morales</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#3d6b0a">AgriTech / Sostenibilidad</span></td>
+        <td class="col-resumen">Plataforma que resuelve la escasez de mano de obra agrícola. Modelo B2B y B2C asset-light que dignifica al jornalero y elimina intermediarios.<a href="pdfs/Jornalia_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Jenny Forero y Silvana Morales presentaron Jornalia, plataforma que conecta jornaleros con productores agrícolas eliminando intermediarios. El campo tiene solución, y nació en un aula del Executive MBA. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Jenny Forero y Silvana Morales presentaron Jornalia, plataforma que conecta jornaleros con productores agrícolas eliminando intermediarios. El campo tiene solución, y nació en un aula del Executive MBA. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Jornalia.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Jornalia_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Viernes 12 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 18:35 – 18:55 hrs. — Toma de foto grupos 6 al 10</span>
+          <span style="color:#6b6b6b;font-size:0.82rem;margin-left:0.6rem;">(Sala de Estar)</span>
+        </td>
+      </tr>
+      <tr class="day-header" data-day="Sábado 13 jun">
+        <td colspan="8" style="background:#1a1a1a;color:#fff;padding:0.5rem 1rem;font-family:'Montserrat',sans-serif;font-size:0.8rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;">
+          📅 Sábado 13 jun
+        </td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Sábado 13 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 07:10 – 07:15 hrs. — Introducción</span>
+        </td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="FinTech / Financiero" data-proj="AKOS" data-authors="Héctor Rodrigo Arias Cueca, Cesar Julián Pérez Garavito"
+          data-resumen="Financia procedimientos médicos y medicamentos urgentes no cubiertos por el sistema público de salud. Aprobación en menos de 5 minutos, desembolso directo al proveedor médico." data-linkedin="Héctor Rodrigo Arias Cueca y Cesar Julián Pérez Garavito presentaron AKOS, solución de financiamiento para servicios médicos urgentes con aprobación en menos de 5 minutos. La financiación de la salud nunca había sido tan accesible ni tan humana. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/AKOS.jpg" data-resumen-url="pdfs/AKOS_resumen.pdf">
+        <td class="col-slot"><strong>11</strong><br><span class="slot-time">07:20–07:40</span></td>
+        <td class="col-logo"><img src="logos/AKOS.jpg" alt="AKOS" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>AKOS</strong></td>
+        <td class="col-autores">Héctor Rodrigo Arias Cueca, Cesar Julián Pérez Garavito</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#1a6b3c">FinTech / Financiero</span></td>
+        <td class="col-resumen">Financia procedimientos médicos y medicamentos urgentes no cubiertos por el sistema público de salud. Aprobación en menos de 5 minutos, desembolso directo al proveedor médico.<a href="pdfs/AKOS_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Héctor Rodrigo Arias Cueca y Cesar Julián Pérez Garavito presentaron AKOS, solución de financiamiento para servicios médicos urgentes con aprobación en menos de 5 minutos. La financiación de la salud nunca había sido tan accesible ni tan humana. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Héctor Rodrigo Arias Cueca y Cesar Julián Pérez Garavito presentaron AKOS, solución de financiamiento para servicios médicos urgentes con aprobación en menos de 5 minutos. La financiación de la salud nunca había sido tan accesible ni tan humana. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/AKOS.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/AKOS_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="FinTech / Financiero" data-proj="FioYa" data-authors="Pablo Molina"
+          data-resumen="Digitaliza el sistema de fiado en tiendas de barrio, conectando tenderos y clientes con fuentes de fondeo formal. Validado con 90% de intención de uso." data-linkedin="Pablo Molina presentó FioYa, plataforma que digitaliza el fiado en tiendas de barrio con un 90% de validación positiva. El crédito informal de siempre, con la tecnología y la seguridad del futuro. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Fioya.jpg" data-resumen-url="pdfs/Fioya_resumen.pdf">
+        <td class="col-slot"><strong>12</strong><br><span class="slot-time">07:45–08:05</span></td>
+        <td class="col-logo"><img src="logos/Fioya.jpg" alt="FioYa" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>FioYa</strong></td>
+        <td class="col-autores">Pablo Molina</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#1a6b3c">FinTech / Financiero</span></td>
+        <td class="col-resumen">Digitaliza el sistema de fiado en tiendas de barrio, conectando tenderos y clientes con fuentes de fondeo formal. Validado con 90% de intención de uso.<a href="pdfs/Fioya_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Pablo Molina presentó FioYa, plataforma que digitaliza el fiado en tiendas de barrio con un 90% de validación positiva. El crédito informal de siempre, con la tecnología y la seguridad del futuro. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Pablo Molina presentó FioYa, plataforma que digitaliza el fiado en tiendas de barrio con un 90% de validación positiva. El crédito informal de siempre, con la tecnología y la seguridad del futuro. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Fioya.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Fioya_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="FinTech / Financiero" data-proj="Mony" data-authors="Sergio Andres Espinosa Silva, Javier Garcia Gutierrez"
+          data-resumen="Fintech social de inclusión: construye hábitos financieros saludables para madres cabeza de familia por WhatsApp, financiados por su empleador. El ahorro con matching habilita educación, scoring y mejores productos." data-linkedin="Sergio Andres Espinosa Silva y Javier Garcia Gutierrez presentaron Mony, fintech social que construye hábitos financieros saludables para madres cabeza de familia por WhatsApp, financiados por su empleador. Inclusión financiera que empieza por quien más lo necesita. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Mony.jpg" data-resumen-url="pdfs/Mony_resumen.pdf">
+        <td class="col-slot"><strong>13</strong><br><span class="slot-time">08:10–08:30</span></td>
+        <td class="col-logo"><img src="logos/Mony.jpg" alt="Mony" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Mony</strong></td>
+        <td class="col-autores">Sergio Andres Espinosa Silva, Javier Garcia Gutierrez</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#1a6b3c">FinTech / Financiero</span></td>
+        <td class="col-resumen">Fintech social de inclusión: construye hábitos financieros saludables para madres cabeza de familia por WhatsApp, financiados por su empleador. El ahorro con matching habilita educación, scoring y mejores productos.<a href="pdfs/Mony_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Sergio Andres Espinosa Silva y Javier Garcia Gutierrez presentaron Mony, fintech social que construye hábitos financieros saludables para madres cabeza de familia por WhatsApp, financiados por su empleador. Inclusión financiera que empieza por quien más lo necesita. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Sergio Andres Espinosa Silva y Javier Garcia Gutierrez presentaron Mony, fintech social que construye hábitos financieros saludables para madres cabeza de familia por WhatsApp, financiados por su empleador. Inclusión financiera que empieza por quien más lo necesita. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Mony.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Mony_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="FinTech / Financiero" data-proj="sabIO" data-authors="Marcel Holguín, Andrés Cortés"
+          data-resumen="Plataforma FinTech que conecta colaboradores con fondos de pensiones voluntarias (FPV) de manera simple y accesible. Bienestar financiero a largo plazo." data-linkedin="Marcel Holguín y Andrés Cortés presentaron sabIO, plataforma que democratiza el acceso a fondos de pensiones voluntarias para colaboradores. El ahorro para el futuro empieza hoy, y sabIO hace que sea posible para todos. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/sabIO.jpg" data-resumen-url="pdfs/sabIO_resumen.pdf">
+        <td class="col-slot"><strong>14</strong><br><span class="slot-time">08:35–08:55</span></td>
+        <td class="col-logo"><img src="logos/sabIO.jpg" alt="sabIO" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>sabIO</strong></td>
+        <td class="col-autores">Marcel Holguín, Andrés Cortés</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#1a6b3c">FinTech / Financiero</span></td>
+        <td class="col-resumen">Plataforma FinTech que conecta colaboradores con fondos de pensiones voluntarias (FPV) de manera simple y accesible. Bienestar financiero a largo plazo.<a href="pdfs/sabIO_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Marcel Holguín y Andrés Cortés presentaron sabIO, plataforma que democratiza el acceso a fondos de pensiones voluntarias para colaboradores. El ahorro para el futuro empieza hoy, y sabIO hace que sea posible para todos. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Marcel Holguín y Andrés Cortés presentaron sabIO, plataforma que democratiza el acceso a fondos de pensiones voluntarias para colaboradores. El ahorro para el futuro empieza hoy, y sabIO hace que sea posible para todos. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/sabIO.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/sabIO_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="FinTech / Financiero" data-proj="Verifika" data-authors="Andres Camilo Ramirez Rodriguez"
+          data-resumen="Plataforma SaaS que valida pagos digitales sin exponer información del negocio. Protege a micronegocios del fraude con comprobantes falsos de Nequi y otras plataformas." data-linkedin="Andres Camilo Ramirez Rodriguez presentó Verifika, plataforma SaaS que valida pagos digitales de forma segura para micronegocios. Fraude cero, confianza máxima: exactamente lo que el comercio electrónico necesitaba. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Verifika.jpg" data-resumen-url="pdfs/Verifika_resumen.pdf">
+        <td class="col-slot"><strong>15</strong><br><span class="slot-time">09:00–09:20</span></td>
+        <td class="col-logo"><img src="logos/Verifika.jpg" alt="Verifika" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Verifika</strong></td>
+        <td class="col-autores">Andres Camilo Ramirez Rodriguez</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#1a6b3c">FinTech / Financiero</span></td>
+        <td class="col-resumen">Plataforma SaaS que valida pagos digitales sin exponer información del negocio. Protege a micronegocios del fraude con comprobantes falsos de Nequi y otras plataformas.<a href="pdfs/Verifika_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Andres Camilo Ramirez Rodriguez presentó Verifika, plataforma SaaS que valida pagos digitales de forma segura para micronegocios. Fraude cero, confianza máxima: exactamente lo que el comercio electrónico necesitaba. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Andres Camilo Ramirez Rodriguez presentó Verifika, plataforma SaaS que valida pagos digitales de forma segura para micronegocios. Fraude cero, confianza máxima: exactamente lo que el comercio electrónico necesitaba. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Verifika.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Verifika_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Sábado 13 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 09:25 – 09:55 hrs. — Break</span>
+          <span style="color:#6b6b6b;font-size:0.82rem;margin-left:0.6rem;">(Toma de foto grupos 11 al 15 · Sala de Estar)</span>
+        </td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="IA / Tecnología" data-proj="AMIGO" data-authors="Andres Camilo Martinez Socota"
+          data-resumen="Plataforma de agentes con IA que ejecuta gestiones reales por WhatsApp en Colombia y México. Automatiza lo rutinario para que las personas dediquen su tiempo a lo que importa." data-linkedin="Andres Camilo Martinez Socota presentó AMIGO, plataforma de agentes con IA que ejecuta tareas reales vía WhatsApp en Colombia y México. El asistente inteligente que Colombia estaba esperando para hacer más con menos. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/AMIGO.jpg" data-resumen-url="pdfs/AMIGO_resumen.pdf">
+        <td class="col-slot"><strong>16</strong><br><span class="slot-time">10:00–10:20</span></td>
+        <td class="col-logo"><img src="logos/AMIGO.jpg" alt="AMIGO" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>AMIGO</strong></td>
+        <td class="col-autores">Andres Camilo Martinez Socota</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a1a8e">IA / Tecnología</span></td>
+        <td class="col-resumen">Plataforma de agentes con IA que ejecuta gestiones reales por WhatsApp en Colombia y México. Automatiza lo rutinario para que las personas dediquen su tiempo a lo que importa.<a href="pdfs/AMIGO_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Andres Camilo Martinez Socota presentó AMIGO, plataforma de agentes con IA que ejecuta tareas reales vía WhatsApp en Colombia y México. El asistente inteligente que Colombia estaba esperando para hacer más con menos. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Andres Camilo Martinez Socota presentó AMIGO, plataforma de agentes con IA que ejecuta tareas reales vía WhatsApp en Colombia y México. El asistente inteligente que Colombia estaba esperando para hacer más con menos. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/AMIGO.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/AMIGO_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="IA / Tecnología" data-proj="ARCO" data-authors="Laura Mariño Arévalo, Julián Camilo Jiménez Moreno, Jhon Alexander Alarcón Hernández"
+          data-resumen="Ecosistema comercial con IA para pymes B2B. Agente de voz que cubre el ciclo completo de ventas: prospección, seguimiento y recaudo, sin digitar." data-linkedin="Laura Mariño Arévalo, Julián Camilo Jiménez Moreno y Jhon Alexander Alarcón Hernández presentaron ARCO, ecosistema con IA que cubre el ciclo completo de ventas B2B para pymes. Así se construye el nuevo estándar comercial en LATAM. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/ARCO.jpg" data-resumen-url="pdfs/ARCO_resumen.pdf">
+        <td class="col-slot"><strong>17</strong><br><span class="slot-time">10:25–10:45</span></td>
+        <td class="col-logo"><img src="logos/ARCO.jpg" alt="ARCO" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>ARCO</strong></td>
+        <td class="col-autores">Laura Mariño Arévalo, Julián Camilo Jiménez Moreno, Jhon Alexander Alarcón Hernández</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a1a8e">IA / Tecnología</span></td>
+        <td class="col-resumen">Ecosistema comercial con IA para pymes B2B. Agente de voz que cubre el ciclo completo de ventas: prospección, seguimiento y recaudo, sin digitar.<a href="pdfs/ARCO_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Laura Mariño Arévalo, Julián Camilo Jiménez Moreno y Jhon Alexander Alarcón Hernández presentaron ARCO, ecosistema con IA que cubre el ciclo completo de ventas B2B para pymes. Así se construye el nuevo estándar comercial en LATAM. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Laura Mariño Arévalo, Julián Camilo Jiménez Moreno y Jhon Alexander Alarcón Hernández presentaron ARCO, ecosistema con IA que cubre el ciclo completo de ventas B2B para pymes. Así se construye el nuevo estándar comercial en LATAM. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/ARCO.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/ARCO_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="IA / Tecnología" data-proj="KLAR" data-authors="Carlos Alberto Rodriguez Hernandez"
+          data-resumen="WMS conversacional con IA para empresas medianas con alta rotación de personal. Reduce errores de picking y mermas sin necesitar capacitación extensa." data-linkedin="Carlos Alberto Rodriguez Hernandez presentó KLAR, sistema de gestión de almacenes con IA conversacional para empresas con alta rotación de personal. Logística inteligente que habla el mismo idioma de quien la opera. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/KLAR.jpg" data-resumen-url="pdfs/KLAR_resumen.pdf">
+        <td class="col-slot"><strong>18</strong><br><span class="slot-time">10:50–11:10</span></td>
+        <td class="col-logo"><img src="logos/KLAR.jpg" alt="KLAR" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>KLAR</strong></td>
+        <td class="col-autores">Carlos Alberto Rodriguez Hernandez</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a1a8e">IA / Tecnología</span></td>
+        <td class="col-resumen">WMS conversacional con IA para empresas medianas con alta rotación de personal. Reduce errores de picking y mermas sin necesitar capacitación extensa.<a href="pdfs/KLAR_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Carlos Alberto Rodriguez Hernandez presentó KLAR, sistema de gestión de almacenes con IA conversacional para empresas con alta rotación de personal. Logística inteligente que habla el mismo idioma de quien la opera. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Carlos Alberto Rodriguez Hernandez presentó KLAR, sistema de gestión de almacenes con IA conversacional para empresas con alta rotación de personal. Logística inteligente que habla el mismo idioma de quien la opera. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/KLAR.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/KLAR_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="IA / Tecnología" data-proj="PLICS" data-authors="Laura Lerma, Andres Vasquez, Cristian Hernandez"
+          data-resumen="e-Procurement B2B SaaS para las áreas de Compras de medianas empresas en LATAM. Convierte el sourcing disperso en un proceso estructurado y trazable, con comparador de TCO, expediente auditable e integración al ERP." data-linkedin="Laura Lerma, Andres Vasquez y Cristian Hernandez presentaron PLICS, plataforma e-Procurement B2B que convierte el sourcing disperso de las áreas de Compras en un proceso estructurado, trazable y auditable. Compras con método: del correo y el Excel a una decisión defendible. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/PLICS.jpg" data-resumen-url="pdfs/PLICS_resumen.pdf">
+        <td class="col-slot"><strong>19</strong><br><span class="slot-time">11:15–11:35</span></td>
+        <td class="col-logo"><img src="logos/PLICS.jpg" alt="PLICS" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>PLICS</strong></td>
+        <td class="col-autores">Laura Lerma, Andres Vasquez, Cristian Hernandez</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a1a8e">IA / Tecnología</span></td>
+        <td class="col-resumen">e-Procurement B2B SaaS para las áreas de Compras de medianas empresas en LATAM. Convierte el sourcing disperso en un proceso estructurado y trazable, con comparador de TCO, expediente auditable e integración al ERP.<a href="pdfs/PLICS_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Laura Lerma, Andres Vasquez y Cristian Hernandez presentaron PLICS, plataforma e-Procurement B2B que convierte el sourcing disperso de las áreas de Compras en un proceso estructurado, trazable y auditable. Compras con método: del correo y el Excel a una decisión defendible. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Laura Lerma, Andres Vasquez y Cristian Hernandez presentaron PLICS, plataforma e-Procurement B2B que convierte el sourcing disperso de las áreas de Compras en un proceso estructurado, trazable y auditable. Compras con método: del correo y el Excel a una decisión defendible. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/PLICS.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/PLICS_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 13 jun" data-sector="IA / Tecnología" data-proj="Zafiro" data-authors="Gerardo Jimenez, Daniel Pabon"
+          data-resumen="Manufactura de conectores ensamblados MMC y jumpers de fibra óptica de alta precisión para el despliegue de IA en data centers de CALA y EE.UU. Reduce semanas de espera en proyectos críticos de hyperscalers e integradores." data-linkedin="Gerardo Jimenez y Daniel Pabon presentaron Zafiro Fiber Solutions, manufactura de conectores MMC y jumpers de fibra óptica de alta precisión para el despliegue de IA en data centers de CALA y EE.UU. El mundo construye el cerebro de la IA; Colombia interconecta lo que lo hace posible. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Zafiro.jpg" data-resumen-url="pdfs/Zafiro_resumen.pdf">
+        <td class="col-slot"><strong>20</strong><br><span class="slot-time">11:40–12:00</span></td>
+        <td class="col-logo"><img src="logos/Zafiro.jpg" alt="Zafiro" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Zafiro</strong></td>
+        <td class="col-autores">Gerardo Jimenez, Daniel Pabon</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a1a8e">IA / Tecnología</span></td>
+        <td class="col-resumen">Manufactura de conectores ensamblados MMC y jumpers de fibra óptica de alta precisión para el despliegue de IA en data centers de CALA y EE.UU. Reduce semanas de espera en proyectos críticos de hyperscalers e integradores.<a href="pdfs/Zafiro_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Gerardo Jimenez y Daniel Pabon presentaron Zafiro Fiber Solutions, manufactura de conectores MMC y jumpers de fibra óptica de alta precisión para el despliegue de IA en data centers de CALA y EE.UU. El mundo construye el cerebro de la IA; Colombia interconecta lo que lo hace posible. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Gerardo Jimenez y Daniel Pabon presentaron Zafiro Fiber Solutions, manufactura de conectores MMC y jumpers de fibra óptica de alta precisión para el despliegue de IA en data centers de CALA y EE.UU. El mundo construye el cerebro de la IA; Colombia interconecta lo que lo hace posible. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Zafiro.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Zafiro_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Sábado 13 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 12:05 – 12:25 hrs. — Toma de foto grupos 15 al 20</span>
+          <span style="color:#6b6b6b;font-size:0.82rem;margin-left:0.6rem;">(Sala de Estar)</span>
+        </td>
+      </tr>
+      <tr class="day-header" data-day="Viernes 19 jun">
+        <td colspan="8" style="background:#1a1a1a;color:#fff;padding:0.5rem 1rem;font-family:'Montserrat',sans-serif;font-size:0.8rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;">
+          📅 Viernes 19 jun
+        </td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Viernes 19 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 13:30 – 13:40 hrs. — Toma de foto de grupo — Puerta principal</span>
+          <span style="color:#6b6b6b;font-size:0.82rem;margin-left:0.6rem;">(Por favor estar ahí 5 min antes)</span>
+        </td>
+      </tr>
+
+      <tr class="evento-row" data-day="Viernes 19 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 13:35 – 13:55 hrs. — Introducción</span>
+        </td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="HealthTech / Salud" data-proj="T-HEALTH" data-authors="Carlos Enrique Manquillo, Luis Geovanni Florez Diaz"
+          data-resumen="Monitoreo remoto predictivo de pacientes para EPS, aseguradoras y población envejeciente. Identifica el deterioro clínico 48-72 horas antes del evento crítico con IoT clínico, reduciendo 25-30% las hospitalizaciones evitables." data-linkedin="Carlos Enrique Manquillo y Luis Geovanni Florez Diaz presentaron T-HEALTH, monitoreo remoto predictivo de pacientes para EPS y aseguradoras que identifica el deterioro clínico 48-72 horas antes del evento crítico. Anticiparse al evento crítico reduce hospitalizaciones y salva vidas. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/T-HEALTH.jpg" data-resumen-url="pdfs/T-HEALTH_resumen.pdf">
+        <td class="col-slot"><strong>21</strong><br><span class="slot-time">14:00–14:20</span></td>
+        <td class="col-logo"><img src="logos/T-HEALTH.jpg" alt="T-HEALTH" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>T-HEALTH</strong></td>
+        <td class="col-autores">Carlos Enrique Manquillo, Luis Geovanni Florez Diaz</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#8a0a1a">HealthTech / Salud</span></td>
+        <td class="col-resumen">Monitoreo remoto predictivo de pacientes para EPS, aseguradoras y población envejeciente. Identifica el deterioro clínico 48-72 horas antes del evento crítico con IoT clínico, reduciendo 25-30% las hospitalizaciones evitables.<a href="pdfs/T-HEALTH_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Carlos Enrique Manquillo y Luis Geovanni Florez Diaz presentaron T-HEALTH, monitoreo remoto predictivo de pacientes para EPS y aseguradoras que identifica el deterioro clínico 48-72 horas antes del evento crítico. Anticiparse al evento crítico reduce hospitalizaciones y salva vidas. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Carlos Enrique Manquillo y Luis Geovanni Florez Diaz presentaron T-HEALTH, monitoreo remoto predictivo de pacientes para EPS y aseguradoras que identifica el deterioro clínico 48-72 horas antes del evento crítico. Anticiparse al evento crítico reduce hospitalizaciones y salva vidas. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/T-HEALTH.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/T-HEALTH_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="Alimentos / F&B" data-proj="La Etapa Café" data-authors="Juan Sebastián López, John Segura Monroy, Claudia Estévez Prada"
+          data-resumen="Primera cadena de cafeterías premium especializada en el cierre de ruta para ciclistas amateur en Colombia. Café y desayunos pensados para el ciclista, parqueadero seguro de bicicletas y comunidad." data-linkedin="Juan Sebastián López, John Segura Monroy y Claudia Estévez Prada presentaron La Etapa Café, la primera cadena de cafeterías premium especializada en el cierre de ruta para ciclistas amateur en Colombia. Café, comunidad y parqueadero seguro donde termina la rodada. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/La_Etapa_Cafe.jpg" data-resumen-url="pdfs/La_Etapa_Cafe_resumen.pdf">
+        <td class="col-slot"><strong>22</strong><br><span class="slot-time">14:25–14:45</span></td>
+        <td class="col-logo"><img src="logos/La_Etapa_Cafe.jpg" alt="La Etapa Café" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>La Etapa Café</strong></td>
+        <td class="col-autores">Juan Sebastián López, John Segura Monroy, Claudia Estévez Prada</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#8a3d0a">Alimentos / F&B</span></td>
+        <td class="col-resumen">Primera cadena de cafeterías premium especializada en el cierre de ruta para ciclistas amateur en Colombia. Café y desayunos pensados para el ciclista, parqueadero seguro de bicicletas y comunidad.<a href="pdfs/La_Etapa_Cafe_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Juan Sebastián López, John Segura Monroy y Claudia Estévez Prada presentaron La Etapa Café, la primera cadena de cafeterías premium especializada en el cierre de ruta para ciclistas amateur en Colombia. Café, comunidad y parqueadero seguro donde termina la rodada. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Juan Sebastián López, John Segura Monroy y Claudia Estévez Prada presentaron La Etapa Café, la primera cadena de cafeterías premium especializada en el cierre de ruta para ciclistas amateur en Colombia. Café, comunidad y parqueadero seguro donde termina la rodada. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/La_Etapa_Cafe.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/La_Etapa_Cafe_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="HealthTech / Salud" data-proj="Viora" data-authors="Alexandra Guarín, Juan José Ordoñez, Edwin Molano"
+          data-resumen="Ayuda a adultos latinoamericanos con sobrepeso a lograr pérdida de peso sostenida con acompañamiento clínico continuo e inteligencia artificial." data-linkedin="Alexandra Guarín, Juan José Ordoñez y Edwin Molano presentaron Viora, plataforma de salud digital para pérdida de peso sostenida con IA y acompañamiento clínico en LATAM. Porque perder peso de forma sostenida no debería depender de la suerte. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Viora.jpg" data-resumen-url="pdfs/Viora_resumen.pdf">
+        <td class="col-slot"><strong>23</strong><br><span class="slot-time">14:50–15:10</span></td>
+        <td class="col-logo"><img src="logos/Viora.jpg" alt="Viora" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Viora</strong></td>
+        <td class="col-autores">Alexandra Guarín, Juan José Ordoñez, Edwin Molano</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#8a0a1a">HealthTech / Salud</span></td>
+        <td class="col-resumen">Ayuda a adultos latinoamericanos con sobrepeso a lograr pérdida de peso sostenida con acompañamiento clínico continuo e inteligencia artificial.<a href="pdfs/Viora_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Alexandra Guarín, Juan José Ordoñez y Edwin Molano presentaron Viora, plataforma de salud digital para pérdida de peso sostenida con IA y acompañamiento clínico en LATAM. Porque perder peso de forma sostenida no debería depender de la suerte. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Alexandra Guarín, Juan José Ordoñez y Edwin Molano presentaron Viora, plataforma de salud digital para pérdida de peso sostenida con IA y acompañamiento clínico en LATAM. Porque perder peso de forma sostenida no debería depender de la suerte. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Viora.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Viora_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="Salud / Deporte" data-proj="Moovday" data-authors="Julio César Riaño Rico, Germán Buitrago Gónzalez"
+          data-resumen="Red de clubes wellness que ayuda a personas sedentarias a convertir la intención en hábito sostenible. Conecta cuerpo, mente y emociones con su metodología Emotional Energy Training™ y acompañamiento profesional integral." data-linkedin="Julio César Riaño Rico y Germán Buitrago Gónzalez presentaron Moovday, red de clubes wellness que ayuda a personas sedentarias a transformar su estilo de vida conectando cuerpo, mente y emociones con su metodología Emotional Energy Training™. La emoción es el combustible; el movimiento, el vehículo del cambio. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Moovday.jpg" data-resumen-url="pdfs/Moovday_resumen.pdf">
+        <td class="col-slot"><strong>24</strong><br><span class="slot-time">15:15–15:35</span></td>
+        <td class="col-logo"><img src="logos/Moovday.jpg" alt="Moovday" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Moovday</strong></td>
+        <td class="col-autores">Julio César Riaño Rico, Germán Buitrago Gónzalez</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#0a6b5b">Salud / Deporte</span></td>
+        <td class="col-resumen">Red de clubes wellness que ayuda a personas sedentarias a convertir la intención en hábito sostenible. Conecta cuerpo, mente y emociones con su metodología Emotional Energy Training™ y acompañamiento profesional integral.<a href="pdfs/Moovday_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Julio César Riaño Rico y Germán Buitrago Gónzalez presentaron Moovday, red de clubes wellness que ayuda a personas sedentarias a transformar su estilo de vida conectando cuerpo, mente y emociones con su metodología Emotional Energy Training™. La emoción es el combustible; el movimiento, el vehículo del cambio. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Julio César Riaño Rico y Germán Buitrago Gónzalez presentaron Moovday, red de clubes wellness que ayuda a personas sedentarias a transformar su estilo de vida conectando cuerpo, mente y emociones con su metodología Emotional Energy Training™. La emoción es el combustible; el movimiento, el vehículo del cambio. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Moovday.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Moovday_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="Alimentos / F&B" data-proj="OVILAND" data-authors="Ginna Fernanda Romero Rincón"
+          data-resumen="Convierte el huevo no conforme en ovoproductos industriales B2B y snacks proteicos B2C. Captura un mercado sub-penetrado al 6,8% con crecimiento del 12% anual." data-linkedin="Ginna Fernanda Romero Rincón presentó OVILAND, empresa que transforma el huevo no conforme en ovoproductos y snacks proteicos de alto valor. Desperdicio cero, valor máximo: así se hace agroindustria responsable. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Oviland.jpg" data-resumen-url="pdfs/Oviland_resumen.pdf">
+        <td class="col-slot"><strong>25</strong><br><span class="slot-time">15:40–16:00</span></td>
+        <td class="col-logo"><img src="logos/Oviland.jpg" alt="OVILAND" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>OVILAND</strong></td>
+        <td class="col-autores">Ginna Fernanda Romero Rincón</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#8a3d0a">Alimentos / F&B</span></td>
+        <td class="col-resumen">Convierte el huevo no conforme en ovoproductos industriales B2B y snacks proteicos B2C. Captura un mercado sub-penetrado al 6,8% con crecimiento del 12% anual.<a href="pdfs/Oviland_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Ginna Fernanda Romero Rincón presentó OVILAND, empresa que transforma el huevo no conforme en ovoproductos y snacks proteicos de alto valor. Desperdicio cero, valor máximo: así se hace agroindustria responsable. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Ginna Fernanda Romero Rincón presentó OVILAND, empresa que transforma el huevo no conforme en ovoproductos y snacks proteicos de alto valor. Desperdicio cero, valor máximo: así se hace agroindustria responsable. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Oviland.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Oviland_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Viernes 19 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 16:05 – 16:35 hrs. — Break</span>
+          <span style="color:#6b6b6b;font-size:0.82rem;margin-left:0.6rem;">(Toma de foto grupos 21 a 25 · Sala de Estar)</span>
+        </td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="Alimentos / F&B" data-proj="SABE" data-authors="Diana Mireya Martinez Gomez, Mayra Alexandra Puello Villarruel, Eliana Lozano Romero"
+          data-resumen="SABE cierra la brecha entre la intención de comer y la capacidad real de hacerlo por medio de una experiencia gastronómica que integra sabor excepcional, transparencia nutricional, conveniencia y precio asequible, con el objetivo de transformar la salud del comensal a través de la nutrición." data-linkedin="Diana Mireya Martinez Gomez, Mayra Alexandra Puello Villarruel y Eliana Lozano Romero presentaron SABE, una experiencia gastronómica que integra sabor excepcional, transparencia nutricional, conveniencia y precio asequible para transformar la salud del comensal a través de la nutrición. Comer rico y comer bien al alcance de todos. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/SABE.jpeg" data-resumen-url="pdfs/SABE_resumen.pdf">
+        <td class="col-slot"><strong>26</strong><br><span class="slot-time">16:40–17:00</span></td>
+        <td class="col-logo"><img src="logos/SABE.jpeg" alt="SABE" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>SABE</strong></td>
+        <td class="col-autores">Diana Mireya Martinez Gomez, Mayra Alexandra Puello Villarruel, Eliana Lozano Romero</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#8a3d0a">Alimentos / F&B</span></td>
+        <td class="col-resumen">SABE cierra la brecha entre la intención de comer y la capacidad real de hacerlo por medio de una experiencia gastronómica que integra sabor excepcional, transparencia nutricional, conveniencia y precio asequible, con el objetivo de transformar la salud del comensal a través de la nutrición.<a href="pdfs/SABE_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Diana Mireya Martinez Gomez, Mayra Alexandra Puello Villarruel y Eliana Lozano Romero presentaron SABE, una experiencia gastronómica que integra sabor excepcional, transparencia nutricional, conveniencia y precio asequible para transformar la salud del comensal a través de la nutrición. Comer rico y comer bien al alcance de todos. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Diana Mireya Martinez Gomez, Mayra Alexandra Puello Villarruel y Eliana Lozano Romero presentaron SABE, una experiencia gastronómica que integra sabor excepcional, transparencia nutricional, conveniencia y precio asequible para transformar la salud del comensal a través de la nutrición. Comer rico y comer bien al alcance de todos. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/SABE.jpeg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/SABE_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="Alimentos / F&B" data-proj="Ready2" data-authors="Mabel Adriana Herrera Bermúdez"
+          data-resumen="Cócteles de autor premium listos para disfrutar (RTD): destilados premium, jugos prensados en frío y cero ingredientes artificiales. La experiencia de un cóctel sofisticado, sin preparación, para momentos sociales." data-linkedin="Mabel Adriana Herrera Bermúdez presentó Ready2, cócteles de autor premium listos para disfrutar, con destilados premium, jugos prensados en frío y cero ingredientes artificiales. La experiencia de un cóctel sofisticado, sin barra ni preparación. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Ready2.png" data-resumen-url="pdfs/Ready2_resumen.pdf">
+        <td class="col-slot"><strong>27</strong><br><span class="slot-time">17:05–17:25</span></td>
+        <td class="col-logo"><img src="logos/Ready2.png" alt="Ready2" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Ready2</strong></td>
+        <td class="col-autores">Mabel Adriana Herrera Bermúdez</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#8a3d0a">Alimentos / F&B</span></td>
+        <td class="col-resumen">Cócteles de autor premium listos para disfrutar (RTD): destilados premium, jugos prensados en frío y cero ingredientes artificiales. La experiencia de un cóctel sofisticado, sin preparación, para momentos sociales.<a href="pdfs/Ready2_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Mabel Adriana Herrera Bermúdez presentó Ready2, cócteles de autor premium listos para disfrutar, con destilados premium, jugos prensados en frío y cero ingredientes artificiales. La experiencia de un cóctel sofisticado, sin barra ni preparación. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Mabel Adriana Herrera Bermúdez presentó Ready2, cócteles de autor premium listos para disfrutar, con destilados premium, jugos prensados en frío y cero ingredientes artificiales. La experiencia de un cóctel sofisticado, sin barra ni preparación. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Ready2.png" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Ready2_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="Alimentos / F&B" data-proj="Segunda Mesa" data-authors="Katia Ogaza, Camila Alvarez"
+          data-resumen="Ayuda a fabricantes de alimentos a monetizar inventario próximo a vencerse, reduciendo la merma y conectando productos a precio justo con consumidores." data-linkedin="Katia Ogaza y Camila Alvarez presentaron Segunda Mesa, plataforma que conecta fabricantes de alimentos con consumidores para monetizar inventario próximo a vencerse. Menos merma, más valor: la economía circular llega a la cadena alimentaria. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Segunda_Mesa.jpg" data-resumen-url="pdfs/Segunda_Mesa_resumen.pdf">
+        <td class="col-slot"><strong>28</strong><br><span class="slot-time">17:30–17:50</span></td>
+        <td class="col-logo"><img src="logos/Segunda_Mesa.jpg" alt="Segunda Mesa" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Segunda Mesa</strong></td>
+        <td class="col-autores">Katia Ogaza, Camila Alvarez</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#8a3d0a">Alimentos / F&B</span></td>
+        <td class="col-resumen">Ayuda a fabricantes de alimentos a monetizar inventario próximo a vencerse, reduciendo la merma y conectando productos a precio justo con consumidores.<a href="pdfs/Segunda_Mesa_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Katia Ogaza y Camila Alvarez presentaron Segunda Mesa, plataforma que conecta fabricantes de alimentos con consumidores para monetizar inventario próximo a vencerse. Menos merma, más valor: la economía circular llega a la cadena alimentaria. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Katia Ogaza y Camila Alvarez presentaron Segunda Mesa, plataforma que conecta fabricantes de alimentos con consumidores para monetizar inventario próximo a vencerse. Menos merma, más valor: la economía circular llega a la cadena alimentaria. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Segunda_Mesa.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Segunda_Mesa_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="IA / Tecnología" data-proj="VecinoPro" data-authors="Oriana Rocio Cendales Reyes"
+          data-resumen="Asistente IA conversacional para tiendas de barrio. Controla inventario, mejora las compras y vende con POS simple, generando más rentabilidad al tendero." data-linkedin="Oriana Rocio Cendales Reyes presentó VecinoPro, asistente de IA conversacional para tiendas de barrio que mejora inventario, compras y ventas. La tienda de barrio se digitaliza sin perder su esencia ni su alma. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/VecinoPro.jpg" data-resumen-url="pdfs/VecinoPro_resumen.pdf">
+        <td class="col-slot"><strong>29</strong><br><span class="slot-time">17:55–18:15</span></td>
+        <td class="col-logo"><img src="logos/VecinoPro.jpg" alt="VecinoPro" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>VecinoPro</strong></td>
+        <td class="col-autores">Oriana Rocio Cendales Reyes</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a1a8e">IA / Tecnología</span></td>
+        <td class="col-resumen">Asistente IA conversacional para tiendas de barrio. Controla inventario, mejora las compras y vende con POS simple, generando más rentabilidad al tendero.<a href="pdfs/VecinoPro_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Oriana Rocio Cendales Reyes presentó VecinoPro, asistente de IA conversacional para tiendas de barrio que mejora inventario, compras y ventas. La tienda de barrio se digitaliza sin perder su esencia ni su alma. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Oriana Rocio Cendales Reyes presentó VecinoPro, asistente de IA conversacional para tiendas de barrio que mejora inventario, compras y ventas. La tienda de barrio se digitaliza sin perder su esencia ni su alma. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/VecinoPro.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/VecinoPro_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Viernes 19 jun" data-sector="Otros" data-proj="HERITAGEBOX" data-authors="Patricio Javier Alvarado Strange"
+          data-resumen="Plataforma editorial de colecciones premium de cultura y patrimonio. Convierte visitas culturales en objetos coleccionables museum-grade con relato curatorial." data-linkedin="Patricio Javier Alvarado Strange presentó HERITAGEBOX, plataforma que transforma destinos patrimoniales en colecciones premium museum-grade. El patrimonio latinoamericano finalmente tiene el envoltorio que merece. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/HERITAGEBOX.jpg" data-resumen-url="pdfs/HERITAGEBOX_resumen.pdf">
+        <td class="col-slot"><strong>30</strong><br><span class="slot-time">18:20–18:40</span></td>
+        <td class="col-logo"><img src="logos/HERITAGEBOX.jpg" alt="HERITAGEBOX" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>HERITAGEBOX</strong></td>
+        <td class="col-autores">Patricio Javier Alvarado Strange</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a4a4a">Otros</span></td>
+        <td class="col-resumen">Plataforma editorial de colecciones premium de cultura y patrimonio. Convierte visitas culturales en objetos coleccionables museum-grade con relato curatorial.<a href="pdfs/HERITAGEBOX_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Patricio Javier Alvarado Strange presentó HERITAGEBOX, plataforma que transforma destinos patrimoniales en colecciones premium museum-grade. El patrimonio latinoamericano finalmente tiene el envoltorio que merece. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Patricio Javier Alvarado Strange presentó HERITAGEBOX, plataforma que transforma destinos patrimoniales en colecciones premium museum-grade. El patrimonio latinoamericano finalmente tiene el envoltorio que merece. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/HERITAGEBOX.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/HERITAGEBOX_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Viernes 19 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 18:45 – 19:05 hrs. — Toma de foto grupos 26 al 30</span>
+          <span style="color:#6b6b6b;font-size:0.82rem;margin-left:0.6rem;">(Sala de Estar)</span>
+        </td>
+      </tr>
+      <tr class="day-header" data-day="Sábado 20 jun">
+        <td colspan="8" style="background:#1a1a1a;color:#fff;padding:0.5rem 1rem;font-family:'Montserrat',sans-serif;font-size:0.8rem;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;">
+          📅 Sábado 20 jun
+        </td>
+      </tr>
+      
+      <tr class="evento-row" data-day="Sábado 20 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 08:30 – 08:50 hrs. — Introducción</span>
+        </td>
+      </tr>
+      <tr data-day="Sábado 20 jun" data-sector="Otros" data-proj="Avia Style" data-authors="Elkin Ricardo Ostos Salcedo"
+          data-resumen="Habilitador de dotación llave en mano (Furniture as a Service) para el pool de rentas de AVIA Suites. Estandariza y amobla los apartamentos para que operen en renta turística de forma legal, transparente y equitativa." data-linkedin="Elkin Ricardo Ostos Salcedo presentó Avia Style, habilitador de dotación llave en mano (Furniture as a Service) que estandariza y amobla apartamentos para el pool de rentas de AVIA Suites. La dotación deja de ser un dolor de cabeza para el propietario. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Avia_Style.jpg" data-resumen-url="pdfs/Avia_Style_resumen.pdf">
+        <td class="col-slot"><strong>31</strong><br><span class="slot-time">08:55–09:15</span></td>
+        <td class="col-logo"><img src="logos/Avia_Style.jpg" alt="Avia Style" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Avia Style</strong></td>
+        <td class="col-autores">Elkin Ricardo Ostos Salcedo</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a4a4a">Otros</span></td>
+        <td class="col-resumen">Habilitador de dotación llave en mano (Furniture as a Service) para el pool de rentas de AVIA Suites. Estandariza y amobla los apartamentos para que operen en renta turística de forma legal, transparente y equitativa.<a href="pdfs/Avia_Style_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Elkin Ricardo Ostos Salcedo presentó Avia Style, habilitador de dotación llave en mano (Furniture as a Service) que estandariza y amobla apartamentos para el pool de rentas de AVIA Suites. La dotación deja de ser un dolor de cabeza para el propietario. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Elkin Ricardo Ostos Salcedo presentó Avia Style, habilitador de dotación llave en mano (Furniture as a Service) que estandariza y amobla apartamentos para el pool de rentas de AVIA Suites. La dotación deja de ser un dolor de cabeza para el propietario. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Avia_Style.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Avia_Style_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 20 jun" data-sector="Otros" data-proj="TRADECOM ECUADOR" data-authors="Mateo Camilo de Wasseige Duperly"
+          data-resumen="Distribuidor especializado de insumos, repuestos y consumibles para la industria del cartón corrugado en Ecuador. Filial de Tradecom Colombia desde 2027." data-linkedin="Mateo Camilo de Wasseige Duperly presentó TRADECOM ECUADOR, distribuidora especializada de insumos para la industria del cartón corrugado en Ecuador. Colombia exporta conocimiento comercial y construye presencia en LATAM. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/TRADECOM_ECUADOR.jpg" data-resumen-url="pdfs/TRADECOM_ECUADOR_resumen.pdf">
+        <td class="col-slot"><strong>32</strong><br><span class="slot-time">09:20–09:40</span></td>
+        <td class="col-logo"><img src="logos/TRADECOM_ECUADOR.jpg" alt="TRADECOM ECUADOR" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>TRADECOM ECUADOR</strong></td>
+        <td class="col-autores">Mateo Camilo de Wasseige Duperly</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a4a4a">Otros</span></td>
+        <td class="col-resumen">Distribuidor especializado de insumos, repuestos y consumibles para la industria del cartón corrugado en Ecuador. Filial de Tradecom Colombia desde 2027.<a href="pdfs/TRADECOM_ECUADOR_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Mateo Camilo de Wasseige Duperly presentó TRADECOM ECUADOR, distribuidora especializada de insumos para la industria del cartón corrugado en Ecuador. Colombia exporta conocimiento comercial y construye presencia en LATAM. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Mateo Camilo de Wasseige Duperly presentó TRADECOM ECUADOR, distribuidora especializada de insumos para la industria del cartón corrugado en Ecuador. Colombia exporta conocimiento comercial y construye presencia en LATAM. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/TRADECOM_ECUADOR.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/TRADECOM_ECUADOR_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 20 jun" data-sector="IA / Tecnología" data-proj="Broker LLM" data-authors="Edwin Muñoz Aristizabal"
+          data-resumen="HyperGenIA orquesta el modelo LLM óptimo entre más de 20 opciones por proceso. Reduce costos un 30% y garantiza logs auditables para sectores regulados." data-linkedin="Edwin Muñoz Aristizabal presentó Broker LLM — HyperGenIA, plataforma que selecciona el mejor modelo de IA para cada proceso empresarial, reduciendo costos un 30%. La IA deja de ser una caja negra y se convierte en un activo gestionable. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/Broker_LLM.jpg" data-resumen-url="pdfs/Broker_LLM_resumen.pdf">
+        <td class="col-slot"><strong>33</strong><br><span class="slot-time">09:45–10:05</span></td>
+        <td class="col-logo"><img src="logos/Broker_LLM.jpg" alt="Broker LLM" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>Broker LLM</strong></td>
+        <td class="col-autores">Edwin Muñoz Aristizabal</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a1a8e">IA / Tecnología</span></td>
+        <td class="col-resumen">HyperGenIA orquesta el modelo LLM óptimo entre más de 20 opciones por proceso. Reduce costos un 30% y garantiza logs auditables para sectores regulados.<a href="pdfs/Broker_LLM_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Edwin Muñoz Aristizabal presentó Broker LLM — HyperGenIA, plataforma que selecciona el mejor modelo de IA para cada proceso empresarial, reduciendo costos un 30%. La IA deja de ser una caja negra y se convierte en un activo gestionable. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Edwin Muñoz Aristizabal presentó Broker LLM — HyperGenIA, plataforma que selecciona el mejor modelo de IA para cada proceso empresarial, reduciendo costos un 30%. La IA deja de ser una caja negra y se convierte en un activo gestionable. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/Broker_LLM.jpg" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/Broker_LLM_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+      <tr data-day="Sábado 20 jun" data-sector="IA / Tecnología" data-proj="CLIC" data-authors="Germán Acosta"
+          data-resumen="Centro Latinoamericano de Innovación Cuántica: hub regional que acelera el time-to-discovery en I+D deep tech intensivo, conectando talento PhD y capacidades de computación cuántica para empresas e instituciones de la región." data-linkedin="Germán Acosta presentó CLIC, Centro Latinoamericano de Innovación Cuántica: un hub que acelera el time-to-discovery en I+D deep tech conectando talento PhD y capacidades de computación cuántica. La región suma talento doctoral para descubrir más rápido. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES"
+          data-logo="logos/CLIC.png" data-resumen-url="pdfs/CLIC_resumen.pdf">
+        <td class="col-slot"><strong>34</strong><br><span class="slot-time">10:10–10:30</span></td>
+        <td class="col-logo"><img src="logos/CLIC.png" alt="CLIC" class="logo-thumb"></td>
+        <td class="col-proyecto"><strong>CLIC</strong></td>
+        <td class="col-autores">Germán Acosta</td>
+        <td class="col-sector"><span class="sector-badge" style="background:#4a1a8e">IA / Tecnología</span></td>
+        <td class="col-resumen">Centro Latinoamericano de Innovación Cuántica: hub regional que acelera el time-to-discovery en I+D deep tech intensivo, conectando talento PhD y capacidades de computación cuántica para empresas e instituciones de la región.<a href="pdfs/CLIC_resumen.pdf" target="_blank" class="op-link">Ver One Pager →</a></td>
+        <td class="col-linkedin">
+          <div class="linkedin-text">Germán Acosta presentó CLIC, Centro Latinoamericano de Innovación Cuántica: un hub que acelera el time-to-discovery en I+D deep tech conectando talento PhD y capacidades de computación cuántica. La región suma talento doctoral para descubrir más rápido. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES</div>
+          <button class="btn-copy" onclick="copyText(this,'Germán Acosta presentó CLIC, Centro Latinoamericano de Innovación Cuántica: un hub que acelera el time-to-discovery en I+D deep tech conectando talento PhD y capacidades de computación cuántica. La región suma talento doctoral para descubrir más rápido. #SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES')">Copiar</button>
+        </td>
+        <td class="col-downloads"><a href="logos/CLIC.png" target="_blank" class="btn-dl btn-logo">⬇ Logo</a><a href="pdfs/CLIC_resumen.pdf"  target="_blank" class="btn-dl btn-res">⬇ One Pager</a></td>
+      </tr>
+
+      <tr class="evento-row" data-day="Sábado 20 jun">
+        <td colspan="8" style="background:#ffe066;border-left:4px solid #e30613;padding:0.85rem 1.2rem;">
+          <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;color:#1a1a1a;">🕐 10:35 – 11:10 hrs. — Evaluación y Cierre</span>
+          <span style="color:#6b6b6b;font-size:0.82rem;margin-left:0.6rem;">(Toma de foto grupos 31 a 34 · Sala de Estar)</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<footer>
+  <p>&copy; 2026 <a href="https://www.inalde.edu.co" target="_blank">INALDE Business School</a> — Universidad de La Sabana</p>
+  <p style="margin-top:0.4rem;">NAVES — Nuevas Aventuras Empresariales · Executive MBA FS 2024–2026</p>
+  <p style="margin-top:1.2rem;"><a href="/admin.html" style="color:rgba(255,255,255,0.5);font-size:0.75rem;letter-spacing:0.08em;text-decoration:none;">⚙ Admin</a></p>
+</footer>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+  let activeDay = 'all';
+
+  function setDay(day, btn) {
+    activeDay = day;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterTable();
+  }
+
+  function filterTable() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    let visible = 0;
+    document.querySelectorAll('#table-body tr:not(.day-header)').forEach(row => {
+      const text  = row.textContent.toLowerCase();
+      const rday  = row.dataset.day || '';
+      const show  = (!q || text.includes(q)) && (activeDay === 'all' || rday === activeDay);
+      row.style.display = show ? '' : 'none';
+      if (show && !row.classList.contains('evento-row')) visible++;
+    });
+    document.querySelectorAll('.day-header').forEach(dh => {
+      let next = dh.nextElementSibling, hasVis = false;
+      while (next && !next.classList.contains('day-header')) {
+        if (next.style.display !== 'none') hasVis = true;
+        next = next.nextElementSibling;
+      }
+      dh.style.display = hasVis ? '' : 'none';
+    });
+    document.getElementById('count-label').textContent = `Mostrando ${visible} proyecto${visible!==1?'s':''}`;
+  }
+
+  function copyText(btn, text) {
+    navigator.clipboard.writeText(
+      text.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')
+    ).then(() => {
+      btn.textContent='✓ Copiado'; btn.classList.add('copied');
+      setTimeout(()=>{btn.textContent='Copiar';btn.classList.remove('copied');},2000);
+    });
+  }
+
+  function downloadExcel() {
+    const wb = XLSX.utils.book_new();
+    const wsData = [['Slot','Hora','Día','Proyecto','Autores','Sector','One Pager','Post LinkedIn','Logo']];
+    const dataRows = document.querySelectorAll('#table-body tr[data-proj]');
+    const base = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
+    dataRows.forEach(row => {
+      const slot = row.querySelector('.col-slot strong');
+      const time = row.querySelector('.slot-time');
+      const resUrl  = row.dataset.resumenUrl ? base + row.dataset.resumenUrl : '';
+      const logoUrl = row.dataset.logo       ? base + row.dataset.logo       : '';
+      wsData.push([
+        slot ? slot.textContent : '',
+        time ? time.textContent : '',
+        row.dataset.day,
+        row.dataset.proj,
+        row.dataset.authors,
+        row.dataset.sector,
+        row.dataset.resumen,
+        row.dataset.linkedin.replace(/&amp;/g,'&').replace(/&quot;/g,'"'),
+        logoUrl
+      ]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:6},{wch:12},{wch:16},{wch:20},{wch:45},{wch:22},{wch:60},{wch:95},{wch:55}];
+    // One Pager column (G) as hyperlink
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    dataRows.forEach((row, idx) => {
+      const resUrl = row.dataset.resumenUrl ? base + row.dataset.resumenUrl : '';
+      const R = idx + 2;
+      const addrG = 'G' + R;
+      if (ws[addrG] && resUrl) ws[addrG] = {v: ws[addrG].v, t:'s', l:{Target:resUrl, Tooltip:'Ver One Pager'}};
+      const addrI = 'I' + R;
+      if (ws[addrI] && ws[addrI].v) ws[addrI] = {v: ws[addrI].v, t:'s', l:{Target:ws[addrI].v, Tooltip:'Ver Logo'}};
+    });
+    XLSX.utils.book_append_sheet(wb, ws, 'Proyectos NAVES 2026');
+    XLSX.writeFile(wb, 'NAVES_2026_Proyectos.xlsx');
+  }
+
+  filterTable();
+</script>
+</body>
+</html>

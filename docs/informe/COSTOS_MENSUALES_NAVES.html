@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 17mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1a1a1a; font-size: 12px; line-height: 1.5; margin: 0; }
+  .head { border-bottom: 4px solid #e30613; padding-bottom: 14px; margin-bottom: 20px; }
+  .kicker { color: #888; text-transform: uppercase; letter-spacing: 2px; font-size: 10px; margin: 0 0 6px; }
+  h1 { font-size: 23px; margin: 0 0 10px; }
+  .meta { font-size: 11px; color: #444; }
+  .meta strong { color: #1a1a1a; }
+  h2 { font-size: 15px; color: #e30613; margin: 24px 0 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+  h3 { font-size: 12.5px; margin: 16px 0 6px; }
+  p { margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; font-size: 11px; }
+  th { background: #1a1a1a; color: #fff; text-align: left; padding: 7px 9px; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  td { padding: 7px 9px; border-bottom: 1px solid #ececec; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .total td { border-top: 2px solid #e30613; font-weight: 700; font-size: 13px; background: #fff5f5; }
+  .subtotal td { border-top: 1px solid #bbb; font-weight: 700; background: #f4f4f4; }
+  .cols { display: flex; gap: 14px; margin: 10px 0; }
+  .card { flex: 1; background: #fafafa; border: 1px solid #eee; border-left: 4px solid #e30613; border-radius: 4px; padding: 12px 14px; }
+  .card .n { font-size: 22px; font-weight: 800; color: #e30613; line-height: 1.05; }
+  .card .l { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+  ul { margin: 6px 0 0; padding-left: 18px; }
+  ul li { margin: 3px 0; }
+  .muted { color: #888; font-size: 10px; }
+  .note { background: #fafafa; border: 1px solid #eee; border-left: 4px solid #888; border-radius: 4px; padding: 10px 13px; margin: 10px 0; font-size: 11px; }
+  .foot { margin-top: 24px; border-top: 1px solid #ddd; padding-top: 10px; color: #888; font-size: 10px; }
+  .badge { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 2px 7px; border-radius: 10px; }
+  .b-opt { background: #fff5f5; color: #e30613; border: 1px solid #f3c2c5; }
+  .b-inc { background: #ecfdf3; color: #16a34a; border: 1px solid #bbf7d0; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <p class="kicker">Costos operativos mensuales</p>
+    <h1>NAVES — Estimación de gastos de servidor y operación</h1>
+    <p class="meta">
+      <strong>Cliente:</strong> INALDE Business School — Programa Executive MBA &nbsp;·&nbsp;
+      <strong>Proyecto:</strong> NAVES (New Business Adventures)<br>
+      <strong>Documento:</strong> Cuadro consolidado de costos mensuales (servidor · IA · soporte) &nbsp;·&nbsp;
+      <strong>Emitido:</strong> 2 de julio de 2026
+    </p>
+  </div>
+
+  <p>Este documento consolida los costos mensuales recurrentes para operar la plataforma NAVES en producción.
+  Se distinguen dos momentos: el <strong>periodo de transición</strong> (mientras se completa la migración al servidor
+  de la Universidad de La Sabana) y la <strong>operación estable</strong> ya en la infraestructura institucional.
+  Todas las cifras provienen del Plan de desarrollo — Fases pendientes (§9).</p>
+
+  <h2>1. Gasto de servidor (hosting)</h2>
+
+  <h3>1.1 Servidor actual · VPS con EasyPanel (durante la migración)</h3>
+  <p>Mientras se cierra la migración a La Sabana, la plataforma sigue operando en el VPS de producción actual,
+  para no interrumpir el servicio a los participantes activos.</p>
+  <table>
+    <thead><tr><th style="width:35%">Concepto</th><th>Valor</th></tr></thead>
+    <tbody>
+      <tr><td>Proveedor</td><td>Hosting VPS (EasyPanel) actual de NAVES</td></tr>
+      <tr><td>Suscripción mensual</td><td><strong>COP 70.000 / mes</strong> (≈ USD 17)</td></tr>
+      <tr><td>Duración estimada</td><td>1 a 2 meses máximo (hasta cerrar Sprints 7 y 8)</td></tr>
+      <tr><td>Costo total estimado</td><td><strong>COP 70.000 – COP 140.000</strong></td></tr>
+      <tr><td>Quién lo asume</td><td>El cliente, directamente con el proveedor de hosting</td></tr>
+      <tr><td>Baja del servicio</td><td>El VPS se da de baja al verificar la operación estable en La Sabana</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.2 Servidor destino · Universidad de La Sabana</h3>
+  <p>El destino final es la infraestructura tecnológica institucional de la Universidad de La Sabana. Al alojarse
+  en el servidor propio de la universidad, <strong>no genera un costo de hosting externo</strong>. Requisitos técnicos del servidor:</p>
+  <table>
+    <thead><tr><th style="width:30%">Recurso</th><th>Mínimo</th><th>Recomendado</th></tr></thead>
+    <tbody>
+      <tr><td>RAM</td><td>4 GB</td><td>8 GB</td></tr>
+      <tr><td>CPU</td><td>2 vCPU</td><td>4 vCPU</td></tr>
+      <tr><td>Disco SSD</td><td>40 GB</td><td>80 GB</td></tr>
+      <tr><td>Sistema operativo</td><td>Linux (Ubuntu LTS / Debian)</td><td>Ubuntu 22.04 LTS</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">Sobre ese servidor se instala EasyPanel (Docker, certificados SSL Let's Encrypt y auto-deploy desde GitHub),
+  el mismo stack que ya opera hoy en el VPS actual.</p>
+
+  <h2>2. Otros costos operativos mensuales</h2>
+
+  <h3>2.1 Operación de IA <span class="badge b-opt">Elegir opción</span></h3>
+  <p>La plataforma usa IA para resúmenes ejecutivos, borradores de post de LinkedIn del Demo Day y propuesta de
+  calificación AOL. El cliente escoge un modelo de operación:</p>
+  <table>
+    <thead><tr><th style="width:22%">Aspecto</th><th>Opción A · Suscripción <span class="badge b-inc">Recomendada</span></th><th>Opción B · Cuenta propia</th></tr></thead>
+    <tbody>
+      <tr><td>Quién opera la cuenta</td><td>Proveedor de la plataforma</td><td>El cliente</td></tr>
+      <tr><td>Costo mensual</td><td><strong>USD 50 / mes</strong> (≈ COP 200.000) cobertura completa</td><td>Variable según consumo + tiempo del cliente</td></tr>
+      <tr><td>Gestión de claves y créditos</td><td>Incluida</td><td>A cargo del cliente</td></tr>
+      <tr><td>Cobertura</td><td>Hasta ~30 proyectos NAVES por cohorte activa</td><td>Según el plan que contrate el cliente</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.2 Soporte y mantenimiento mensual <span class="badge b-opt">Opcional</span></h3>
+  <p>Paquete de horas para atender ajustes sobre la plataforma en operación (corrección de bugs, ajustes menores de
+  interfaz, soporte a usuarios, monitoreo y capacitación puntual).</p>
+  <table>
+    <thead><tr><th style="width:50%">Concepto</th><th>Detalle</th></tr></thead>
+    <tbody>
+      <tr><td>Horas de soporte incluidas por mes</td><td>6 horas</td></tr>
+      <tr><td>Tarifa de soporte por hora</td><td>COP 90.000</td></tr>
+      <tr><td>Mensualidad fija</td><td><strong>COP 540.000 / mes</strong></td></tr>
+      <tr><td>Hora adicional de soporte</td><td>COP 90.000 / hora</td></tr>
+      <tr><td>Hora de desarrollo (nueva funcionalidad)</td><td>COP 110.000 / hora</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">Las horas no utilizadas en el mes no se acumulan al mes siguiente.</p>
+
+  <h2>3. Cuadro consolidado de costos mensuales</h2>
+
+  <h3>3.1 Durante la transición (1 – 2 meses)</h3>
+  <table>
+    <thead><tr><th style="width:55%">Concepto</th><th style="text-align:right">COP / mes</th><th style="text-align:right">USD / mes aprox.</th></tr></thead>
+    <tbody>
+      <tr><td>Servidor VPS actual (EasyPanel)</td><td class="n">70.000</td><td class="n">17</td></tr>
+      <tr><td>Operación de IA — Opción A (suscripción)</td><td class="n">200.000</td><td class="n">50</td></tr>
+      <tr><td>Soporte y mantenimiento (6 h) — opcional</td><td class="n">540.000</td><td class="n">135</td></tr>
+      <tr class="total"><td>Total mensual (con soporte)</td><td class="n">810.000</td><td class="n">202</td></tr>
+      <tr class="subtotal"><td>Total mensual (sin soporte)</td><td class="n">270.000</td><td class="n">67</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.2 Operación estable en La Sabana (tras la migración)</h3>
+  <table>
+    <thead><tr><th style="width:55%">Concepto</th><th style="text-align:right">COP / mes</th><th style="text-align:right">USD / mes aprox.</th></tr></thead>
+    <tbody>
+      <tr><td>Servidor institucional Universidad de La Sabana</td><td class="n">0 *</td><td class="n">0 *</td></tr>
+      <tr><td>Operación de IA — Opción A (suscripción)</td><td class="n">200.000</td><td class="n">50</td></tr>
+      <tr><td>Soporte y mantenimiento (6 h) — opcional</td><td class="n">540.000</td><td class="n">135</td></tr>
+      <tr class="total"><td>Total mensual (con soporte)</td><td class="n">740.000</td><td class="n">185</td></tr>
+      <tr class="subtotal"><td>Total mensual (sin soporte)</td><td class="n">200.000</td><td class="n">50</td></tr>
+    </tbody>
+  </table>
+  <p class="muted">* El hosting lo asume la Universidad de La Sabana en su propia infraestructura; no hay costo de VPS externo.</p>
+
+  <div class="cols">
+    <div class="card"><div class="n">COP 70.000<span style="font-size:12px">/mes</span></div><div class="l">Gasto de servidor puro (durante transición)</div></div>
+    <div class="card"><div class="n">COP 0<span style="font-size:12px">/mes</span></div><div class="l">Gasto de servidor tras migrar a La Sabana</div></div>
+    <div class="card"><div class="n">COP 200.000<span style="font-size:12px">/mes</span></div><div class="l">Costo mínimo recurrente (solo IA)</div></div>
+  </div>
+
+  <div class="note">
+    <strong>Resumen.</strong> El gasto de <em>servidor</em> propiamente dicho es de <strong>COP 70.000/mes</strong> únicamente
+    durante la transición (1–2 meses, máximo COP 140.000 en total). Una vez migrada la plataforma al servidor de la
+    Universidad de La Sabana, el hosting deja de generar costo externo. A partir de ahí, el único gasto operativo
+    obligatorio es la operación de IA (COP 200.000/mes con la Opción A), y el soporte mensual es opcional.
+  </div>
+
+  <div class="foot">
+    INALDE Business School — Programa Executive MBA · Proyecto NAVES (New Business Adventures) · Estimación de costos mensuales · Emitido el 2 de julio de 2026.<br>
+    Fuente: Plan de desarrollo — Fases pendientes, §9 (Requerimientos técnicos). Cifras en COP; conversión a USD referencial (USD 1 ≈ COP 4.000).
+  </div>
+</body>
+</html>

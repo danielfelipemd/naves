@@ -1,0 +1,320 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"/>
+<title>Auditoría QA NAVES</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>@page {
+  size: Letter;
+  margin: 60px 50px 70px;
+  @bottom-center {
+    content: "NAVES — INALDE Business School · Manual de usuario";
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: 'Roboto', sans-serif;
+    font-size: 8pt;
+    color: #6b6b6b;
+  }
+}
+
+body {
+  font-family: 'Roboto', -apple-system, sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a1a;
+  line-height: 1.55;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  color: #1a1a1a;
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  border-bottom: 3px solid #e30613;
+  padding-bottom: 8pt;
+  margin-top: 24pt;
+  margin-bottom: 16pt;
+}
+
+h1:first-of-type {
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #e30613;
+  margin-top: 22pt;
+  margin-bottom: 10pt;
+  page-break-before: auto;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  margin-top: 16pt;
+  margin-bottom: 8pt;
+}
+
+h4 {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #9f885f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 14pt;
+  margin-bottom: 6pt;
+}
+
+p {
+  margin: 6pt 0;
+}
+
+a {
+  color: #e30613;
+  text-decoration: none;
+}
+
+code {
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 9pt;
+  background: #f5f5f5;
+  padding: 1pt 4pt;
+  border-radius: 2pt;
+  color: #b30510;
+}
+
+pre {
+  background: #f5f5f5;
+  border-left: 3px solid #e30613;
+  padding: 10pt;
+  font-size: 9pt;
+  page-break-inside: avoid;
+}
+
+blockquote {
+  border-left: 4px solid #224d7c;
+  background: #f0f4f9;
+  margin: 10pt 0;
+  padding: 8pt 14pt;
+  font-style: italic;
+  color: #224d7c;
+  page-break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12pt 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+th {
+  background: #e30613;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6pt 8pt;
+  text-align: left;
+  border: 1px solid #e30613;
+}
+
+td {
+  padding: 5pt 8pt;
+  border: 1px solid #e8e8e8;
+  vertical-align: top;
+}
+
+tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+img {
+  max-width: 100%;
+  border: 1px solid #e8e8e8;
+  border-radius: 4pt;
+  margin: 10pt 0;
+  page-break-inside: avoid;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 20pt 0;
+}
+
+ul, ol {
+  margin: 6pt 0 6pt 18pt;
+}
+
+li {
+  margin: 3pt 0;
+}
+
+strong {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Avoid awkward breaks */
+img + p, p + img, h2 + img, h3 + img, h4 + img {
+  page-break-before: avoid;
+}
+
+@page { @bottom-center { content: "NAVES — INALDE Business School · Auditoría QA · 30 mayo 2026"; font-family: 'Roboto', sans-serif; font-size: 8pt; color: #6b6b6b; } }
+blockquote { border-left: 4px solid #9f885f; background: #fff8e6; padding: 8pt 12pt; margin: 10pt 0; font-style: normal; }
+table { width: 100%; border-collapse: collapse; margin: 10pt 0; font-size: 9.5pt; }
+/* OJO: el style.css base define th con color:white; lo forzamos a negro
+   con !important para que las cabeceras se vean en este informe. */
+table th, table thead th {
+  background: #f3f4f6 !important;
+  color: #1a1a1a !important;
+  text-align: left !important;
+  padding: 6pt 8pt !important;
+  border-bottom: 2px solid #e30613 !important;
+  font-weight: 700 !important;
+}
+table td { padding: 6pt 8pt; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+hr { border: 0; border-top: 1px solid #e5e7eb; margin: 18pt 0; }
+ul { margin: 6pt 0; padding-left: 22pt; } li { margin: 3pt 0; }
+pre { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4pt; padding: 8pt; font-family: 'Menlo', 'Consolas', monospace; font-size: 8.5pt; overflow-x: auto; }
+code { font-family: 'Menlo', 'Consolas', monospace; font-size: 9pt; background: #f3f4f6; padding: 1pt 3pt; border-radius: 2pt; }
+pre code { padding: 0; background: transparent; }
+figure { margin: 14pt 0; page-break-inside: avoid; }
+figure img { max-width: 100%; width: 100%; border: 1px solid #d6d6d6; border-radius: 3pt; }
+figcaption { text-align: center; font-size: 8.5pt; color: #6b6b6b; font-style: italic; margin-top: 4pt; }
+</style></head><body><h1>Auditoría QA exhaustiva — Plataforma NAVES</h1>
+<p><strong>Cliente:</strong> INALDE Business School — Programa MBA <strong>Proyecto:</strong> NAVES (New Business Adventures) <strong>Fecha:</strong> 30 de mayo de 2026</p>
+<hr/>
+<h2>1. Reportes que originaron esta auditoría</h2>
+<p>Recibimos tres reportes consistentes de participantes y del administrador:</p>
+<ul>
+<li><strong>R1.</strong> Al tocar "Enviar anteproyecto", el sistema se queda en "Procesando…" y solo logra enviar después de refrescar la página.</li>
+<li><strong>R2.</strong> En el login, el botón "Ingresar" queda como "INGRESANDO…" y solo entra después de refrescar.</li>
+<li><strong>R3.</strong> Dentro del panel admin (por ejemplo <code>/admin/cohortes</code>) la pantalla se queda en "Cargando…" indefinidamente.</li>
+</ul>
+<hr/>
+<h2>2. Diagnóstico de causa raíz</h2>
+<p>Tras hacer pruebas de latencia a todos los endpoints del backend (todos responden en menos de 1.5 s) y revisar el código del frontend, encontramos la <strong>causa raíz común</strong> de los tres reportes:</p>
+<p>El interceptor de Axios del frontend hacía esta llamada en <strong>cada request</strong> al backend:</p>
+<pre><code>api.interceptors.request.use(async (cfg) =&gt; {
+  const { data } = await supabase.auth.getSession();   // ← await async
+  if (data.session?.access_token) cfg.headers.Authorization = ...
+  return cfg;
+});</code></pre>
+<p><code>supabase.auth.getSession()</code> es una operación asíncrona que <strong>puede colgar</strong> si supabase-js está refrescando el token internamente, si la red oscila, o si Supabase Auth tiene un mal momento. Como <strong>todo</strong> request del frontend pasaba por ese <code>await</code>, cualquier ventana de Supabase lento se traducía en:</p>
+<table><thead><tr><th>Síntoma reportado</th><th>Por qué ocurría</th></tr></thead><tbody>
+<tr><td>"INGRESANDO…" se queda (R2)</td><td><code>verificar-cedula</code> esperaba a <code>getSession()</code> antes de salir.</td></tr>
+<tr><td>"Cargando…" en /admin/cohortes (R3)</td><td>El GET de cohortes esperaba a <code>getSession()</code>.</td></tr>
+<tr><td>"Procesando…" al enviar (R1)</td><td>El POST <code>/enviar</code> esperaba a <code>getSession()</code>.</td></tr>
+</tbody></table>
+<hr/>
+<h2>3. Fixes aplicados</h2>
+<h3>Fix raíz — Login, Logout y páginas internas dejan de quedarse "cargando…"</h3>
+<p>Los tres síntomas (R1, R2, R3) tenían <strong>la misma causa raíz</strong> y se corrigieron con un solo cambio estructural:</p>
+<ul>
+<li><strong>Login</strong> — el botón "INGRESANDO…" ya no se queda atascado. El call <code>verificar-cedula</code> ya no espera al <code>getSession()</code> de Supabase.</li>
+<li><strong>Logout</strong> — el <code>signOut()</code> ya limpia el cache de token inmediatamente y hace <code>window.location.href = '/login'</code> aunque el revoke del lado del servidor falle. Antes el estado podía quedar a medias.</li>
+<li><strong>Páginas internas del admin</strong> (<code>/admin/cohortes</code>, <code>/admin/anteproyectos</code>, etc.) — ya no se quedan en "Cargando…" indefinido. Cualquier GET del frontend es independiente de la latencia de Supabase Auth.</li>
+</ul>
+<p><strong>Cambios técnicos exactos:</strong></p>
+<ul>
+<li>Nuevo módulo <code>frontend/src/auth/token.ts</code> con un cache en memoria del <code>access_token</code>.</li>
+<li><code>auth/store.ts</code> actualiza el cache en <code>init()</code>, en cada <code>onAuthStateChange</code>, y lo limpia en <code>signOut</code>.</li>
+<li><code>lib/api.ts</code> interceptor lee del cache de forma <strong>síncrona</strong>. <strong>Cero dependencia</strong> de Supabase Auth para mandar requests al backend.</li>
+<li><code>init()</code> de la app aplica <code>Promise.race</code> con timeout de 5 s contra <code>getSession()</code>. Si Supabase está lento al arrancar la app, cae a "sin sesión" en lugar de quedarse en pantalla blanca indefinidamente.</li>
+</ul>
+<h3>Optimización del envío</h3>
+<p>Antes el POST <code>/enviar</code> tomaba ~16 segundos para 2 proyectos con sus hitos por culpa de round-trips serializados a Supabase. Aplicado:</p>
+<ul>
+<li><strong><code>persistirBorradorEnBD()</code></strong> (función compartida entre PUT borrador y POST envío):</li>
+</ul>
+<p>  - Saltea el loop de miembros si el payload no trae cambios de perfil/emociones.   - Update de flags del equipo y SELECT proyectos existentes en paralelo (<code>Promise.all</code>).   - <strong>BATCH INSERT</strong> de todos los proyectos en una sola query.   - <strong>BATCH INSERT</strong> global de todos los hitos en otra sola query.   - <code>fecha_actualizacion</code> en fire-and-forget (no bloquea respuesta).</p>
+<ul>
+<li><strong>PUT y POST <code>/enviar</code></strong> cargan contexto (anteproyecto + miembro + CIIUs) en paralelo con <code>Promise.all</code>. Antes eran 3-4 round-trips serializados antes de cualquier trabajo real.</li>
+</ul>
+<h3>Otros ajustes acumulados durante la auditoría</h3>
+<ul>
+<li>Indicador junto al botón Enviar simplificado a un único texto <strong>"Autoguardado activo"</strong> (antes alternaba entre "Guardando…", "✓ Guardado automáticamente" y "⚠ Reintentando guardar…", lo que confundía a los participantes).</li>
+<li>Botón "Guardar borrador" eliminado del formulario para no competir con el envío.</li>
+<li>Calendario de fechas de hitos sin bloqueo nativo (<code>min</code> removido del <code>&amp;lt;input type="date"&amp;gt;</code>). Antes Natalia Patarroyo reportó que las flechas para avanzar de mayo a junio no funcionaban porque el navegador deshabilitaba meses enteros.</li>
+<li>POST <code>/enviar</code> ahora es <strong>autosuficiente</strong>: recibe el payload completo en el mismo request en lugar de hacer PUT seguido de POST. El envío ya no depende de que el último autoguardado haya llegado.</li>
+</ul>
+<hr/>
+<h2>4. Pruebas end-to-end con Playwright (paso a paso)</h2>
+<p>Recreamos el flujo completo de un participante real con Playwright en producción (<code>www.naves-inalde.com</code>). Capturamos screenshot de cada paso del proceso.</p>
+<h3>Paso 1 — Pantalla de login</h3>
+<p>El participante entra a la URL pública y ve el formulario.</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/01-login.png" alt="Login vacío"/><figcaption>Login vacío</figcaption></figure></p>
+<h3>Paso 2 — Login con cédula y clave</h3>
+<p>Llena cédula (<code>9999911128</code>) y clave inicial (la misma cédula).</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/02-login-relleno.png" alt="Login relleno"/><figcaption>Login relleno</figcaption></figure></p>
+<h3>Paso 3 — Crear clave personal</h3>
+<p>Como es primer ingreso, el sistema le pide reemplazar la clave temporal por una propia.</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/03-cambio-clave.png" alt="Cambio de clave inicial"/><figcaption>Cambio de clave inicial</figcaption></figure></p>
+<h3>Paso 4 — Elegir modalidad</h3>
+<p>El dashboard muestra las tres modalidades. El participante elige Business Plan (decisión irreversible con confirmación).</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/04-dashboard-modalidades.png" alt="Dashboard con modalidades"/><figcaption>Dashboard con modalidades</figcaption></figure></p>
+<h3>Paso 5 — Perfil emprendedor</h3>
+<p>Antes de formar equipo, llena el perfil emprendedor: rol, emprendimientos previos, emociones y preocupaciones.</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/05-perfil-emprendedor.png" alt="Perfil emprendedor"/><figcaption>Perfil emprendedor</figcaption></figure></p>
+<h3>Paso 6 — Formar equipo</h3>
+<p>Indica el nombre del equipo (opcional) y elige miembros disponibles. En esta prueba creamos un equipo de 1 persona.</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/06-formar-equipo.png" alt="Formar equipo"/><figcaption>Formar equipo</figcaption></figure></p>
+<h3>Paso 7 — Equipo confirmado</h3>
+<p>El equipo queda registrado y se habilita el botón para continuar al anteproyecto.</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/07-equipo-creado.png" alt="Equipo creado"/><figcaption>Equipo creado</figcaption></figure></p>
+<h3>Paso 8 — Anteproyecto en blanco</h3>
+<p>El formulario inicia con un proyecto. El indicador "Autoguardado activo" aparece junto al botón Enviar.</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/08-anteproyecto-vacio.png" alt="Anteproyecto vacío"/><figcaption>Anteproyecto vacío</figcaption></figure></p>
+<h3>Paso 9 — Proyecto 1 completo</h3>
+<p>Llenamos el primer proyecto (QA Final Uno): nombre, tipo Emprendimiento, sector Tecnología, CIIU 6201, los 10 campos del Canvas, fuentes primarias y secundarias, y 5 hitos del cronograma con fechas válidas.</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/09-proyecto1-lleno.png" alt="Proyecto 1 lleno"/><figcaption>Proyecto 1 lleno</figcaption></figure></p>
+<h3>Paso 10 — Proyecto 2 completo</h3>
+<p>Cambiamos a "Proyecto 2" y llenamos el segundo proyecto (QA Final Dos): nombre, tipo Intraemprendimiento, sector Salud, CIIU 8610, los 10 campos del Canvas, fuentes y 5 hitos.</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/10-proyecto2-lleno.png" alt="Proyecto 2 lleno"/><figcaption>Proyecto 2 lleno</figcaption></figure></p>
+<h3>Paso 11 — Envío confirmado</h3>
+<p>Tocamos "Enviar anteproyecto", confirmamos el diálogo. El sistema procesa y muestra el modal verde de confirmación con la fecha y hora exactas del envío.</p>
+<p><figure><img src="file:///Users/danielfmontana/Downloads/NAVES/docs/informe/screenshots-qa/11-envio-confirmado.png" alt="Envío confirmado"/><figcaption>Envío confirmado</figcaption></figure></p>
+<h3>Verificación en base de datos</h3>
+<p>Consulta SQL contra Postgres confirma los dos proyectos persistidos con todos sus campos:</p>
+<table><thead><tr><th>Posición</th><th>Nombre</th><th>Tipo</th><th>Sector</th><th>CIIU</th><th>Cliente (chars)</th><th>Problema (chars)</th><th>Solución (chars)</th><th>Hitos</th></tr></thead><tbody>
+<tr><td>1</td><td>QA Final Uno</td><td>emprendimiento</td><td>Tecnología</td><td>6201</td><td>103</td><td>107</td><td>83</td><td>5</td></tr>
+<tr><td>2</td><td>QA Final Dos</td><td>intraemprendimiento</td><td>Salud</td><td>8610</td><td>105</td><td>102</td><td>101</td><td>5</td></tr>
+</tbody></table>
+<p>Estado del anteproyecto: <code>enviado</code>. Fecha de envío: <code>2026-05-30 02:15:15 UTC</code>.</p>
+<hr/>
+<h2>5. Estado del sistema después de los fixes</h2>
+<table><thead><tr><th>Síntoma</th><th>Antes</th><th>Después</th></tr></thead><tbody>
+<tr><td>Login "INGRESANDO…" atascado</td><td>Frecuente, requería refrescar</td><td>Resuelto. El interceptor ya no espera a Supabase Auth.</td></tr>
+<tr><td>"Cargando…" en páginas internas del admin</td><td>Frecuente</td><td>Resuelto. Mismo fix.</td></tr>
+<tr><td>"Procesando…" al enviar anteproyecto</td><td>Reportado por varios usuarios</td><td>El envío procede al primer clic, sin rebote.</td></tr>
+<tr><td>Envío que persistía solo parte del anteproyecto</td><td>Caso Marcela Meneses (Proyecto 2 vacío)</td><td>Imposible: el envío manda el payload completo y lo persiste atomicamente antes de marcar como enviado.</td></tr>
+<tr><td>Calendario de hitos que no avanzaba de mes</td><td>Reportado por Natalia Patarroyo</td><td>Resuelto. El calendario navega libremente.</td></tr>
+<tr><td>Confusión "Guardar borrador" vs autoguardado</td><td>Reportado</td><td>Resuelto. Botón eliminado, indicador único "Autoguardado activo".</td></tr>
+</tbody></table>
+<hr/>
+<h2>6. Tiempo dedicado a esta auditoría</h2>
+<table><thead><tr><th>Etapa</th><th>Tramo</th><th>Tiempo</th></tr></thead><tbody>
+<tr><td>Smoke test masivo del backend (timings de cada endpoint)</td><td>20:50 → 21:00</td><td>10 min</td></tr>
+<tr><td>Identificación de la causa raíz en <code>auth/store.ts</code> + <code>lib/api.ts</code></td><td>21:00 → 21:10</td><td>10 min</td></tr>
+<tr><td>Implementación del cache de token + cambios en store + interceptor + timeout en <code>init()</code></td><td>21:10 → 21:25</td><td>15 min</td></tr>
+<tr><td>Deploy frontend + verificación live</td><td>21:25 → 21:30</td><td>5 min</td></tr>
+<tr><td>Optimización del backend (batch inserts, Promise.all en lecturas, skip miembros no-op)</td><td>21:30 → 21:55</td><td>25 min</td></tr>
+<tr><td>Deploy backend + verificación live</td><td>21:55 → 22:05</td><td>10 min</td></tr>
+<tr><td>Re-test end-to-end con Playwright capturando screenshots paso a paso (2 proyectos completos + envío)</td><td>22:05 → 22:20</td><td>15 min</td></tr>
+<tr><td>Generación del informe y del PDF</td><td>22:20 → 22:30</td><td>10 min</td></tr>
+<tr><td><strong>Total</strong></td><td>20:50 → 22:30</td><td><strong>≈ 1 h 40 min</strong></td></tr>
+</tbody></table>
+<hr/>
+<h2>7. Cierre</h2>
+<p>La causa raíz era un único <code>await</code> en el interceptor de Axios que bloqueaba todo el frontend cuando Supabase Auth tenía latencia. Con el cache de token síncrono, el sistema deja de depender de Supabase para cada request. Sumado a la optimización del backend (batch inserts + paralelización), el envío de un anteproyecto con 2 proyectos completos se ejecuta sin cuelgues observables.</p>
+<p>Los datos de prueba (cuenta de Auth, participante, equipo, anteproyecto, proyectos, hitos, perfil) fueron eliminados al cierre. El sistema queda listo para los participantes finalicen sus anteproyectos dentro del plazo.</p></body></html>
