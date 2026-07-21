@@ -70,6 +70,11 @@ const GROUPS: Group[] = [
         desc: 'Panel de control de la cohorte: indicadores clave, avance del proceso (equipos, anteproyectos, reuniones, definitivos, programación), actas e informe, y caracterización por modalidad y perfil emprendedor.',
       },
       {
+        to: '/admin/aol', icon: '🎓',
+        title: 'AoL — Assurance of Learning',
+        desc: 'Calificación AACSB de los Business Plan (competency goal Entrepreneurship): trabajos por calificar, análisis IA del calificador, rúbrica de 6 traits e informe de cohorte.',
+      },
+      {
         to: '/admin/programacion', icon: '📆',
         title: 'Programación',
         desc: 'Asigna los proyectos a los slots de cada jornada: horarios calculados automáticamente, breaks por bloque y Excel de calificación para los panelistas.',

@@ -27,6 +27,10 @@ import ProfesorProgramacionConsulta from './pages/profesor/ProgramacionConsulta'
 import TrabajosSectorPublico from './pages/publico/TrabajosSector';
 import AdminTrabajosSector from './pages/admin/TrabajosSectorAdmin';
 import AdminDashboardControl from './pages/admin/DashboardControl';
+import AolTrabajos from './pages/admin/aol/Trabajos';
+import AolCalificar from './pages/admin/aol/Calificar';
+import AolDashboard from './pages/admin/aol/Dashboard';
+import AolExport from './pages/admin/aol/Export';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminResumen from './pages/admin/Resumen';
 import AdminCohortes from './pages/admin/Cohortes';
@@ -137,6 +141,10 @@ export default function App() {
           <Route path="proyectos-db" element={<SuperAdminOnly><AdminProyectosDB /></SuperAdminOnly>} />
           <Route path="trabajos-sector" element={<SuperAdminOnly><AdminTrabajosSector /></SuperAdminOnly>} />
           <Route path="dashboard-control" element={<SuperAdminOnly><AdminDashboardControl /></SuperAdminOnly>} />
+          <Route path="aol" element={<SuperAdminOnly><AolTrabajos /></SuperAdminOnly>} />
+          <Route path="aol/calificar/:proyectoId" element={<SuperAdminOnly><AolCalificar /></SuperAdminOnly>} />
+          <Route path="aol/dashboard" element={<SuperAdminOnly><AolDashboard /></SuperAdminOnly>} />
+          <Route path="aol/export" element={<SuperAdminOnly><AolExport /></SuperAdminOnly>} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
           <Route path="auditoria" element={<SuperAdminOnly><AdminAuditoria /></SuperAdminOnly>} />
           <Route path="roles-permisos" element={<SuperAdminOnly><AdminRolesPermisos /></SuperAdminOnly>} />
