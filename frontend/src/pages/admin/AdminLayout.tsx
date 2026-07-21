@@ -14,7 +14,6 @@ const sectionLabels: Record<string, string> = {
   'proyectos-db': 'Trabajos de grado definitivos',
   'trabajos-sector': 'Trabajos por sector',
   'dashboard-control': 'Dashboard de control',
-  aol: 'AoL — Assurance of Learning',
   solicitudes: 'Solicitudes de desarchivado',
   auditoria: 'Auditorías',
   'roles-permisos': 'Roles y permisos',

@@ -26,7 +26,6 @@ import directoresRouter from './routes/directores.js';
 import profesorConsultaRouter from './routes/profesor-consulta.js';
 import trabajosSectorRouter from './routes/trabajos-sector.js';
 import dashboardControlRouter from './routes/dashboard-control.js';
-import aolRouter from './routes/aol.js';
 
 // === Red de seguridad del proceso ==========================================
 // Operaciones best-effort (notificaciones por correo, updates fire-and-forget a
@@ -92,7 +91,6 @@ app.use('/api/cohortes', cohortesRouter);
 app.use('/api/directores', directoresRouter);
 app.use('/api/profesor-consulta', profesorConsultaRouter);
 app.use('/api/dashboard-control', dashboardControlRouter);
-app.use('/api/aol', aolRouter);
 
 // 404 + error handlers
 app.use((_req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
