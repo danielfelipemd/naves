@@ -1,9 +1,29 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { NotificationBell } from './NotificationBell';
+
+// Breadcrumb (miga de pan) por pantalla — regla de navegación del sistema (QA #6).
+// Solo pantallas de participante/profesor: las de /admin ya tienen su propia miga
+// en AdminLayout. Cada ruta declara aquí su etiqueta; sin entrada, no se muestra.
+const CRUMBS: Record<string, string> = {
+  '/mi-perfil': 'Mi perfil',
+  '/equipo': 'Mi equipo',
+  '/anteproyecto': 'Anteproyecto',
+  '/trabajo-grado': 'Trabajo de grado',
+  '/seleccion': 'Selección del proyecto definitivo',
+  '/mi-profesor': 'Mi profesor',
+  '/sabana-proyectos': 'Sábana de socios',
+  '/mi-presentacion': 'Mi presentación',
+  '/consulta-cronograma': 'Cronograma',
+  '/profesor/seleccionar-proyectos': 'Elegir proyecto definitivo',
+  '/profesor/trabajos-definitivos': 'Trabajos de grado definitivos',
+  '/profesor/equipos': 'Consulta de equipos',
+  '/profesor/programacion': 'Programación',
+};
 
 export function Header() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const crumb = CRUMBS[pathname];
 
   // Botón "atrás" global: regla de navegación del sistema. Aparece en toda
   // pantalla salvo las "raíces" sin retroceso: el menú principal (destino de
@@ -59,6 +79,17 @@ export function Header() {
           <NotificationBell />
         </div>
       </div>
+      {crumb && (
+        <nav aria-label="Ruta de navegación" className="bg-white border-t border-inalde-gray-light/70 px-4 sm:px-8 py-1.5">
+          <div className="max-w-[1400px] mx-auto flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+            <Link to="/" className="text-inalde-gray hover:text-inalde-red font-primary font-semibold tracking-wider uppercase">
+              Menú principal
+            </Link>
+            <span className="text-inalde-gray">/</span>
+            <span className="text-inalde-text font-primary font-semibold tracking-wider uppercase">{crumb}</span>
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

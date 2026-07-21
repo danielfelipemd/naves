@@ -128,7 +128,11 @@ export default function AdminEquipos() {
               <button key={eq.id} onClick={() => setSeleccionado(eq)}
                 className="text-left border border-inalde-gray-light rounded p-4 hover:border-inalde-red transition bg-white">
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="font-primary font-bold text-base">{eq.nombre_equipo || <em className="text-inalde-gray">(sin nombre)</em>}</h3>
+                  <h3 className="font-primary font-bold text-base">
+                    {eq.nombre_equipo
+                      || eq.miembros_equipo.slice().sort((a, b) => a.posicion - b.posicion).map((m) => m.participantes_lista?.nombre_completo).filter(Boolean).join(' · ')
+                      || <em className="text-inalde-gray">Equipo sin identificar</em>}
+                  </h3>
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gold whitespace-nowrap">
                     {MODALIDAD_LABEL[eq.tipo_trabajo_grado] ?? eq.tipo_trabajo_grado}
                   </span>
@@ -261,12 +265,19 @@ function CrearEquipoModal({
             <p className="text-[11px] text-inalde-gray mt-1">Solo verás participantes que hayan elegido esta modalidad y aún no pertenezcan a un equipo.</p>
           </div>
 
-          <div>
-            <label className="block text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">Nombre del equipo (opcional)</label>
-            <input value={nombreEquipo} onChange={(e) => setNombreEquipo(e.target.value)}
-              placeholder="Ej: Los Disruptores"
-              className="input-inalde !py-2 w-full" />
-          </div>
+          {/* El Business Plan se identifica por el nombre del proyecto (del
+              anteproyecto), no por un nombre de equipo (QA #8). Solo Caso/PI usan
+              este campo, donde ES el nombre provisional del trabajo. */}
+          {modalidad !== 'business_plan' && (
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">
+                {modalidad === 'caso' ? 'Nombre provisional del caso' : 'Nombre provisional del proyecto de investigación'}
+              </label>
+              <input value={nombreEquipo} onChange={(e) => setNombreEquipo(e.target.value)}
+                placeholder={modalidad === 'caso' ? 'Ej.: Caso Empresa XYZ' : 'Ej.: Investigación en sector salud'}
+                className="input-inalde !py-2 w-full" />
+            </div>
+          )}
 
           <div>
             <label className="block text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">
@@ -369,7 +380,11 @@ function DetalleEquipo({
         <div className="border-b-[3px] border-inalde-red px-6 py-4 flex items-start justify-between gap-3">
           <div>
             <p className="section-subtitle mb-1">{MODALIDAD_LABEL[equipo.tipo_trabajo_grado] ?? equipo.tipo_trabajo_grado}</p>
-            <h2 className="font-primary font-bold text-xl">{equipo.nombre_equipo || <em className="text-inalde-gray">(sin nombre)</em>}</h2>
+            <h2 className="font-primary font-bold text-xl">
+              {equipo.nombre_equipo
+                || equipo.miembros_equipo.slice().sort((a, b) => a.posicion - b.posicion).map((m) => m.participantes_lista?.nombre_completo).filter(Boolean).join(' · ')
+                || <em className="text-inalde-gray">Equipo sin identificar</em>}
+            </h2>
             <p className="text-xs text-inalde-gray mt-1">Cohorte {equipo.cohorte_id}</p>
           </div>
           <button onClick={onClose} className="text-inalde-gray hover:text-inalde-red text-lg">×</button>

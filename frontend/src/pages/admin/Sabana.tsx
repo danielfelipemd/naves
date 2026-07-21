@@ -332,7 +332,7 @@ export default function Sabana() {
     <>
       <div className="border-b-[3px] border-inalde-red pb-4 mb-6">
         <p className="section-subtitle mb-1">Administración</p>
-        <h1 className="section-title">Sábana de proyectos</h1>
+        <h1 className="section-title">Sábana de anteproyectos</h1>
         <p className="text-sm text-inalde-gray mt-2">Vista consolidada de todos los anteproyectos enviados de una cohorte. Asigna profesores y comunica.</p>
       </div>
 

@@ -146,29 +146,30 @@ export default function MiEquipo() {
                 créalo en un solo paso (equipos de 1 a 3 personas).
               </p>
 
-              <div>
-                <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
-                  {modalidad === 'caso'
-                    ? 'Nombre provisional del caso'
-                    : modalidad === 'proyecto_investigacion'
-                      ? 'Nombre provisional del proyecto de investigación'
-                      : 'Nombre del equipo (opcional)'}
-                </label>
-                <input
-                  type="text"
-                  value={nombreEquipo}
-                  onChange={(e) => setNombreEquipo(e.target.value)}
-                  placeholder={
-                    modalidad === 'caso'
-                      ? 'Ej.: Caso Empresa XYZ'
-                      : modalidad === 'proyecto_investigacion'
-                        ? 'Ej.: Investigación en sector salud'
-                        : 'Los Disruptores'
-                  }
-                  className="input-inalde"
-                  maxLength={100}
-                />
-              </div>
+              {/* El Business Plan se identifica por el NOMBRE DEL PROYECTO (del
+                  anteproyecto), no por un nombre de equipo (QA #8). El nombre
+                  provisional solo aplica a Caso/PI, donde ES el nombre del trabajo. */}
+              {modalidad !== 'business_plan' && (
+                <div>
+                  <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
+                    {modalidad === 'caso'
+                      ? 'Nombre provisional del caso'
+                      : 'Nombre provisional del proyecto de investigación'}
+                  </label>
+                  <input
+                    type="text"
+                    value={nombreEquipo}
+                    onChange={(e) => setNombreEquipo(e.target.value)}
+                    placeholder={
+                      modalidad === 'caso'
+                        ? 'Ej.: Caso Empresa XYZ'
+                        : 'Ej.: Investigación en sector salud'
+                    }
+                    className="input-inalde"
+                    maxLength={100}
+                  />
+                </div>
+              )}
 
               <div>
                 <p className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">
@@ -232,10 +233,17 @@ export default function MiEquipo() {
                     ? 'Nombre provisional del caso'
                     : equipo.tipo_trabajo_grado === 'proyecto_investigacion'
                       ? 'Nombre provisional del proyecto de investigación'
-                      : 'Equipo'}
+                      : 'Tu equipo'}
                 </p>
                 <h2 className="text-xl font-primary font-bold text-inalde-text">
-                  {equipo.nombre_equipo ?? '(sin nombre)'}
+                  {equipo.tipo_trabajo_grado === 'business_plan'
+                    ? (equipo.miembros_equipo
+                        .slice()
+                        .sort((a, b) => a.posicion - b.posicion)
+                        .map((m) => m.participantes_lista?.nombre_completo)
+                        .filter(Boolean)
+                        .join(' · ') || 'Tu equipo')
+                    : (equipo.nombre_equipo ?? '(sin nombre)')}
                 </h2>
                 <p className="text-xs text-inalde-gray mt-1">Cohorte {equipo.cohorte_id} · {equipo.miembros_equipo.length} de 3 miembros</p>
               </div>

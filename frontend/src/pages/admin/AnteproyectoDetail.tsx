@@ -61,7 +61,7 @@ export default function AnteproyectoDetail() {
           <p className="section-subtitle mb-1">
             {MODALIDAD_LABEL[modalidad]} · {data.estado}
           </p>
-          <h1 className="section-title">{data.equipos.nombre_equipo ?? '(sin nombre)'}</h1>
+          <h1 className="section-title">{data.equipos.nombre_equipo || data.proyectos?.[0]?.nombre || 'Anteproyecto'}</h1>
           <p className="text-xs text-inalde-gray mt-1">Cohorte {data.equipos.cohorte_id}</p>
         </div>
         {!esArchivos && (

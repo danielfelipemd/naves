@@ -251,13 +251,13 @@ export default function Programacion() {
                     manera y la cabecera deja de caer sobre su columna. */}
                 <table className="w-full min-w-[1305px] table-fixed border-collapse bg-white">
                   <colgroup>
-                    <col className="w-[70px]" /><col className="w-[75px]" /><col className="w-[120px]" />
-                    <col className="w-[190px]" /><col className="w-[130px]" /><col className="w-[240px]" />
+                    <col className="w-[70px]" /><col className="w-[120px]" /><col className="w-[190px]" />
+                    <col className="w-[130px]" /><col className="w-[75px]" /><col className="w-[240px]" />
                     <col className="w-[260px]" /><col className="w-[130px]" /><col className="w-[90px]" />
                   </colgroup>
                   <thead>
                     <tr className="bg-inalde-text text-white">
-                      {['Slot', 'Logo', 'Proyecto', 'Autores', 'Sector', 'One Pager', 'Post LinkedIn', 'Descargas', ''].map((h, i) => (
+                      {['Slot', 'Proyecto', 'Autores', 'Sector', 'Logo', 'One Pager', 'Post LinkedIn', 'Descargas', ''].map((h, i) => (
                         <th key={i} scope="col" className="text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase whitespace-nowrap px-3 py-2.5">{h}</th>
                       ))}
                     </tr>
@@ -277,17 +277,17 @@ export default function Programacion() {
                           <strong className="font-primary text-inalde-text">{f.s.slot}</strong>
                           <span className="block text-[0.7rem] text-inalde-gray mt-0.5 font-mono">{f.s.hora_inicio}–{f.s.hora_fin}</span>
                         </td>
-                        <td className="text-center px-3 py-2.5">
-                          {f.s.logo_url
-                            ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[55px] max-h-[45px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
-                            : <span className="text-[0.7rem] text-inalde-gray italic">Sin logo</span>}
-                        </td>
                         <td className="px-3 py-2.5 font-primary font-bold text-[0.85rem] text-inalde-text">{f.s.proyecto}</td>
                         <td className="px-3 py-2.5 text-[0.78rem] text-inalde-gray">{f.s.autores}</td>
                         <td className="px-3 py-2.5">
                           {f.s.sector && (
                             <span className="inline-block text-white rounded-[3px] px-2 py-0.5 font-primary font-bold text-[0.62rem] tracking-wider uppercase whitespace-nowrap" style={{ background: colorSector(f.s.sector) }}>{f.s.sector}</span>
                           )}
+                        </td>
+                        <td className="text-center px-3 py-2.5">
+                          {f.s.logo_url
+                            ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[55px] max-h-[45px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
+                            : <span className="text-[0.7rem] text-inalde-gray italic">Sin logo</span>}
                         </td>
                         <td className="px-3 py-2.5 text-[0.8rem] leading-relaxed">
                           {f.s.resumen ?? <span className="text-inalde-gray italic">Sin resumen</span>}

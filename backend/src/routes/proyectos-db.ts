@@ -5,8 +5,9 @@ import multer from 'multer';
 import ExcelJS from 'exceljs';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
-import { iaConfigurada, llamarClaude, extraerJSON } from '../services/ai.js';
-import { uploadAssetNaves, deleteAssetNaves, extForAsset, crearUrlProxyArchivo, mimeFromPath, type TipoAssetNaves } from '../services/storage.js';
+import { iaConfigurada } from '../services/ai.js';
+import { uploadAssetNaves, deleteAssetNaves, extForAsset, crearUrlProxyArchivo, mimeFromPath, downloadTrabajoGradoFile, type TipoAssetNaves } from '../services/storage.js';
+import { generarContenidoOnePager, type OnePagerDoc } from '../services/ai-onepager.js';
 import { proyectosFase2, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -267,7 +268,7 @@ const CANVAS_LABELS: Array<[string, string]> = [
   ['canvas_costos', 'Estructura de costos'],
 ];
 
-interface Fuente { nombre: string; sector: string; tipo: string; autores: string; texto: string; sha256: string; }
+interface Fuente { nombre: string; sector: string; tipo: string; autores: string; texto: string; onePagerPath: string | null; sha256: string; }
 async function fuenteProyecto(proyectoId: string): Promise<Fuente | null> {
   const { data: p } = await supabaseAdmin
     .from('proyectos')
@@ -275,6 +276,13 @@ async function fuenteProyecto(proyectoId: string): Promise<Fuente | null> {
     .eq('id', proyectoId).maybeSingle();
   if (!p) return null;
   const proy: any = p;
+
+  // One-pager real cargado por el equipo (PDF/imagen). Es la fuente PREFERIDA
+  // para la IA; el canvas queda como respaldo. Va en el sha para que cambiar
+  // el one-pager (o quitarlo) invalide la caché y regenere.
+  const { data: cont } = await supabaseAdmin
+    .from('proyecto_contenido').select('one_pager_path').eq('proyecto_id', proyectoId).maybeSingle();
+  const onePagerPath = ((cont as any)?.one_pager_path ?? null) as string | null;
 
   // Autores del equipo dueño del anteproyecto
   let autores = '';
@@ -298,44 +306,78 @@ async function fuenteProyecto(proyectoId: string): Promise<Fuente | null> {
   if ((proy.fuentes_primarias ?? '').trim()) partes.push(`Fuentes primarias: ${proy.fuentes_primarias.trim()}`);
   if ((proy.fuentes_secundarias ?? '').trim()) partes.push(`Fuentes secundarias: ${proy.fuentes_secundarias.trim()}`);
   const texto = partes.join('\n');
-  const sha256 = createHash('sha256').update(`${proy.nombre}|${proy.sector}|${proy.tipo}|${autores}|${texto}`).digest('hex');
-  return { nombre: proy.nombre, sector: proy.sector ?? '', tipo: proy.tipo ?? '', autores, texto, sha256 };
+  const sha256 = createHash('sha256').update(`${proy.nombre}|${proy.sector}|${proy.tipo}|${autores}|${texto}|${onePagerPath ?? ''}`).digest('hex');
+  return { nombre: proy.nombre, sector: proy.sector ?? '', tipo: proy.tipo ?? '', autores, texto, onePagerPath, sha256 };
+}
+
+// Descarga el one-pager real del bucket y lo devuelve como bloque para Claude
+// (document si es PDF, image si es png/jpg/webp). Devuelve null si no hay
+// one-pager cargado o si no se puede descargar (→ respaldo al canvas).
+async function cargarOnePagerDoc(path: string | null): Promise<OnePagerDoc | null> {
+  if (!path) return null;
+  const mediaType = mimeFromPath(path);
+  const kind = mediaType === 'application/pdf' ? 'pdf'
+    : mediaType.startsWith('image/') ? 'imagen'
+      : null;
+  if (!kind) return null; // formato no soportado por la IA (p. ej. xlsx) → respaldo
+  try {
+    const buf = await downloadTrabajoGradoFile(path);
+    return { kind, mediaType, base64: buf.toString('base64') };
+  } catch {
+    return null; // si falla la descarga, no reventamos: caemos al canvas
+  }
 }
 
 async function generarUno(proyectoId: string): Promise<{ resumen: string; linkedin: string; sha256: string }> {
   const f = await fuenteProyecto(proyectoId);
   if (!f) throw new Error('PROYECTO_NO_ENCONTRADO');
-  // Sin material del canvas no se puede describir con fidelidad → falla explícito.
-  if (f.texto.replace(/\s/g, '').length < 40) throw new Error('SIN_FUENTE');
+
+  // Fuente PREFERIDA: el one-pager real (leído por la IA, incluidas imágenes).
+  // Respaldo: el canvas. Sin one-pager Y sin canvas suficiente → falla explícito.
+  const doc = await cargarOnePagerDoc(f.onePagerPath);
+  if (!doc && f.texto.replace(/\s/g, '').length < 40) throw new Error('SIN_FUENTE');
 
   const system = [
     'Eres redactor de comunicaciones de INALDE Business School para el programa NAVES (trabajos de grado del Executive MBA).',
-    'Escribes en español con ortografía y gramática de la RAE.',
-    'REGLA ABSOLUTA: usa ÚNICAMENTE la información que te entregan del proyecto. No inventes datos, cifras, clientes ni sectores. Si algo no está, no lo afirmes.',
-    'Devuelves EXCLUSIVAMENTE un objeto JSON válido, sin texto adicional.',
+    'Escribes en español de Colombia, en tercera persona, con ortografía y gramática de la RAE.',
+    'No usas emojis ni superlativos vacíos ("innovador", "revolucionario", "líder del mercado", "único", etc.). Tono neutro y sobrio.',
+    'REGLA ABSOLUTA: usa ÚNICAMENTE la información del one-pager (o del texto de respaldo) que te entregan. No inventes datos, cifras, clientes ni sectores. Si algo no está, no lo afirmes.',
+    'Entregas el resultado exclusivamente llamando a la herramienta entregar_contenido.',
   ].join(' ');
 
-  const prompt = [
+  const partesInstruccion: string[] = [
     `Proyecto: ${f.nombre}`,
     f.sector ? `Sector: ${f.sector}` : '',
     f.tipo ? `Tipo: ${f.tipo}` : '',
-    f.autores ? `Autores (integrantes del equipo): ${f.autores}` : '',
+    f.autores ? `Autores (nombres completos, tal como están registrados; úsalos exactamente, no los cambies ni inventes): ${f.autores}` : '',
     '',
-    'Información del proyecto (fuente única, fiel):',
-    f.texto,
+    doc
+      ? 'Fuente ÚNICA y fiel: el ONE-PAGER del proyecto adjunto arriba. Léelo por completo, INCLUIDAS las imágenes, gráficos y datos que contenga.'
+      : 'No hay one-pager adjunto. Usa como fuente ÚNICA y fiel la siguiente información del proyecto:',
+    doc ? '' : f.texto,
     '',
-    'Genera un objeto JSON con estas claves:',
-    '- "resumen": una descripción clara y atractiva del emprendimiento en 1–2 frases (máximo ~280 caracteres), fiel a la información. Sin hashtags.',
-    `- "linkedin": un post para LinkedIn que empiece mencionando a los autores, describa el proyecto con fidelidad, tenga un tono profesional e inspirador, y TERMINE exactamente con estos hashtags en una línea aparte: ${HASHTAGS}`,
-    'Si la información es insuficiente para describir el negocio sin inventar, devuelve {"error":"motivo"}.',
-  ].filter((l) => l !== '').join('\n');
+    'Genera DOS piezas distintas y llama a la herramienta entregar_contenido con ellas:',
+    '',
+    'resumen — EXACTAMENTE 2 frases, sin autores, sin hashtags, sin emojis, sin superlativos vacíos:',
+    '  Frase 1 (qué es): tipo de negocio + para quién + dónde. Ej.: "FinTech colombiana que financia medicamentos y procedimientos urgentes no cubiertos por salud."',
+    '  Frase 2 (el diferencial o dato de validación). Ej.: "Aprobación en menos de 5 minutos, desembolso directo al proveedor médico."',
+    '',
+    'linkedin — tono celebratorio institucional, tercera persona, sin emojis, sin superlativos vacíos, con estas 3 partes en este orden:',
+    '  Parte 1 (autores + proyecto): "[Nombres completos] presentó/presentaron [PROYECTO], [qué es en una línea]." Usa los nombres completos indicados arriba, bien escritos.',
+    '  Parte 2 (una sola oración de cierre aspiracional). Ej.: "El campo colombiano tiene solución, y nació en un aula del Executive MBA."',
+    `  Parte 3 (hashtags fijos al final, en una línea aparte, EXACTAMENTE estos y en este orden): ${HASHTAGS}`,
+  ];
+  const instruccion = partesInstruccion.filter((l) => l !== '').join('\n');
 
-  const raw = await llamarClaude(prompt, { system, maxTokens: 1200 });
-  const obj = extraerJSON(raw);
-  if (obj?.error) throw new Error('SIN_FUENTE');
-  const resumen = (obj?.resumen ?? '').toString().trim();
-  let linkedin = (obj?.linkedin ?? '').toString().trim();
+  const { resumen, linkedin: linkedinRaw } = await generarContenidoOnePager({
+    system,
+    instruccion,
+    documento: doc,
+    maxTokens: 1500,
+  });
+  let linkedin = linkedinRaw;
   if (!resumen || !linkedin) throw new Error('IA_RESPUESTA_INCOMPLETA');
+  // Salvaguarda: si la IA omitió los hashtags fijos, los añadimos al final.
   if (!linkedin.includes('#SoyINALDE')) linkedin = `${linkedin}\n\n${HASHTAGS}`;
   return { resumen, linkedin, sha256: f.sha256 };
 }

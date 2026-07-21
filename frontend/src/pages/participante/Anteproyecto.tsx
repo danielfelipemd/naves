@@ -13,7 +13,7 @@ import { Header } from '../../components/inalde/Header';
 import { CiiuPicker } from '../../components/inalde/CiiuPicker';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
-import { AREAS_AFINIDAD } from '../../lib/areas';
+import { SECTORES } from '../../lib/sectores';
 
 // ============== Catálogos (alineados con DOCUMENTACION_BACKEND.md) ==========
 type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia' | 'ninguna';
@@ -1105,10 +1105,10 @@ function ProyectoForm({ proyecto, fechaEntrega, fechaFinal, onChange, onUpdateHi
             <option value="intraemprendimiento">Intraemprendimiento</option>
           </select>
         </Field>
-        <Field label="Sector">
-          <select value={proyecto.sector} onChange={(e) => onChange({ sector: e.target.value })} className="input-inalde">
+        <Field label="Sector" hint="Obligatorio. Define en qué bloque de presentaciones queda el proyecto.">
+          <select value={proyecto.sector} onChange={(e) => onChange({ sector: e.target.value })} className="input-inalde" required>
             <option value="">Selecciona un sector…</option>
-            {AREAS_AFINIDAD.map((a) => <option key={a} value={a}>{a}</option>)}
+            {SECTORES.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </Field>
         <div className="sm:col-span-2">

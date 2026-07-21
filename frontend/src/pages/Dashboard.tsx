@@ -477,34 +477,71 @@ export default function Dashboard() {
             </Link>
           )}
 
-          {/* Vista profesor (no super_admin) */}
+          {/* Vista profesor (no super_admin) — sección única "Admon Cohortes" (QA #5) */}
           {isProfesor && !isSuperAdmin && (
-            <div className="grid sm:grid-cols-2 gap-6">
-              <Link to="/profesor/seleccionar-proyectos" className="card-inalde-interactive flex flex-col gap-3">
-                <div className="text-3xl">🎯</div>
-                <h2 className="font-primary font-bold text-lg">Elegir proyecto definitivo</h2>
-                <p className="text-inalde-gray text-sm">Para cada uno de tus equipos asignados con más de un proyecto, marca cuál queda como definitivo después de la Reunión 1.</p>
-                <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
-              </Link>
-              <Link to="/admin/anteproyectos" className="card-inalde-interactive flex flex-col gap-3">
-                <div className="text-3xl">📋</div>
-                <h2 className="font-primary font-bold text-lg">Ver anteproyectos</h2>
-                <p className="text-inalde-gray text-sm">Lee los anteproyectos enviados por los equipos de tus cohortes.</p>
-                <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
-              </Link>
-              <Link to="/admin/sabana" className="card-inalde-interactive flex flex-col gap-3">
-                <div className="text-3xl">📑</div>
-                <h2 className="font-primary font-bold text-lg">Sábana</h2>
-                <p className="text-inalde-gray text-sm">Vista consolidada para la reunión de asignación.</p>
-                <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
-              </Link>
-              <Link to="/admin/solicitudes" className="card-inalde-interactive flex flex-col gap-3">
-                <div className="text-3xl">📨</div>
-                <h2 className="font-primary font-bold text-lg">Solicitudes</h2>
-                <p className="text-inalde-gray text-sm">Aprueba o rechaza desarchivado de proyectos.</p>
-                <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
-              </Link>
-            </div>
+            <section>
+              <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4 pb-2 border-b border-inalde-gray-light">
+                Admon Cohortes
+              </h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Link to="/admin/anteproyectos" className="card-inalde-interactive flex flex-col gap-3">
+                  <div className="text-3xl">📋</div>
+                  <h3 className="font-primary font-bold text-lg">Anteproyectos</h3>
+                  <p className="text-inalde-gray text-sm">Lee los anteproyectos enviados por los equipos de tus cohortes.</p>
+                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                </Link>
+
+                <Link to="/admin/sabana" className="card-inalde-interactive flex flex-col gap-3">
+                  <div className="text-3xl">📑</div>
+                  <h3 className="font-primary font-bold text-lg">Sábana de anteproyectos</h3>
+                  <p className="text-inalde-gray text-sm">Vista consolidada para la reunión de asignación.</p>
+                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                </Link>
+
+                <Link to="/profesor/seleccionar-proyectos" className="card-inalde-interactive flex flex-col gap-3">
+                  <div className="text-3xl">🎯</div>
+                  <h3 className="font-primary font-bold text-lg">Elegir proyecto definitivo</h3>
+                  <p className="text-inalde-gray text-sm">Para cada equipo asignado con más de un proyecto, marca cuál queda como definitivo tras la Reunión 1.</p>
+                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                </Link>
+
+                <Link to="/admin/solicitudes" className="card-inalde-interactive flex flex-col gap-3">
+                  <div className="text-3xl">📨</div>
+                  <h3 className="font-primary font-bold text-lg">Solicitudes</h3>
+                  <p className="text-inalde-gray text-sm">Aprueba o rechaza desarchivado de proyectos.</p>
+                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                </Link>
+
+                <Link to="/profesor/trabajos-definitivos" className="card-inalde-interactive flex flex-col gap-3">
+                  <div className="text-3xl">🗂️</div>
+                  <h3 className="font-primary font-bold text-lg">Trabajos de grado definitivos</h3>
+                  <p className="text-inalde-gray text-sm">Consulta los proyectos definitivos entregados por tus equipos (solo lectura).</p>
+                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                </Link>
+
+                <Link to="/profesor/equipos" className="card-inalde-interactive flex flex-col gap-3">
+                  <div className="text-3xl">👥</div>
+                  <h3 className="font-primary font-bold text-lg">Consulta de equipos</h3>
+                  <p className="text-inalde-gray text-sm">Ver los equipos asignados y sus participantes (solo consulta).</p>
+                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                </Link>
+
+                <Link to="/profesor/programacion" className="card-inalde-interactive flex flex-col gap-3">
+                  <div className="text-3xl">📆</div>
+                  <h3 className="font-primary font-bold text-lg">Programación final</h3>
+                  <p className="text-inalde-gray text-sm">Consulta la programación publicada de las presentaciones de tus cohortes.</p>
+                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                </Link>
+
+                {/* Pendiente: el módulo AOL. */}
+                <div className="card-inalde flex flex-col gap-3 opacity-60 cursor-not-allowed" aria-disabled="true">
+                  <div className="text-3xl grayscale">📊</div>
+                  <h3 className="font-primary font-bold text-lg text-inalde-gray">AOL</h3>
+                  <p className="text-inalde-gray text-sm">Estadísticas de Assurance of Learning y, a futuro, calificación de tus proyectos.</p>
+                  <span className="text-[10px] font-semibold tracking-wider uppercase text-inalde-gray bg-inalde-gray-bg px-2 py-0.5 rounded self-start">Próximamente</span>
+                </div>
+              </div>
+            </section>
           )}
         </div>
       </main>

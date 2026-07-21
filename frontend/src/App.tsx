@@ -21,6 +21,12 @@ import AdminPanelistas from './pages/admin/Panelistas';
 import AdminProgramacion from './pages/admin/Programacion';
 import AdminProyectosDB from './pages/admin/ProyectosDB';
 import ProfesorSeleccionarProyectos from './pages/profesor/SeleccionarProyectos';
+import ProfesorTrabajosDefinitivos from './pages/profesor/TrabajosDefinitivos';
+import ProfesorEquiposConsulta from './pages/profesor/EquiposConsulta';
+import ProfesorProgramacionConsulta from './pages/profesor/ProgramacionConsulta';
+import TrabajosSectorPublico from './pages/publico/TrabajosSector';
+import AdminTrabajosSector from './pages/admin/TrabajosSectorAdmin';
+import AdminDashboardControl from './pages/admin/DashboardControl';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminResumen from './pages/admin/Resumen';
 import AdminCohortes from './pages/admin/Cohortes';
@@ -98,6 +104,7 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/cambiar-clave-inicial" element={<CambiarClaveRoute />} />
         <Route path="/panelista/confirmar" element={<ConfirmarAsistencia />} />
+        <Route path="/trabajos/:cohorteId" element={<TrabajosSectorPublico />} />
 
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/mi-perfil" element={<ProtectedRoute><MiPerfil /></ProtectedRoute>} />
@@ -111,6 +118,9 @@ export default function App() {
         <Route path="/consulta-cronograma" element={<ProtectedRoute><ConsultaCronograma /></ProtectedRoute>} />
         <Route path="/programacion-interna" element={<ProgramacionInternaRoute />} />
         <Route path="/profesor/seleccionar-proyectos" element={<ProtectedRoute><ProfesorSeleccionarProyectos /></ProtectedRoute>} />
+        <Route path="/profesor/trabajos-definitivos" element={<ProtectedRoute><ProfesorTrabajosDefinitivos /></ProtectedRoute>} />
+        <Route path="/profesor/equipos" element={<ProtectedRoute><ProfesorEquiposConsulta /></ProtectedRoute>} />
+        <Route path="/profesor/programacion" element={<ProtectedRoute><ProfesorProgramacionConsulta /></ProtectedRoute>} />
 
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route index element={<SuperAdminOnly><AdminResumen /></SuperAdminOnly>} />
@@ -125,6 +135,8 @@ export default function App() {
           <Route path="panelistas" element={<SuperAdminOnly><AdminPanelistas /></SuperAdminOnly>} />
           <Route path="programacion" element={<SuperAdminOnly><AdminProgramacion /></SuperAdminOnly>} />
           <Route path="proyectos-db" element={<SuperAdminOnly><AdminProyectosDB /></SuperAdminOnly>} />
+          <Route path="trabajos-sector" element={<SuperAdminOnly><AdminTrabajosSector /></SuperAdminOnly>} />
+          <Route path="dashboard-control" element={<SuperAdminOnly><AdminDashboardControl /></SuperAdminOnly>} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
           <Route path="auditoria" element={<SuperAdminOnly><AdminAuditoria /></SuperAdminOnly>} />
           <Route path="roles-permisos" element={<SuperAdminOnly><AdminRolesPermisos /></SuperAdminOnly>} />

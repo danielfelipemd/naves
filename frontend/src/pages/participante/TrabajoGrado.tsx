@@ -560,6 +560,11 @@ export default function TrabajoGrado() {
                 anteproyectoHecho && fichaActiva === 'proyecto' ? 'text-white' : 'text-inalde-text'
               }`}>
                 Proyecto de grado
+                {finalSubido && (
+                  <span className={`text-[10px] uppercase tracking-wider font-semibold ${
+                    fichaActiva === 'proyecto' ? 'text-white/90' : 'text-inalde-blue'
+                  }`}>✓ Entregado</span>
+                )}
                 {!anteproyectoHecho && <span aria-hidden="true">🔒</span>}
               </span>
             </button>
