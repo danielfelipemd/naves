@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import ExcelJS from 'exceljs';
+import { PDFParse } from 'pdf-parse';
 import { supabaseAdmin } from '../../db/supabase.js';
 import { downloadTrabajoGradoFile } from '../storage.js';
 import { cargarCerebro, juzgar, type ResultadoJuicio } from './juicio.js';
@@ -29,9 +30,6 @@ export interface QuickScreen {
 interface PdfExtraido { paginas: number; textoCompleto: string; pages: Array<{ num: number; text: string }>; }
 
 async function extraerPdf(buf: Buffer): Promise<PdfExtraido> {
-  // Carga diferida: pdf-parse arrastra pdfjs (pesado). Solo se carga al analizar
-  // un trabajo, no al arrancar el servidor.
-  const { PDFParse } = await import('pdf-parse');
   const parser = new PDFParse({ data: new Uint8Array(buf) });
   const r: any = await parser.getText();
   const pages = ((r.pages ?? []) as any[]).map((p) => ({ num: p.num ?? 0, text: String(p.text ?? '') }));
