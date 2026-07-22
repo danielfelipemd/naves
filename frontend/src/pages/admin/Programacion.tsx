@@ -255,6 +255,10 @@ export default function Programacion() {
                     <col className="w-[160px]" /><col className="w-[75px]" /><col className="w-[240px]" />
                     <col className="w-[230px]" /><col className="w-[130px]" /><col className="w-[90px]" />
                   </colgroup>
+                  {/* El encabezado de columnas solo tiene sentido si la jornada
+                      tiene proyectos. En jornadas de solo actividades (p. ej. la
+                      apertura) se oculta para no mostrar columnas vacías. */}
+                  {j.slots.length > 0 && (
                   <thead>
                     <tr className="bg-inalde-text text-white">
                       {['Slot', 'Proyecto', 'Autores', 'Sector', 'Logo', 'One Pager', 'Post LinkedIn', 'Descargas', ''].map((h, i) => (
@@ -262,6 +266,7 @@ export default function Programacion() {
                       ))}
                     </tr>
                   </thead>
+                  )}
                   <tbody>
                     {filasDe(j).map((f) => f.kind === 'actividad' ? (
                       <tr key={`act-${f.a.tipo}-${f.a.hora_inicio}`} className="bg-inalde-gray-bg">

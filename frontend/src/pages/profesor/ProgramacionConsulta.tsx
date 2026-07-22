@@ -123,6 +123,9 @@ export default function ProgramacionConsulta() {
                                 <col className="w-[160px]" /><col className="w-[80px]" /><col className="w-[250px]" />
                                 <col className="w-[110px]" />
                               </colgroup>
+                              {/* Encabezado solo en jornadas con proyectos; en las
+                                  de solo actividades se oculta (columnas vacías). */}
+                              {j.slots.length > 0 && (
                               <thead>
                                 <tr className="bg-inalde-text text-white">
                                   {['Slot', 'Proyecto', 'Autores', 'Sector', 'Logo', 'Resumen', 'One Pager'].map((h, i) => (
@@ -130,6 +133,7 @@ export default function ProgramacionConsulta() {
                                   ))}
                                 </tr>
                               </thead>
+                              )}
                               <tbody>
                                 {filasDe(j).map((f, idx) => f.kind === 'actividad' ? (
                                   <tr key={`act-${idx}`} className="bg-inalde-gray-bg">
