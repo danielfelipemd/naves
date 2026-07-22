@@ -303,7 +303,7 @@ export default function Programacion() {
                         <td className="px-3 py-2.5">
                           {f.s.linkedin ? (
                             <>
-                              <div className="text-[0.76rem] leading-relaxed text-inalde-text mb-1.5 clamp-3" title={f.s.linkedin}>{f.s.linkedin}</div>
+                              <div className="text-[0.76rem] leading-relaxed text-inalde-text mb-1.5 whitespace-pre-line">{f.s.linkedin}</div>
                               <button onClick={() => copiar(f.s.proyecto_id, f.s.linkedin!)}
                                 className={`font-primary font-bold text-[0.63rem] tracking-wider uppercase border px-2 py-1 transition-colors ${copied === f.s.proyecto_id ? 'bg-inalde-blue text-white border-inalde-blue' : 'border-inalde-gray-light text-inalde-gray hover:bg-inalde-text hover:text-white hover:border-inalde-text'}`}>
                                 {copied === f.s.proyecto_id ? '✓ Copiado' : 'Copiar'}

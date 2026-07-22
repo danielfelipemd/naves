@@ -362,7 +362,7 @@ async function generarUno(proyectoId: string): Promise<{ resumen: string; linked
     '  Frase 1 (qué es): tipo de negocio + para quién + dónde. Ej.: "FinTech colombiana que financia medicamentos y procedimientos urgentes no cubiertos por salud."',
     '  Frase 2 (el diferencial o dato de validación). Ej.: "Aprobación en menos de 5 minutos, desembolso directo al proveedor médico."',
     '',
-    'linkedin — tono celebratorio institucional, tercera persona, sin emojis, sin superlativos vacíos, con estas 3 partes en este orden:',
+    'linkedin — post BREVE para LinkedIn: máximo 2 frases (además de los hashtags), unas 40–55 palabras en total. NO describas el problema, el mercado ni el contexto; NO expliques cómo funciona el producto. Tono celebratorio institucional, tercera persona, sin emojis, sin superlativos vacíos, con estas 3 partes en este orden:',
     '  Parte 1 (autores + proyecto): "[Nombres completos] presentó/presentaron [PROYECTO], [qué es en una línea]." Usa los nombres completos indicados arriba, bien escritos.',
     '  Parte 2 (una sola oración de cierre aspiracional). Ej.: "El campo colombiano tiene solución, y nació en un aula del Executive MBA."',
     `  Parte 3 (hashtags fijos al final, en una línea aparte, EXACTAMENTE estos y en este orden): ${HASHTAGS}`,
