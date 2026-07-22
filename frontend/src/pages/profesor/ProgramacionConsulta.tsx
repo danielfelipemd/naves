@@ -120,7 +120,7 @@ export default function ProgramacionConsulta() {
                             <table className="w-full min-w-[1100px] table-fixed border-collapse bg-white">
                               <colgroup>
                                 <col className="w-[80px]" /><col className="w-[200px]" /><col className="w-[220px]" />
-                                <col className="w-[130px]" /><col className="w-[80px]" /><col className="w-[280px]" />
+                                <col className="w-[160px]" /><col className="w-[80px]" /><col className="w-[250px]" />
                                 <col className="w-[110px]" />
                               </colgroup>
                               <thead>
@@ -140,7 +140,7 @@ export default function ProgramacionConsulta() {
                                     </td>
                                   </tr>
                                 ) : (
-                                  <tr key={`slot-${idx}`} className="border-b border-inalde-gray-light align-middle">
+                                  <tr key={`slot-${idx}`} className="border-b border-inalde-gray-light align-top">
                                     <td className="text-center px-3 py-2.5">
                                       <strong className="font-primary text-inalde-text">{f.s.slot}</strong>
                                       <span className="block text-[0.7rem] text-inalde-gray mt-0.5 font-mono">{f.s.hora_inicio}–{f.s.hora_fin}</span>
@@ -149,7 +149,7 @@ export default function ProgramacionConsulta() {
                                     <td className="px-3 py-2.5 text-[0.78rem] text-inalde-gray">{f.s.autores}</td>
                                     <td className="px-3 py-2.5">
                                       {f.s.sector && (
-                                        <span className="inline-block text-white rounded-[3px] px-2 py-0.5 font-primary font-bold text-[0.62rem] tracking-wider uppercase whitespace-nowrap" style={{ background: colorSector(f.s.sector) }}>{f.s.sector}</span>
+                                        <span className="inline-block max-w-full text-white rounded-[3px] px-2 py-0.5 font-primary font-bold text-[0.62rem] tracking-wider uppercase whitespace-normal break-words leading-tight" style={{ background: colorSector(f.s.sector) }}>{f.s.sector}</span>
                                       )}
                                     </td>
                                     <td className="text-center px-3 py-2.5">
