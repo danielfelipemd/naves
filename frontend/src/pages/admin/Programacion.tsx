@@ -245,7 +245,7 @@ export default function Programacion() {
                   </>
                 )}
               </div>
-              <div className="overflow-x-auto">
+              <div className="tabla-scroll">
                 {/* Los anchos se declaran UNA vez en el colgroup y el layout es
                     fijo: con table-auto el navegador reparte el sobrante a su
                     manera y la cabecera deja de caer sobre su columna. */}
@@ -258,7 +258,7 @@ export default function Programacion() {
                   <thead>
                     <tr className="bg-inalde-text text-white">
                       {['Slot', 'Proyecto', 'Autores', 'Sector', 'Logo', 'One Pager', 'Post LinkedIn', 'Descargas', ''].map((h, i) => (
-                        <th key={i} scope="col" className="text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase whitespace-nowrap px-3 py-2.5">{h}</th>
+                        <th key={i} scope="col" className="bg-inalde-text text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase whitespace-nowrap px-3 py-2.5">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -289,8 +289,10 @@ export default function Programacion() {
                             ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[55px] max-h-[45px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
                             : <span className="text-[0.7rem] text-inalde-gray italic">Sin logo</span>}
                         </td>
-                        <td className="px-3 py-2.5 text-[0.8rem] leading-relaxed">
-                          {f.s.resumen ?? <span className="text-inalde-gray italic">Sin resumen</span>}
+                        <td className="px-3 py-2.5 text-[0.8rem] leading-relaxed align-top">
+                          {f.s.resumen
+                            ? <span className="clamp-4" title={f.s.resumen}>{f.s.resumen}</span>
+                            : <span className="text-inalde-gray italic">Sin resumen</span>}
                           {f.s.one_pager_url && <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="block mt-1 font-primary font-bold text-[0.7rem] text-inalde-red hover:underline">Ver One Pager →</a>}
                         </td>
                         <td className="px-3 py-2.5">

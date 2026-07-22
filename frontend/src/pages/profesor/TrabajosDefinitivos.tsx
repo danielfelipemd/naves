@@ -96,7 +96,7 @@ export default function TrabajosDefinitivos() {
                               </div>
                               <p className="text-xs text-inalde-gray mt-0.5">{p.autores || '—'}</p>
                               {p.resumen ? (
-                                <p className="text-sm text-inalde-gray mt-2">{p.resumen}</p>
+                                <p className="text-sm text-inalde-gray mt-2 clamp-4" title={p.resumen}>{p.resumen}</p>
                               ) : (
                                 <p className="text-[11px] text-inalde-gray/70 italic mt-2">Sin resumen de comunicaciones aún.</p>
                               )}

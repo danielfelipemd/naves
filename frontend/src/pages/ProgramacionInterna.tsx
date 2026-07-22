@@ -129,7 +129,7 @@ export default function ProgramacionInterna() {
 function Escaleta({ filas }: { filas: Fila[] }) {
   return (
     <div className="bg-white rounded-lg shadow-inalde-card overflow-hidden mb-4">
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[72vh]">
         <table className="w-full text-sm">
           <caption className="sr-only">Escaleta de la jornada, actividad por actividad</caption>
           <thead>
@@ -174,7 +174,7 @@ function Panelistas({ panelistas, resumen }: { panelistas: Panelista[]; resumen:
       {!panelistas.length ? (
         <p className="px-4 py-6 text-center text-sm text-inalde-gray">Todavía no hay panelistas asignados a esta jornada.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[72vh]">
           <table className="w-full text-sm">
             <caption className="sr-only">Panelistas de la jornada con su transporte y comidas</caption>
             <thead>

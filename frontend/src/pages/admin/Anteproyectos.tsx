@@ -723,7 +723,7 @@ export default function Anteproyectos() {
                 )}
 
                 {/* Tabla */}
-                <div className="rounded-lg border border-inalde-gray-light overflow-x-auto shadow-inalde-card bg-white w-fit max-w-full">
+                <div className="rounded-lg border border-inalde-gray-light overflow-auto max-h-[72vh] shadow-inalde-card bg-white w-fit max-w-full">
                   <div>
                     <table className="text-sm border-collapse w-auto">
                       <thead>

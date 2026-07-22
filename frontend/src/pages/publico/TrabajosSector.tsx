@@ -128,7 +128,7 @@ export default function TrabajosSector() {
                           <p className="text-sm text-inalde-gray italic">Este proyecto es confidencial: no se comparte su material.</p>
                         ) : (
                           <>
-                            {p.resumen && <p className="text-sm text-inalde-text leading-relaxed mb-2">{p.resumen}</p>}
+                            {p.resumen && <p className="text-sm text-inalde-text leading-relaxed mb-2 clamp-4" title={p.resumen}>{p.resumen}</p>}
                             <div className="flex flex-wrap items-center gap-2">
                               {p.one_pager_url && (
                                 <a href={p.one_pager_url} target="_blank" rel="noreferrer" className="text-[0.72rem] font-primary font-bold text-inalde-red hover:underline">Ver One Pager →</a>

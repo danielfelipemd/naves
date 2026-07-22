@@ -268,7 +268,7 @@ export default function Directores() {
         </div>
       )}
 
-      <div className="border border-inalde-gray-light rounded overflow-x-auto">
+      <div className="border border-inalde-gray-light rounded overflow-auto max-h-[72vh]">
         <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-inalde-gray-bg text-left">
             <tr>

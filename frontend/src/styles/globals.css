@@ -90,4 +90,28 @@
   .section-subtitle {
     @apply font-primary font-semibold text-sm tracking-wider text-inalde-gold uppercase;
   }
+
+  /* Contenedor de tabla: scroll en AMBOS ejes (horizontal y vertical) para no
+     sacrificar la vista en pantallas pequeñas. La tabla puede ser más ancha y
+     más alta que la pantalla; se navega con scroll y nada se solapa. */
+  .tabla-scroll {
+    @apply overflow-auto rounded-lg border border-inalde-gray-light;
+    max-height: 72vh;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Cabecera fija al hacer scroll vertical dentro de .tabla-scroll. Los <th>
+     que la usen deben llevar su propio fondo (las tablas INALDE usan header
+     oscuro `bg-inalde-text`), para que las filas no se transparenten debajo. */
+  .tabla-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+}
+
+@layer utilities {
+  /* Recorte de resúmenes largos a N líneas (evita filas kilométricas). */
+  .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 }

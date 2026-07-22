@@ -53,7 +53,7 @@ function TablaDinamica({ filas, vacio }: { filas: Record<string, unknown>[]; vac
   }
   const columnas = Object.keys(filas[0]);
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-auto max-h-[72vh]">
       <table className="w-full border-collapse bg-white">
         <thead>
           <tr className="bg-inalde-text text-white">
@@ -233,7 +233,7 @@ export default function AolExport() {
             {data.resumen_actual.length === 0 ? (
               <p className="text-inalde-gray text-sm">Sin mediciones firmadas aún.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[72vh]">
                 <table className="w-full border-collapse bg-white">
                   <thead>
                     <tr className="bg-inalde-text text-white">

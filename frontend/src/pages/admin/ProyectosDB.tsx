@@ -241,7 +241,7 @@ export default function ProyectosDB() {
                   </div>
                 ) : (
                   <>
-                    {p.resumen && <p className="text-sm text-inalde-gray mt-2 border-t border-inalde-gray-light/60 pt-2">{p.resumen}</p>}
+                    {p.resumen && <p className="text-sm text-inalde-gray mt-2 border-t border-inalde-gray-light/60 pt-2 clamp-3" title={p.resumen}>{p.resumen}</p>}
                     {!p.resumen && <p className="text-[11px] text-inalde-gray/70 italic mt-2 border-t border-inalde-gray-light/60 pt-2">Sin contenido de comunicaciones aún{iaOn !== false ? ' — usa “✨ Generar IA”.' : '.'}</p>}
                   </>
                 )}

@@ -94,7 +94,7 @@ export default function AolTrabajos() {
       )}
 
       {data && data.trabajos.length > 0 && (
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[72vh]">
           <table className="w-full min-w-[860px] border-collapse bg-white">
             <thead>
               <tr className="bg-inalde-text text-white">

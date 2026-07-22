@@ -130,7 +130,7 @@ function JornadasTab({ jornadas }: { jornadas: Jornada[] }) {
         Las jornadas salen del cronograma de la cohorte: la jornada 1 del hito <strong>12 (Primera jornada presentaciones)</strong> y la 2 del hito <strong>13 (Segunda jornada presentaciones)</strong>.
         Para cambiar una fecha, edítala en <strong>Cohortes</strong>. El horario se define en <strong>Programación</strong>.
       </p>
-      <div className="border border-inalde-gray-light rounded overflow-x-auto">
+      <div className="border border-inalde-gray-light rounded overflow-auto max-h-[72vh]">
         <table className="w-full text-sm min-w-[520px]">
           <thead className="bg-inalde-gray-bg text-left"><tr>
             <th scope="col" className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">#</th>
@@ -233,7 +233,7 @@ function PanelistasTab({ cohorte, jornadas, panelistas, onChange, setMsg, busy, 
         </div>
       )}
 
-      <div className="border border-inalde-gray-light rounded overflow-x-auto">
+      <div className="border border-inalde-gray-light rounded overflow-auto max-h-[72vh]">
         <table className="w-full text-sm min-w-[820px]">
           <thead className="bg-inalde-gray-bg text-left"><tr>
             {['Panelista', 'Jornadas', 'Transporte', 'Comidas', 'Estado', 'Acciones'].map((h) => (

@@ -327,7 +327,7 @@ export default function ActasPanel() {
             {data.actas.length === 0 ? (
               <p className="text-inalde-gray text-sm">Aún no hay actas. Usa «Generar/actualizar actas».</p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-auto max-h-[72vh]">
                 <table className="w-full min-w-[820px] border-collapse bg-white">
                   <thead>
                     <tr className="bg-inalde-text text-white">

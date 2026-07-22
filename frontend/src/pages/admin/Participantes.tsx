@@ -370,7 +370,7 @@ export default function Participantes() {
       {/* Scroll horizontal en pantallas chicas: en menos de ~1050px la tabla
           aparece con scroll lateral. Anchos de columnas fijos para alinear
           todo verticalmente sin que el badge de cohorte se parta en dos lineas. */}
-      <div className="rounded border border-inalde-gray-light overflow-x-auto">
+      <div className="rounded border border-inalde-gray-light overflow-auto max-h-[72vh]">
         <table className="w-full text-sm min-w-[1040px] table-fixed">
           <colgroup>
             <col className="w-10" />

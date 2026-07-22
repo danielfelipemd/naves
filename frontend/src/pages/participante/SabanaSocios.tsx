@@ -85,7 +85,7 @@ export default function SabanaSocios() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-inalde-gray-light overflow-x-auto shadow-inalde-card bg-white w-fit max-w-full">
+              <div className="rounded-lg border border-inalde-gray-light overflow-auto max-h-[72vh] shadow-inalde-card bg-white w-fit max-w-full">
                 <table className="text-sm border-collapse w-auto">
                   <thead>
                     <tr className="bg-gradient-to-b from-inalde-text to-[#2a2a2a]">
