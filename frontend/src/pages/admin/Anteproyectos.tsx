@@ -54,6 +54,7 @@ interface AnteItem {
   fecha_envio: string | null;
   fecha_actualizacion: string;
   archivo_anteproyecto_path: string | null;
+  archivo_avance_path: string | null;
   archivo_proyecto_final_path: string | null;
   anteproyecto_aprobado_at: string | null;
   equipos: {
@@ -70,6 +71,7 @@ const ESTADO_LABELS: Record<string, string> = {
   borrador: 'Borrador',
   enviado: 'Enviado',
   entregado: 'Entregado',
+  avance: 'Avance',
   revisado: 'Revisado',
   aprobado: 'Aprobado',
   proyecto_final: 'Proyecto final',
@@ -85,6 +87,7 @@ function estadoDisplay(it: AnteItem): { key: string; label: string; cls: string 
   const modalidad = it.equipos?.tipo_trabajo_grado;
   if (modalidad === 'caso' || modalidad === 'proyecto_investigacion') {
     if (it.archivo_proyecto_final_path) return { key: 'proyecto_final', label: 'Proyecto final', cls: 'text-inalde-red' };
+    if (it.archivo_avance_path) return { key: 'avance', label: 'Avance', cls: 'text-inalde-blue' };
     if (it.anteproyecto_aprobado_at) return { key: 'aprobado', label: 'Aprobado', cls: 'text-inalde-red' };
     if (it.archivo_anteproyecto_path) return { key: 'entregado', label: 'Entregado', cls: 'text-inalde-blue' };
     return { key: 'borrador', label: 'Borrador', cls: 'text-inalde-gold' };

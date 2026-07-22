@@ -329,6 +329,7 @@ const fechasSchema = z.object({
   fecha_reunion_1: z.string().datetime().optional().nullable(),
   fecha_limite_seleccion_definitivo: z.string().datetime().optional().nullable(),
   fecha_limite_proyecto_final: z.string().datetime().optional().nullable(),
+  fecha_limite_avance: z.string().datetime().optional().nullable(),
   activa: z.boolean().optional(),
   hitos: z.array(hitoSchema).max(13).optional(),
 });
@@ -1245,7 +1246,7 @@ router.get('/anteproyectos', async (req, res) => {
     .from('anteproyectos')
     .select(`
       id, estado, fecha_envio, fecha_actualizacion,
-      archivo_anteproyecto_path, archivo_proyecto_final_path,
+      archivo_anteproyecto_path, archivo_avance_path, archivo_proyecto_final_path,
       anteproyecto_aprobado_at,
       equipos!inner ( id, nombre_equipo, cohorte_id, tipo_trabajo_grado,
         director:directores ( id, nombre_completo ),

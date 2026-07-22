@@ -34,27 +34,32 @@ const upload = multer({
 // Ambos entregables van en PDF, y solo PDF: un Word se ve distinto en cada
 // equipo que lo abre, así que no sirve como versión de entrega.
 const MIME_ANTEPROYECTO = new Set(['application/pdf']);
+const MIME_AVANCE = new Set(['application/pdf']);
 const MIME_PROYECTO_FINAL = new Set(['application/pdf']);
 
 const COL_PATH: Record<TipoArchivoTrabajo, string> = {
   'anteproyecto': 'archivo_anteproyecto_path',
+  'avance': 'archivo_avance_path',
   'proyecto-final': 'archivo_proyecto_final_path',
 };
 const COL_MIME: Record<TipoArchivoTrabajo, string> = {
   'anteproyecto': 'archivo_anteproyecto_mime',
+  'avance': 'archivo_avance_mime',
   'proyecto-final': 'archivo_proyecto_final_mime',
 };
 const COL_SIZE: Record<TipoArchivoTrabajo, string> = {
   'anteproyecto': 'archivo_anteproyecto_size_bytes',
+  'avance': 'archivo_avance_size_bytes',
   'proyecto-final': 'archivo_proyecto_final_size_bytes',
 };
 const COL_UPLOADED: Record<TipoArchivoTrabajo, string> = {
   'anteproyecto': 'archivo_anteproyecto_uploaded_at',
+  'avance': 'archivo_avance_uploaded_at',
   'proyecto-final': 'archivo_proyecto_final_uploaded_at',
 };
 
 function isTipoArchivo(v: string): v is TipoArchivoTrabajo {
-  return v === 'anteproyecto' || v === 'proyecto-final';
+  return v === 'anteproyecto' || v === 'avance' || v === 'proyecto-final';
 }
 
 async function loadAnteproyectoConEquipo(id: string) {
@@ -62,7 +67,7 @@ async function loadAnteproyectoConEquipo(id: string) {
     .from('anteproyectos')
     .select(`
       id, equipo_id, estado,
-      archivo_anteproyecto_path, archivo_proyecto_final_path,
+      archivo_anteproyecto_path, archivo_avance_path, archivo_proyecto_final_path,
       anteproyecto_aprobado_at,
       equipos:equipos!inner ( id, cohorte_id, tipo_trabajo_grado, nombre_equipo, director_id,
         proyecto_definitivo_id,
@@ -287,17 +292,34 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
         mensaje: 'El anteproyecto ya fue cargado y no se puede reemplazar.',
       });
     }
+  } else if (tipo === 'avance') {
+    // AVANCE (entrega intermedia): solo caso/PI. Exige tener el anteproyecto
+    // cargado y es de una sola carga (no reemplazable). La fecha del avance es
+    // un objetivo/advertencia: NO bloquea la carga tardía (decisión del área).
+    if (!esCasoPI) return res.status(400).json({ error: 'MODALIDAD_NO_USA_ARCHIVOS', modalidad });
+    if (!ant.archivo_anteproyecto_path) {
+      return res.status(403).json({
+        error: 'FALTA_ANTEPROYECTO',
+        mensaje: 'Carga primero tu anteproyecto: con eso se habilita el avance.',
+      });
+    }
+    if (yaSubido) {
+      return res.status(409).json({
+        error: 'AVANCE_YA_SUBIDO',
+        mensaje: 'El avance ya fue cargado y no se puede reemplazar.',
+      });
+    }
   } else {
     // MÓDULO DE PROYECTO (proyecto final). Aplica a todas las modalidades, pero
     // se habilita distinto porque los flujos son distintos:
-    //  - caso/PI: al cargar su archivo de anteproyecto. No pasan por la reunión
-    //    de profesores; esa selección es exclusiva del Business Plan.
+    //  - caso/PI: al cargar su AVANCE (que a su vez exige el anteproyecto). No
+    //    pasan por la reunión de profesores; esa selección es del Business Plan.
     //  - business plan: al elegirse el proyecto definitivo en la reunión.
     if (esCasoPI) {
-      if (!ant.archivo_anteproyecto_path) {
+      if (!ant.archivo_avance_path) {
         return res.status(403).json({
-          error: 'FALTA_ANTEPROYECTO',
-          mensaje: 'Carga primero tu anteproyecto: con eso se habilita el módulo de proyecto.',
+          error: 'FALTA_AVANCE',
+          mensaje: 'Carga primero tu avance (entrega intermedia): con eso se habilita el proyecto final.',
         });
       }
     } else if (!ant.equipos?.proyecto_definitivo_id) {
@@ -324,7 +346,7 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
   }
 
   const mime = req.file.mimetype;
-  const setPermitido = tipo === 'anteproyecto' ? MIME_ANTEPROYECTO : MIME_PROYECTO_FINAL;
+  const setPermitido = tipo === 'anteproyecto' ? MIME_ANTEPROYECTO : tipo === 'avance' ? MIME_AVANCE : MIME_PROYECTO_FINAL;
   if (!setPermitido.has(mime)) return res.status(400).json({ error: 'INVALID_MIME', mime });
 
   // La fecha límite es la de ENTREGA DEL ANTEPROYECTO: no puede cerrar el

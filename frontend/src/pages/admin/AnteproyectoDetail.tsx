@@ -37,7 +37,7 @@ export default function AnteproyectoDetail() {
     } finally { setBusy(false); }
   }
 
-  async function abrirArchivo(tipo: 'anteproyecto' | 'proyecto-final') {
+  async function abrirArchivo(tipo: 'anteproyecto' | 'avance' | 'proyecto-final') {
     if (!data) return;
     try {
       const r = await api.get(`/anteproyectos/${data.id}/archivo/${tipo}`);
@@ -100,11 +100,12 @@ function CasoPIView({
   data: any;
   busy: boolean;
   onAprobar: () => void;
-  onAbrirArchivo: (tipo: 'anteproyecto' | 'proyecto-final') => void;
+  onAbrirArchivo: (tipo: 'anteproyecto' | 'avance' | 'proyecto-final') => void;
 }) {
   const director = data.equipos?.director;
   const miembro = data.equipos?.miembros_equipo?.[0]?.participantes_lista;
   const anteproyectoPath = data.archivo_anteproyecto_path as string | null;
+  const avancePath = data.archivo_avance_path as string | null;
   const proyectoFinalPath = data.archivo_proyecto_final_path as string | null;
   const aprobadoAt = data.anteproyecto_aprobado_at as string | null;
 
@@ -158,6 +159,28 @@ function CasoPIView({
         )}
       </div>
 
+      {/* === Avance (entrega intermedia) ================================== */}
+      <div className="border border-inalde-gray-light rounded p-5 mb-5">
+        <h3 className="font-primary font-bold text-base mb-2">Avance <span className="text-xs font-normal text-inalde-gray">· entrega intermedia</span></h3>
+        {avancePath ? (
+          <>
+            <p className="text-sm text-inalde-gray mb-2">
+              Cargado el {new Date(data.archivo_avance_uploaded_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
+            </p>
+            <button onClick={() => onAbrirArchivo('avance')}
+              className="text-inalde-red font-semibold hover:underline text-sm">
+              Ver / descargar →
+            </button>
+          </>
+        ) : (
+          <p className="text-sm text-inalde-gray italic">
+            {anteproyectoPath
+              ? 'El participante aún no ha cargado el avance.'
+              : 'Bloqueado hasta que se cargue el anteproyecto.'}
+          </p>
+        )}
+      </div>
+
       {/* === Proyecto final ================================================ */}
       <div className="border border-inalde-gray-light rounded p-5 mb-6">
         <h3 className="font-primary font-bold text-base mb-2">Proyecto final</h3>
@@ -173,9 +196,9 @@ function CasoPIView({
           </>
         ) : (
           <p className="text-sm text-inalde-gray italic">
-            {aprobadoAt
-              ? 'El participante puede cargar el proyecto final cuando lo desee (dentro del cronograma).'
-              : 'Bloqueado hasta que se apruebe el anteproyecto.'}
+            {avancePath
+              ? 'El participante puede cargar el proyecto final (dentro del cronograma).'
+              : 'Bloqueado hasta que el participante cargue su avance.'}
           </p>
         )}
       </div>

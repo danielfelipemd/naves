@@ -22,12 +22,16 @@ interface Anteproyecto {
   archivo_anteproyecto_path: string | null;
   archivo_anteproyecto_mime: string | null;
   archivo_anteproyecto_uploaded_at: string | null;
+  archivo_avance_path: string | null;
+  archivo_avance_mime: string | null;
+  archivo_avance_uploaded_at: string | null;
   archivo_proyecto_final_path: string | null;
   archivo_proyecto_final_mime: string | null;
   archivo_proyecto_final_uploaded_at: string | null;
   anteproyecto_aprobado_at: string | null;
   fecha_limite_proyecto?: string | null;
   fecha_limite_proyecto_final?: string | null;
+  fecha_limite_avance?: string | null;
   assets?: Record<TipoAsset, AssetState | null>;
   equipos: {
     id: string;
@@ -233,7 +237,7 @@ export default function TrabajoGrado() {
   const [tieneEquipo, setTieneEquipo] = useState<boolean | null>(null);
   const [modalidadParticipante, setModalidadParticipante] = useState<Modalidad | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [subiendo, setSubiendo] = useState<'anteproyecto' | 'proyecto-final' | null>(null);
+  const [subiendo, setSubiendo] = useState<'anteproyecto' | 'avance' | 'proyecto-final' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [directores, setDirectores] = useState<Director[]>([]);
@@ -241,14 +245,15 @@ export default function TrabajoGrado() {
   const [guardandoDirector, setGuardandoDirector] = useState(false);
 
   const [subiendoAsset, setSubiendoAsset] = useState<TipoAsset | null>(null);
-  // Ficha activa (null = sigue el valor por defecto según el estado). Dos fichas:
-  // 'anteproyecto' y 'proyecto'.
-  const [ficha, setFicha] = useState<'anteproyecto' | 'proyecto' | null>(null);
+  // Ficha activa (null = sigue el valor por defecto según el estado). Fichas:
+  // 'anteproyecto', 'avance' (solo caso/PI) y 'proyecto'.
+  const [ficha, setFicha] = useState<'anteproyecto' | 'avance' | 'proyecto' | null>(null);
   // Compuerta antes de entrar al formulario de anteproyecto: "¿Ya decidiste tu
   // proyecto?". Sí → registrar; No → Decisor de Anteproyecto.
   const [gateOpen, setGateOpen] = useState(false);
 
   const inputAntRef = useRef<HTMLInputElement>(null);
+  const inputAvanceRef = useRef<HTMLInputElement>(null);
   const inputFinalRef = useRef<HTMLInputElement>(null);
   const inputAssetRefs: Record<TipoAsset, React.RefObject<HTMLInputElement>> = {
     one_pager: useRef<HTMLInputElement>(null),
@@ -311,17 +316,19 @@ export default function TrabajoGrado() {
     } finally { setGuardandoDirector(false); }
   }
 
-  async function subir(tipo: 'anteproyecto' | 'proyecto-final', file: File) {
+  async function subir(tipo: 'anteproyecto' | 'avance' | 'proyecto-final', file: File) {
     if (!ant) return;
-    // El proyecto final no se puede reemplazar: se confirma antes de subirlo.
-    if (tipo === 'proyecto-final') {
+    // Avance y proyecto final son DEFINITIVOS (una sola carga): se confirma antes.
+    if (tipo === 'proyecto-final' || tipo === 'avance') {
+      const etiqueta = tipo === 'avance' ? 'tu avance (entrega intermedia)' : 'tu proyecto final';
+      const inputRef = tipo === 'avance' ? inputAvanceRef : inputFinalRef;
       const ok = window.confirm(
-        `Vas a cargar "${file.name}" como tu proyecto final.\n\n` +
+        `Vas a cargar "${file.name}" como ${etiqueta}.\n\n` +
         'Es DEFINITIVO: una vez cargado no podrás modificarlo ni reemplazarlo.\n\n' +
         '¿Confirmas que es la versión correcta?',
       );
       if (!ok) {
-        if (inputFinalRef.current) inputFinalRef.current.value = '';
+        if (inputRef.current) inputRef.current.value = '';
         return;
       }
     }
@@ -351,6 +358,7 @@ export default function TrabajoGrado() {
       abortRef.current = null;
       setSubiendo(null);
       if (tipo === 'anteproyecto' && inputAntRef.current) inputAntRef.current.value = '';
+      if (tipo === 'avance' && inputAvanceRef.current) inputAvanceRef.current.value = '';
       if (tipo === 'proyecto-final' && inputFinalRef.current) inputFinalRef.current.value = '';
     }
   }
@@ -415,7 +423,7 @@ export default function TrabajoGrado() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [subiendo]);
 
-  async function abrirArchivo(tipo: 'anteproyecto' | 'proyecto-final') {
+  async function abrirArchivo(tipo: 'anteproyecto' | 'avance' | 'proyecto-final') {
     if (!ant) return;
     setError(null);
     try {
@@ -503,6 +511,7 @@ export default function TrabajoGrado() {
   const esCasoOPI = modalidad === 'caso' || modalidad === 'proyecto_investigacion';
   const directorAsignado = ant?.equipos?.director_id ?? null;
   const antSubido = !!ant?.archivo_anteproyecto_path;
+  const avanceSubido = !!ant?.archivo_avance_path;
   const finalSubido = !!ant?.archivo_proyecto_final_path;
 
   // Entrega final del Business Plan = 4 documentos: Business Plan (PDF) +
@@ -520,9 +529,12 @@ export default function TrabajoGrado() {
   const trabajoEntregado = esCasoOPI ? finalSubido : entregaCompleta;
 
   // La carga del proyecto final se habilita distinto por modalidad:
-  //  - caso/PI: al cargar su archivo de anteproyecto.
+  //  - caso/PI: al cargar su AVANCE (entrega intermedia), que a su vez exige el
+  //    anteproyecto. Así se respeta la secuencia anteproyecto → avance → final.
   //  - business plan: al elegirse el proyecto definitivo en la reunión.
-  const proyectoHabilitado = esCasoOPI ? antSubido : !!ant?.equipos?.proyecto_definitivo_id;
+  const proyectoHabilitado = esCasoOPI ? avanceSubido : !!ant?.equipos?.proyecto_definitivo_id;
+  // El AVANCE (solo caso/PI) se habilita al cargar el anteproyecto.
+  const avanceHabilitado = antSubido;
 
   // Anteproyecto DILIGENCIADO: habilita la ficha de proyecto de grado.
   //  - BP: el formulario ya fue enviado (estado ≠ borrador).
@@ -537,10 +549,21 @@ export default function TrabajoGrado() {
     ? new Date(fechaLimite).toLocaleString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
     : null;
 
-  // Ficha por defecto: si el anteproyecto ya está hecho, arrancamos en Proyecto
-  // de grado (es el paso importante); si no, en Anteproyecto. El clic del usuario
-  // manda por encima de este valor.
-  const fichaActiva: 'anteproyecto' | 'proyecto' = ficha ?? (anteproyectoHecho ? 'proyecto' : 'anteproyecto');
+  // Fecha límite del avance (caso/PI). Es un objetivo/advertencia: se puede subir
+  // tarde, pero se avisa si ya pasó.
+  const fechaLimiteAvance = ant?.fecha_limite_avance ?? null;
+  const avanceVencido = !!fechaLimiteAvance && new Date() > new Date(fechaLimiteAvance);
+  const fechaLimiteAvanceTexto = fechaLimiteAvance
+    ? new Date(fechaLimiteAvance).toLocaleString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+    : null;
+
+  // Ficha por defecto: en caso/PI seguimos la secuencia (anteproyecto → avance →
+  // proyecto); en BP arrancamos en Proyecto si el anteproyecto ya se envió. El
+  // clic del usuario manda por encima de este valor.
+  const fichaDefault: 'anteproyecto' | 'avance' | 'proyecto' = esCasoOPI
+    ? (avanceSubido ? 'proyecto' : antSubido ? 'avance' : 'anteproyecto')
+    : (anteproyectoHecho ? 'proyecto' : 'anteproyecto');
+  const fichaActiva: 'anteproyecto' | 'avance' | 'proyecto' = ficha ?? fichaDefault;
 
   return (
     <>
@@ -598,7 +621,7 @@ export default function TrabajoGrado() {
           )}
 
           {/* === Dos fichas: Anteproyecto (izq) · Proyecto de grado (der) === */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
+          <div className={`grid ${esCasoOPI ? 'grid-cols-3' : 'grid-cols-2'} gap-3 sm:gap-4 mb-6`}>
             <button
               onClick={() => setFicha('anteproyecto')}
               className={`rounded-lg border-2 px-4 py-4 text-left transition ${
@@ -613,6 +636,30 @@ export default function TrabajoGrado() {
                 {anteproyectoHecho && <span className="text-[10px] uppercase tracking-wider text-inalde-blue font-semibold">✓ Completado</span>}
               </span>
             </button>
+
+            {/* Ficha AVANCE — solo Caso y Proyecto de Investigación */}
+            {esCasoOPI && (
+            <button
+              onClick={() => { if (avanceHabilitado) setFicha('avance'); }}
+              disabled={!avanceHabilitado}
+              aria-disabled={!avanceHabilitado}
+              title={!avanceHabilitado ? 'Carga primero tu anteproyecto' : undefined}
+              className={`rounded-lg border-2 px-4 py-4 text-left transition ${
+                !avanceHabilitado
+                  ? 'border-inalde-gray-light bg-inalde-gray-bg/40 opacity-60 cursor-not-allowed'
+                  : fichaActiva === 'avance'
+                    ? 'border-inalde-red bg-inalde-red/5'
+                    : 'border-inalde-gray-light bg-white hover:border-inalde-gray'
+              }`}
+            >
+              <span className="block text-[10px] uppercase tracking-widest text-inalde-gray mb-1">Paso 2 · Entrega intermedia</span>
+              <span className="font-primary font-bold text-inalde-text flex items-center gap-2 flex-wrap">
+                Avance
+                {avanceSubido && <span className="text-[10px] uppercase tracking-wider text-inalde-blue font-semibold">✓ Cargado</span>}
+                {!avanceHabilitado && <span aria-hidden="true">🔒</span>}
+              </span>
+            </button>
+            )}
 
             <button
               onClick={() => { if (anteproyectoHecho) setFicha('proyecto'); }}
@@ -630,7 +677,7 @@ export default function TrabajoGrado() {
               <span className={`block text-[10px] uppercase tracking-widest mb-1 font-semibold ${
                 anteproyectoHecho && fichaActiva === 'proyecto' ? 'text-white/85' : 'text-inalde-red'
               }`}>
-                Paso 2 · Entrega final
+                Paso {esCasoOPI ? '3' : '2'} · Entrega final
               </span>
               <span className={`font-primary font-extrabold flex items-center gap-2 flex-wrap ${
                 anteproyectoHecho && fichaActiva === 'proyecto' ? 'text-white' : 'text-inalde-text'
@@ -723,6 +770,59 @@ export default function TrabajoGrado() {
                   </>
                 )}
               </>
+            ) : fichaActiva === 'avance' ? (
+              /* ======================= FICHA AVANCE (caso/PI) ======================= */
+              <>
+                <div className="flex items-start gap-3 mb-2">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-inalde-red font-semibold mb-1">Entrega intermedia · una sola vez</p>
+                    <h2 className="font-primary font-extrabold text-xl text-inalde-text">Avance</h2>
+                  </div>
+                </div>
+                <p className="text-sm text-inalde-gray mb-5">
+                  Es la entrega de la mitad del proceso. Se carga <strong>una sola vez</strong> y no se puede reemplazar. Con el avance cargado se habilita tu proyecto final.
+                </p>
+
+                {fechaLimiteAvanceTexto && (
+                  <div className="rounded border-l-4 border-inalde-gold bg-inalde-gold/10 px-4 py-3 text-sm text-inalde-text mb-5">
+                    {avanceVencido
+                      ? <>La fecha sugerida del avance ya pasó (<strong>{fechaLimiteAvanceTexto}</strong>). Aún puedes subirlo, pero hazlo cuanto antes.</>
+                      : <>Fecha sugerida para el avance: <strong>{fechaLimiteAvanceTexto}</strong>.</>}
+                  </div>
+                )}
+
+                {!avanceHabilitado ? (
+                  <div className="rounded border-l-4 border-inalde-gold bg-inalde-gray-bg px-4 py-3 text-sm text-inalde-text">
+                    Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.
+                  </div>
+                ) : (
+                  <div className="border-2 border-inalde-red/30 rounded-lg p-5 bg-inalde-red/5">
+                    <h3 className="font-primary font-bold text-base text-inalde-text mb-2">Documento del avance (PDF)</h3>
+                    {avanceSubido ? (
+                      <div className="text-sm text-inalde-gray">
+                        <p className="text-sm font-semibold text-green-700 mb-1">Avance recibido ✓</p>
+                        <p>✅ Cargado el {formatoFecha(ant!.archivo_avance_uploaded_at)} — <span className="text-inalde-text">{nombreArchivoDePath(ant!.archivo_avance_path)}</span></p>
+                        <button onClick={() => abrirArchivo('avance')} className="text-inalde-red font-semibold hover:underline text-sm mt-1">Descargar →</button>
+                        <p className="text-xs text-inalde-gray italic mt-3">Este archivo no se puede reemplazar.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="rounded border-l-4 border-inalde-red bg-white px-4 py-3 text-xs text-inalde-text mb-3">
+                          <strong>Atención:</strong> es <strong>definitivo</strong>. Una vez cargado <strong>no se puede modificar ni reemplazar</strong>.
+                        </div>
+                        <DropZone
+                          accept={MIME_ANTEPROYECTO_ACCEPT} hint="PDF"
+                          cta="Sube tu avance (PDF)"
+                          validate={(f) => aceptaMime('anteproyecto', f)} errMsg="Solo PDF."
+                          disabled={!!subiendo}
+                          subiendoEste={subiendo === 'avance'}
+                          onFile={(f) => subir('avance', f)} inputRef={inputAvanceRef}
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
             ) : (
               /* ======================= FICHA PROYECTO DE GRADO ======================= */
               <>
@@ -750,7 +850,7 @@ export default function TrabajoGrado() {
                 {!proyectoHabilitado ? (
                   <div className="rounded border-l-4 border-inalde-gold bg-inalde-gray-bg px-4 py-3 text-sm text-inalde-text">
                     {esCasoOPI ? (
-                      <>Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.</>
+                      <>Este paso se habilita <strong>en cuanto cargues tu avance</strong> (entrega intermedia).</>
                     ) : (
                       <>
                         Se habilita <strong>cuando se elija tu proyecto definitivo</strong>, después de la Reunión 1 con tu profesor.

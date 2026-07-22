@@ -18,6 +18,7 @@ interface Cohorte {
   fecha_reunion_1: string | null;
   fecha_limite_seleccion_definitivo: string | null;
   fecha_limite_proyecto_final: string | null;
+  fecha_limite_avance: string | null;
   activa: boolean;
   participantes_count: number;
   equipos_count: number;
@@ -30,6 +31,7 @@ const fechaFields = [
   ['fecha_reunion_1',                    'Reunión 1'],
   ['fecha_limite_seleccion_definitivo',  'Cierre selección definitivo'],
   ['fecha_limite_proyecto_final',        'Cierre entrega proyecto de grado'],
+  ['fecha_limite_avance',                'Entrega intermedia — avance (Caso / Proy. Investigación)'],
 ] as const;
 
 function toLocal(iso: string | null) {

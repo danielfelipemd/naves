@@ -5,7 +5,7 @@ import { config } from '../config.js';
 const BUCKET = 'trabajos-grado';
 const ARCHIVO_TOKEN_TTL_SECONDS = 300;
 
-export type TipoArchivoTrabajo = 'anteproyecto' | 'proyecto-final';
+export type TipoArchivoTrabajo = 'anteproyecto' | 'avance' | 'proyecto-final';
 
 const MIME_TO_EXT: Record<string, string> = {
   'application/pdf': 'pdf',

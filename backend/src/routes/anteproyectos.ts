@@ -80,6 +80,9 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
   if (ant.archivo_anteproyecto_path) {
     ant.archivo_anteproyecto_url = crearUrlProxyArchivo(ant.archivo_anteproyecto_path, ant.archivo_anteproyecto_mime);
   }
+  if (ant.archivo_avance_path) {
+    ant.archivo_avance_url = crearUrlProxyArchivo(ant.archivo_avance_path, ant.archivo_avance_mime);
+  }
   if (ant.archivo_proyecto_final_path) {
     ant.archivo_proyecto_final_url = crearUrlProxyArchivo(ant.archivo_proyecto_final_path, ant.archivo_proyecto_final_mime);
   }
@@ -98,13 +101,14 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
   //    trabajo de grado para mostrar fecha+hora y bloquear la carga vencida.
   ant.fecha_limite_proyecto = null;
   ant.fecha_limite_proyecto_final = null;
+  ant.fecha_limite_avance = null;
   if (ant.equipo_id) {
     const { data: eq } = await supabaseAdmin.from('equipos').select('cohorte_id').eq('id', ant.equipo_id).maybeSingle();
     const cohorteId = (eq as any)?.cohorte_id;
     if (cohorteId) {
       const [{ data: hito }, { data: coh }] = await Promise.all([
         supabaseAdmin.from('cohorte_hitos').select('fecha').eq('cohorte_id', cohorteId).eq('posicion', 10).maybeSingle(),
-        supabaseAdmin.from('cohortes').select('fecha_limite_proyecto_final').eq('id', cohorteId).maybeSingle(),
+        supabaseAdmin.from('cohortes').select('fecha_limite_proyecto_final, fecha_limite_avance').eq('id', cohorteId).maybeSingle(),
       ]);
       const fHito = (hito as any)?.fecha ?? null;
       ant.fecha_limite_proyecto = fHito;
@@ -112,6 +116,9 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
       ant.fecha_limite_proyecto_final = dt
         ? new Date(dt).toISOString()
         : (fHito ? new Date(`${fHito}T23:59:59-05:00`).toISOString() : null);
+      // Fecha límite del avance (entrega intermedia caso/PI): objetivo/advertencia.
+      const dtAvance = (coh as any)?.fecha_limite_avance;
+      ant.fecha_limite_avance = dtAvance ? new Date(dtAvance).toISOString() : null;
     }
   }
 
@@ -421,7 +428,7 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
       .from('anteproyectos')
       .select(`
         id, equipo_id, estado,
-        archivo_anteproyecto_path, archivo_proyecto_final_path,
+        archivo_anteproyecto_path, archivo_avance_path, archivo_proyecto_final_path,
         equipos:equipos!inner ( tipo_trabajo_grado, cohorte_id )
       `)
       .eq('id', req.params.id)
@@ -438,10 +445,12 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
 
   const modalidad = (ant.equipos as any)?.tipo_trabajo_grado;
 
-  // === Modalidades 'caso' / 'proyecto_investigacion': solo se exigen los 2 archivos
+  // === Modalidades 'caso' / 'proyecto_investigacion': se exigen los 3 archivos
+  //     de la secuencia anteproyecto → avance → proyecto final.
   if (modalidad === 'caso' || modalidad === 'proyecto_investigacion') {
     const faltantes: string[] = [];
     if (!ant.archivo_anteproyecto_path) faltantes.push('anteproyecto');
+    if (!ant.archivo_avance_path) faltantes.push('avance');
     if (!ant.archivo_proyecto_final_path) faltantes.push('proyecto_final');
     if (faltantes.length) return res.status(400).json({ error: 'ARCHIVOS_FALTANTES', faltantes });
 
