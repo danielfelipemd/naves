@@ -120,7 +120,7 @@ export default function ProgramacionConsulta() {
                             <table className="w-full min-w-[1100px] table-fixed border-collapse bg-white">
                               <colgroup>
                                 <col className="w-[80px]" /><col className="w-[200px]" /><col className="w-[220px]" />
-                                <col className="w-[160px]" /><col className="w-[80px]" /><col className="w-[250px]" />
+                                <col className="w-[160px]" /><col className="w-[100px]" /><col className="w-[230px]" />
                                 <col className="w-[110px]" />
                               </colgroup>
                               {/* Encabezado solo en jornadas con proyectos; en las
@@ -158,7 +158,7 @@ export default function ProgramacionConsulta() {
                                     </td>
                                     <td className="text-center px-3 py-2.5">
                                       {f.s.logo_url
-                                        ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[55px] max-h-[45px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
+                                        ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[80px] max-h-[64px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
                                         : <span className="text-[0.7rem] text-inalde-gray italic">Sin logo</span>}
                                     </td>
                                     <td className="px-3 py-2.5 text-[0.8rem] leading-relaxed align-top">

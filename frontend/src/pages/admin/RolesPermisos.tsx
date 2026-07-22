@@ -145,6 +145,7 @@ export default function RolesPermisos() {
             </button>
           </div>
 
+          <div className="overflow-auto max-h-[72vh]">
           <table className="w-full text-sm border border-inalde-gray-light rounded overflow-hidden">
             <thead className="bg-inalde-gray-bg text-left">
               <tr>
@@ -179,6 +180,7 @@ export default function RolesPermisos() {
               ))}
             </tbody>
           </table>
+          </div>
         </>
       )}
 
@@ -277,6 +279,7 @@ function UsersTable({ users, selected, onToggleSel, onEdit }: {
   }
 
   return (
+    <div className="overflow-auto max-h-[72vh]">
     <table className="w-full text-sm border border-inalde-gray-light rounded overflow-hidden">
       <thead className="bg-inalde-gray-bg text-left">
         <tr>
@@ -342,6 +345,7 @@ function UsersTable({ users, selected, onToggleSel, onEdit }: {
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 

@@ -252,7 +252,7 @@ export default function Programacion() {
                 <table className="w-full min-w-[1305px] table-fixed border-collapse bg-white">
                   <colgroup>
                     <col className="w-[70px]" /><col className="w-[120px]" /><col className="w-[190px]" />
-                    <col className="w-[160px]" /><col className="w-[75px]" /><col className="w-[240px]" />
+                    <col className="w-[160px]" /><col className="w-[95px]" /><col className="w-[220px]" />
                     <col className="w-[230px]" /><col className="w-[130px]" /><col className="w-[90px]" />
                   </colgroup>
                   {/* El encabezado de columnas solo tiene sentido si la jornada
@@ -291,7 +291,7 @@ export default function Programacion() {
                         </td>
                         <td className="text-center px-3 py-2.5">
                           {f.s.logo_url
-                            ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[55px] max-h-[45px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
+                            ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[80px] max-h-[64px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
                             : <span className="text-[0.7rem] text-inalde-gray italic">Sin logo</span>}
                         </td>
                         <td className="px-3 py-2.5 text-[0.8rem] leading-relaxed align-top">
