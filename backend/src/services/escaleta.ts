@@ -155,7 +155,13 @@ export async function getConfig(cohorteId: string): Promise<Config & { evento_no
 export async function jornadaConSlots(jornada: any, C: Config, esUltimo: boolean, pf: Map<string, ProyectoFase2>) {
   const { data: slots } = await supabaseAdmin
     .from('slot_presentacion').select('orden, proyecto_id').eq('jornada_id', jornada.id).order('orden');
-  const proyectos = (slots ?? []).map((s: any) => ({ ...(pf.get(s.proyecto_id) ?? { proyecto: '(sin asignar)', autores: '', sector: '' }), proyecto_id: s.proyecto_id }));
+  // Un slot asignado a un equipo que ya NO entra a Fase 2 (entrega incompleta:
+  // le falta alguno de los 4 documentos, o el proyecto fue borrado) NO debe
+  // ocupar un renglón. Se omite y la escaleta renumera/recalcula los horarios sin
+  // él. Si el equipo completa sus documentos vuelve a `pf` y su slot reaparece.
+  const proyectos = (slots ?? [])
+    .filter((s: any) => pf.has(s.proyecto_id))
+    .map((s: any) => ({ ...(pf.get(s.proyecto_id) as ProyectoFase2), proyecto_id: s.proyecto_id }));
   const filas = computarJornada(toMin(jornada.hora_inicio), !!jornada.foto_inicial, jornada.intro_min ?? 0, proyectos, 1, esUltimo, C);
   return { jornada, proyectos, filas };
 }
