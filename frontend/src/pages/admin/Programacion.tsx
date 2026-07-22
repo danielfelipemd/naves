@@ -355,7 +355,7 @@ export default function Programacion() {
           )}
           {sinProyectoFinal > 0 && (
             <p className="text-xs text-inalde-gray mt-1">
-              <strong>{sinProyectoFinal}</strong> equipo(s) todavía no han entregado su proyecto final, así que aún no son programables. Aparecerán aquí en cuanto lo carguen.
+              <strong>{sinProyectoFinal}</strong> equipo(s) todavía no tienen los 4 documentos completos (Business Plan, One Pager, Logo y Modelo Financiero), así que aún no son programables. Aparecerán aquí en cuanto los suban todos.
             </p>
           )}
         </>

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../db/supabase.js';
+import { entregaFinalCompleta } from './entrega-final.js';
 
 // Resolutor único de "qué proyectos entran a la Fase 2" de una cohorte.
 //
@@ -38,7 +39,36 @@ function autoresDe(equipo: any): string {
     .join(', ');
 }
 
-// Proyectos con proyecto final entregado, indexados por proyecto_id.
+// Material (one pager / logo / modelo financiero) por proyecto definitivo,
+// indexado por proyecto_id. Vive en proyecto_contenido.
+async function contenidoPorProyecto(proyectoIds: Array<string | null | undefined>): Promise<Map<string, any>> {
+  const map = new Map<string, any>();
+  const ids = [...new Set(proyectoIds.filter(Boolean) as string[])];
+  if (!ids.length) return map;
+  const { data } = await supabaseAdmin
+    .from('proyecto_contenido')
+    .select('proyecto_id, one_pager_path, logo_path, modelo_financiero_path')
+    .in('proyecto_id', ids);
+  for (const c of (data ?? []) as any[]) map.set(c.proyecto_id, c);
+  return map;
+}
+
+// ¿La entrega final del equipo está COMPLETA? En Business Plan exige los 4
+// documentos: PDF + one pager + logo + modelo financiero. Un documento faltante
+// ⇒ el equipo NO entra a la Fase 2 (no es programable, no aparece en la BD
+// interna ni se le genera contenido). Decisión del área: los 4 sí o sí.
+function equipoConEntregaCompleta(e: any, contMap: Map<string, any>): boolean {
+  const ante = pickAnte(e.anteproyectos);
+  const cont = e.proyecto_definitivo_id ? contMap.get(e.proyecto_definitivo_id) : null;
+  return entregaFinalCompleta('business_plan', {
+    archivoFinalPath: ante?.archivo_proyecto_final_path,
+    onePagerPath: cont?.one_pager_path,
+    logoPath: cont?.logo_path,
+    modeloFinancieroPath: cont?.modelo_financiero_path,
+  });
+}
+
+// Proyectos con la entrega final COMPLETA (los 4 documentos), indexados por proyecto_id.
 export async function proyectosFase2(cohorteId: string): Promise<Map<string, ProyectoFase2>> {
   const { data } = await supabaseAdmin
     .from('equipos')
@@ -47,12 +77,15 @@ export async function proyectosFase2(cohorteId: string): Promise<Map<string, Pro
     // Solo Business Plan presenta (ver cabecera): Caso/PI quedan fuera del evento.
     .eq('tipo_trabajo_grado', 'business_plan');
 
+  const equipos = (data ?? []) as any[];
+  const contMap = await contenidoPorProyecto(equipos.map((e) => e.proyecto_definitivo_id));
+
   const map = new Map<string, ProyectoFase2>();
-  for (const e of (data ?? []) as any[]) {
-    const ante = pickAnte(e.anteproyectos);
-    // Sin proyecto final cargado sigue siendo un anteproyecto: no entra.
-    if (!ante?.archivo_proyecto_final_path) continue;
+  for (const e of equipos) {
     if (!e.proyecto_definitivo_id) continue;
+    // Entrega incompleta (le falta el PDF o alguno de los 3 documentos): no entra.
+    if (!equipoConEntregaCompleta(e, contMap)) continue;
+    const ante = pickAnte(e.anteproyectos);
     const proyectos = (ante?.proyectos ?? []) as any[];
     const def = proyectos.find((p) => p.id === e.proyecto_definitivo_id);
     if (!def) continue;
@@ -75,11 +108,13 @@ export async function proyectosFase2(cohorteId: string): Promise<Map<string, Pro
 export async function contarEquiposSinProyectoFinal(cohorteId: string): Promise<number> {
   const { data } = await supabaseAdmin
     .from('equipos')
-    .select('id, anteproyectos(archivo_proyecto_final_path)')
+    .select('id, proyecto_definitivo_id, anteproyectos(archivo_proyecto_final_path)')
     .eq('cohorte_id', cohorteId)
     .eq('tipo_trabajo_grado', 'business_plan');
-  return ((data ?? []) as any[])
-    .filter((e) => !pickAnte(e.anteproyectos)?.archivo_proyecto_final_path).length;
+  const equipos = (data ?? []) as any[];
+  const contMap = await contenidoPorProyecto(equipos.map((e) => e.proyecto_definitivo_id));
+  // "Faltantes" = sin entrega completa (le falta el PDF o alguno de los 4 documentos).
+  return equipos.filter((e) => !equipoConEntregaCompleta(e, contMap)).length;
 }
 
 // auth_user_id de los integrantes del equipo dueño de cada proyecto.
