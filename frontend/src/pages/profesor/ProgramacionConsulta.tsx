@@ -163,7 +163,7 @@ export default function ProgramacionConsulta() {
                                     </td>
                                     <td className="px-3 py-2.5 text-[0.8rem] leading-relaxed align-top">
                                       {f.s.resumen
-                                        ? <span className="clamp-4" title={f.s.resumen}>{f.s.resumen}</span>
+                                        ? <span className="clamp-3" title={f.s.resumen}>{f.s.resumen}</span>
                                         : <span className="text-inalde-gray italic">Sin resumen</span>}
                                       {f.s.linkedin && (
                                         <button onClick={() => copiar(`${j.id}-${idx}`, f.s.linkedin!)}
