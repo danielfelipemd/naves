@@ -187,9 +187,27 @@ export default function AolCalificar() {
     setErr('');
     setOkMsg('');
     try {
-      // El análisis IA puede tardar ~20 s: ampliamos el timeout por defecto.
-      await api.post(`/aol/analizar/${proyectoId}`, {}, { timeout: 60000 });
-      await cargar();
+      // El análisis corre en SEGUNDO PLANO en el backend (Opus + reintento R1 puede
+      // tardar 1-2 min, más que el timeout HTTP). Disparamos y sondeamos el estado.
+      await api.post(`/aol/analizar/${proyectoId}`, {});
+      // Sondeo cada 3 s, hasta ~4 min (80 vueltas).
+      for (let i = 0; i < 80; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        let estado = 'inactivo';
+        let error: string | null = null;
+        try {
+          const { data } = await api.get(`/aol/analizar/${proyectoId}/estado`);
+          estado = data?.estado ?? 'inactivo';
+          error = data?.error ?? null;
+        } catch {
+          continue; // red intermitente: reintentamos en la próxima vuelta
+        }
+        if (estado === 'error') { setErr(error || 'El análisis falló.'); return; }
+        // 'listo' o 'inactivo' (proceso reiniciado): recargamos y mostramos lo que haya.
+        if (estado === 'listo' || estado === 'inactivo') { await cargar(); return; }
+        // 'procesando' → seguimos sondeando.
+      }
+      setErr('El análisis está tardando más de lo esperado. Recarga la página en un momento.');
     } catch (e: any) {
       setErr(formatBackendError(e));
     } finally {
@@ -310,7 +328,7 @@ export default function AolCalificar() {
             {analizando ? (
               <>
                 <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                Analizando… (puede tardar ~20 s)
+                Analizando con IA… (puede tardar 1-2 min)
               </>
             ) : (
               'Analizar ahora'

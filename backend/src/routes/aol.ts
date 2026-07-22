@@ -23,6 +23,14 @@ import { config } from '../config.js';
 const router = Router();
 const soloAdmin = [requireAuth(), requireRole('super_admin')];
 
+// Estado de las corridas del pipeline (§7) en curso. Vive en memoria del proceso:
+// el análisis tarda 1-2 min (Opus + reintento R1), más que cualquier timeout HTTP,
+// así que NO se puede resolver dentro del request. El POST dispara la corrida en
+// segundo plano y el cliente sondea GET .../estado. Tras un reinicio del proceso el
+// mapa se vacía (estado 'inactivo') y el cliente simplemente recarga la pantalla.
+type JobAnalisis = { estado: 'procesando' | 'listo' | 'error'; error?: string; bloqueado?: boolean };
+const analisisJobs = new Map<string, JobAnalisis>();
+
 // Nombre legible del usuario que firma (para medicion.autor / aol_calificacion.autor).
 // Se resuelve server-side desde la BD (no se confía en el cliente); el id no lo
 // conoce nadie salvo el sistema, por eso se guarda el nombre completo (QA #4).
@@ -107,18 +115,37 @@ router.get('/trabajos', ...soloAdmin, async (req: AuthenticatedRequest, res) => 
 
 // POST /api/aol/analizar/:proyectoId — dispara el pipeline calificador (§7) para
 // un trabajo. Descarga BP.pdf + modelo .xlsx, corre quick-screen + IA + R1 y
-// guarda aol_analisis (descartando el análisis previo). Operación síncrona
-// (~10-30s por trabajo). "Re-analizar" del Director / disparo al completar entrega.
+// guarda aol_analisis (descartando el análisis previo). "Re-analizar" del Director
+// / disparo al completar entrega.
+//
+// La corrida es LENTA (1-2 min: Opus + reintento R1), más que cualquier timeout
+// HTTP, así que se ejecuta en SEGUNDO PLANO: respondemos 202 al instante y el
+// cliente sondea GET .../estado hasta que termina. Idempotente: si ya hay una
+// corrida en curso para el trabajo, no arranca otra.
 router.post('/analizar/:proyectoId', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   if (!config.anthropic.apiKey) {
     return res.status(503).json({ error: 'IA_NO_CONFIGURADA', mensaje: 'Falta configurar ANTHROPIC_API_KEY en el servidor.' });
   }
-  try {
-    const r = await analizarProyecto(req.params.proyectoId);
-    res.json({ ok: true, analisis_id: r.analisis_id, bloqueado: r.bloqueado, quick: r.quick });
-  } catch (e: any) {
-    res.status(400).json({ error: e?.message ?? 'ANALISIS_FALLO' });
+  const id = req.params.proyectoId;
+  if (analisisJobs.get(id)?.estado === 'procesando') {
+    return res.status(202).json({ estado: 'procesando' });
   }
+  analisisJobs.set(id, { estado: 'procesando' });
+  // Fire-and-forget: el resultado (o el error) queda en el mapa para el sondeo.
+  void analizarProyecto(id)
+    .then((r) => analisisJobs.set(id, { estado: 'listo', bloqueado: r.bloqueado }))
+    .catch((e: any) => analisisJobs.set(id, { estado: 'error', error: e?.message ?? 'ANALISIS_FALLO' }));
+  res.status(202).json({ estado: 'procesando' });
+});
+
+// GET /api/aol/analizar/:proyectoId/estado — sondeo de la corrida del pipeline.
+// 'procesando' → sigue en curso; 'listo' → recargar la pantalla Calificar;
+// 'error' → mostrar el mensaje; 'inactivo' → sin corrida en memoria (p. ej. tras
+// un reinicio): el cliente recarga y decide según exista o no el análisis.
+router.get('/analizar/:proyectoId/estado', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const j = analisisJobs.get(req.params.proyectoId);
+  if (!j) return res.json({ estado: 'inactivo' });
+  res.json({ estado: j.estado, error: j.error ?? null, bloqueado: j.bloqueado ?? false });
 });
 
 // GET /api/aol/calificar/:proyectoId — datos para la pantalla Calificar (§8):
