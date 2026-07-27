@@ -47,7 +47,7 @@ router.get('/:cohorteId', ...soloAdmin, async (req, res) => {
   // --- Participantes de la cohorte -----------------------------------------
   const { data: partData } = await supabaseAdmin
     .from('participantes_lista')
-    .select('id, estado, perfil')
+    .select('id, estado, perfil, fue_emprendedor, quiebra')
     .eq('cohorte_id', cohorteId);
   const participantes = (partData ?? []) as any[];
   const totalParticipantes = participantes.length;
@@ -66,10 +66,31 @@ router.get('/:cohorteId', ...soloAdmin, async (req, res) => {
 
   // Entregado = el equipo envió su anteproyecto (cualquier estado distinto de
   // 'borrador').
-  const anteEntregados = equipos.filter((e) => {
+  const anteEntregadoDeEquipo = (e: any) => {
     const a = pickAnte(e.anteproyectos);
-    return a && a.estado && a.estado !== 'borrador';
-  }).length;
+    return !!(a && a.estado && a.estado !== 'borrador');
+  };
+  const anteEntregados = equipos.filter(anteEntregadoDeEquipo).length;
+
+  // "Proyectos (equipos)" cuenta ÚNICAMENTE los equipos de Business Plan NAVES:
+  // los de Caso y Proyecto de Investigación no son proyectos NAVES y mezclarlos
+  // inflaba el indicador.
+  const equiposBP = equipos.filter((e) => e.tipo_trabajo_grado === 'business_plan');
+  const totalEquiposBP = equiposBP.length;
+
+  // Los anteproyectos entregados se desglosan POR MODALIDAD (un solo número
+  // agregado no dice nada: son tres procesos distintos).
+  const anteEntregadosPorModalidad: Record<Modalidad, { n: number; total: number }> = {
+    business_plan: { n: 0, total: 0 },
+    caso: { n: 0, total: 0 },
+    proyecto_investigacion: { n: 0, total: 0 },
+  };
+  for (const e of equipos) {
+    const tipo = e.tipo_trabajo_grado;
+    if (!esModalidad(tipo)) continue;
+    anteEntregadosPorModalidad[tipo].total++;
+    if (anteEntregadoDeEquipo(e)) anteEntregadosPorModalidad[tipo].n++;
+  }
 
   // Definitivo entregado = entrega final COMPLETA. Para Business Plan no basta
   // el PDF: exige también one pager, logo y modelo financiero (los 4 documentos).
@@ -149,12 +170,20 @@ router.get('/:cohorteId', ...soloAdmin, async (req, res) => {
     programados = count ?? 0;
   }
 
-  // --- Perfil emprendedor del registro (rol declarado) ---------------------
+  // --- Perfil emprendedor del registro -------------------------------------
+  // Caracterización completa: además del rol declarado se grafican las otras
+  // preguntas del perfil (experiencia previa, desenlace de esa experiencia, qué
+  // los motiva y qué les preocupa). Con una sola variable la caracterización
+  // quedaba demasiado pobre.
   const perfilEmprendedor: Record<string, number> = {
     emprendedor: 0,
     directivo: 0,
     ambos: 0,
     sin_responder: 0,
+  };
+  const experienciaPrevia: Record<string, number> = { si: 0, no: 0, sin_responder: 0 };
+  const desenlacePrevio: Record<string, number> = {
+    nunca_despego: 0, funcionamiento: 0, vendido: 0, quebro: 0, na: 0,
   };
   for (const p of participantes) {
     if (p.perfil === 'emprendedor' || p.perfil === 'directivo' || p.perfil === 'ambos') {
@@ -162,14 +191,49 @@ router.get('/:cohorteId', ...soloAdmin, async (req, res) => {
     } else {
       perfilEmprendedor.sin_responder++;
     }
+    if (p.fue_emprendedor === true) experienciaPrevia.si++;
+    else if (p.fue_emprendedor === false) experienciaPrevia.no++;
+    else experienciaPrevia.sin_responder++;
+    // El desenlace solo aplica a quienes ya emprendieron.
+    if (p.fue_emprendedor === true && p.quiebra && desenlacePrevio[p.quiebra] !== undefined) {
+      desenlacePrevio[p.quiebra]++;
+    }
+  }
+
+  // Emociones y preocupaciones son de selección múltiple: cada participante
+  // puede aportar a varias categorías (los totales no suman el número de
+  // participantes, y así se rotula en la gráfica).
+  const emociones: Record<string, number> = {
+    crear: 0, dinero: 0, problema: 0, autonomia: 0, ninguna: 0,
+  };
+  const preocupaciones: Record<string, number> = {
+    financiera: 0, estres: 0, habilidades: 0, familia: 0, ninguna: 0,
+  };
+  const participanteIds = participantes.map((p) => p.id);
+  if (participanteIds.length) {
+    const [{ data: ems }, { data: prs }] = await Promise.all([
+      supabaseAdmin.from('participante_emociones').select('emocion').in('participante_id', participanteIds),
+      supabaseAdmin.from('participante_preocupaciones').select('preocupacion').in('participante_id', participanteIds),
+    ]);
+    for (const e of ((ems ?? []) as any[])) {
+      if (emociones[e.emocion] !== undefined) emociones[e.emocion]++;
+    }
+    for (const p of ((prs ?? []) as any[])) {
+      if (preocupaciones[p.preocupacion] !== undefined) preocupaciones[p.preocupacion]++;
+    }
   }
 
   res.json({
     cohorte: { id: cohorte.id, etiqueta: cohorte.etiqueta },
     bloque1: {
       participantes_activos: participantesActivos,
-      proyectos: totalEquipos,
-      anteproyectos_entregados: { n: anteEntregados, total: totalEquipos },
+      proyectos: totalEquiposBP,
+      equipos_totales: totalEquipos,
+      anteproyectos_entregados: {
+        n: anteEntregados,
+        total: totalEquipos,
+        por_modalidad: anteEntregadosPorModalidad,
+      },
       trabajos_definitivos_entregados: { n: definitivosEntregados, total: totalEquipos },
     },
     bloque2: [
@@ -191,6 +255,10 @@ router.get('/:cohorteId', ...soloAdmin, async (req, res) => {
       trabajos_por_modalidad: trabajosPorModalidad,
       participantes_por_modalidad: participantesPorModalidad,
       perfil_emprendedor: perfilEmprendedor,
+      experiencia_previa: experienciaPrevia,
+      desenlace_experiencia_previa: desenlacePrevio,
+      emociones: emociones,
+      preocupaciones: preocupaciones,
     },
   });
 });

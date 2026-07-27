@@ -22,7 +22,7 @@ const CATEGORIA_LABELS: Record<string, string> = {
   participantes: 'Participantes',
   profesores: 'Profesores',
   anteproyectos: 'Anteproyectos',
-  sabana: 'Sábana de anteproyectos',
+  sabana: 'Anteproyectos de la cohorte',
   solicitudes: 'Solicitudes de desarchivado',
   auditoria: 'Auditoría',
   meta: 'Administración del sistema',

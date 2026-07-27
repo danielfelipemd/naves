@@ -3,6 +3,7 @@ import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { AreasPicker } from '../../components/inalde/AreasPicker';
 import { AREAS_AFINIDAD } from '../../lib/areas';
+import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
 
 const AREAS_SET = new Set<string>(AREAS_AFINIDAD);
 function sanitizeAreas(input: string[] | undefined | null): string[] {
@@ -34,6 +35,7 @@ const etiquetaArea = (v: string) => ROLES_AREA.find((r) => r.valor === v)?.etiqu
 
 export default function Profesores() {
   const [profesores, setProfesores] = useState<Profesor[]>([]);
+  const orden = useOrdenTabla();
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState<{
     nombre_completo: string; email: string; password: string;
@@ -274,7 +276,7 @@ export default function Profesores() {
               </Field>
               {form.rol_area && (
                 <p className="text-xs text-inalde-gray mt-1">
-                  Entrará al sistema únicamente para consultar y descargar la Programación Interna del evento. No dirige trabajos de grado ni aparece en la sábana de proyectos.
+                  Entrará al sistema únicamente para consultar y descargar la Programación Interna del evento. No dirige trabajos de grado ni aparece en el consolidado de anteproyectos.
                 </p>
               )}
             </div>
@@ -336,15 +338,20 @@ export default function Profesores() {
                 onChange={toggleSelAll}
                 className="accent-inalde-red" />
             </th>
-            <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Nombre</th>
-            <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Rol</th>
-            <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Áreas</th>
-            <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Estado</th>
+            <ThOrden orden={orden} campo="nombre">Nombre</ThOrden>
+            <ThOrden orden={orden} campo="rol">Rol</ThOrden>
+            <ThOrden orden={orden} campo="areas">Áreas</ThOrden>
+            <ThOrden orden={orden} campo="estado">Estado</ThOrden>
             <th className="px-3 py-2"></th>
           </tr>
         </thead>
         <tbody>
-          {profesores.map((p) => (
+          {orden.ordenar(profesores, {
+            nombre: (p) => p.nombre_completo,
+            rol: (p) => (p.es_super_admin ? 'super_admin' : (p.tipo ?? 'profesor')),
+            areas: (p) => (p.areas_afinidad ?? []).join(', '),
+            estado: (p) => (p.activo ? 'activo' : 'inactivo'),
+          }).map((p) => (
             editing === p.id ? (
               <>
                 <tr key={p.id} className="border-t border-inalde-gray-light bg-inalde-red/5">

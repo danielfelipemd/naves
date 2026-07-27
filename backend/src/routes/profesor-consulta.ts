@@ -130,8 +130,33 @@ router.get('/equipos', async (req: AuthenticatedRequest, res) => {
       query = query.in('id', ids);
     }
     const { data } = await query;
+    // El equipo no tiene nombre propio: lo identifica el nombre del proyecto.
+    // En Caso/PI ese nombre vive en equipos.nombre_equipo; en Business Plan
+    // viene de los proyectos del anteproyecto. Si no hay ninguno, los autores.
+    const idsEquipos = ((data ?? []) as any[]).map((e) => e.id);
+    const proyectosPorEquipo = new Map<string, string>();
+    if (idsEquipos.length) {
+      const { data: antes } = await supabaseAdmin
+        .from('anteproyectos')
+        .select('equipo_id, proyectos(nombre, posicion, estado_seleccion)')
+        .in('equipo_id', idsEquipos);
+      for (const a of ((antes ?? []) as any[])) {
+        const nombres = ((a.proyectos ?? []) as any[])
+          .filter((p) => p.estado_seleccion !== 'archivado' && (p.nombre ?? '').trim())
+          .sort((x, y) => (x.posicion ?? 0) - (y.posicion ?? 0))
+          .map((p) => String(p.nombre).trim());
+        if (nombres.length) proyectosPorEquipo.set(a.equipo_id, nombres.join(' · '));
+      }
+    }
     const equipos = ((data ?? []) as any[]).map((e) => ({
-      nombre_equipo: e.nombre_equipo ?? '(sin nombre)',
+      nombre_equipo:
+        e.nombre_equipo
+        ?? proyectosPorEquipo.get(e.id)
+        ?? (((e.miembros_equipo ?? []) as any[])
+              .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
+              .map((m) => m.participantes_lista?.nombre_completo)
+              .filter(Boolean)
+              .join(' · ') || 'Proyecto sin nombre'),
       tipo_trabajo_grado: e.tipo_trabajo_grado ?? null,
       miembros: ((e.miembros_equipo ?? []) as any[])
         .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))

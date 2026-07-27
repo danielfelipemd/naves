@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
 
 interface Cohorte { id: string; etiqueta: string; participantes_count: number; activa: boolean; }
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
@@ -60,7 +61,10 @@ export default function Participantes() {
     return m;
   }, [cohortes]);
 
-  const filtrados = useMemo(() => {
+  // Orden por encabezado de columna (clic = asc/desc).
+  const orden = useOrdenTabla();
+
+  const filtradosSinOrden = useMemo(() => {
     const q = filtroNombre.trim().toLowerCase();
     return participantes.filter((p) => {
       // Solo cohortes activas (las inactivas se ocultan completamente)
@@ -72,6 +76,14 @@ export default function Participantes() {
         || p.email.toLowerCase().includes(q);
     });
   }, [participantes, filtroNombre, filtroCohorte, activasIds]);
+
+  const filtrados = useMemo(() => orden.ordenar(filtradosSinOrden, {
+    cohorte: (p) => cohorteEtiquetas.get(p.cohorte_id) ?? p.cohorte_id,
+    nombre: (p) => p.nombre_completo,
+    cedula: (p) => p.cedula,
+    email: (p) => p.email,
+    estado: (p) => p.estado,
+  }), [filtradosSinOrden, orden, cohorteEtiquetas]);
 
   const seleccionadosVisibles = useMemo(
     () => filtrados.filter((p) => seleccionados.has(p.id) && !p.en_equipo),
@@ -392,11 +404,11 @@ export default function Participantes() {
                   onChange={(e) => seleccionarTodosVisibles(e.target.checked)}
                 />
               </th>
-              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Cohorte</th>
-              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Nombre</th>
-              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Cédula</th>
-              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Email</th>
-              <th className="px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray">Estado</th>
+              <ThOrden orden={orden} campo="cohorte">Cohorte</ThOrden>
+              <ThOrden orden={orden} campo="nombre">Nombre</ThOrden>
+              <ThOrden orden={orden} campo="cedula">Cédula</ThOrden>
+              <ThOrden orden={orden} campo="email">Email</ThOrden>
+              <ThOrden orden={orden} campo="estado">Estado</ThOrden>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>

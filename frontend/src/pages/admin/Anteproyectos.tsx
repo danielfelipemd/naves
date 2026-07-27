@@ -380,7 +380,7 @@ export default function Anteproyectos() {
       await api.post(`/sabana/${cohorte}/generar`);
       await load();
       await loadResumen();
-      setMsg({ kind: 'ok', text: 'Sábana generada con datos actuales.' });
+      setMsg({ kind: 'ok', text: 'Consolidado generado con datos actuales.' });
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
     } finally { setBusy(false); }
@@ -510,14 +510,14 @@ export default function Anteproyectos() {
                 un 403 al clickear. */}
             {isSuperAdmin && (
               <button onClick={generar} disabled={busy} className="btn-inalde-primary !py-2 !px-4 !text-xs">
-                {snapshot.length ? 'Regenerar' : 'Generar sábana'}
+                {snapshot.length ? 'Regenerar' : 'Generar consolidado'}
               </button>
             )}
             {snapshot.length > 0 && (
               <>
                 {isSuperAdmin && <button onClick={sugerir} disabled={busy} className="btn-inalde-ghost">Sugerir asignaciones</button>}
                 {isSuperAdmin && <button onClick={guardarAsignaciones} disabled={busy} className="btn-inalde-secondary">Guardar asignaciones</button>}
-                <button onClick={() => downloadFile(`/sabana/${cohorte}/pdf`, `sabana-${cohorte}.pdf`)} disabled={busy} className="btn-inalde-ghost">↓ PDF</button>
+                <button onClick={() => downloadFile(`/sabana/${cohorte}/pdf`, `anteproyectos-${cohorte}.pdf`)} disabled={busy} className="btn-inalde-ghost">↓ PDF</button>
                 {isSuperAdmin && <button onClick={comunicar} disabled={busy} className="btn-inalde-danger">Comunicar →</button>}
               </>
             )}
@@ -527,7 +527,7 @@ export default function Anteproyectos() {
 
       {estadoSabana && (
         <p className="text-xs text-inalde-gray mb-4">
-          Estado de la sábana: <span className="font-semibold uppercase tracking-wider text-inalde-text">{estadoSabana}</span>
+          Estado del consolidado: <span className="font-semibold uppercase tracking-wider text-inalde-text">{estadoSabana}</span>
         </p>
       )}
 
@@ -1007,7 +1007,7 @@ export default function Anteproyectos() {
           cohorte && (
             <p className="text-inalde-gray text-sm">
               {snapshot.length === 0 && estadoSabana === null
-                ? 'La sábana aún no ha sido generada para esta cohorte. Genera para construirla.'
+                ? 'El consolidado aún no ha sido generado para esta cohorte. Genera para construirlo.'
                 : 'No hay anteproyectos enviados en esta cohorte.'}
             </p>
           )

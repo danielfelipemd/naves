@@ -101,7 +101,18 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
     doc.on('data', (c) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-    header(doc, data.equipos.nombre_equipo ?? '(equipo sin nombre)',
+    // El equipo no tiene nombre propio: el título del PDF es el nombre del
+    // proyecto (o de los proyectos, si hay varias ideas).
+    const tituloAnte =
+      data.equipos.nombre_equipo
+      ?? (data.proyectos.map((p) => (p.nombre ?? '').trim()).filter(Boolean).join(' · ')
+          || data.equipos.miembros_equipo
+              .slice()
+              .sort((a, b) => a.posicion - b.posicion)
+              .map((m) => m.participantes_lista.nombre_completo)
+              .join(' · ')
+          || 'Anteproyecto');
+    header(doc, tituloAnte,
       `Cohorte ${data.equipos.cohorte_id} · Estado: ${data.estado.toUpperCase()}` +
       (data.fecha_envio ? ` · Enviado: ${new Date(data.fecha_envio).toLocaleString('es-CO')}` : ''));
 
@@ -184,7 +195,7 @@ export function buildSabanaPDF(cohorteId: string, items: SabanaItem[]): Promise<
     doc.on('data', (c) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-    header(doc, `Sábana de proyectos`, `Cohorte ${cohorteId} · ${items.length} proyectos · Generado ${new Date().toLocaleString('es-CO')}`);
+    header(doc, `Anteproyectos de la cohorte`, `Cohorte ${cohorteId} · ${items.length} proyectos · Generado ${new Date().toLocaleString('es-CO')}`);
 
     // Agrupar por equipo
     const byTeam = items.reduce((acc, it) => {

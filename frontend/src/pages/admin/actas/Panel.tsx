@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import { formatBackendError } from '../../../lib/errors';
+import { ThOrden, useOrdenTabla } from '../../../lib/useOrdenTabla';
 
 // Actas de Grado — panel administrativo (dentro de /admin, sin Header propio).
 // Una acta por participante (Formato Acta Proyecto de Grado MBA v3). El panel
@@ -150,6 +151,7 @@ export default function ActasPanel() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorte, setCohorte] = useState('');
   const [data, setData] = useState<Data | null>(null);
+  const orden = useOrdenTabla();
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
@@ -331,13 +333,22 @@ export default function ActasPanel() {
                 <table className="w-full min-w-[820px] border-collapse bg-white">
                   <thead>
                     <tr className="bg-inalde-text text-white">
-                      {['Participante', 'Modalidad', 'Proyecto', 'Estado', 'Firmas', ''].map((h, i) => (
-                        <th key={i} className="text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase px-3 py-2.5 whitespace-nowrap">{h}</th>
-                      ))}
+                      <ThOrden orden={orden} campo="participante" variante="oscuro">Participante</ThOrden>
+                      <ThOrden orden={orden} campo="modalidad" variante="oscuro">Modalidad</ThOrden>
+                      <ThOrden orden={orden} campo="proyecto" variante="oscuro">Proyecto</ThOrden>
+                      <ThOrden orden={orden} campo="estado" variante="oscuro">Estado</ThOrden>
+                      <ThOrden orden={orden} campo="firmas" variante="oscuro">Firmas</ThOrden>
+                      <th className="px-3 py-2.5" />
                     </tr>
                   </thead>
                   <tbody>
-                    {data.actas.map((a) => {
+                    {orden.ordenar(data.actas, {
+                      participante: (a) => a.nombre_participante,
+                      modalidad: (a) => a.modalidad,
+                      proyecto: (a) => a.nombre_proyecto,
+                      estado: (a) => a.estado,
+                      firmas: (a) => a.firmas.filter((s) => s.estado === 'firmada').length,
+                    }).map((a) => {
                       const firmadas = a.firmas.filter((s) => s.estado === 'firmada').length;
                       return (
                         <tr key={a.id} className="border-b border-inalde-gray-light align-top">

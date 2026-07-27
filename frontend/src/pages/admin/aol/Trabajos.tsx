@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../../lib/api';
+import { ThOrden, useOrdenTabla } from '../../../lib/useOrdenTabla';
 
 // AoL — Fase 2: pantalla "Trabajos por calificar" (§6). Lista los Business Plan
 // definitivos de la cohorte con estado de entrega (4 archivos), análisis IA y AoL.
@@ -36,6 +37,7 @@ export default function AolTrabajos() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorte, setCohorte] = useState('');
   const [data, setData] = useState<Data | null>(null);
+  const orden = useOrdenTabla();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { (async () => {
@@ -98,13 +100,22 @@ export default function AolTrabajos() {
           <table className="w-full min-w-[860px] border-collapse bg-white">
             <thead>
               <tr className="bg-inalde-text text-white">
-                {['Proyecto', 'Integrantes', 'Entrega', 'Análisis IA', 'AoL', ''].map((h, i) => (
-                  <th key={i} className="text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase px-3 py-2.5 whitespace-nowrap">{h}</th>
-                ))}
+                <ThOrden orden={orden} campo="proyecto" variante="oscuro">Proyecto</ThOrden>
+                <ThOrden orden={orden} campo="integrantes" variante="oscuro">Integrantes</ThOrden>
+                <ThOrden orden={orden} campo="entrega" variante="oscuro">Entrega</ThOrden>
+                <ThOrden orden={orden} campo="analisis" variante="oscuro">Análisis IA</ThOrden>
+                <ThOrden orden={orden} campo="aol" variante="oscuro">AoL</ThOrden>
+                <th className="px-3 py-2.5" />
               </tr>
             </thead>
             <tbody>
-              {data.trabajos.map((t) => (
+              {orden.ordenar(data.trabajos, {
+                proyecto: (t) => t.proyecto,
+                integrantes: (t) => t.integrantes,
+                entrega: (t) => [t.entrega.bp, t.entrega.one_pager, t.entrega.logo, t.entrega.modelo].filter(Boolean).length,
+                analisis: (t) => t.estado_analisis,
+                aol: (t) => t.estado_aol,
+              }).map((t) => (
                 <tr key={t.proyecto_id} className="border-b border-inalde-gray-light align-top">
                   <td className="px-3 py-3 font-primary font-bold text-sm text-inalde-text">{t.proyecto}</td>
                   <td className="px-3 py-3 text-[0.8rem] text-inalde-gray max-w-[240px]">{t.integrantes || '—'}</td>

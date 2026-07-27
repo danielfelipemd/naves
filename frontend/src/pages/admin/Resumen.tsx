@@ -46,7 +46,7 @@ const GROUPS: Group[] = [
       {
         to: '/admin/anteproyectos', icon: '📋',
         title: 'Anteproyectos',
-        desc: 'Vista consolidada por cohorte: todos los equipos con su estado, la sábana para la reunión de asignación (sugiere, asigna y comunica) y el detalle de cada anteproyecto.',
+        desc: 'Vista consolidada por cohorte: todos los equipos con su estado, el consolidado para la reunión de asignación (sugiere, asigna y comunica) y el detalle de cada anteproyecto.',
         hint: (d) => `${d.antesEnviados} enviados`,
       },
       {

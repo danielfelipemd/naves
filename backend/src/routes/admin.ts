@@ -1502,7 +1502,7 @@ function htmlComunicadoProfesor(profesorNombre: string, cohorteId: string, equip
           <h2 style="color:#1a1a1a; margin:6px 0 0 0; font-size:22px;">Proyectos asignados para acompañamiento</h2>
         </div>
         <p><strong>${profesorNombre}</strong>:</p>
-        <p>Reciba un cordial saludo. Le informamos que la sábana de proyectos de la
+        <p>Reciba un cordial saludo. Le informamos que la asignación de proyectos de la
         cohorte <strong>${cohorteId}</strong> fue aprobada y los siguientes proyectos quedaron
         bajo su acompañamiento como profesor de trabajo de grado:</p>
 

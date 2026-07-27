@@ -24,8 +24,11 @@ interface Dashboard {
   cohorte: { id: string; etiqueta: string };
   bloque1: {
     participantes_activos: number;
+    /** Solo equipos de Business Plan NAVES. */
     proyectos: number;
-    anteproyectos_entregados: NTotal;
+    /** Equipos de las tres modalidades (contexto del indicador anterior). */
+    equipos_totales?: number;
+    anteproyectos_entregados: NTotal & { por_modalidad?: Record<string, NTotal> };
     trabajos_definitivos_entregados: NTotal;
   };
   bloque2: Array<{ label: string; n: number; total: number }>;
@@ -37,6 +40,10 @@ interface Dashboard {
     trabajos_por_modalidad: Record<string, number>;
     participantes_por_modalidad: Record<string, number>;
     perfil_emprendedor: Record<string, number>;
+    experiencia_previa?: Record<string, number>;
+    desenlace_experiencia_previa?: Record<string, number>;
+    emociones?: Record<string, number>;
+    preocupaciones?: Record<string, number>;
   };
 }
 
@@ -61,18 +68,75 @@ const PERFIL_LABEL: Record<string, string> = {
 };
 const PERFIL_ORDEN = ['emprendedor', 'directivo', 'ambos', 'sin_responder'];
 
+// Resto de variables del perfil emprendedor (mismas opciones del formulario).
+const EXPERIENCIA_LABEL: Record<string, string> = {
+  si: 'Sí, ya emprendió',
+  no: 'No había emprendido',
+  sin_responder: 'Sin responder',
+};
+const EXPERIENCIA_ORDEN = ['si', 'no', 'sin_responder'];
+
+const DESENLACE_LABEL: Record<string, string> = {
+  funcionamiento: 'Sigue en funcionamiento',
+  vendido: 'Lo vendió',
+  quebro: 'Quebró',
+  nunca_despego: 'Nunca despegó',
+  na: 'No aplica',
+};
+const DESENLACE_ORDEN = ['funcionamiento', 'vendido', 'quebro', 'nunca_despego', 'na'];
+
+const EMOCIONES_LABEL: Record<string, string> = {
+  crear: 'Crear algo propio',
+  dinero: 'Ganar dinero',
+  problema: 'Resolver un problema',
+  autonomia: 'Tener autonomía',
+  ninguna: 'Ninguna',
+};
+const EMOCIONES_ORDEN = ['crear', 'problema', 'autonomia', 'dinero', 'ninguna'];
+
+const PREOCUPACIONES_LABEL: Record<string, string> = {
+  financiera: 'Estabilidad financiera',
+  estres: 'Estrés e incertidumbre',
+  habilidades: 'Falta de habilidades',
+  familia: 'Tiempo con la familia',
+  ninguna: 'Ninguna',
+};
+const PREOCUPACIONES_ORDEN = ['financiera', 'estres', 'habilidades', 'familia', 'ninguna'];
+
 function pct(n: number, total: number): number {
   if (!total) return 0;
   return Math.round((n / total) * 100);
 }
 
 // --- Tarjeta KPI (número grande) -------------------------------------------
-function KpiCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+// `desglose` agrega el detalle por modalidad dentro de la misma tarjeta: un
+// solo número agregado de las tres modalidades no es interpretable.
+function KpiCard({ label, value, sub, desglose }: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  desglose?: Record<string, NTotal>;
+}) {
   return (
     <div className="card-inalde flex flex-col justify-between p-5">
       <p className="font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray">{label}</p>
       <p className="font-primary font-bold text-4xl text-inalde-text mt-2 leading-none">{value}</p>
       {sub && <p className="text-xs text-inalde-gray mt-1">{sub}</p>}
+      {desglose && (
+        <ul className="mt-3 pt-3 border-t border-inalde-gray-light space-y-1">
+          {MODALIDAD_ORDEN.filter((m) => desglose[m]).map((m) => (
+            <li key={m} className="flex items-center justify-between gap-2 text-xs">
+              <span className="flex items-center gap-1.5 text-inalde-gray truncate">
+                <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: MODALIDAD_COLOR[m] }} />
+                {MODALIDAD_LABEL[m]}
+              </span>
+              <span className="font-semibold text-inalde-text whitespace-nowrap">
+                {desglose[m].n} <span className="text-inalde-gray font-normal">/ {desglose[m].total}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -122,6 +186,35 @@ function CategoriaBar({ label, value, max, color }: { label: string; value: numb
       <div className="h-3 w-full rounded bg-inalde-gray-bg overflow-hidden">
         <div className="h-full rounded transition-all" style={{ width: `${p}%`, backgroundColor: color }} />
       </div>
+    </div>
+  );
+}
+
+// --- Tarjeta de gráfica de categorías (barras horizontales) ----------------
+function GraficaCategorias({ titulo, subtitulo, datos, orden, etiquetas, color }: {
+  titulo: string;
+  subtitulo?: string;
+  datos?: Record<string, number>;
+  orden: string[];
+  etiquetas: Record<string, string>;
+  color: string;
+}) {
+  if (!datos) return null;
+  const max = Math.max(1, ...orden.map((k) => datos[k] ?? 0));
+  const hayDatos = orden.some((k) => (datos[k] ?? 0) > 0);
+  return (
+    <div className="card-inalde p-5">
+      <p className="font-primary font-bold text-base text-inalde-text mb-1">{titulo}</p>
+      {subtitulo && <p className="text-xs text-inalde-gray mb-4">{subtitulo}</p>}
+      {hayDatos ? (
+        <div className="flex flex-col gap-4">
+          {orden.map((k) => (
+            <CategoriaBar key={k} label={etiquetas[k] ?? k} value={datos[k] ?? 0} max={max} color={color} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-inalde-gray italic">Sin datos registrados todavía.</p>
+      )}
     </div>
   );
 }
@@ -228,11 +321,18 @@ export default function DashboardControl() {
             </h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <KpiCard label="Participantes activos" value={data.bloque1.participantes_activos} />
-              <KpiCard label="Proyectos (equipos)" value={data.bloque1.proyectos} />
+              <KpiCard
+                label="Proyectos NAVES (equipos)"
+                value={data.bloque1.proyectos}
+                sub={data.bloque1.equipos_totales !== undefined
+                  ? `solo Business Plan · ${data.bloque1.equipos_totales} equipos en total`
+                  : 'solo Business Plan'}
+              />
               <KpiCard
                 label="Anteproyectos entregados"
                 value={data.bloque1.anteproyectos_entregados.n}
                 sub={`de ${data.bloque1.anteproyectos_entregados.total} equipos`}
+                desglose={data.bloque1.anteproyectos_entregados.por_modalidad}
               />
               <KpiCard
                 label="Trabajos definitivos entregados"
@@ -351,7 +451,8 @@ export default function DashboardControl() {
                 </div>
 
                 <div className="card-inalde p-5">
-                  <p className="font-primary font-bold text-base text-inalde-text mb-4">Perfil emprendedor</p>
+                  <p className="font-primary font-bold text-base text-inalde-text mb-1">Perfil emprendedor</p>
+                  <p className="text-xs text-inalde-gray mb-4">Cómo se define cada participante</p>
                   <div className="flex flex-col gap-4">
                     {PERFIL_ORDEN.map((k) => (
                       <CategoriaBar
@@ -364,6 +465,44 @@ export default function DashboardControl() {
                     ))}
                   </div>
                 </div>
+
+                {/* Resto de preguntas del perfil emprendedor: la caracterización
+                    no se agota en el rol declarado. */}
+                <GraficaCategorias
+                  titulo="Experiencia emprendedora previa"
+                  subtitulo="¿Ya había emprendido antes del MBA?"
+                  datos={b4.experiencia_previa}
+                  orden={EXPERIENCIA_ORDEN}
+                  etiquetas={EXPERIENCIA_LABEL}
+                  color="#2e6db4"
+                />
+
+                <GraficaCategorias
+                  titulo="Desenlace del emprendimiento previo"
+                  subtitulo="Solo quienes ya habían emprendido"
+                  datos={b4.desenlace_experiencia_previa}
+                  orden={DESENLACE_ORDEN}
+                  etiquetas={DESENLACE_LABEL}
+                  color="#b07d2b"
+                />
+
+                <GraficaCategorias
+                  titulo="Qué los motiva a emprender"
+                  subtitulo="Selección múltiple: un participante puede elegir varias"
+                  datos={b4.emociones}
+                  orden={EMOCIONES_ORDEN}
+                  etiquetas={EMOCIONES_LABEL}
+                  color="#1f7a5a"
+                />
+
+                <GraficaCategorias
+                  titulo="Qué les preocupa al emprender"
+                  subtitulo="Selección múltiple: un participante puede elegir varias"
+                  datos={b4.preocupaciones}
+                  orden={PREOCUPACIONES_ORDEN}
+                  etiquetas={PREOCUPACIONES_LABEL}
+                  color="#6b4b9a"
+                />
               </div>
             </section>
           )}
