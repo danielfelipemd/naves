@@ -875,15 +875,19 @@ export default function TrabajoGrado() {
                       </div>
                     )}
 
-                    {/* Felicitación final: solo cuando están los CUATRO documentos.
-                        Va ARRIBA de las tarjetas para que se vea apenas se completa
-                        la entrega, sin tener que bajar por toda la página. */}
-                    {!esCasoOPI && entregaCompleta && (
+                    {/* Felicitación final. Va ARRIBA de las tarjetas para que se
+                        vea apenas se completa la entrega, sin tener que bajar por
+                        toda la página. En Business Plan la entrega se completa con
+                        los CUATRO documentos; en Caso/PI, con el proyecto final.
+                        Es el mismo mensaje que recibe el equipo por correo. */}
+                    {trabajoEntregado && (
                       <div className="rounded-lg border border-green-200 bg-green-50 px-5 py-5 mb-6 text-center" role="status" aria-live="polite">
                         <div className="text-3xl mb-2" aria-hidden="true">🎓</div>
                         <p className="font-primary font-extrabold text-lg text-inalde-text mb-1">¡Felicitaciones! Entregaste tu Trabajo de Grado.</p>
                         <p className="text-sm text-inalde-text">
-                          Con esto completas la entrega de tus cuatro documentos: Business Plan, Resumen (One Pager), Logo y Modelo Financiero. Ahora solo te resta <strong>preparar tu presentación</strong>. ¡Mucho éxito en la recta final!
+                          {esCasoOPI
+                            ? <>Con esto completas la entrega de tu proyecto final. Ahora solo te resta <strong>preparar tu presentación</strong>. ¡Mucho éxito en la recta final!</>
+                            : <>Con esto completas la entrega de tus cuatro documentos: Business Plan, Resumen (One Pager), Logo y Modelo Financiero. Ahora solo te resta <strong>preparar tu presentación</strong>. ¡Mucho éxito en la recta final!</>}
                         </p>
                       </div>
                     )}

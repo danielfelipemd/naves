@@ -56,7 +56,7 @@ export function useOrdenTabla(campoInicial: string | null = null): OrdenTabla {
 
 /** Encabezado clicable con indicador de orden. */
 export function ThOrden({
-  orden, campo, children, className = '', variante = 'claro',
+  orden, campo, children, className = '', variante = 'claro', thClassName,
 }: {
   orden: OrdenTabla;
   campo: string;
@@ -64,11 +64,13 @@ export function ThOrden({
   className?: string;
   /** 'oscuro' para las tablas con encabezado de fondo oscuro (AoL, actas). */
   variante?: 'claro' | 'oscuro';
+  /** Reemplaza por completo las clases del <th> (tablas con estilo propio). */
+  thClassName?: string;
 }) {
   const activo = orden.campo === campo;
-  const base = variante === 'oscuro'
+  const base = thClassName ?? (variante === 'oscuro'
     ? 'text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase px-3 py-2.5 whitespace-nowrap'
-    : 'px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray';
+    : 'px-3 py-2 text-xs uppercase tracking-wider text-inalde-gray');
   return (
     <th
       className={`${base} ${className}`}

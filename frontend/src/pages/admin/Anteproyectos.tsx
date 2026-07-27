@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, downloadFile } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
+import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; fecha_inicio?: string; }
 interface Profesor { id: string; nombre_completo: string; areas_afinidad: string[]; }
@@ -176,6 +177,9 @@ function ModalidadPill({ modalidad }: { modalidad: 'business_plan' | 'caso' | 'p
 
 export default function Anteproyectos() {
   const navigate = useNavigate();
+  // Orden por encabezado. Sin columna elegida se conserva el orden por
+  // modalidad (BP → Caso → PI), que es como se lee la tabla por defecto.
+  const orden = useOrdenTabla();
   const role = useAuth((s) => s.role);
   const isSuperAdmin = useAuth((s) => (s.user?.app_metadata as any)?.es_super_admin === true) || role === 'super_admin';
   const miProfesorId = useAuth((s) => (s.user?.app_metadata as any)?.profesor_id as string | undefined);
@@ -589,6 +593,14 @@ export default function Anteproyectos() {
               const ord: Record<string, number> = { business_plan: 0, caso: 1, proyecto_investigacion: 2 };
               return (ord[a.fila.modalidad] ?? 9) - (ord[b.fila.modalidad] ?? 9);
             });
+            const ordenados = orden.ordenar(filtrados, {
+              autores: (m) => m.fila.autores,
+              proyecto: (m) => m.fila.proyectos.map((p) => p.nombre).join(' '),
+              sector: (m) => m.fila.proyectos.map((p) => p.sector ?? '').filter(Boolean).join(' '),
+              modalidad: (m) => m.fila.modalidad,
+              profesor: (m) => m.fila.profesor_asignado_nombre ?? m.fila.director_asignado_nombre ?? '',
+              estado: (m) => m.estado?.label ?? '',
+            });
             const filas = mergedRows.map((m) => m.fila);
             const contar = (mod: string) => filas.filter((f) => f.modalidad === mod).length;
             const totalBP = contar('business_plan');
@@ -732,16 +744,16 @@ export default function Anteproyectos() {
                       <thead>
                         <tr className="bg-gradient-to-b from-inalde-text to-[#2a2a2a]">
                           <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">#</th>
-                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Autores</th>
-                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Proyecto(s)</th>
-                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Sector</th>
+                          <ThOrden orden={orden} campo="autores" variante="oscuro" thClassName="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Autores</ThOrden>
+                          <ThOrden orden={orden} campo="proyecto" variante="oscuro" thClassName="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Proyecto(s)</ThOrden>
+                          <ThOrden orden={orden} campo="sector" variante="oscuro" thClassName="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Sector</ThOrden>
                           <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">CIIU</th>
                           <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Problema · Solución</th>
                           <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-center" title="¿Está buscando socios?">Socios</th>
                           <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-center" title="¿Busca asociación con otro proyecto?">Asoc.</th>
-                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Modalidad</th>
-                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Profesor / Director</th>
-                          <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Estado</th>
+                          <ThOrden orden={orden} campo="modalidad" variante="oscuro" thClassName="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Modalidad</ThOrden>
+                          <ThOrden orden={orden} campo="profesor" variante="oscuro" thClassName="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Profesor / Director</ThOrden>
+                          <ThOrden orden={orden} campo="estado" variante="oscuro" thClassName="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Estado</ThOrden>
                         </tr>
                       </thead>
                       <tbody>
@@ -751,7 +763,7 @@ export default function Anteproyectos() {
                               No hay equipos que coincidan con el filtro.
                             </td>
                           </tr>
-                        ) : filtrados.map((m, idx) => {
+                        ) : ordenados.map((m, idx) => {
                           const f = m.fila;
                           const enviado = m.enviado;
                           return (
