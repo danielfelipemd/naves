@@ -11,6 +11,7 @@ const noPasteProps = {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { CiiuPicker } from '../../components/inalde/CiiuPicker';
+import { RangoFechas } from '../../components/inalde/RangoFechas';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { SECTORES } from '../../lib/sectores';
@@ -58,6 +59,28 @@ const PRESET_HITOS: Array<{ descripcion: string; fecha_fin: string }> = [
 ];
 const PRESET_HITO_NAMES = new Set(PRESET_HITOS.map((h) => h.descripcion));
 const MIN_HITOS = 5;
+
+// Campos obligatorios de cada proyecto: fuente única de verdad para la
+// validación del envío y para el cálculo del progreso (deben coincidir, si no
+// el indicador nunca llega a 100% aunque el formulario esté completo).
+const CAMPOS_OBLIGATORIOS_PROYECTO: Array<[string, string]> = [
+  ['nombre', 'Nombre del proyecto'],
+  ['sector', 'Sector'],
+  ['ciiu', 'CIIU'],
+  ['estado', 'Estado del proyecto'],
+  ['canvas_cliente', 'Cliente'],
+  ['canvas_problema', 'Problema'],
+  ['canvas_solucion', 'Solución'],
+  ['canvas_canales', 'Canales'],
+  ['canvas_relaciones', 'Relación con clientes'],
+  ['canvas_ingresos', 'Modelo de ingresos'],
+  ['canvas_recursos', 'Recursos clave'],
+  ['canvas_actividades', 'Actividades clave'],
+  ['canvas_socios', 'Socios clave'],
+  ['canvas_costos', 'Estructura de costos'],
+  ['fuentes_primarias', 'Fuentes primarias'],
+  ['fuentes_secundarias', 'Fuentes secundarias'],
+];
 
 // Hitos cuya fecha NO la escribe el participante: se extraen de la
 // configuración de la cohorte y quedan bloqueados.
@@ -150,8 +173,7 @@ export default function Anteproyecto() {
   const prefillNombre = (location.state as { prefillNombre?: string } | null)?.prefillNombre?.trim() || '';
   const [anteId, setAnteId] = useState<string | null>(null);
   const [estado, setEstado] = useState<string>('borrador');
-  const [equipoNombre, setEquipoNombre] = useState<string>('');
-  // Sabana de proyectos: dos flags a nivel de equipo. NULL = no contestado.
+  // Proyectos de la cohorte: dos flags a nivel de equipo. NULL = no contestado.
   const [buscandoSocios, setBuscandoSocios] = useState<boolean | null>(null);
   const [buscandoAsociacion, setBuscandoAsociacion] = useState<boolean | null>(null);
   const [cohorte, setCohorte] = useState<Cohorte | null>(null);
@@ -195,7 +217,6 @@ export default function Anteproyecto() {
       if (!eq.data.equipo) { navigate('/equipo'); return; }
       const eqId = eq.data.equipo.id;
       setEquipoId(eqId);
-      setEquipoNombre(eq.data.equipo.nombre_equipo ?? '');
       setBuscandoSocios(eq.data.equipo.buscando_socios ?? null);
       setBuscandoAsociacion(eq.data.equipo.buscando_asociacion_otro_proyecto ?? null);
 
@@ -360,36 +381,32 @@ export default function Anteproyecto() {
     }));
   }
 
-  // ----- Progress (% de campos llenos) -----
+  // ----- Progress -----
+  // El porcentaje mide EXACTAMENTE lo que exige el envío: los campos
+  // obligatorios de cada proyecto, los MIN_HITOS del cronograma y las dos
+  // preguntas de equipo. Así, 100% significa "ya puedes enviar" y no queda
+  // nada invisible frenando el indicador (antes se quedaba en 88%).
   const progress = useMemo(() => {
     const s = (v: unknown) => (typeof v === 'string' ? v : '').trim();
     let done = 0, total = 0;
-    for (const m of miembros) {
-      total += 3; // perfil, emociones, preocupaciones
-      if (m.perfil) done++;
-      if (m.emociones?.length) done++;
-      if (m.preocupaciones?.length) done++;
-      if (m.fue_emprendedor) {
-        total += 1;
-        if (m.quiebra) done++;
-      }
-    }
+
+    // Preguntas a nivel de equipo (obligatorias para enviar).
+    total += 2;
+    if (buscandoSocios !== null) done++;
+    if (buscandoAsociacion !== null) done++;
+
     for (const p of proyectos) {
-      total += 7; // nombre, sector, ciiu, estado, canvas_cliente, canvas_problema, canvas_solucion
-      if (s(p.nombre)) done++;
-      if (s(p.sector)) done++;
-      if (s(p.ciiu)) done++;
-      if (p.estado) done++;
-      if (s(p.canvas_cliente)) done++;
-      if (s(p.canvas_problema)) done++;
-      if (s(p.canvas_solucion)) done++;
-      // hitos validos
-      total += 5;
+      for (const [campo] of CAMPOS_OBLIGATORIOS_PROYECTO) {
+        total += 1;
+        if (s((p as any)[campo])) done++;
+      }
+      // Cronograma: mínimo MIN_HITOS hitos completos (descripción + fechas).
+      total += MIN_HITOS;
       const hitosValidos = (p.hitos ?? []).filter((h) => h.descripcion && h.fecha_inicio && h.fecha_fin).length;
-      done += Math.min(hitosValidos, 5);
+      done += Math.min(hitosValidos, MIN_HITOS);
     }
     return total ? Math.round((done / total) * 100) : 0;
-  }, [miembros, proyectos]);
+  }, [proyectos, buscandoSocios, buscandoAsociacion]);
 
   // ----- Envío -----
   function buildPayload() {
@@ -539,29 +556,11 @@ export default function Anteproyecto() {
       setMsg({ kind: 'err', text: 'Indica si tu equipo busca asociación con otro proyecto (SÍ o NO) en la sección "Información del equipo".' });
       return;
     }
-    // Validar que TODOS los campos del formulario esten llenos. Lista
-    // (campo, etiqueta visible) por proyecto.
-    const CAMPOS_OBLIGATORIOS: Array<[keyof Proyecto, string]> = [
-      ['nombre', 'Nombre del proyecto'],
-      ['sector', 'Sector'],
-      ['ciiu', 'CIIU'],
-      ['estado', 'Estado del proyecto'],
-      ['canvas_cliente', 'Cliente'],
-      ['canvas_problema', 'Problema'],
-      ['canvas_solucion', 'Solución'],
-      ['canvas_canales', 'Canales'],
-      ['canvas_relaciones', 'Relación con clientes'],
-      ['canvas_ingresos', 'Modelo de ingresos'],
-      ['canvas_recursos', 'Recursos clave'],
-      ['canvas_actividades', 'Actividades clave'],
-      ['canvas_socios', 'Socios clave'],
-      ['canvas_costos', 'Estructura de costos'],
-      ['fuentes_primarias', 'Fuentes primarias'],
-      ['fuentes_secundarias', 'Fuentes secundarias'],
-    ];
+    // Validar que TODOS los campos obligatorios del formulario esten llenos
+    // (misma lista que alimenta el % de progreso).
     for (const p of proyectos) {
       const nombreProyecto = p.nombre || `#${p.posicion}`;
-      for (const [campo, label] of CAMPOS_OBLIGATORIOS) {
+      for (const [campo, label] of CAMPOS_OBLIGATORIOS_PROYECTO) {
         const v = (p as any)[campo];
         if (!v || (typeof v === 'string' && !v.trim())) {
           setMsg({
@@ -594,17 +593,13 @@ export default function Anteproyecto() {
         setMsg({ kind: 'err', text: `El proyecto "${p.nombre || `#${p.posicion}`}" tiene ${validos} hito(s) completo(s). Necesitas al menos ${MIN_HITOS} hitos con descripción, fecha de inicio y fecha de fin.` });
         return;
       }
-      // Validar cronología: cada hito debe iniciar >= que el inicio del anterior y terminar >= que el fin del anterior
-      const ordered = (p.hitos ?? []).filter((h) => h.descripcion && h.fecha_inicio && h.fecha_fin);
-      for (let i = 1; i < ordered.length; i++) {
-        const prev = ordered[i - 1];
-        const cur = ordered[i];
-        if (cur.fecha_inicio < prev.fecha_inicio) {
-          setMsg({ kind: 'err', text: `El hito "${cur.descripcion}" no puede iniciar antes que el hito "${prev.descripcion}". Revisa el orden cronológico.` });
-          return;
-        }
-        if (cur.fecha_fin < prev.fecha_fin) {
-          setMsg({ kind: 'err', text: `El hito "${cur.descripcion}" no puede terminar antes que el hito "${prev.descripcion}". Revisa el orden cronológico.` });
+      // Los hitos SÍ pueden traslaparse entre sí: un proyecto puede tener una
+      // actividad continua (p. ej. "Asesoría continua") que corra en paralelo a
+      // las demás. Lo único que se valida es que cada hito termine después de
+      // empezar; el orden entre hitos ya no bloquea el envío.
+      for (const h of (p.hitos ?? [])) {
+        if (h.fecha_inicio && h.fecha_fin && h.fecha_fin < h.fecha_inicio) {
+          setMsg({ kind: 'err', text: `El hito "${h.descripcion || `#${h.posicion}`}" termina antes de empezar. Revisa sus fechas.` });
           return;
         }
       }
@@ -710,8 +705,14 @@ export default function Anteproyecto() {
               {numProyectos === 1 ? 'Tu idea de negocio en síntesis' : `Tus ${numProyectos} ideas de negocio en síntesis`}
             </h1>
             <p className="text-sm text-inalde-gray mt-2 flex items-center gap-3 flex-wrap">
-              <span>Equipo: <strong className="text-inalde-text">{equipoNombre || '(sin nombre)'}</strong></span>
-              <span>·</span>
+              {/* El equipo NO tiene nombre propio: lo identifica el nombre del
+                  proyecto (P7). Con varias ideas no se muestra ninguno. */}
+              {numProyectos === 1 && proyectos[0]?.nombre?.trim() && (
+                <>
+                  <span>Proyecto: <strong className="text-inalde-text">{proyectos[0].nombre.trim()}</strong></span>
+                  <span>·</span>
+                </>
+              )}
               <span>Estado:{' '}
                 <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wider ${
                   estado === 'borrador' ? 'bg-inalde-gold/10 text-inalde-gold' : 'bg-inalde-blue/10 text-inalde-blue'
@@ -1266,49 +1267,32 @@ function ProyectoForm({ proyecto, fechaEntrega, fechaFinal, onChange, onUpdateHi
                 : '';
               const esEntrega = !!fechaFija;
               const prev = hi > 0 ? proyecto.hitos[hi - 1] : null;
+              // Solo se usa para abrir el calendario en un mes razonable: los
+              // hitos pueden traslaparse, así que esto NO restringe la elección.
               const minInicio = prev ? (prev.fecha_inicio || prev.fecha_fin || undefined) : undefined;
-              const prevFin = prev?.fecha_fin || undefined;
-              const minFin = [h.fecha_inicio, prevFin].filter(Boolean).sort().at(-1) || undefined;
-              // No usamos el atributo `min` HTML5 porque al deshabilitar un mes
-              // entero el calendario nativo se queda "atascado" en algunos
-              // navegadores (no deja avanzar con las flechas). Permitimos que
-              // el usuario navegue y escriba lo que quiera; si la fecha rompe
-              // la cronología, lo avisamos con texto rojo debajo y al enviar
-              // el backend lo rechaza.
-              const inicioMal = !!(minInicio && h.fecha_inicio && h.fecha_inicio < minInicio);
-              const finMal = !!(minFin && h.fecha_fin && h.fecha_fin < minFin);
+              // Único error posible en las fechas de un hito: terminar antes de
+              // empezar. El traslape con otros hitos está permitido (P6).
+              const finMal = !!(h.fecha_inicio && h.fecha_fin && h.fecha_fin < h.fecha_inicio);
               return (
                 <>
-                  {/* Aquí tampoco sirve <Field>: lleva DOS hijos (el input y el
-                      aviso condicional), así que children es un array y el id no
-                      se puede inyectar. Id explícito + el error enlazado con
-                      aria-describedby para que sí se anuncie. */}
-                  <div className="w-full sm:w-44 shrink-0">
+                  {/* Un solo control de RANGO (calendario visual de dos meses)
+                      en vez de dos campos de fecha nativos. El calendario abre
+                      en el mes del hito anterior o, si no hay nada, en el año
+                      del programa (no en el año en curso). */}
+                  <div className="w-full sm:w-[290px] shrink-0">
                     <div className="mt-4">
-                      <label htmlFor={`${hitoId}-ini`} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">Inicio</label>
-                      <input id={`${hitoId}-ini`} type="date" value={esEntrega ? fechaFija : h.fecha_inicio}
+                      <label htmlFor={`${hitoId}-rango`} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">
+                        Inicio y fin
+                      </label>
+                      <RangoFechas
+                        idBase={`${hitoId}-rango`}
+                        inicio={esEntrega ? fechaFija : h.fecha_inicio}
+                        fin={esEntrega ? fechaFija : h.fecha_fin}
                         disabled={esEntrega}
-                        aria-invalid={inicioMal || undefined}
-                        aria-describedby={esEntrega ? `${hitoId}-entrega-nota` : (inicioMal ? `${hitoId}-ini-err` : undefined)}
-                        onChange={(e) => onUpdateHito(hi, { fecha_inicio: e.target.value })}
-                        className="input-inalde disabled:opacity-60 disabled:cursor-not-allowed" />
-                      {!esEntrega && inicioMal && (
-                        <p id={`${hitoId}-ini-err`} className="text-[11px] text-inalde-red mt-1">No puede ser anterior al hito #{h.posicion - 1}.</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="w-full sm:w-44 shrink-0">
-                    <div className="mt-4">
-                      <label htmlFor={`${hitoId}-fin`} className="block font-primary font-semibold mb-1 text-xs tracking-wider uppercase text-inalde-gray">Fin</label>
-                      <input id={`${hitoId}-fin`} type="date" value={esEntrega ? fechaFija : h.fecha_fin}
-                        disabled={esEntrega}
-                        aria-invalid={finMal || undefined}
-                        aria-describedby={esEntrega ? `${hitoId}-entrega-nota` : (finMal ? `${hitoId}-fin-err` : undefined)}
-                        onChange={(e) => onUpdateHito(hi, { fecha_fin: e.target.value })}
-                        className="input-inalde disabled:opacity-60 disabled:cursor-not-allowed" />
-                      {!esEntrega && finMal && (
-                        <p id={`${hitoId}-fin-err`} className="text-[11px] text-inalde-red mt-1">No puede ser anterior al inicio ni al hito previo.</p>
-                      )}
+                        anclaPorDefecto={minInicio || fechaEntrega || undefined}
+                        error={finMal ? 'La fecha de fin no puede ser anterior a la de inicio.' : null}
+                        onChange={(ini, f) => onUpdateHito(hi, { fecha_inicio: ini, fecha_fin: f })}
+                      />
                       {esEntrega && (
                         <p id={`${hitoId}-entrega-nota`} className="text-[11px] text-inalde-gray mt-1">Fecha definida por la cohorte.</p>
                       )}

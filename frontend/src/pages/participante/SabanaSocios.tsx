@@ -22,7 +22,7 @@ interface Fila {
 }
 
 /**
- * Vista de SOLO LECTURA para el participante: la "Sábana de proyectos" lista los
+ * Vista de SOLO LECTURA para el participante: "Proyectos de la cohorte" lista los
  * equipos de su cohorte que están buscando socios. No hay nada editable.
  */
 export default function SabanaSocios() {
@@ -58,7 +58,7 @@ export default function SabanaSocios() {
           <Link to="/" className="text-sm text-inalde-gray hover:text-inalde-red">← Menú principal</Link>
           <div className="border-b-[3px] border-inalde-red pb-4 mb-6 mt-3">
             <p className="section-subtitle mb-1">Participante</p>
-            <h1 className="section-title">Sábana de proyectos</h1>
+            <h1 className="section-title">Proyectos de la cohorte</h1>
             <p className="text-sm text-inalde-gray mt-2">
               Proyectos de tu cohorte que están <strong className="text-inalde-text">buscando socios</strong>.
               Es una vista informativa de solo lectura.

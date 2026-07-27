@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
+import { Modal } from '../../components/inalde/Modal';
 import { api } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
@@ -31,8 +32,14 @@ export default function MiEquipo() {
   const searchSeq = useRef(0);
   const [nombreEquipo, setNombreEquipo] = useState('');
   const [modalidad, setModalidad] = useState<Modalidad | null>(null);
-  // Multi-select de compañeros para crear el equipo en un solo paso
+  // Multi-select de participantes para crear el equipo en un solo paso
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  // Primer paso antes de conformar el equipo: el trabajo puede ser individual y
+  // esa es una opción válida, no un caso excepcional. Hasta que no lo declare no
+  // se muestra el selector de participantes.
+  const [modo, setModo] = useState<'individual' | 'equipo' | null>(null);
+  // Confirmación explícita cuando el equipo queda de una sola persona.
+  const [confirmarSolo, setConfirmarSolo] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const cohorteId = (user?.app_metadata as any)?.cohorte_id ?? '';
@@ -71,7 +78,15 @@ export default function MiEquipo() {
 
   useEffect(() => { load(); }, []);
 
+  // "Siguiente": si el equipo va a quedar de una sola persona hay que
+  // confirmarlo explícitamente antes de crearlo (no tiene vuelta atrás fácil).
+  function intentarCrear() {
+    if (modo === 'individual' || seleccionados.size === 0) { setConfirmarSolo(true); return; }
+    crear();
+  }
+
   async function crear() {
+    setConfirmarSolo(false);
     setBusy(true); setError(null);
     try {
       await api.post('/equipos', {
@@ -139,11 +154,57 @@ export default function MiEquipo() {
             </div>
           )}
 
-          {!equipo ? (
+          {!equipo && !modo ? (
+            /* Paso previo (P11): el trabajo puede ser individual y es una opción
+               válida. Se pregunta antes de mostrar el selector de participantes. */
             <div className="space-y-6">
               <p className="text-inalde-gray">
-                Aún no perteneces a un equipo. Selecciona a otro(s) participante(s) de tu modalidad y
-                créalo en un solo paso (equipos de 1 a 3 personas).
+                Aún no perteneces a un equipo. Antes de continuar, dinos cómo vas a hacer tu
+                trabajo de grado. Los equipos pueden ser de <strong className="text-inalde-text">1 a 3 personas</strong>.
+              </p>
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                <button
+                  onClick={() => { setSeleccionados(new Set()); setModo('individual'); }}
+                  className="card-inalde-interactive flex flex-col gap-3 text-left">
+                  <div className="text-3xl">🙋</div>
+                  <h2 className="font-primary font-bold text-lg">Trabajo individual</h2>
+                  <p className="text-inalde-gray text-sm">
+                    El trabajo será solo tuyo. No necesitas agregar a nadie más.
+                  </p>
+                  <span className="text-sm font-semibold text-inalde-red">Continuar solo(a) →</span>
+                </button>
+
+                <button
+                  onClick={() => setModo('equipo')}
+                  className="card-inalde-interactive flex flex-col gap-3 text-left">
+                  <div className="text-3xl">👥</div>
+                  <h2 className="font-primary font-bold text-lg">Trabajo en equipo</h2>
+                  <p className="text-inalde-gray text-sm">
+                    Vas a agregar a otro(s) participante(s) de tu modalidad (hasta 2 más).
+                  </p>
+                  <span className="text-sm font-semibold text-inalde-red">Elegir participantes →</span>
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-inalde-gray-light">
+                <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
+                  ← Menú principal
+                </button>
+              </div>
+            </div>
+          ) : !equipo ? (
+            <div className="space-y-6">
+              <p className="text-inalde-gray">
+                {modo === 'individual'
+                  ? 'Tu trabajo de grado será individual: el equipo quedará conformado únicamente por ti.'
+                  : 'Selecciona a otro(s) participante(s) de tu modalidad y crea el equipo en un solo paso (equipos de 1 a 3 personas).'}
+                {' '}
+                <button
+                  onClick={() => { setModo(null); setSeleccionados(new Set()); }}
+                  className="text-inalde-red hover:underline font-semibold">
+                  Cambiar
+                </button>
               </p>
 
               {/* El Business Plan se identifica por el NOMBRE DEL PROYECTO (del
@@ -171,6 +232,7 @@ export default function MiEquipo() {
                 </div>
               )}
 
+              {modo === 'equipo' && (
               <div>
                 <p className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">
                   Participantes del equipo
@@ -209,18 +271,29 @@ export default function MiEquipo() {
                   </>
                 )}
               </div>
+              )}
 
-              <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-xs text-inalde-text">
-                <strong>¿No encuentras a un participante en la lista?</strong> Es porque aún no ha
-                ingresado a la plataforma o todavía no ha elegido su modalidad. Pídele que ingrese y
-                seleccione la misma modalidad para que aparezca aquí.
-              </div>
+              {modo === 'equipo' && (
+                <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-xs text-inalde-text">
+                  <strong>¿No encuentras a un participante en la lista?</strong> Es porque aún no ha
+                  ingresado a la plataforma o todavía no ha elegido su modalidad. Pídele que ingrese y
+                  seleccione la misma modalidad para que aparezca aquí.
+                </div>
+              )}
+
+              {modo === 'individual' && (
+                <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-xs text-inalde-text">
+                  Tu equipo quedará conformado por <strong>una sola persona: tú</strong>. Si más
+                  adelante quieres trabajar con alguien más, deberás solicitarlo a la dirección del
+                  programa.
+                </div>
+              )}
 
               <div className="flex items-center justify-between gap-3 pt-2 border-t border-inalde-gray-light">
                 <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text">
                   ← Menú principal
                 </button>
-                <button onClick={crear} disabled={busy} className="btn-inalde-primary">
+                <button onClick={intentarCrear} disabled={busy} className="btn-inalde-primary">
                   {busy ? 'Guardando…' : 'Siguiente →'}
                 </button>
               </div>
@@ -298,6 +371,32 @@ export default function MiEquipo() {
           )}
         </div>
       </main>
+
+      {/* P3 — el equipo va a quedar de una sola persona: se confirma explícitamente. */}
+      <Modal
+        open={confirmarSolo}
+        onClose={() => setConfirmarSolo(false)}
+        size="sm"
+        subtitle="Confirma tu equipo"
+        title="Tu equipo será de una sola persona"
+        footer={
+          <>
+            <button
+              onClick={() => setConfirmarSolo(false)}
+              className="px-5 py-2.5 rounded font-primary font-semibold text-xs uppercase tracking-wider border-2 border-inalde-gray text-inalde-gray hover:border-inalde-text hover:text-inalde-text transition">
+              Volver y agregar participantes
+            </button>
+            <button onClick={crear} disabled={busy} className="btn-inalde-primary !py-2.5 !px-5 disabled:opacity-40">
+              {busy ? 'Guardando…' : 'Sí, continuar solo(a)'}
+            </button>
+          </>
+        }
+      >
+        <p className="text-inalde-text leading-relaxed">
+          Al continuar, estás confirmando que tu equipo será de <strong>una sola persona: tú</strong>.
+        </p>
+        <p className="text-inalde-text leading-relaxed mt-3">¿Deseas continuar?</p>
+      </Modal>
     </>
   );
 }

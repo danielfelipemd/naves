@@ -11,7 +11,7 @@ const CRUMBS: Record<string, string> = {
   '/trabajo-grado': 'Trabajo de grado',
   '/seleccion': 'Selección del proyecto definitivo',
   '/mi-profesor': 'Mi profesor',
-  '/sabana-proyectos': 'Sábana de socios',
+  '/sabana-proyectos': 'Proyectos de la cohorte',
   '/mi-presentacion': 'Mi presentación',
   '/consulta-cronograma': 'Cronograma',
   '/profesor/seleccionar-proyectos': 'Elegir proyecto definitivo',

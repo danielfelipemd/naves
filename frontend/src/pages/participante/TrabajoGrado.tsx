@@ -796,7 +796,9 @@ export default function TrabajoGrado() {
                     Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.
                   </div>
                 ) : (
-                  <div className="border-2 border-inalde-red/30 rounded-lg p-5 bg-inalde-red/5">
+                  <div className={`rounded-lg p-5 ${avanceSubido
+                    ? 'border border-inalde-gray-light'
+                    : 'border-2 border-inalde-red/30 bg-inalde-red/5'}`}>
                     <h3 className="font-primary font-bold text-base text-inalde-text mb-2">Documento del avance (PDF)</h3>
                     {avanceSubido ? (
                       <div className="text-sm text-inalde-gray">
@@ -873,8 +875,25 @@ export default function TrabajoGrado() {
                       </div>
                     )}
 
-                    {/* Documento definitivo */}
-                    <div className="border-2 border-inalde-red/30 rounded-lg p-5 mb-6 bg-inalde-red/5">
+                    {/* Felicitación final: solo cuando están los CUATRO documentos.
+                        Va ARRIBA de las tarjetas para que se vea apenas se completa
+                        la entrega, sin tener que bajar por toda la página. */}
+                    {!esCasoOPI && entregaCompleta && (
+                      <div className="rounded-lg border border-green-200 bg-green-50 px-5 py-5 mb-6 text-center" role="status" aria-live="polite">
+                        <div className="text-3xl mb-2" aria-hidden="true">🎓</div>
+                        <p className="font-primary font-extrabold text-lg text-inalde-text mb-1">¡Felicitaciones! Entregaste tu Trabajo de Grado.</p>
+                        <p className="text-sm text-inalde-text">
+                          Con esto completas la entrega de tus cuatro documentos: Business Plan, Resumen (One Pager), Logo y Modelo Financiero. Ahora solo te resta <strong>preparar tu presentación</strong>. ¡Mucho éxito en la recta final!
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Documento definitivo. Una vez recibido queda con el MISMO
+                        estilo neutro de las demás tarjetas: el rojo se lee como
+                        error y esta entrega fue exitosa. */}
+                    <div className={`rounded-lg p-5 mb-6 ${finalSubido
+                      ? 'border border-inalde-gray-light'
+                      : 'border-2 border-inalde-red/30 bg-inalde-red/5'}`}>
                       <h3 className="font-primary font-bold text-base text-inalde-text mb-2 flex items-center gap-2">
                         {!esCasoOPI && <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-inalde-red text-white text-[11px] font-bold">1</span>}
                         {esCasoOPI ? 'Proyecto final (PDF)' : 'Business Plan (PDF)'}
@@ -924,16 +943,6 @@ export default function TrabajoGrado() {
                       </div>
                     )}
 
-                    {/* Felicitación final: solo cuando están los CUATRO documentos. */}
-                    {!esCasoOPI && entregaCompleta && (
-                      <div className="rounded-lg border border-green-200 bg-green-50 px-5 py-5 mt-2 text-center" role="status" aria-live="polite">
-                        <div className="text-3xl mb-2" aria-hidden="true">🎓</div>
-                        <p className="font-primary font-extrabold text-lg text-inalde-text mb-1">¡Felicitaciones! Entregaste tu Trabajo de Grado.</p>
-                        <p className="text-sm text-inalde-text">
-                          Con esto completas la entrega de tus cuatro documentos: Business Plan, Resumen (One Pager), Logo y Modelo Financiero. Ahora solo te resta <strong>preparar tu presentación</strong>. ¡Mucho éxito en la recta final!
-                        </p>
-                      </div>
-                    )}
                   </>
                 )}
               </>

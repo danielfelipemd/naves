@@ -101,6 +101,20 @@ export default function Login() {
               </button>
             </div>
 
+            {/* Primer ingreso: la clave inicial ES la cédula. El aviso va ARRIBA del
+                formulario y repite el dato en el placeholder del campo Clave, porque
+                la nota al pie pasaba desapercibida. */}
+            {mode === 'participante' && (
+              <div className="rounded border-l-4 border-inalde-red bg-inalde-red/5 px-4 py-3 mb-6">
+                <p className="font-primary font-bold text-sm text-inalde-text mb-1">¿Es tu primer ingreso?</p>
+                <p className="text-sm text-inalde-text leading-relaxed">
+                  Escribe tu <strong>número de cédula en los dos campos</strong>: en
+                  {' '}<strong>Cédula</strong> y también en <strong>Clave</strong>. Después te pediremos
+                  crear una clave nueva.
+                </p>
+              </div>
+            )}
+
             <form onSubmit={onSubmit} className="space-y-5">
               <div>
                 <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-2">
@@ -127,6 +141,7 @@ export default function Login() {
                     autoComplete="current-password"
                     value={clave}
                     onChange={(e) => setClave(e.target.value)}
+                    placeholder={mode === 'participante' ? 'Primer ingreso: tu número de cédula' : undefined}
                     required
                     minLength={6}
                     className="input-inalde pr-12"
@@ -151,7 +166,8 @@ export default function Login() {
                 </div>
                 {mode === 'participante' && (
                   <p className="text-sm text-inalde-text mt-2">
-                    Si es tu primer ingreso, tu clave es tu <strong>número de cédula</strong>.
+                    Si es tu primer ingreso, tu clave es tu <strong>número de cédula</strong> (el mismo
+                    que escribiste arriba).
                   </p>
                 )}
               </div>

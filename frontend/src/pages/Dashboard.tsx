@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../components/inalde/Header';
+import { Modal } from '../components/inalde/Modal';
 import { useAuth } from '../auth/store';
 import { api } from '../lib/api';
 import { formatBackendError } from '../lib/errors';
@@ -67,6 +68,10 @@ export default function Dashboard() {
   const [modalidad, setModalidad] = useState<Modalidad | null>(null);
   const [cargando, setCargando] = useState(true);
   const [fijando, setFijando] = useState<Modalidad | null>(null);
+  // Modalidad que el participante pulsó y aún no ha confirmado. El aviso de
+  // "es definitiva" va en un modal propio: el window.confirm del navegador
+  // pasaba desapercibido y no se puede dar formato al texto.
+  const [porConfirmar, setPorConfirmar] = useState<Modalidad | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nombre, setNombre] = useState<string | null>(null);
   const [esperandoEquipo, setEsperandoEquipo] = useState(false);
@@ -172,11 +177,12 @@ export default function Dashboard() {
 
   async function elegirModalidad(m: Modalidad) {
     if (modalidad) return;
-    const confirmar = window.confirm(
-      `Vas a elegir "${MODALIDADES.find((x) => x.id === m)?.titulo}" como tu trabajo de grado. ` +
-      `Esta elección es DEFINITIVA y no se puede cambiar. ¿Confirmas?`,
-    );
-    if (!confirmar) return;
+    setPorConfirmar(m);
+  }
+
+  async function confirmarModalidad(m: Modalidad) {
+    if (modalidad) return;
+    setPorConfirmar(null);
     setFijando(m); setError(null);
     try {
       await api.put('/participantes/mi-modalidad', { tipo: m });
@@ -353,6 +359,17 @@ export default function Dashboard() {
                 <p className="text-inalde-gray">Cargando…</p>
               ) : (
                 <>
+                  {/* La elección de modalidad no tiene vuelta atrás: se avisa
+                      antes (aquí) y al confirmar (modal). */}
+                  {!modalidad && (
+                    <div className="rounded border-l-4 border-inalde-red bg-inalde-red/5 px-4 py-3 mb-6">
+                      <p className="text-sm text-inalde-text leading-relaxed">
+                        <strong>Importante:</strong> la modalidad que elijas es <strong>definitiva</strong> y
+                        no podrás cambiarla después. Léelas con calma antes de decidir.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="grid sm:grid-cols-3 gap-5 mb-8">
                     {MODALIDADES.map((m) => {
                       const elegida = modalidad === m.id;
@@ -422,13 +439,13 @@ export default function Dashboard() {
                       modalidad de arriba, que lleva a /trabajo-grado. La
                       selección del definitivo se ofrece dentro de esa pantalla. */}
 
-                  {/* Sábana de proyectos: vista de solo lectura de proyectos
+                  {/* Proyectos de la cohorte: vista de solo lectura de proyectos
                       de la cohorte que están buscando socios. */}
                   <div className="mt-6">
                     <Link to="/sabana-proyectos" className="card-inalde-interactive flex items-center gap-5 p-6">
                       <div className="text-4xl">🤝</div>
                       <div className="flex-1">
-                        <h2 className="font-primary font-bold text-lg mb-1">Sábana de proyectos</h2>
+                        <h2 className="font-primary font-bold text-lg mb-1">Proyectos de la cohorte</h2>
                         <p className="text-inalde-gray text-sm">Mira los proyectos de tu cohorte que están buscando socios. Vista de solo lectura.</p>
                       </div>
                       <span className="text-sm font-semibold text-inalde-red whitespace-nowrap">Entrar →</span>
@@ -470,7 +487,7 @@ export default function Dashboard() {
               <div className="flex-1">
                 <h2 className="font-primary font-bold text-xl mb-1">Panel administrativo</h2>
                 <p className="text-inalde-gray text-sm">
-                  Cohortes, participantes, profesores, anteproyectos, sábana de proyectos, solicitudes y auditoría.
+                  Cohortes, participantes, profesores, anteproyectos de la cohorte, solicitudes y auditoría.
                 </p>
               </div>
               <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
@@ -493,7 +510,7 @@ export default function Dashboard() {
 
                 <Link to="/admin/sabana" className="card-inalde-interactive flex flex-col gap-3">
                   <div className="text-3xl">📑</div>
-                  <h3 className="font-primary font-bold text-lg">Sábana de anteproyectos</h3>
+                  <h3 className="font-primary font-bold text-lg">Anteproyectos de la cohorte</h3>
                   <p className="text-inalde-gray text-sm">Vista consolidada para la reunión de asignación.</p>
                   <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
                 </Link>
@@ -545,6 +562,38 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* P2 — confirmación explícita: la modalidad no se puede cambiar. */}
+      <Modal
+        open={!!porConfirmar}
+        onClose={() => setPorConfirmar(null)}
+        size="sm"
+        subtitle="Confirma tu elección"
+        title="Esta elección es definitiva"
+        footer={
+          <>
+            <button
+              onClick={() => setPorConfirmar(null)}
+              className="px-5 py-2.5 rounded font-primary font-semibold text-xs uppercase tracking-wider border-2 border-inalde-gray text-inalde-gray hover:border-inalde-text hover:text-inalde-text transition">
+              Cancelar
+            </button>
+            <button
+              onClick={() => porConfirmar && confirmarModalidad(porConfirmar)}
+              disabled={!!fijando}
+              className="btn-inalde-primary !py-2.5 !px-5 disabled:opacity-40">
+              {fijando ? 'Guardando…' : 'Sí, elegir esta modalidad'}
+            </button>
+          </>
+        }
+      >
+        <p className="text-inalde-text leading-relaxed">
+          Vas a elegir <strong>{MODALIDADES.find((x) => x.id === porConfirmar)?.titulo}</strong> como
+          la modalidad de tu trabajo de grado.
+        </p>
+        <p className="text-inalde-text leading-relaxed mt-3">
+          Una vez la elijas <strong>no podrás cambiarla</strong>. ¿Deseas continuar?
+        </p>
+      </Modal>
     </>
   );
 }
