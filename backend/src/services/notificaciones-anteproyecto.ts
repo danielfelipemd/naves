@@ -73,8 +73,16 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
     if (!equipo) return;
 
     const modalidadLabel = args.modalidad ? MODALIDAD_LABEL[args.modalidad] : '—';
-    const equipoNombre = (equipo as any).nombre_equipo || '(sin nombre)';
     const cohorte = (equipo as any).cohorte_id ?? '';
+    // El equipo no tiene nombre propio: lo identifica el NOMBRE DEL
+    // ANTEPROYECTO. En BP viene de los proyectos; en Caso/PI el nombre del
+    // trabajo se guarda en equipos.nombre_equipo.
+    const nombresProyectos = (args.bp?.proyectos ?? [])
+      .map((p) => (p.nombre ?? '').trim())
+      .filter(Boolean);
+    const nombreAnteproyecto = nombresProyectos.length
+      ? nombresProyectos.join(' · ')
+      : ((equipo as any).nombre_equipo || 'sin nombre registrado');
 
     const miembros = (((equipo as any).miembros_equipo ?? []) as any[])
       .sort((a, b) => (a.posicion ?? 0) - (b.posicion ?? 0))
@@ -151,8 +159,8 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
       ? 'Los anteproyectos de su equipo fueron cargados'
       : 'El anteproyecto de su equipo fue cargado';
     const cuerpoAnteproyecto = plural
-      ? 'Le confirmamos que los anteproyectos del equipo'
-      : 'Le confirmamos que el anteproyecto del equipo';
+      ? 'Le confirmamos que los anteproyectos de su equipo, con nombres'
+      : 'Le confirmamos que el anteproyecto de su equipo, con nombre';
     const verboAnteproyecto = plural ? 'fueron cargados' : 'fue cargado';
     const cierreAnteproyecto = plural
       ? 'Los anteproyectos quedan registrados de manera definitiva.'
@@ -175,11 +183,11 @@ export async function notificarRegistroAnteproyectoAParticipantes(args: {
           </div>
           <p><strong>${m.nombre_completo}</strong>:</p>
           <p>Reciba un cordial saludo. ${cuerpoAnteproyecto}
-          <strong>${equipoNombre}</strong> ${verboAnteproyecto} en el sistema de trabajos de grado del
+          <strong>${nombreAnteproyecto}</strong>, ${verboAnteproyecto} en el sistema de trabajos de grado del
           MBA${cargador ? ` por ${cargador}` : ''}.${parrafoAdjunto}</p>
           <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px;">
-            <tr><td style="padding: 6px 0; color:#888; width: 40%;">Equipo</td><td style="padding: 6px 0;"><strong>${equipoNombre}</strong></td></tr>
-            <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Miembros</td><td style="padding: 6px 0;">${miembrosNombres}</td></tr>
+            <tr><td style="padding: 6px 0; color:#888; width: 40%;">${plural ? 'Anteproyectos' : 'Anteproyecto'}</td><td style="padding: 6px 0;"><strong>${nombreAnteproyecto}</strong></td></tr>
+            <tr><td style="padding: 6px 0; color:#888; vertical-align: top;">Participantes</td><td style="padding: 6px 0;">${miembrosNombres}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Modalidad</td><td style="padding: 6px 0;">${modalidadLabel}</td></tr>
             <tr><td style="padding: 6px 0; color:#888;">Cohorte</td><td style="padding: 6px 0;">${cohorte}</td></tr>
             ${filaDireccion}

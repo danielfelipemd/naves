@@ -15,6 +15,7 @@ import {
 } from '../services/storage.js';
 import { sendEmail, type EmailAttachment } from '../services/email.js';
 import { notificarRegistroAnteproyectoAParticipantes } from '../services/notificaciones-anteproyecto.js';
+import { entregaTrabajoGradoCompleta, notificarEntregaTrabajoGrado } from '../services/notificaciones-entrega.js';
 import { programacionPublicadaAt } from '../services/escaleta.js';
 import { decryptPII } from '../auth/crypto.js';
 
@@ -400,6 +401,18 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     });
   }
 
+  // Confirmación de ENTREGA a todo el equipo: solo cuando la entrega queda
+  // completa (en BP faltan los tres documentos de material, que se suben por
+  // la ruta de assets). Los archivos no se pueden reemplazar, así que la
+  // entrega se completa una única vez y el correo sale una sola vez.
+  if (tipo === 'proyecto-final') {
+    void (async () => {
+      if (await entregaTrabajoGradoCompleta(req.params.id)) {
+        await notificarEntregaTrabajoGrado({ equipoId: ant.equipo_id, fechaIso: fechaSubida });
+      }
+    })();
+  }
+
   res.status(201).json({ ok: true, path, size, mime });
 });
 
@@ -593,6 +606,17 @@ router.post('/:id/asset/:tipo', upload.single('file'), async (req: Authenticated
   const { error: errDb } = await supabaseAdmin.from('proyecto_contenido')
     .upsert({ proyecto_id: r.proyectoId, [ASSET_COL[tipo]]: path, updated_at: new Date().toISOString() }, { onConflict: 'proyecto_id' });
   if (errDb) return res.status(500).json({ error: 'ASSET_DB_FAILED', detail: errDb.message });
+
+  // Si este asset era el que faltaba, la entrega quedó completa: confirmación
+  // por correo a TODO el equipo.
+  if (ant?.equipo_id) {
+    const equipoId = ant.equipo_id as string;
+    void (async () => {
+      if (await entregaTrabajoGradoCompleta(req.params.id)) {
+        await notificarEntregaTrabajoGrado({ equipoId, fechaIso: new Date().toISOString() });
+      }
+    })();
+  }
 
   res.status(201).json({ ok: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)) });
 });
