@@ -105,6 +105,17 @@ export default function Decisor() {
             className="w-full border-0 bg-white"
             style={{ height: 'calc(100dvh - 190px)' }}
             onError={() => setEstado('error')}
+            onLoad={(e) => {
+              // El archivo puede responder 200 y aun así no renderizarse dentro
+              // del marco (p. ej. una cabecera X-Frame-Options mal puesta). En
+              // ese caso el documento del iframe deja de ser accesible aunque
+              // sea del mismo origen: lo tratamos como error manejado en vez de
+              // dejar el marco en blanco.
+              const f = e.currentTarget;
+              try {
+                if (!f.contentDocument || !f.contentDocument.body) setEstado('error');
+              } catch { setEstado('error'); }
+            }}
           />
         )}
       </main>
