@@ -175,6 +175,11 @@ function ModalidadPill({ modalidad }: { modalidad: 'business_plan' | 'caso' | 'p
   );
 }
 
+/** Estilo común de los desplegables de la barra de filtros (tipo, asignación,
+ *  comunicación y estado). El color del borde lo pone cada uno según si está
+ *  activo, así que aquí solo va lo que comparten. */
+const selectFiltroCls = 'text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border bg-white cursor-pointer focus:outline-none max-w-[190px]';
+
 export default function Anteproyectos() {
   const navigate = useNavigate();
   // Orden por encabezado. Sin columna elegida se conserva el orden por
@@ -643,74 +648,70 @@ export default function Anteproyectos() {
                       {soloMios ? '✓ ' : ''}Mis equipos · {filas.filter((f) => f.profesor_asignado_id === miProfesorId).length}
                     </button>
                   )}
-                  <div className="flex gap-1">
-                    {([
-                      ['todas', `Todas · ${filas.length}`],
-                      ['business_plan', `BP · ${totalBP}`],
-                      ['caso', `Caso · ${totalCaso}`],
-                      ['proyecto_investigacion', `PI · ${totalPI}`],
-                    ] as const).map(([k, label]) => (
-                      <button key={k}
-                        onClick={() => setFiltroModalidad(k as any)}
-                        className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${filtroModalidad === k
-                          ? 'border-inalde-red bg-inalde-red text-white'
-                          : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                  <button
+                    onClick={() => setFiltroModalidad('todas')}
+                    title="Ver todas las modalidades"
+                    className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${filtroModalidad === 'todas'
+                      ? 'border-inalde-red bg-inalde-red text-white'
+                      : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
+                    Todas · {filas.length}
+                  </button>
 
                   <div className="w-px h-5 bg-inalde-gray-light" />
+
+                  {/* Filtro por modalidad (BP / Caso / PI). Cada opción lleva su
+                      conteo para no perder la lectura rápida que daban los chips. */}
+                  <select
+                    value={filtroModalidad}
+                    onChange={(e) => setFiltroModalidad(e.target.value as any)}
+                    title="Filtrar por tipo de trabajo"
+                    className={`${selectFiltroCls} ${filtroModalidad !== 'todas'
+                      ? 'border-inalde-red text-inalde-red'
+                      : 'border-inalde-gray-light text-inalde-gray'}`}>
+                    <option value="todas">Tipo ▾</option>
+                    <option value="business_plan">BP · {totalBP}</option>
+                    <option value="caso">Caso · {totalCaso}</option>
+                    <option value="proyecto_investigacion">PI · {totalPI}</option>
+                  </select>
 
                   {/* Filtro por estado de asignación */}
-                  <div className="flex gap-1">
-                    {([
-                      ['asignados', `Asignados · ${totalAsignados}`],
-                      ['no_asignados', `No asignados · ${totalNoAsignados}`],
-                    ] as const).map(([k, label]) => (
-                      <button key={k}
-                        onClick={() => setFiltroAsignacion(filtroAsignacion === k ? 'todas' : k)}
-                        className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${filtroAsignacion === k
-                          ? 'border-inalde-red bg-inalde-red text-white'
-                          : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="w-px h-5 bg-inalde-gray-light" />
+                  <select
+                    value={filtroAsignacion}
+                    onChange={(e) => setFiltroAsignacion(e.target.value as any)}
+                    title="Filtrar por asignación de profesor o director"
+                    className={`${selectFiltroCls} ${filtroAsignacion !== 'todas'
+                      ? 'border-inalde-red text-inalde-red'
+                      : 'border-inalde-gray-light text-inalde-gray'}`}>
+                    <option value="todas">Asignación ▾</option>
+                    <option value="asignados">Asignados · {totalAsignados}</option>
+                    <option value="no_asignados">No asignados · {totalNoAsignados}</option>
+                  </select>
 
                   {/* Filtro por estado de comunicación (correo enviado) */}
-                  <div className="flex gap-1">
-                    {([
-                      ['comunicados', `Comunicados · ${totalComunicados}`],
-                      ['pendientes', `Sin comunicar · ${totalPendientesComunicar}`],
-                    ] as const).map(([k, label]) => (
-                      <button key={k}
-                        onClick={() => setFiltroComunicado(filtroComunicado === k ? 'todos' : k)}
-                        className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${filtroComunicado === k
-                          ? 'border-inalde-blue bg-inalde-blue text-white'
-                          : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                  <select
+                    value={filtroComunicado}
+                    onChange={(e) => setFiltroComunicado(e.target.value as any)}
+                    title="Filtrar por envío del correo de asignación"
+                    className={`${selectFiltroCls} ${filtroComunicado !== 'todos'
+                      ? 'border-inalde-blue text-inalde-blue'
+                      : 'border-inalde-gray-light text-inalde-gray'}`}>
+                    <option value="todos">Comunicación ▾</option>
+                    <option value="comunicados">Comunicados · {totalComunicados}</option>
+                    <option value="pendientes">Sin comunicar · {totalPendientesComunicar}</option>
+                  </select>
 
                   {estadosDisponibles.length > 0 && (
-                    <>
-                      <div className="w-px h-5 bg-inalde-gray-light" />
-                      {/* Filtro por estado del anteproyecto (borrador/enviado/…) */}
-                      <select
-                        value={filtroEstado}
-                        onChange={(e) => setFiltroEstado(e.target.value)}
-                        title="Filtrar por estado"
-                        className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border bg-white cursor-pointer focus:outline-none ${filtroEstado
-                          ? 'border-inalde-red text-inalde-red'
-                          : 'border-inalde-gray-light text-inalde-gray'}`}>
-                        <option value="">Estado ▾</option>
-                        {estadosDisponibles.map((k) => <option key={k} value={k}>{ESTADO_LABELS[k]}</option>)}
-                      </select>
-                    </>
+                    /* Filtro por estado del anteproyecto (borrador/enviado/…) */
+                    <select
+                      value={filtroEstado}
+                      onChange={(e) => setFiltroEstado(e.target.value)}
+                      title="Filtrar por estado"
+                      className={`${selectFiltroCls} ${filtroEstado
+                        ? 'border-inalde-red text-inalde-red'
+                        : 'border-inalde-gray-light text-inalde-gray'}`}>
+                      <option value="">Estado ▾</option>
+                      {estadosDisponibles.map((k) => <option key={k} value={k}>{ESTADO_LABELS[k]}</option>)}
+                    </select>
                   )}
 
                   <div className="flex-1 min-w-[200px] ml-auto">
