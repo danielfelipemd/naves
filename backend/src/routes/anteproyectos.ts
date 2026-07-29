@@ -106,9 +106,10 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
     const { data: eq } = await supabaseAdmin.from('equipos').select('cohorte_id').eq('id', ant.equipo_id).maybeSingle();
     const cohorteId = (eq as any)?.cohorte_id;
     if (cohorteId) {
-      const [{ data: hito }, { data: coh }] = await Promise.all([
+      const [{ data: hito }, { data: coh }, { data: hitoR2 }] = await Promise.all([
         supabaseAdmin.from('cohorte_hitos').select('fecha').eq('cohorte_id', cohorteId).eq('posicion', 10).maybeSingle(),
         supabaseAdmin.from('cohortes').select('fecha_limite_proyecto_final, fecha_limite_avance').eq('id', cohorteId).maybeSingle(),
+        supabaseAdmin.from('cohorte_hitos').select('fecha').eq('cohorte_id', cohorteId).eq('posicion', 8).maybeSingle(),
       ]);
       const fHito = (hito as any)?.fecha ?? null;
       ant.fecha_limite_proyecto = fHito;
@@ -116,9 +117,15 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
       ant.fecha_limite_proyecto_final = dt
         ? new Date(dt).toISOString()
         : (fHito ? new Date(`${fHito}T23:59:59-05:00`).toISOString() : null);
-      // Fecha límite del avance (entrega intermedia caso/PI): objetivo/advertencia.
+      // Fecha límite del avance (entrega intermedia caso/PI): es el CIERRE DE LA
+      // VENTANA DE LA REUNIÓN 2 (hito 8). El campo de la cohorte manda si está
+      // puesto. Pasada esa fecha no se carga el avance, pero el proyecto final
+      // se entrega igual.
       const dtAvance = (coh as any)?.fecha_limite_avance;
-      ant.fecha_limite_avance = dtAvance ? new Date(dtAvance).toISOString() : null;
+      const fHitoR2 = (hitoR2 as any)?.fecha ?? null;
+      ant.fecha_limite_avance = dtAvance
+        ? new Date(dtAvance).toISOString()
+        : (fHitoR2 ? new Date(`${fHitoR2}T23:59:59-05:00`).toISOString() : null);
     }
   }
 
@@ -445,12 +452,13 @@ router.post('/:id/enviar', async (req: AuthenticatedRequest, res) => {
 
   const modalidad = (ant.equipos as any)?.tipo_trabajo_grado;
 
-  // === Modalidades 'caso' / 'proyecto_investigacion': se exigen los 3 archivos
-  //     de la secuencia anteproyecto → avance → proyecto final.
+  // === Modalidades 'caso' / 'proyecto_investigacion': se exigen el anteproyecto
+  //     y el proyecto final. El AVANCE es una entrega intermedia con plazo
+  //     propio (cierre de la ventana de la Reunión 2) y NO bloquea el envío:
+  //     quien no alcanzó a subirlo entrega igual su trabajo de grado.
   if (modalidad === 'caso' || modalidad === 'proyecto_investigacion') {
     const faltantes: string[] = [];
     if (!ant.archivo_anteproyecto_path) faltantes.push('anteproyecto');
-    if (!ant.archivo_avance_path) faltantes.push('avance');
     if (!ant.archivo_proyecto_final_path) faltantes.push('proyecto_final');
     if (faltantes.length) return res.status(400).json({ error: 'ARCHIVOS_FALTANTES', faltantes });
 

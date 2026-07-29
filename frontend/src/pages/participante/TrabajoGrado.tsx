@@ -529,12 +529,11 @@ export default function TrabajoGrado() {
   const trabajoEntregado = esCasoOPI ? finalSubido : entregaCompleta;
 
   // La carga del proyecto final se habilita distinto por modalidad:
-  //  - caso/PI: al cargar su AVANCE (entrega intermedia), que a su vez exige el
-  //    anteproyecto. Así se respeta la secuencia anteproyecto → avance → final.
+  //  - caso/PI: con el anteproyecto cargado. El avance es una entrega intermedia
+  //    con plazo propio, pero NO es requisito: quien no alcance a subirlo entrega
+  //    igual su proyecto final.
   //  - business plan: al elegirse el proyecto definitivo en la reunión.
-  const proyectoHabilitado = esCasoOPI ? avanceSubido : !!ant?.equipos?.proyecto_definitivo_id;
-  // El AVANCE (solo caso/PI) se habilita al cargar el anteproyecto.
-  const avanceHabilitado = antSubido;
+  const proyectoHabilitado = esCasoOPI ? antSubido : !!ant?.equipos?.proyecto_definitivo_id;
 
   // Anteproyecto DILIGENCIADO: habilita la ficha de proyecto de grado.
   //  - BP: el formulario ya fue enviado (estado ≠ borrador).
@@ -549,10 +548,15 @@ export default function TrabajoGrado() {
     ? new Date(fechaLimite).toLocaleString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
     : null;
 
-  // Fecha límite del avance (caso/PI). Es un objetivo/advertencia: se puede subir
-  // tarde, pero se avisa si ya pasó.
+  // Fecha límite del avance (caso/PI): el cierre de la ventana de la Reunión 2.
+  // Vencida, el avance ya no se carga; el proyecto final sigue abierto.
   const fechaLimiteAvance = ant?.fecha_limite_avance ?? null;
   const avanceVencido = !!fechaLimiteAvance && new Date() > new Date(fechaLimiteAvance);
+  // El AVANCE (solo caso/PI) se abre al cargar el anteproyecto. Quien ya lo
+  // subió sigue viendo su ficha aunque la fecha haya pasado; para el resto, la
+  // ficha queda de solo lectura con el aviso de plazo cerrado.
+  const avanceHabilitado = antSubido;
+  const avanceCerrado = avanceVencido && !avanceSubido;
   const fechaLimiteAvanceTexto = fechaLimiteAvance
     ? new Date(fechaLimiteAvance).toLocaleString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
     : null;
@@ -561,7 +565,7 @@ export default function TrabajoGrado() {
   // proyecto); en BP arrancamos en Proyecto si el anteproyecto ya se envió. El
   // clic del usuario manda por encima de este valor.
   const fichaDefault: 'anteproyecto' | 'avance' | 'proyecto' = esCasoOPI
-    ? (avanceSubido ? 'proyecto' : antSubido ? 'avance' : 'anteproyecto')
+    ? (avanceSubido || avanceCerrado ? 'proyecto' : antSubido ? 'avance' : 'anteproyecto')
     : (anteproyectoHecho ? 'proyecto' : 'anteproyecto');
   const fichaActiva: 'anteproyecto' | 'avance' | 'proyecto' = ficha ?? fichaDefault;
 
@@ -780,20 +784,24 @@ export default function TrabajoGrado() {
                   </div>
                 </div>
                 <p className="text-sm text-inalde-gray mb-5">
-                  Es la entrega de la mitad del proceso. Se carga <strong>una sola vez</strong> y no se puede reemplazar. Con el avance cargado se habilita tu proyecto final.
+                  Es la entrega de la mitad del proceso. Se carga <strong>una sola vez</strong> y no se puede reemplazar. El plazo va hasta el cierre de la ventana de la <strong>Reunión 2</strong>.
                 </p>
 
                 {fechaLimiteAvanceTexto && (
-                  <div className="rounded border-l-4 border-inalde-gold bg-inalde-gold/10 px-4 py-3 text-sm text-inalde-text mb-5">
+                  <div className={`rounded border-l-4 px-4 py-3 text-sm text-inalde-text mb-5 ${avanceVencido && !avanceSubido ? 'border-inalde-red bg-red-50' : 'border-inalde-gold bg-inalde-gold/10'}`}>
                     {avanceVencido
-                      ? <>La fecha sugerida del avance ya pasó (<strong>{fechaLimiteAvanceTexto}</strong>). Aún puedes subirlo, pero hazlo cuanto antes.</>
-                      : <>Fecha sugerida para el avance: <strong>{fechaLimiteAvanceTexto}</strong>.</>}
+                      ? <><strong>El plazo del avance cerró</strong> con la ventana de la Reunión 2 ({fechaLimiteAvanceTexto}).{!avanceSubido && <> Ya no es posible cargarlo, pero <strong>sí puedes entregar tu proyecto de grado</strong>.</>}</>
+                      : <>Fecha límite del avance (cierre de la ventana de la Reunión 2): <strong>{fechaLimiteAvanceTexto}</strong>.</>}
                   </div>
                 )}
 
                 {!avanceHabilitado ? (
                   <div className="rounded border-l-4 border-inalde-gold bg-inalde-gray-bg px-4 py-3 text-sm text-inalde-text">
                     Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.
+                  </div>
+                ) : avanceCerrado ? (
+                  <div className="rounded border-l-4 border-inalde-gray bg-inalde-gray-bg px-4 py-3 text-sm text-inalde-text">
+                    No se recibió tu avance dentro del plazo. Esta entrega ya cerró; continúa con tu <strong>proyecto de grado</strong>, que sigue habilitado.
                   </div>
                 ) : (
                   <div className={`rounded-lg p-5 ${avanceSubido
@@ -848,11 +856,11 @@ export default function TrabajoGrado() {
                   </div>
                 )}
 
-                {/* Gate: BP sin definitivo aún. */}
+                {/* Gate: caso/PI sin anteproyecto, o BP sin definitivo aún. */}
                 {!proyectoHabilitado ? (
                   <div className="rounded border-l-4 border-inalde-gold bg-inalde-gray-bg px-4 py-3 text-sm text-inalde-text">
                     {esCasoOPI ? (
-                      <>Este paso se habilita <strong>en cuanto cargues tu avance</strong> (entrega intermedia).</>
+                      <>Este paso se habilita <strong>en cuanto cargues tu anteproyecto</strong>.</>
                     ) : (
                       <>
                         Se habilita <strong>cuando se elija tu proyecto definitivo</strong>, después de la Reunión 1 con tu profesor.

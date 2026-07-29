@@ -248,6 +248,21 @@ async function fechaLimiteProyecto(cohorteId: string): Promise<string | null> {
   return f ? new Date(`${f}T23:59:59-05:00`).toISOString() : null;
 }
 
+// Corte del AVANCE (entrega intermedia de caso/PI). La regla del área es que
+// el avance se recibe hasta el CIERRE DE LA VENTANA DE LA REUNIÓN 2, que es el
+// hito 8 del cronograma. El campo `fecha_limite_avance` de la cohorte sigue
+// mandando si está puesto, para poder mover el corte a mano.
+async function fechaLimiteAvance(cohorteId: string): Promise<string | null> {
+  const { data: coh } = await supabaseAdmin
+    .from('cohortes').select('fecha_limite_avance').eq('id', cohorteId).maybeSingle();
+  const dt = (coh as any)?.fecha_limite_avance;
+  if (dt) return new Date(dt).toISOString();
+  const { data: hito } = await supabaseAdmin
+    .from('cohorte_hitos').select('fecha').eq('cohorte_id', cohorteId).eq('posicion', 8).maybeSingle();
+  const f = (hito as any)?.fecha;
+  return f ? new Date(`${f}T23:59:59-05:00`).toISOString() : null;
+}
+
 // Vencido = ya pasó el instante límite (comparación directa de datetime).
 function limiteVencido(iso: string | null): boolean {
   if (!iso) return false;
@@ -295,8 +310,9 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     }
   } else if (tipo === 'avance') {
     // AVANCE (entrega intermedia): solo caso/PI. Exige tener el anteproyecto
-    // cargado y es de una sola carga (no reemplazable). La fecha del avance es
-    // un objetivo/advertencia: NO bloquea la carga tardía (decisión del área).
+    // cargado y es de una sola carga (no reemplazable). Se recibe hasta el
+    // cierre de la ventana de la Reunión 2; pasada esa fecha ya no se carga,
+    // pero eso NO frena el proyecto final (se entrega igual).
     if (!esCasoPI) return res.status(400).json({ error: 'MODALIDAD_NO_USA_ARCHIVOS', modalidad });
     if (!ant.archivo_anteproyecto_path) {
       return res.status(403).json({
@@ -310,17 +326,25 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
         mensaje: 'El avance ya fue cargado y no se puede reemplazar.',
       });
     }
+    const limiteAvance = await fechaLimiteAvance(ant.equipos?.cohorte_id);
+    if (limiteVencido(limiteAvance)) {
+      return res.status(403).json({
+        error: 'FECHA_LIMITE_AVANCE_EXPIRADA', fecha_limite: limiteAvance,
+        mensaje: 'El plazo del avance cerró con la ventana de la Reunión 2. Continúa con tu proyecto final.',
+      });
+    }
   } else {
     // MÓDULO DE PROYECTO (proyecto final). Aplica a todas las modalidades, pero
     // se habilita distinto porque los flujos son distintos:
-    //  - caso/PI: al cargar su AVANCE (que a su vez exige el anteproyecto). No
-    //    pasan por la reunión de profesores; esa selección es del Business Plan.
+    //  - caso/PI: con el anteproyecto cargado. El avance NO es requisito: si el
+    //    equipo no alcanzó a subirlo, igual entrega su proyecto final. No pasan
+    //    por la reunión de profesores; esa selección es del Business Plan.
     //  - business plan: al elegirse el proyecto definitivo en la reunión.
     if (esCasoPI) {
-      if (!ant.archivo_avance_path) {
+      if (!ant.archivo_anteproyecto_path) {
         return res.status(403).json({
-          error: 'FALTA_AVANCE',
-          mensaje: 'Carga primero tu avance (entrega intermedia): con eso se habilita el proyecto final.',
+          error: 'FALTA_ANTEPROYECTO',
+          mensaje: 'Carga primero tu anteproyecto: con eso se habilita el proyecto final.',
         });
       }
     } else if (!ant.equipos?.proyecto_definitivo_id) {
