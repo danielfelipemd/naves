@@ -137,22 +137,6 @@ export default function Dashboard() {
     return () => { cancel = true; };
   }, [role]);
 
-  // Modalidad recien elegida: muestra la pantalla intermedia "estas en la lista"
-  // antes de llevar al participante al flujo de equipo.
-  const [recienElegida, setRecienElegida] = useState<Modalidad | null>(null);
-
-  async function elegirEsperar() {
-    if (!recienElegida) return;
-    setOpBusy(true); setError(null);
-    try {
-      await api.put('/participantes/esperar-equipo');
-      setEsperandoEquipo(true);
-      setRecienElegida(null);
-    } catch (e: any) {
-      setError(formatBackendError(e));
-    } finally { setOpBusy(false); }
-  }
-
   async function cancelarEspera() {
     setOpBusy(true); setError(null);
     try {
@@ -198,65 +182,16 @@ export default function Dashboard() {
         navigate('/mi-perfil', { replace: true });
         return;
       }
-      // Caso / Proyecto de investigacion: pantalla intermedia para que
-      // decida entre crear equipo o esperar a ser agregado.
-      setRecienElegida(m);
+      // Caso / Proyecto de investigacion: van derecho a la pantalla de equipo,
+      // donde eligen entre trabajo individual o en equipo. La antigua pantalla
+      // intermedia ("estas en la lista de participantes…") sobraba: en estas
+      // modalidades el equipo suele ser de una sola persona.
+      navigate(destinoModalidad(m), { replace: true });
     } catch (e: any) {
       setError(formatBackendError(e));
     } finally {
       setFijando(null);
     }
-  }
-
-  // Pantalla intermedia tras elegir modalidad: confirmacion de que el participante
-  // ya esta en la lista de candidatos para su modalidad. De aqui pasa al flujo de
-  // formacion de equipo. Si para ese momento ya lo seleccionaron, vera el equipo
-  // formado en /equipo; si no, vera la pantalla para crear equipo.
-  if (recienElegida) {
-    const labelModalidad = MODALIDADES.find((x) => x.id === recienElegida)?.titulo ?? '';
-    return (
-      <>
-        <Header />
-        <main className="pt-36 pb-16 px-4">
-          <div className="max-w-[640px] mx-auto bg-white rounded-lg shadow-inalde-card p-6 sm:p-10">
-            <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
-              <p className="section-subtitle mb-2">Modalidad elegida</p>
-              <h1 className="section-title">
-                Estás en la lista de participantes que eligieron la modalidad {labelModalidad}
-              </h1>
-            </div>
-            <p className="text-inalde-gray mb-6 leading-relaxed">
-              Desde este momento estás disponible para que otros participantes de esta misma
-              modalidad te seleccionen o para crear tu equipo.
-            </p>
-            {error && (
-              <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm mb-4">
-                {error}
-              </div>
-            )}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => navigate(destinoModalidad(recienElegida), { replace: true })}
-                disabled={opBusy}
-                className="btn-inalde-primary disabled:opacity-40">
-                Continuar a Mi equipo →
-              </button>
-              <button
-                onClick={elegirEsperar}
-                disabled={opBusy}
-                className="px-5 py-3 rounded font-primary font-semibold text-xs uppercase tracking-wider border-2 border-inalde-gray text-inalde-gray hover:border-inalde-text hover:text-inalde-text transition disabled:opacity-40">
-                {opBusy ? 'Guardando…' : 'Esperar a ser agregado'}
-              </button>
-            </div>
-            <p className="text-xs text-inalde-gray mt-4 leading-relaxed">
-              <strong>"Esperar a ser agregado":</strong> volverás al menú principal y, hasta que otro
-              participante te agregue a su equipo, no podrás avanzar en el sistema. Pídele al
-              participante que te agregue cuando ingrese.
-            </p>
-          </div>
-        </main>
-      </>
-    );
   }
 
   // Pantalla bloqueada "esperando a ser agregado": el participante eligio
