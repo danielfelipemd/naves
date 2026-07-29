@@ -313,11 +313,14 @@ export default function Programacion() {
                 {/* Los anchos se declaran UNA vez en el colgroup y el layout es
                     fijo: con table-auto el navegador reparte el sobrante a su
                     manera y la cabecera deja de caer sobre su columna. */}
-                <table className="w-full min-w-[1305px] table-fixed border-collapse bg-white">
+                <table className="w-full min-w-[1280px] table-fixed border-collapse bg-white">
+                  {/* Sin columna de logo: la miniatura repetía lo que ya abre el
+                      botón "Logo" de Archivos, y sus 95 px se los reparten
+                      Autores y Resumen, que sí necesitan ancho para leerse. */}
                   <colgroup>
-                    <col className="w-[70px]" /><col className="w-[120px]" /><col className="w-[190px]" />
-                    <col className="w-[160px]" /><col className="w-[95px]" /><col className="w-[220px]" />
-                    <col className="w-[230px]" /><col className="w-[130px]" /><col className="w-[90px]" />
+                    <col className="w-[70px]" /><col className="w-[130px]" /><col className="w-[190px]" />
+                    <col className="w-[150px]" /><col className="w-[290px]" /><col className="w-[250px]" />
+                    <col className="w-[120px]" /><col className="w-[80px]" />
                   </colgroup>
                   {/* El encabezado de columnas solo tiene sentido si la jornada
                       tiene proyectos. En jornadas de solo actividades (p. ej. la
@@ -327,7 +330,7 @@ export default function Programacion() {
                     <tr className="bg-inalde-text text-white">
                       {/* La sexta columna muestra el RESUMEN del proyecto; el one
                           pager vive en "Archivos", que es donde se abre y se baja. */}
-                      {['Slot', 'Proyecto', 'Autores', 'Sector', 'Logo', 'Resumen', 'Post LinkedIn', 'Archivos', ''].map((h, i) => (
+                      {['Slot', 'Proyecto', 'Autores', 'Sector', 'Resumen', 'Post LinkedIn', 'Archivos', ''].map((h, i) => (
                         <th key={i} scope="col" className="bg-inalde-text text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase whitespace-nowrap px-3 py-2.5">{h}</th>
                       ))}
                     </tr>
@@ -336,7 +339,7 @@ export default function Programacion() {
                   <tbody>
                     {filasDe(j).map((f) => f.kind === 'actividad' ? (
                       <tr key={`act-${f.a.tipo}-${f.a.hora_inicio}`} className="bg-inalde-gray-bg">
-                        <td colSpan={9} className="border-l-4 border-inalde-red px-4 py-3">
+                        <td colSpan={8} className="border-l-4 border-inalde-red px-4 py-3">
                           <span className="font-primary font-extrabold text-[0.85rem] text-inalde-text">
                             <span aria-hidden="true">🕐 </span>{f.a.hora_inicio} – {f.a.hora_fin} hrs. — {f.a.desc}
                           </span>
@@ -349,20 +352,26 @@ export default function Programacion() {
                           <span className="block text-[0.7rem] text-inalde-gray mt-0.5 font-mono">{f.s.hora_inicio}–{f.s.hora_fin}</span>
                         </td>
                         <td className="px-3 py-2.5 font-primary font-bold text-[0.85rem] text-inalde-text">{f.s.proyecto}</td>
-                        <td className="px-3 py-2.5 text-[0.78rem] text-inalde-gray">{f.s.autores}</td>
+                        {/* Autores vacío = el equipo se quedó sin miembros (p. ej.
+                            tras resetear a un participante). En blanco parecía un
+                            fallo de la pantalla; se dice lo que pasa. */}
+                        <td className="px-3 py-2.5 text-[0.78rem] text-inalde-gray">
+                          {f.s.autores
+                            ? f.s.autores
+                            : <span className="italic" title="Este equipo no tiene participantes registrados. Revísalo en Equipos.">Sin autores</span>}
+                        </td>
                         <td className="px-3 py-2.5">
                           {f.s.sector && (
                             <span className="inline-block max-w-full text-white rounded-[3px] px-2 py-0.5 font-primary font-bold text-[0.62rem] tracking-wider uppercase whitespace-normal break-words leading-tight" style={{ background: colorSector(f.s.sector) }}>{f.s.sector}</span>
                           )}
                         </td>
-                        <td className="text-center px-3 py-2.5">
-                          {f.s.logo_url
-                            ? <img src={f.s.logo_url} alt={`Logo de ${f.s.proyecto}`} className="max-w-[80px] max-h-[64px] object-contain border border-inalde-gray-light p-0.5 mx-auto" />
-                            : <span className="text-[0.7rem] text-inalde-gray italic">Sin logo</span>}
-                        </td>
+                        {/* El resumen ya no se recorta a tres líneas: con la
+                            columna del logo fuera tiene ancho de sobra, y al lado
+                            el post de LinkedIn se muestra entero — recortar solo
+                            este parecía un error. */}
                         <td className="px-3 py-2.5 text-[0.8rem] leading-relaxed align-top">
                           {f.s.resumen
-                            ? <span className="clamp-3" title={f.s.resumen}>{f.s.resumen}</span>
+                            ? f.s.resumen
                             : <span className="text-inalde-gray italic">Sin resumen</span>}
                         </td>
                         <td className="px-3 py-2.5">
@@ -394,12 +403,12 @@ export default function Programacion() {
                         </td>
                       </tr>
                     ))}
-                    {j.slots.length === 0 && <tr><td colSpan={9} className="py-3 text-center text-inalde-gray italic text-xs">Sin proyectos asignados</td></tr>}
+                    {j.slots.length === 0 && <tr><td colSpan={8} className="py-3 text-center text-inalde-gray italic text-xs">Sin proyectos asignados</td></tr>}
                     {/* Sin hora de inicio el servidor no calcula la escaleta: los
                         horarios llegan como '--:--'. Se dice por qué, en vez de
                         dejar al admin mirando guiones. */}
                     {!j.hora_inicio && (
-                      <tr><td colSpan={9} className="px-4 py-3 text-xs text-inalde-text bg-inalde-gray-bg border-l-4 border-inalde-red">
+                      <tr><td colSpan={8} className="px-4 py-3 text-xs text-inalde-text bg-inalde-gray-bg border-l-4 border-inalde-red">
                         Esta jornada <strong>no tiene hora de inicio</strong>, así que no se pueden calcular los horarios. Ponle la hora de inicio arriba y se recalculan solos.
                       </td></tr>
                     )}
@@ -408,7 +417,7 @@ export default function Programacion() {
                         aparece. Se dice, en vez de dejar la casilla marcada sin
                         efecto visible. */}
                     {j.almuerzo && j.slots.length < 2 && (
-                      <tr><td colSpan={9} className="px-4 py-3 text-xs text-inalde-text bg-inalde-gray-bg border-l-4 border-inalde-red">
+                      <tr><td colSpan={8} className="px-4 py-3 text-xs text-inalde-text bg-inalde-gray-bg border-l-4 border-inalde-red">
                         El <strong>almuerzo</strong> parte la jornada en dos, así que necesita al menos dos presentaciones. Asigna proyectos y la franja aparecerá sola.
                       </td></tr>
                     )}
