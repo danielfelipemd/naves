@@ -276,6 +276,18 @@ export default function Participantes() {
         </div>
       </details>
 
+      {/* La cohorte manda sobre todo lo que se ve abajo, así que va de primera:
+          justo debajo de la carga por Excel y antes del buscador. */}
+      <div className="mb-4 max-w-xs">
+        <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-1">Cohorte</label>
+        <select value={filtroCohorte} onChange={(e) => setFiltroCohorte(e.target.value)} className="input-inalde !py-2">
+          <option value="todas">Todas</option>
+          {cohortesActivas.map((c) => (
+            <option key={c.id} value={c.id}>{c.etiqueta}</option>
+          ))}
+        </select>
+      </div>
+
       {/* ====== Mensajes ====== */}
       {msg && <div className="mb-4 rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-sm">{msg}</div>}
       {err && <div className="mb-4 rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm whitespace-pre-wrap">{err}</div>}
@@ -287,15 +299,6 @@ export default function Participantes() {
           <input type="text" placeholder="Nombre, cédula o email…"
             value={filtroNombre} onChange={(e) => setFiltroNombre(e.target.value)}
             className="input-inalde !py-2" />
-        </div>
-        <div>
-          <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-1">Cohorte</label>
-          <select value={filtroCohorte} onChange={(e) => setFiltroCohorte(e.target.value)} className="input-inalde !py-2">
-            <option value="todas">Todas</option>
-            {cohortesActivas.map((c) => (
-              <option key={c.id} value={c.id}>{c.etiqueta}</option>
-            ))}
-          </select>
         </div>
       </div>
 
