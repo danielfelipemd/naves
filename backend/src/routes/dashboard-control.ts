@@ -13,8 +13,8 @@ import { entregaFinalCompleta } from '../services/entrega-final.js';
 // propio es el indicador binario del INFORME de cohorte
 // (cohortes.informe_cohorte_realizado, migración 35).
 //
-// El bloque de ACTAS depende del módulo de Actas de Grado, que todavía no
-// existe: se devuelve con disponible:false y contadores en 0.
+// El bloque de ACTAS resume la tabla `acta` del módulo de Actas de Grado
+// (migración 38) con los mismos criterios de estado que usa su propio panel.
 //
 // Solo lectura salvo el checkbox del informe (POST /:cohorteId/informe).
 
@@ -268,6 +268,18 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
     }
   }
 
+  // --- Actas de grado (módulo de Actas, migración 38) -----------------------
+  // Se usan los mismos criterios de estado que el panel de /admin/actas para que
+  // los números coincidan. Los estados son acumulativos (un acta completa ya
+  // pasó por generada y enviada), así que cada contador incluye a los
+  // posteriores: realizadas ≥ enviadas ≥ firmadas.
+  const { data: actasData } = await supabaseAdmin
+    .from('acta')
+    .select('estado')
+    .eq('cohorte_id', cohorteId);
+  const actas = (actasData ?? []) as any[];
+  const cuentaActas = (estados: string[]) => actas.filter((a) => estados.includes(a.estado)).length;
+
   res.json({
     cohorte: { id: cohorte.id, etiqueta: cohorte.etiqueta },
     bloque1: {
@@ -292,8 +304,20 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
       { label: 'Proyectos programados en jornadas', n: programados, total: totalEquipos },
     ],
     bloque3: {
-      // El módulo de Actas de Grado aún no existe: se reporta como no disponible.
-      actas: { disponible: false, realizadas: 0, enviadas: 0, firmadas: 0 },
+      actas: {
+        disponible: true,
+        // Total de actas creadas para la cohorte (una por participante).
+        total: actas.length,
+        // Realizada = ya generada, es decir salió de 'faltan_datos'.
+        realizadas: cuentaActas(['generada', 'enviada', 'en_firmas_internas', 'lista_para_cierre', 'completa', 'archivada']),
+        // Enviada = salió a la cadena de firmas.
+        enviadas: cuentaActas(['enviada', 'en_firmas_internas', 'lista_para_cierre', 'completa', 'archivada']),
+        // Firmada = cadena de firmas completa (mismo criterio que el tile
+        // "Completas" del panel de actas).
+        firmadas: cuentaActas(['completa', 'archivada']),
+        // Con datos incompletos todavía no se puede generar el acta.
+        faltan_datos: cuentaActas(['faltan_datos']),
+      },
       informe_cohorte: { realizado: !!cohorte.informe_cohorte_realizado },
     },
     bloque4: {

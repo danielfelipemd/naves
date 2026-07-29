@@ -34,7 +34,14 @@ interface Dashboard {
   };
   bloque2: Array<{ label: string; n: number; total: number }>;
   bloque3: {
-    actas: { disponible: boolean; realizadas: number; enviadas: number; firmadas: number };
+    actas: {
+      disponible: boolean;
+      total?: number;
+      realizadas: number;
+      enviadas: number;
+      firmadas: number;
+      faltan_datos?: number;
+    };
     informe_cohorte: { realizado: boolean };
   };
   bloque4: {
@@ -276,6 +283,9 @@ export default function DashboardControl() {
     }
   }
 
+  // Un backend anterior a esta pantalla no manda `total`: se trata como 0, que
+  // es lo mismo que reportaba (contadores en cero).
+  const totalActas = data?.bloque3.actas.total ?? 0;
   const b4 = data?.bloque4;
   const maxTrabajos = b4 ? Math.max(1, ...MODALIDAD_ORDEN.map((k) => b4.trabajos_por_modalidad[k] ?? 0)) : 1;
   const maxParticipantes = b4 ? Math.max(1, ...MODALIDAD_ORDEN.map((k) => b4.participantes_por_modalidad[k] ?? 0)) : 1;
@@ -382,16 +392,32 @@ export default function DashboardControl() {
             <div className="grid md:grid-cols-2 gap-5">
               <div className="card-inalde p-5">
                 <p className="font-primary font-bold text-base text-inalde-text mb-3">Actas de grado</p>
-                {data.bloque3.actas.disponible ? (
-                  <div className="flex flex-col gap-2 text-sm text-inalde-text">
-                    <span>Realizadas: {data.bloque3.actas.realizadas}</span>
-                    <span>Enviadas: {data.bloque3.actas.enviadas}</span>
-                    <span>Firmadas: {data.bloque3.actas.firmadas}</span>
+                {/* Resumen del módulo de Actas (una acta por participante). Los
+                    estados son acumulativos, así que realizadas ≥ enviadas ≥
+                    firmadas. El panel completo es solo para la dirección. */}
+                {totalActas === 0 ? (
+                  <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-sm text-inalde-text">
+                    Todavía no se han generado actas para esta cohorte.
                   </div>
                 ) : (
-                  <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-sm text-inalde-text">
-                    El módulo de Actas de Grado aún no está disponible.
+                  <div className="flex flex-col gap-2 text-sm text-inalde-text">
+                    <span>Realizadas: {data.bloque3.actas.realizadas} de {totalActas}</span>
+                    <span>Enviadas: {data.bloque3.actas.enviadas} de {totalActas}</span>
+                    <span>Firmadas: {data.bloque3.actas.firmadas} de {totalActas}</span>
+                    {!!data.bloque3.actas.faltan_datos && (
+                      <span className="text-inalde-gray">
+                        Con datos pendientes: {data.bloque3.actas.faltan_datos}
+                      </span>
+                    )}
                   </div>
+                )}
+                {esAdmin && (
+                  <Link
+                    to="/admin/actas"
+                    className="inline-block mt-3 text-xs text-inalde-gray hover:text-inalde-red"
+                  >
+                    Ir al panel de actas →
+                  </Link>
                 )}
               </div>
 
