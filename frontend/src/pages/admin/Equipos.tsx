@@ -77,15 +77,20 @@ export default function AdminEquipos() {
     setEquipos((prev) => prev.map((e) => e.id === id ? eq : e));
   }
 
-  async function quitar(eq: Equipo, participanteId: string, nombre: string) {
-    if (!confirm(`¿Quitar a ${nombre} del equipo? El participante quedará libre para unirse a otro equipo.`)) return;
+  // Devuelve si el participante salió de verdad. Lo necesita el modal: su aviso
+  // de confirmación se pintaba AQUÍ, en la página de detrás, y el propio modal lo
+  // tapaba — el admin quitaba a alguien y no veía nada que se lo confirmara.
+  async function quitar(eq: Equipo, participanteId: string, nombre: string): Promise<boolean> {
+    if (!confirm(`¿Quitar a ${nombre} del equipo? El participante quedará libre para unirse a otro equipo.`)) return false;
     setMsg(null);
     try {
       await api.post(`/admin/equipos/${eq.id}/remover-miembro`, { participante_id: participanteId });
       await refetchEquipo(eq.id);
       setMsg({ kind: 'ok', text: `${nombre} fue retirado del equipo.` });
+      return true;
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
+      return false;
     }
   }
 
@@ -339,13 +344,16 @@ function DetalleEquipo({
   equipo: Equipo;
   cohortes: Cohorte[];
   onClose: () => void;
-  onQuitar: (participanteId: string, nombre: string) => void;
+  onQuitar: (participanteId: string, nombre: string) => Promise<boolean>;
   onAgregado: () => void;
 }) {
   const [disponibles, setDisponibles] = useState<ParticipanteDisponible[]>([]);
   const [busy, setBusy] = useState(false);
   const [seleccion, setSeleccion] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Confirmación de lo último que se hizo. Este modal guarda al instante, así que
+  // sin un acuse visible el admin no tiene forma de saber que quedó guardado.
+  const [ok, setOk] = useState<string | null>(null);
 
   useEffect(() => { (async () => {
     try {
@@ -361,16 +369,23 @@ function DetalleEquipo({
 
   async function agregar() {
     if (!seleccion) return;
-    setBusy(true); setError(null);
+    const nombre = disponibles.find((p) => p.id === seleccion)?.nombre_completo ?? 'El participante';
+    setBusy(true); setError(null); setOk(null);
     try {
       await api.post(`/admin/equipos/${equipo.id}/agregar-miembro`, { participante_id: seleccion });
       setSeleccion('');
       onAgregado();
       // Quitar de la lista de disponibles
       setDisponibles((prev) => prev.filter((p) => p.id !== seleccion));
+      setOk(`${nombre} quedó agregado al equipo.`);
     } catch (e: any) {
       setError(formatBackendError(e));
     } finally { setBusy(false); }
+  }
+
+  async function quitarMiembro(participanteId: string, nombre: string) {
+    setError(null); setOk(null);
+    if (await onQuitar(participanteId, nombre)) setOk(`${nombre} fue retirado del equipo.`);
   }
 
   const lleno = equipo.miembros_equipo.length >= 4;
@@ -413,7 +428,7 @@ function DetalleEquipo({
                           <p className="text-[11px] text-inalde-gray italic">Perfil emprendedor pendiente</p>
                         )}
                       </div>
-                      <button onClick={() => onQuitar(part!.id, part!.nombre_completo)}
+                      <button onClick={() => quitarMiembro(part!.id, part!.nombre_completo)}
                         className="text-xs text-inalde-red border border-inalde-red rounded px-3 py-1 hover:bg-inalde-red hover:text-white transition">
                         Quitar
                       </button>
@@ -452,9 +467,22 @@ function DetalleEquipo({
             )}
           </div>
 
+          {ok && (
+            <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-3 py-2 text-sm" role="status">
+              <span aria-hidden="true">✓ </span>{ok}
+            </div>
+          )}
           {error && (
             <div className="rounded border-l-4 border-inalde-red bg-red-50 px-3 py-2 text-sm">{error}</div>
           )}
+        </div>
+
+        {/* Pie de cierre. No dice "Guardar" porque no habría nada que guardar:
+            agregar y quitar escriben en el momento. Se dice en voz alta para que
+            nadie se quede esperando un botón que confirme. */}
+        <div className="border-t border-inalde-gray-light px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-inalde-gray">Los cambios se guardan al instante.</p>
+          <button onClick={onClose} className="btn-inalde-primary !py-2 !px-6 !text-sm">Listo</button>
         </div>
       </div>
     </div>
