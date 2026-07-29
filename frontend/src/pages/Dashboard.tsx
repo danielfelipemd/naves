@@ -452,6 +452,15 @@ export default function Dashboard() {
                   <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
                 </Link>
 
+                {/* Va pegada a Anteproyectos: es la consulta que el profesor
+                    abre junto con la sábana para ver quién compone cada equipo. */}
+                <Link to="/profesor/equipos" className="card-inalde-interactive flex flex-col gap-3">
+                  <div className="text-3xl">👥</div>
+                  <h3 className="font-primary font-bold text-lg">Consulta de equipos</h3>
+                  <p className="text-inalde-gray text-sm">Ver los equipos asignados y sus participantes (solo consulta).</p>
+                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                </Link>
+
                 <Link to="/profesor/seleccionar-proyectos" className="card-inalde-interactive flex flex-col gap-3">
                   <div className="text-3xl">🎯</div>
                   <h3 className="font-primary font-bold text-lg">Elegir proyecto definitivo</h3>
@@ -470,13 +479,6 @@ export default function Dashboard() {
                   <div className="text-3xl">🗂️</div>
                   <h3 className="font-primary font-bold text-lg">Trabajos de grado definitivos</h3>
                   <p className="text-inalde-gray text-sm">Consulta los proyectos definitivos entregados por tus equipos (solo lectura).</p>
-                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
-                </Link>
-
-                <Link to="/profesor/equipos" className="card-inalde-interactive flex flex-col gap-3">
-                  <div className="text-3xl">👥</div>
-                  <h3 className="font-primary font-bold text-lg">Consulta de equipos</h3>
-                  <p className="text-inalde-gray text-sm">Ver los equipos asignados y sus participantes (solo consulta).</p>
                   <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
                 </Link>
 
