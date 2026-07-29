@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
-import { requireAuth, requireRole } from '../auth/middleware.js';
+import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { entregaFinalCompleta } from '../services/entrega-final.js';
 
 // === Dashboard de control de cohorte (Comentario 15 QA, JMV 20-jul-2026) =====
@@ -20,6 +20,27 @@ import { entregaFinalCompleta } from '../services/entrega-final.js';
 
 const router = Router();
 const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
+// El dashboard es de SOLO LECTURA, así que el profesor también entra: necesita
+// ver el avance de la cohorte que acompaña. El alcance se restringe abajo (solo
+// sus cohortes). Marcar el informe sigue siendo exclusivo del super_admin.
+const adminOProfesor = [requireAuth(), requireRole('super_admin', 'profesor')] as const;
+
+/**
+ * ¿Puede este usuario ver el dashboard de la cohorte? El super_admin, todas; el
+ * profesor, solo aquellas donde tiene equipos asignados.
+ */
+async function puedeVerCohorte(req: AuthenticatedRequest, cohorteId: string): Promise<boolean> {
+  if (req.user?.isSuperAdmin || req.user?.role === 'super_admin') return true;
+  const profesorId = req.user?.profesorId;
+  if (!profesorId) return false;
+  const { data } = await supabaseAdmin
+    .from('asignaciones_profesor')
+    .select('equipo_id')
+    .eq('profesor_id', profesorId)
+    .eq('cohorte_id', cohorteId)
+    .limit(1);
+  return !!(data ?? []).length;
+}
 
 // El anteproyecto en supabase-js puede venir como objeto o como array (embed).
 function pickAnte(raw: any) {
@@ -32,9 +53,33 @@ function esModalidad(t: any): t is Modalidad {
   return t === 'business_plan' || t === 'caso' || t === 'proyecto_investigacion';
 }
 
+// === GET /cohortes — cohortes que el usuario puede consultar aquí ===========
+// El super_admin ve todas las activas; el profesor, solo donde tiene equipos.
+// Sin esto el desplegable le ofrecía cohortes que después respondían 403.
+router.get('/cohortes', ...adminOProfesor, async (req: AuthenticatedRequest, res) => {
+  const esAdmin = !!req.user?.isSuperAdmin || req.user?.role === 'super_admin';
+  const { data: todas, error } = await supabaseAdmin
+    .from('cohortes').select('id, etiqueta, activa').eq('activa', true).order('etiqueta');
+  if (error) return res.status(500).json({ error: error.message });
+  if (esAdmin) return res.json({ cohortes: todas ?? [] });
+
+  const profesorId = req.user?.profesorId;
+  if (!profesorId) return res.json({ cohortes: [] });
+  const { data: asig } = await supabaseAdmin
+    .from('asignaciones_profesor').select('cohorte_id').eq('profesor_id', profesorId);
+  const mias = new Set(((asig ?? []) as any[]).map((a) => a.cohorte_id));
+  res.json({ cohortes: ((todas ?? []) as any[]).filter((c) => mias.has(c.id)) });
+});
+
 // === GET /:cohorteId — dashboard completo de la cohorte =====================
-router.get('/:cohorteId', ...soloAdmin, async (req, res) => {
+router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, res) => {
   const cohorteId = req.params.cohorteId;
+  if (!(await puedeVerCohorte(req, cohorteId))) {
+    return res.status(403).json({
+      error: 'COHORTE_FUERA_DE_ALCANCE',
+      mensaje: 'Solo puedes ver el dashboard de las cohortes en las que tienes equipos asignados.',
+    });
+  }
 
   const { data: cohorte, error: errCoh } = await supabaseAdmin
     .from('cohortes')

@@ -501,6 +501,13 @@ export default function Dashboard() {
                 Admon Cohortes
               </h2>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Link to="/admin/dashboard-control" className="card-inalde-interactive flex flex-col gap-3">
+                  <div className="text-3xl">📊</div>
+                  <h3 className="font-primary font-bold text-lg">Dashboard de control</h3>
+                  <p className="text-inalde-gray text-sm">Avance del proceso y caracterización de las cohortes que acompañas.</p>
+                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
+                </Link>
+
                 <Link to="/admin/anteproyectos" className="card-inalde-interactive flex flex-col gap-3">
                   <div className="text-3xl">📋</div>
                   <h3 className="font-primary font-bold text-lg">Anteproyectos</h3>

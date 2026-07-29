@@ -146,7 +146,9 @@ export default function App() {
           <Route path="programacion" element={<SuperAdminOnly><AdminProgramacion /></SuperAdminOnly>} />
           <Route path="proyectos-db" element={<SuperAdminOnly><AdminProyectosDB /></SuperAdminOnly>} />
           <Route path="trabajos-sector" element={<SuperAdminOnly><AdminTrabajosSector /></SuperAdminOnly>} />
-          <Route path="dashboard-control" element={<SuperAdminOnly><AdminDashboardControl /></SuperAdminOnly>} />
+          {/* El dashboard de control es de solo lectura: el profesor lo ve para
+              las cohortes que acompaña (el backend acota el alcance). */}
+          <Route path="dashboard-control" element={<AdminDashboardControl />} />
           <Route path="aol" element={<SuperAdminOnly><AolTrabajos /></SuperAdminOnly>} />
           <Route path="aol/calificar/:proyectoId" element={<SuperAdminOnly><AolCalificar /></SuperAdminOnly>} />
           <Route path="aol/dashboard" element={<SuperAdminOnly><AolDashboard /></SuperAdminOnly>} />

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { useAuth } from '../../auth/store';
 
 // Dashboard de control de cohorte (Comentario 15 QA, JMV 20-jul-2026).
 // Solo lectura salvo el checkbox del informe. Sin librerías de charts: las
@@ -220,6 +221,8 @@ function GraficaCategorias({ titulo, subtitulo, datos, orden, etiquetas, color }
 }
 
 export default function DashboardControl() {
+  // El profesor entra en solo lectura; el super_admin además marca el informe.
+  const esAdmin = useAuth((s) => s.role === 'super_admin' || (s.user?.app_metadata as any)?.es_super_admin === true);
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorteId, setCohorteId] = useState('');
   const [data, setData] = useState<Dashboard | null>(null);
@@ -227,13 +230,15 @@ export default function DashboardControl() {
   const [err, setErr] = useState('');
   const [savingInforme, setSavingInforme] = useState(false);
 
-  // Cargar cohortes activas y seleccionar la activa por defecto.
+  // Cohortes que ESTE usuario puede consultar: todas las activas si es
+  // super_admin, y solo aquellas donde tiene equipos asignados si es profesor
+  // (así el desplegable no ofrece cohortes que luego responden 403).
   useEffect(() => {
     (async () => {
       try {
-        const activas = ((await api.get('/admin/cohortes')).data as Cohorte[]).filter((c) => c.activa);
-        setCohortes(activas);
-        if (activas.length) setCohorteId(activas[0].id);
+        const lista = ((await api.get('/dashboard-control/cohortes')).data?.cohortes ?? []) as Cohorte[];
+        setCohortes(lista);
+        if (lista.length) setCohorteId(lista[0].id);
       } catch (e: any) {
         setErr(formatBackendError(e));
       }
@@ -392,12 +397,15 @@ export default function DashboardControl() {
 
               <div className="card-inalde p-5">
                 <p className="font-primary font-bold text-base text-inalde-text mb-3">Informe de cohorte</p>
-                <label className="flex items-center gap-3 text-sm cursor-pointer">
+                {/* Marcar el informe es una acción de dirección: el profesor ve
+                    el estado pero no puede cambiarlo (el backend también lo
+                    restringe, esto evita ofrecerle un control que daría 403). */}
+                <label className={`flex items-center gap-3 text-sm ${esAdmin ? 'cursor-pointer' : ''}`}>
                   <input
                     type="checkbox"
-                    className="accent-inalde-red w-4 h-4"
+                    className="accent-inalde-red w-4 h-4 disabled:opacity-60"
                     checked={data.bloque3.informe_cohorte.realizado}
-                    disabled={savingInforme}
+                    disabled={savingInforme || !esAdmin}
                     onChange={(e) => toggleInforme(e.target.checked)}
                   />
                   <span className="text-inalde-text">Informe de cohorte realizado</span>
@@ -408,6 +416,7 @@ export default function DashboardControl() {
                     : data.bloque3.informe_cohorte.realizado
                       ? 'Marcado como realizado.'
                       : 'Aún no marcado como realizado.'}
+                  {!esAdmin && ' Solo la dirección del programa puede cambiarlo.'}
                 </p>
               </div>
             </div>
