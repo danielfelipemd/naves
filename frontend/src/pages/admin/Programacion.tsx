@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { VisorArchivo } from '../../components/inalde/VisorArchivo';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Config { evento_nombre: string; expo: number; trans: number; foto: number; cierre: number; break_min: number; bloque: number; }
@@ -10,7 +11,13 @@ interface Slot {
   resumen: string | null; linkedin: string | null; one_pager_url: string | null; logo_url: string | null;
 }
 interface Actividad { tipo: string; desc: string; hora_inicio: string; hora_fin: string; }
-interface Jornada { id: string; numero: number; fecha: string; fecha_legible?: string; hora_inicio: string | null; hora_fin: string | null; foto_inicial: boolean; intro_min: number; slots: Slot[]; actividades: Actividad[]; }
+interface Jornada {
+  id: string; numero: number; fecha: string; fecha_legible?: string;
+  hora_inicio: string | null; hora_fin: string | null;
+  foto_inicial: boolean; intro_min: number;
+  almuerzo: boolean; almuerzo_min: number; almuerzo_tras_slot: number | null;
+  slots: Slot[]; actividades: Actividad[];
+}
 interface Proyecto { proyecto_id: string; equipo_id: string; proyecto: string; autores: string; sector: string; asignado: boolean; }
 
 // Color estable por sector: mismo sector, mismo color en toda la tabla.
@@ -46,6 +53,8 @@ export default function Programacion() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [sinProyectoFinal, setSinProyectoFinal] = useState(0);
   const [copied, setCopied] = useState<string | null>(null);
+  // Archivo abierto en el visor emergente (logo / one pager). Null = cerrado.
+  const [visor, setVisor] = useState<{ url: string; titulo: string } | null>(null);
 
   async function copiar(id: string, texto: string) {
     try {
@@ -59,6 +68,7 @@ export default function Programacion() {
   const [notificando, setNotificando] = useState(false);
   const [publicadaAt, setPublicadaAt] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
+  const [repartiendo, setRepartiendo] = useState(false);
 
   // Publicada = definitiva. Deja de ser editable aquí y pasa a ser visible para
   // marketing, operaciones y el asistente de programa.
@@ -71,6 +81,26 @@ export default function Programacion() {
       setMsg({ kind: 'ok', text: `Notificados ${data.notificados} participante(s) de ${data.proyectos} proyecto(s) programado(s).` });
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setNotificando(false); }
+  }
+
+  // Repartir los proyectos entre todas las jornadas. Pide confirmación porque
+  // reordena lo ya asignado: mover proyectos del día 1 al día 2 es justo el
+  // objetivo, pero no debe pasar por un clic despistado.
+  async function repartir() {
+    const total = proyectos.length;
+    const dias = jornadas.length;
+    if (!confirm(
+      `Se repartirán los ${total} proyecto(s) programable(s) entre las ${dias} jornada(s), en partes iguales.\n\n`
+      + 'Se respeta el orden actual, pero algunos proyectos cambiarán de día.\n\n¿Continuar?',
+    )) return;
+    setRepartiendo(true); setMsg(null);
+    try {
+      const { data } = await api.post(`/programacion/admin/${cohorte}/repartir`, {});
+      const detalle = (data.por_jornada ?? []).map((p: any) => `jornada ${p.numero}: ${p.proyectos}`).join(' · ');
+      setMsg({ kind: 'ok', text: `Repartidos ${data.repartidos} proyecto(s) — ${detalle}.` });
+      load();
+    } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
+    finally { setRepartiendo(false); }
   }
 
   async function publicar() {
@@ -131,7 +161,11 @@ export default function Programacion() {
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }
 
-  async function guardarJornada(j: Jornada, cambios: { foto_inicial?: boolean; intro_min?: number; hora_inicio?: string; hora_fin?: string; proyecto_ids?: string[] }) {
+  async function guardarJornada(j: Jornada, cambios: {
+    foto_inicial?: boolean; intro_min?: number; hora_inicio?: string;
+    almuerzo?: boolean; almuerzo_min?: number; almuerzo_tras_slot?: number | null;
+    proyecto_ids?: string[];
+  }) {
     try {
       await api.put(`/programacion/admin/jornada/${j.id}`, cambios);
       load();
@@ -168,6 +202,12 @@ export default function Programacion() {
           <>
             <button onClick={() => downloadFile(`/programacion/admin/${cohorte}/excel`, `NAVES_Programacion_${cohorte}.xlsx`)} className="btn-inalde-secondary !py-2 !px-4 !text-xs">↓ Excel de calificación</button>
             <button onClick={notificar} disabled={notificando} className="btn-inalde-secondary !py-2 !px-4 !text-xs disabled:opacity-50" title="Reenvía a cada participante la fecha y hora de su presentación">{notificando ? 'Notificando…' : '🔔 Reenviar aviso'}</button>
+            {!publicada && proyectos.length > 0 && jornadas.length > 1 && (
+              <button onClick={repartir} disabled={repartiendo} className="btn-inalde-secondary !py-2 !px-4 !text-xs disabled:opacity-50"
+                title="Reparte los proyectos en partes iguales entre todas las jornadas, en vez de dejarlos apilados en un solo día">
+                {repartiendo ? 'Repartiendo…' : '⇄ Repartir entre las jornadas'}
+              </button>
+            )}
             {!publicada && (
               <button onClick={publicar} disabled={publicando || !jornadas.some((j) => j.slots.length > 0)} className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-50"
                 title="Deja la programación definitiva y la hace visible para marketing, operaciones y el asistente de programa">
@@ -224,7 +264,7 @@ export default function Programacion() {
                 </span>
                 {publicada ? (
                   <span className="text-xs text-white/70 ml-auto">
-                    {(j.hora_inicio ?? '').slice(0, 5)}–{(j.hora_fin ?? '').slice(0, 5)} · {j.foto_inicial ? 'con foto inicial · ' : ''}intro {j.intro_min} min
+                    {(j.hora_inicio ?? '').slice(0, 5) || '—'}–{(j.hora_fin ?? '').slice(0, 5) || '—'} · {j.foto_inicial ? 'con foto inicial · ' : ''}intro {j.intro_min} min{j.almuerzo ? ` · almuerzo ${j.almuerzo_min} min` : ''}
                   </span>
                 ) : (
                   <>
@@ -234,14 +274,38 @@ export default function Programacion() {
                         onBlur={(e) => { if (e.target.value && e.target.value !== (j.hora_inicio ?? '').slice(0, 5)) guardarJornada(j, { hora_inicio: e.target.value }); }}
                         className="text-inalde-text rounded px-1 py-0.5" />
                     </label>
-                    <label className="text-xs flex items-center gap-1">
-                      Fin
-                      <input type="time" defaultValue={(j.hora_fin ?? '').slice(0, 5)}
-                        onBlur={(e) => { if (e.target.value && e.target.value !== (j.hora_fin ?? '').slice(0, 5)) guardarJornada(j, { hora_fin: e.target.value }); }}
-                        className="text-inalde-text rounded px-1 py-0.5" />
-                    </label>
+                    {/* El fin no se elige: la jornada termina cuando termina su
+                        última franja. Se muestra calculado para que el admin lo
+                        vea moverse al agregar o quitar proyectos. */}
+                    <span className="text-xs text-white/70" title="La calcula el sistema: la jornada termina al acabar la última franja (el cierre). Cambia sola al agregar o quitar proyectos.">
+                      Fin <span className="font-mono text-white">{(j.hora_fin ?? '').slice(0, 5) || '—'}</span>
+                    </span>
                     <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
                     <label className="text-xs flex items-center gap-1">Intro <input type="number" value={j.intro_min} min={0} onChange={(e) => guardarJornada(j, { intro_min: Number(e.target.value) })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
+                    {/* El almuerzo es de cada jornada: un día se para a almorzar
+                        y el otro no, y la parada no siempre dura lo mismo. Al
+                        activarlo aparecen su duración y dónde cae. */}
+                    <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={j.almuerzo} onChange={(e) => guardarJornada(j, { almuerzo: e.target.checked })} /> Almuerzo</label>
+                    {j.almuerzo && (
+                      <>
+                        <label className="text-xs flex items-center gap-1" title="Cuánto dura el almuerzo de esta jornada.">
+                          <input type="number" min={5} max={240} step={5} defaultValue={j.almuerzo_min}
+                            onBlur={(e) => { const v = Number(e.target.value); if (v >= 5 && v <= 240 && v !== j.almuerzo_min) guardarJornada(j, { almuerzo_min: v }); }}
+                            className="w-14 text-inalde-text rounded px-1 py-0.5" /> min
+                        </label>
+                        <label className="text-xs flex items-center gap-1" title="Después de qué presentación se para a almorzar. Déjalo vacío y el sistema lo pone en el corte más cercano a la mitad de la jornada, sustituyendo al break que iba ahí.">
+                          tras el slot
+                          <input type="number" min={1} max={Math.max(1, j.slots.length - 1)} placeholder="auto"
+                            defaultValue={j.almuerzo_tras_slot ?? ''}
+                            onBlur={(e) => {
+                              const t = e.target.value.trim();
+                              const v = t === '' ? null : Number(t);
+                              if (v !== (j.almuerzo_tras_slot ?? null)) guardarJornada(j, { almuerzo_tras_slot: v });
+                            }}
+                            className="w-16 text-inalde-text rounded px-1 py-0.5" />
+                        </label>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -261,7 +325,9 @@ export default function Programacion() {
                   {j.slots.length > 0 && (
                   <thead>
                     <tr className="bg-inalde-text text-white">
-                      {['Slot', 'Proyecto', 'Autores', 'Sector', 'Logo', 'One Pager', 'Post LinkedIn', 'Descargas', ''].map((h, i) => (
+                      {/* La sexta columna muestra el RESUMEN del proyecto; el one
+                          pager vive en "Archivos", que es donde se abre y se baja. */}
+                      {['Slot', 'Proyecto', 'Autores', 'Sector', 'Logo', 'Resumen', 'Post LinkedIn', 'Archivos', ''].map((h, i) => (
                         <th key={i} scope="col" className="bg-inalde-text text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase whitespace-nowrap px-3 py-2.5">{h}</th>
                       ))}
                     </tr>
@@ -298,7 +364,6 @@ export default function Programacion() {
                           {f.s.resumen
                             ? <span className="clamp-3" title={f.s.resumen}>{f.s.resumen}</span>
                             : <span className="text-inalde-gray italic">Sin resumen</span>}
-                          {f.s.one_pager_url && <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="block mt-1 font-primary font-bold text-[0.7rem] text-inalde-red hover:underline">Ver One Pager →</a>}
                         </td>
                         <td className="px-3 py-2.5">
                           {f.s.linkedin ? (
@@ -312,8 +377,10 @@ export default function Programacion() {
                           ) : <span className="text-[0.76rem] text-inalde-gray italic">Sin post</span>}
                         </td>
                         <td className="px-3 py-2.5">
-                          {f.s.logo_url && <a href={f.s.logo_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-blue border border-inalde-blue hover:bg-inalde-blue hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>Logo</a>}
-                          {f.s.one_pager_url && <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-red border border-inalde-red hover:bg-inalde-red hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>One Pager</a>}
+                          {/* Abren el visor emergente: se ve el archivo encima de
+                              la tabla y al cerrar se vuelve a la misma fila. */}
+                          {f.s.logo_url && <button onClick={() => setVisor({ url: f.s.logo_url!, titulo: `Logo · ${f.s.proyecto}` })} className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-blue border border-inalde-blue hover:bg-inalde-blue hover:text-white whitespace-nowrap">Logo</button>}
+                          {f.s.one_pager_url && <button onClick={() => setVisor({ url: f.s.one_pager_url!, titulo: `One Pager · ${f.s.proyecto}` })} className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-red border border-inalde-red hover:bg-inalde-red hover:text-white whitespace-nowrap">One Pager</button>}
                           {!f.s.logo_url && !f.s.one_pager_url && <span className="text-[0.7rem] text-inalde-gray italic">—</span>}
                         </td>
                         <td className="px-2 py-2.5 text-right whitespace-nowrap">
@@ -334,6 +401,15 @@ export default function Programacion() {
                     {!j.hora_inicio && (
                       <tr><td colSpan={9} className="px-4 py-3 text-xs text-inalde-text bg-inalde-gray-bg border-l-4 border-inalde-red">
                         Esta jornada <strong>no tiene hora de inicio</strong>, así que no se pueden calcular los horarios. Ponle la hora de inicio arriba y se recalculan solos.
+                      </td></tr>
+                    )}
+                    {/* El almuerzo parte el día EN DOS: con menos de dos
+                        presentaciones no hay dónde partirlo y la franja no
+                        aparece. Se dice, en vez de dejar la casilla marcada sin
+                        efecto visible. */}
+                    {j.almuerzo && j.slots.length < 2 && (
+                      <tr><td colSpan={9} className="px-4 py-3 text-xs text-inalde-text bg-inalde-gray-bg border-l-4 border-inalde-red">
+                        El <strong>almuerzo</strong> parte la jornada en dos, así que necesita al menos dos presentaciones. Asigna proyectos y la franja aparecerá sola.
                       </td></tr>
                     )}
                   </tbody>
@@ -360,6 +436,8 @@ export default function Programacion() {
           )}
         </>
       )}
+
+      {visor && <VisorArchivo url={visor.url} titulo={visor.titulo} onClose={() => setVisor(null)} />}
     </>
   );
 }

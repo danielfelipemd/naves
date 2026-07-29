@@ -33,11 +33,19 @@ router.get('/stream', async (req, res) => {
 
   const filename = path.split('/').pop() ?? 'archivo';
   res.setHeader('Content-Type', mime);
-  // `attachment` fuerza al navegador a descargar el archivo (no abrirlo en
-  // pestaña). Eso evita la ventana en blanco que aparecia con window.open +
-  // inline, y deja un flujo limpio: click -> dialogo 'Guardar como' -> fin.
-  // Si el usuario cancela, volver a darle click vuelve a disparar el dialogo.
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  // Por defecto `attachment`: fuerza al navegador a descargar el archivo (no
+  // abrirlo en pestaña). Eso evita la ventana en blanco que aparecia con
+  // window.open + inline, y deja un flujo limpio: click -> dialogo 'Guardar
+  // como' -> fin. Si el usuario cancela, volver a darle click lo repite.
+  //
+  // Con `?v=1` se sirve `inline`, que es lo que necesita el visor emergente
+  // (VisorArchivo) para mostrar el archivo incrustado sin sacar al usuario de
+  // la pantalla en la que esta.
+  const verIncrustado = req.query.v === '1';
+  res.setHeader(
+    'Content-Disposition',
+    `${verIncrustado ? 'inline' : 'attachment'}; filename="${filename}"`,
+  );
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.send(buf);

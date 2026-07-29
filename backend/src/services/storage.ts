@@ -3,7 +3,10 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { config } from '../config.js';
 
 const BUCKET = 'trabajos-grado';
-const ARCHIVO_TOKEN_TTL_SECONDS = 300;
+// 15 min: las URLs viajan dentro de listados (programación, trabajos
+// definitivos) que el usuario deja abiertos un rato antes de abrir un archivo.
+// Con 5 min se vencían en pantalla y el clic terminaba en TOKEN_EXPIRADO.
+const ARCHIVO_TOKEN_TTL_SECONDS = 900;
 
 export type TipoArchivoTrabajo = 'anteproyecto' | 'avance' | 'proyecto-final';
 

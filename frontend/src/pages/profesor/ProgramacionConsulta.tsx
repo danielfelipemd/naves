@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { VisorArchivo } from '../../components/inalde/VisorArchivo';
 
 interface Slot {
   slot: number; proyecto: string; autores: string; sector: string;
@@ -45,6 +46,8 @@ export default function ProgramacionConsulta() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [copied, setCopied] = useState('');
+  // Archivo abierto en el visor emergente (one pager). Null = cerrado.
+  const [visor, setVisor] = useState<{ url: string; titulo: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -173,8 +176,10 @@ export default function ProgramacionConsulta() {
                                       )}
                                     </td>
                                     <td className="px-3 py-2.5">
+                                      {/* Abre el visor emergente; al cerrarlo el
+                                          profesor queda en la misma fila. */}
                                       {f.s.one_pager_url
-                                        ? <a href={f.s.one_pager_url} target="_blank" rel="noreferrer" className="font-primary font-bold text-[0.7rem] text-inalde-red hover:underline">Ver →</a>
+                                        ? <button onClick={() => setVisor({ url: f.s.one_pager_url!, titulo: `One Pager · ${f.s.proyecto}` })} className="font-primary font-bold text-[0.7rem] text-inalde-red hover:underline">Ver →</button>
                                         : <span className="text-[0.7rem] text-inalde-gray italic">—</span>}
                                     </td>
                                   </tr>
@@ -193,6 +198,8 @@ export default function ProgramacionConsulta() {
           )}
         </div>
       </main>
+
+      {visor && <VisorArchivo url={visor.url} titulo={visor.titulo} onClose={() => setVisor(null)} />}
     </>
   );
 }
