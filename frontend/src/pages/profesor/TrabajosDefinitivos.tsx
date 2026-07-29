@@ -99,12 +99,18 @@ export default function TrabajosDefinitivos() {
                             {/* Los dos archivos se abren en el visor emergente: se
                                 ven encima de la lista y al cerrar el profesor
                                 sigue donde estaba. */}
-                            <div className="flex flex-col gap-1.5 shrink-0 items-end">
+                            <div className="flex flex-col gap-2 shrink-0 items-stretch">
                               {p.logo_url && (
-                                <button onClick={() => setVisor({ url: p.logo_url!, titulo: `Logo · ${p.proyecto}` })} className="text-[11px] text-inalde-blue font-semibold hover:underline">Logo</button>
+                                <button onClick={() => setVisor({ url: p.logo_url!, titulo: `Logo · ${p.proyecto}` })}
+                                  className="text-sm font-primary font-bold px-4 py-2 rounded border border-inalde-blue text-inalde-blue hover:bg-inalde-blue hover:text-white transition-colors whitespace-nowrap">
+                                  Logo
+                                </button>
                               )}
                               {p.one_pager_url && (
-                                <button onClick={() => setVisor({ url: p.one_pager_url!, titulo: `One Pager · ${p.proyecto}` })} className="text-[11px] text-inalde-red font-semibold hover:underline">One Pager</button>
+                                <button onClick={() => setVisor({ url: p.one_pager_url!, titulo: `One Pager · ${p.proyecto}` })}
+                                  className="text-sm font-primary font-bold px-4 py-2 rounded border border-inalde-red text-inalde-red hover:bg-inalde-red hover:text-white transition-colors whitespace-nowrap">
+                                  One Pager
+                                </button>
                               )}
                             </div>
                           </div>
