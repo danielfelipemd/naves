@@ -508,17 +508,12 @@ export default function Dashboard() {
                   <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
                 </Link>
 
+                {/* Una sola entrada: /admin/sabana redirige a /admin/anteproyectos,
+                    así que las dos tarjetas llevaban al mismo sitio. */}
                 <Link to="/admin/anteproyectos" className="card-inalde-interactive flex flex-col gap-3">
                   <div className="text-3xl">📋</div>
                   <h3 className="font-primary font-bold text-lg">Anteproyectos</h3>
-                  <p className="text-inalde-gray text-sm">Lee los anteproyectos enviados por los equipos de tus cohortes.</p>
-                  <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
-                </Link>
-
-                <Link to="/admin/sabana" className="card-inalde-interactive flex flex-col gap-3">
-                  <div className="text-3xl">📑</div>
-                  <h3 className="font-primary font-bold text-lg">Anteproyectos de la cohorte</h3>
-                  <p className="text-inalde-gray text-sm">Vista consolidada para la reunión de asignación.</p>
+                  <p className="text-inalde-gray text-sm">Lee los anteproyectos enviados por los equipos de tus cohortes y consulta la vista consolidada de la reunión de asignación.</p>
                   <span className="text-sm font-semibold text-inalde-red">Entrar →</span>
                 </Link>
 
