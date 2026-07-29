@@ -68,16 +68,6 @@ interface AnteItem {
   proyectos: Array<{ id: string; nombre: string; sector: string | null; estado_seleccion: string }>;
 }
 
-const ESTADO_LABELS: Record<string, string> = {
-  borrador: 'Borrador',
-  enviado: 'Enviado',
-  entregado: 'Entregado',
-  avance: 'Avance',
-  revisado: 'Revisado',
-  aprobado: 'Aprobado',
-  proyecto_final: 'Proyecto final',
-};
-
 /**
  * Estado mostrado (mismo criterio que la lista simple de anteproyectos). Para
  * Business Plan usa el `estado` real (borrador → enviado → revisado → aprobado).
@@ -579,7 +569,11 @@ export default function Anteproyectos() {
               const f = m.fila;
               if (soloMios && f.profesor_asignado_id !== miProfesorId) return false;
               if (filtroModalidad !== 'todas' && f.modalidad !== filtroModalidad) return false;
-              if (filtroEstado && m.estado?.key !== filtroEstado) return false;
+              // "Enviado" = cualquier estado que ya no sea borrador (entregado,
+              // avance, aprobado, proyecto final…). Ver el bloque de conteos.
+              const esBorrador = (m.estado?.key ?? 'borrador') === 'borrador';
+              if (filtroEstado === 'borrador' && !esBorrador) return false;
+              if (filtroEstado === 'enviado' && esBorrador) return false;
               if (filtroAsignacion === 'asignados' && !esAsignado(f)) return false;
               if (filtroAsignacion === 'no_asignados' && esAsignado(f)) return false;
               if (filtroComunicado === 'comunicados' && !f.comunicado) return false;
@@ -615,9 +609,12 @@ export default function Anteproyectos() {
             const totalNoAsignados = filas.length - totalAsignados;
             const totalComunicados = filas.filter((f) => f.comunicado).length;
             const totalPendientesComunicar = filas.filter((f) => f.profesor_asignado_id && !f.comunicado).length;
-            // Estados presentes en los datos (para el filtro de estado)
-            const estadosPresentes = new Set(mergedRows.map((m) => m.estado?.key).filter(Boolean) as string[]);
-            const estadosDisponibles = Object.keys(ESTADO_LABELS).filter((k) => estadosPresentes.has(k));
+            // Filtro de estado: solo dos, que es como se lee la sábana. Todo lo
+            // que no es borrador ya salió del equipo, sin importar si la fila
+            // dice "Entregado", "Avance" o "Proyecto final" (esos matices los
+            // muestra la columna Estado, pero no son opciones de filtro).
+            const totalBorradores = mergedRows.filter((m) => (m.estado?.key ?? 'borrador') === 'borrador').length;
+            const totalEnviados = mergedRows.length - totalBorradores;
             // Conteo de equipos asignados por profesor (para los chips informativos)
             // Avance de reuniones por profesor: cuántos de sus equipos ya tienen
             // marcada la Reunión 1 y la 2. Sale de contar las casillas de la
@@ -635,13 +632,15 @@ export default function Anteproyectos() {
               <>
                 {/* Barra de filtros */}
                 <div className="flex flex-wrap items-center gap-2 mb-3">
-                  {/* Solo para profesores: la sábana llega completa y este botón
-                      la reduce a los equipos que tienen asignados. */}
+                  {/* "Mis equipos" y "Todas" son las dos caras de lo mismo: qué
+                      equipos de la cohorte se ven. Nunca están activos los dos.
+                      El botón de mis equipos solo aparece para profesores: la
+                      sábana llega completa y esto la reduce a los suyos. */}
                   {miProfesorId && (
                     <button
-                      onClick={() => setSoloMios(!soloMios)}
+                      onClick={() => setSoloMios(true)}
                       aria-pressed={soloMios}
-                      title={soloMios ? 'Estás viendo solo tus equipos. Toca para ver toda la cohorte.' : 'Ver solo los equipos que tienes asignados'}
+                      title="Ver solo los equipos que tienes asignados"
                       className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${soloMios
                         ? 'border-inalde-red bg-inalde-red text-white'
                         : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
@@ -649,12 +648,13 @@ export default function Anteproyectos() {
                     </button>
                   )}
                   <button
-                    onClick={() => setFiltroModalidad('todas')}
-                    title="Ver todas las modalidades"
-                    className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${filtroModalidad === 'todas'
+                    onClick={() => setSoloMios(false)}
+                    aria-pressed={!soloMios}
+                    title="Ver todos los equipos de la cohorte"
+                    className={`text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full border transition ${!soloMios
                       ? 'border-inalde-red bg-inalde-red text-white'
                       : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-gray hover:text-inalde-text'}`}>
-                    Todas · {filas.length}
+                    {!soloMios && miProfesorId ? '✓ ' : ''}Todas · {filas.length}
                   </button>
 
                   <div className="w-px h-5 bg-inalde-gray-light" />
@@ -700,19 +700,18 @@ export default function Anteproyectos() {
                     <option value="pendientes">Sin comunicar · {totalPendientesComunicar}</option>
                   </select>
 
-                  {estadosDisponibles.length > 0 && (
-                    /* Filtro por estado del anteproyecto (borrador/enviado/…) */
-                    <select
-                      value={filtroEstado}
-                      onChange={(e) => setFiltroEstado(e.target.value)}
-                      title="Filtrar por estado"
-                      className={`${selectFiltroCls} ${filtroEstado
-                        ? 'border-inalde-red text-inalde-red'
-                        : 'border-inalde-gray-light text-inalde-gray'}`}>
-                      <option value="">Estado ▾</option>
-                      {estadosDisponibles.map((k) => <option key={k} value={k}>{ESTADO_LABELS[k]}</option>)}
-                    </select>
-                  )}
+                  {/* Filtro por estado del anteproyecto: borrador o enviado. */}
+                  <select
+                    value={filtroEstado}
+                    onChange={(e) => setFiltroEstado(e.target.value)}
+                    title="Filtrar por estado"
+                    className={`${selectFiltroCls} ${filtroEstado
+                      ? 'border-inalde-red text-inalde-red'
+                      : 'border-inalde-gray-light text-inalde-gray'}`}>
+                    <option value="">Estado ▾</option>
+                    <option value="borrador">Borrador · {totalBorradores}</option>
+                    <option value="enviado">Enviado · {totalEnviados}</option>
+                  </select>
 
                   <div className="flex-1 min-w-[200px] ml-auto">
                     <input type="text" placeholder="Buscar autor, proyecto, sector, profesor…"
