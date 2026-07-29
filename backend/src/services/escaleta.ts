@@ -31,9 +31,43 @@ export function fechaLegibleProg(iso: string): string {
   return `${DIAS_PROG[dow]} ${d} de ${MESES_PROG[m]} de ${y}`;
 }
 
+// Lo que decide cada jornada por su cuenta. El resto de tiempos (exposición,
+// transición, break, cierre, slots por bloque) son de la cohorte y viven en
+// Config: valen igual para los dos días.
+export interface OpcionesJornada {
+  inicioMin: number;
+  foto: boolean;
+  introMin: number;
+  almuerzo: boolean;              // ¿esta jornada para a almorzar?
+  almuerzoMin: number;            // cuánto dura ese almuerzo, en minutos
+  almuerzoTrasSlot: number | null; // tras qué presentación cae; null = automático
+}
+
+/**
+ * ¿Después de qué presentación cae el almuerzo?
+ *
+ * Si el admin lo fijó, se respeta (acotado: nunca antes de la 1ª presentación ni
+ * después de la última, donde ya va el cierre). Si no, el sistema parte la
+ * jornada por la mitad y se pega al corte de bloque más cercano: así el almuerzo
+ * SUSTITUYE al break que iba a caer ahí en vez de sumar una segunda pausa
+ * pegada. Sin cortes de bloque (todo cabe en un bloque) parte por la mitad seca.
+ *
+ * Devuelve 0 cuando no hay dónde partir el día (0 o 1 presentación).
+ */
+export function slotDelAlmuerzo(total: number, bloque: number, trasSlot: number | null): number {
+  if (total < 2) return 0;
+  if (trasSlot != null) return Math.min(Math.max(trasSlot, 1), total - 1);
+  const mitad = Math.round(total / 2);
+  const cortes: number[] = [];
+  for (let n = bloque; n < total; n += bloque) cortes.push(n);
+  if (!cortes.length) return mitad;
+  return cortes.reduce((mejor, n) => (Math.abs(n - mitad) < Math.abs(mejor - mitad) ? n : mejor), cortes[0]);
+}
+
 // Porta construirDia del prototipo: dado la hora de inicio (1ª presentación),
-// si hay foto/intro y la lista de equipos, devuelve las filas con horarios.
-export function computarJornada(inicioMin: number, foto: boolean, introMin: number, proyectos: Array<any>, slotBase: number, esUltimoDia: boolean, C: Config): Fila[] {
+// si hay foto/intro/almuerzo y la lista de equipos, devuelve las filas con horarios.
+export function computarJornada(J: OpcionesJornada, proyectos: Array<any>, slotBase: number, esUltimoDia: boolean, C: Config): Fila[] {
+  const { inicioMin, foto, introMin } = J;
   const filas: Fila[] = [];
   // Sin hora de inicio (toMin devuelve 0) no hay escaleta que calcular: la foto
   // y la introducción se programan hacia atrás desde la 1ª presentación, así que
@@ -53,25 +87,57 @@ export function computarJornada(inicioMin: number, foto: boolean, introMin: numb
   filas.push({ tipo: 'intro', desc: 'Introducción', ini: t, fin: t + introMin }); t += introMin;
   t += C.trans; // t == inicioMin
   const total = proyectos.length;
+  const trasAlmuerzo = J.almuerzo ? slotDelAlmuerzo(total, C.bloque, J.almuerzoTrasSlot) : 0;
   for (let i = 0; i < total; i++) {
     const e = proyectos[i];
     filas.push({ tipo: 'proyecto', slot: slotBase + i, proyecto_id: e.proyecto_id, proyecto: e.proyecto, autores: e.autores, sector: e.sector, ini: t, fin: t + C.expo });
     t += C.expo;
     const count = i + 1;
-    const finBloque = count % C.bloque === 0;
     const ultimo = i === total - 1;
-    if (finBloque || ultimo) {
+    const finBloque = count % C.bloque === 0;
+    const esAlmuerzo = !ultimo && count === trasAlmuerzo;
+    if (ultimo) {
       t += C.trans;
-      if (ultimo) {
-        filas.push({ tipo: 'cierre', desc: (esUltimoDia ? 'Evaluación y Cierre' : 'Cierre de jornada') + ' — Toma de foto', ini: t, fin: t + C.cierre }); t += C.cierre;
+      filas.push({ tipo: 'cierre', desc: (esUltimoDia ? 'Evaluación y Cierre' : 'Cierre de jornada') + ' — Toma de foto', ini: t, fin: t + C.cierre }); t += C.cierre;
+    } else if (esAlmuerzo || finBloque) {
+      t += C.trans;
+      if (esAlmuerzo) {
+        // El almuerzo SUSTITUYE al break cuando caen en el mismo punto: dos
+        // pausas seguidas no son una jornada partida, son un hueco.
+        filas.push({ tipo: 'almuerzo', desc: 'Almuerzo', ini: t, fin: t + J.almuerzoMin }); t += J.almuerzoMin;
       } else {
-        filas.push({ tipo: 'break', desc: 'Break — Toma de foto', ini: t, fin: t + C.break_min }); t += C.break_min; t += C.trans;
+        filas.push({ tipo: 'break', desc: 'Break — Toma de foto', ini: t, fin: t + C.break_min }); t += C.break_min;
       }
+      t += C.trans;
     } else {
       t += C.trans;
     }
   }
   return filas;
+}
+
+// La hora de FIN de una jornada no se elige: es un resultado. La jornada termina
+// cuando termina su última franja — el cierre, que va justo después del último
+// slot. Ponerla a mano era pedir un dato que el sistema ya sabe calcular, y que
+// se quedaba desfasado en cuanto se agregaba o quitaba un proyecto.
+//
+// Devuelve null cuando no hay escaleta que terminar: sin hora de inicio (las
+// filas llegan con -1) o sin ningún proyecto asignado (solo foto e intro, que se
+// programan HACIA ATRÁS y darían un "fin" anterior al inicio).
+export function finDeJornada(filas: Fila[]): string | null {
+  if (!filas.some((f) => f.tipo === 'proyecto')) return null;
+  const fin = filas.reduce((max, f) => (f.fin > max ? f.fin : max), -1);
+  return fin > 0 ? toHHMM(fin) : null;
+}
+
+// `jornadas.hora_fin` se conserva como columna porque hay consumidores que
+// muestran la hora de fin sin calcular la escaleta: el listado de Panelistas, el
+// correo de logística y el portal de confirmación del panelista. Es una copia
+// derivada, así que se reescribe cuando deja de coincidir con el cálculo.
+async function persistirHoraFin(jornadaId: string, guardada: string | null | undefined, calculada: string | null): Promise<void> {
+  const norm = (h: string | null | undefined) => (h ? String(h).slice(0, 5) : null);
+  if (norm(guardada) === norm(calculada)) return;
+  await supabaseAdmin.from('jornadas').update({ hora_fin: calculada }).eq('id', jornadaId);
 }
 
 // Las jornadas de presentación salen del cronograma de la cohorte: el hito 12
@@ -141,6 +207,25 @@ export async function programacionPublicadaAt(cohorteId: string): Promise<string
   return (data as any)?.publicada_at ?? null;
 }
 
+// Columnas de `jornadas` que necesita el motor. Constante porque son CINCO
+// consultas repartidas en tres archivos: olvidar una columna en una de ellas no
+// rompe el build, solo hace que esa pantalla calcule con el valor por defecto y
+// muestre una escaleta distinta a la de al lado.
+export const COLS_JORNADA =
+  'id, numero, fecha, hora_inicio, hora_fin, foto_inicial, intro_min, almuerzo, almuerzo_min, almuerzo_tras_slot';
+
+// Traduce una fila de `jornadas` a las opciones que entiende el motor.
+export function opcionesDeJornada(j: any): OpcionesJornada {
+  return {
+    inicioMin: toMin(j.hora_inicio),
+    foto: !!j.foto_inicial,
+    introMin: j.intro_min ?? 0,
+    almuerzo: !!j.almuerzo,
+    almuerzoMin: j.almuerzo_min ?? 60,
+    almuerzoTrasSlot: j.almuerzo_tras_slot ?? null,
+  };
+}
+
 export async function getConfig(cohorteId: string): Promise<Config & { evento_nombre: string }> {
   const { data } = await supabaseAdmin.from('programacion_config').select('*').eq('cohorte_id', cohorteId).maybeSingle();
   const c: any = data ?? {};
@@ -162,8 +247,15 @@ export async function jornadaConSlots(jornada: any, C: Config, esUltimo: boolean
   const proyectos = (slots ?? [])
     .filter((s: any) => pf.has(s.proyecto_id))
     .map((s: any) => ({ ...(pf.get(s.proyecto_id) as ProyectoFase2), proyecto_id: s.proyecto_id }));
-  const filas = computarJornada(toMin(jornada.hora_inicio), !!jornada.foto_inicial, jornada.intro_min ?? 0, proyectos, 1, esUltimo, C);
-  return { jornada, proyectos, filas };
+  const filas = computarJornada(opcionesDeJornada(jornada), proyectos, 1, esUltimo, C);
+  // El fin se recalcula en CADA lectura, no solo al editar la jornada: la
+  // escaleta se mueve sin pasar por la pantalla de programación (basta con que un
+  // equipo complete o pierda alguno de sus 4 documentos y entre o salga de `pf`,
+  // o que cambien los tiempos del evento). Recalcular al leer es lo único que
+  // garantiza que la copia guardada nunca contradiga lo que se está mostrando.
+  const hora_fin = finDeJornada(filas);
+  await persistirHoraFin(jornada.id, jornada.hora_fin, hora_fin);
+  return { jornada: { ...jornada, hora_fin }, proyectos, filas };
 }
 
 export interface JornadaEscaleta {
@@ -181,7 +273,7 @@ export async function escaletaDeCohorte(cohorteId: string): Promise<{ evento_nom
   const C = await getConfig(cohorteId);
   const pf = await proyectosFase2(cohorteId);
   const { data: jornadas } = await supabaseAdmin
-    .from('jornadas').select('id, numero, fecha, hora_inicio, hora_fin, foto_inicial, intro_min')
+    .from('jornadas').select(COLS_JORNADA)
     .eq('cohorte_id', cohorteId).order('numero');
 
   const out: JornadaEscaleta[] = [];
@@ -194,9 +286,25 @@ export async function escaletaDeCohorte(cohorteId: string): Promise<{ evento_nom
       fecha: j.fecha,
       fecha_legible: fechaLegibleProg(j.fecha),
       hora_inicio: j.hora_inicio,
-      hora_fin: j.hora_fin,
+      hora_fin: jc.jornada.hora_fin,
       filas: jc.filas,
     });
   }
   return { evento_nombre: C.evento_nombre, jornadas: out };
+}
+
+// Recalcula (y guarda) la hora de fin de todas las jornadas de una cohorte.
+// Lo llaman las pantallas de panelistas, que muestran el horario de la jornada
+// pero no construyen la escaleta: sin esto verían la última copia guardada, que
+// puede ser de antes del último cambio en la programación.
+export async function recalcularFinesDeJornadas(cohorteId: string): Promise<void> {
+  const C = await getConfig(cohorteId);
+  const pf = await proyectosFase2(cohorteId);
+  const { data: jornadas } = await supabaseAdmin
+    .from('jornadas').select(COLS_JORNADA)
+    .eq('cohorte_id', cohorteId).order('numero');
+  const total = (jornadas ?? []).length;
+  for (let i = 0; i < total; i++) {
+    await jornadaConSlots((jornadas as any[])[i], C, i === total - 1, pf);
+  }
 }

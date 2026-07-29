@@ -9,7 +9,7 @@ import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
 // El motor de escaleta vive en services/escaleta.ts: lo comparte la Programación
 // Interna (marketing, operaciones, asistente de programa), que debe ver
 // exactamente los mismos horarios que publica esta pantalla.
-import { toMin, toHHMM, fechaLegibleProg, computarJornada, getConfig, jornadaConSlots, programacionPublicadaAt, sincronizarJornadasDesdeHitos, type Config } from '../services/escaleta.js';
+import { toHHMM, fechaLegibleProg, computarJornada, getConfig, jornadaConSlots, programacionPublicadaAt, sincronizarJornadasDesdeHitos, opcionesDeJornada, COLS_JORNADA, type Config } from '../services/escaleta.js';
 
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el
 // enlace externo. Mismo criterio que el Módulo C.
@@ -57,7 +57,7 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   const pf = await proyectosFase2(cohorteId);
   const contenido = await contenidoPorProyecto([...pf.keys()]);
   const { data: jornadas } = await supabaseAdmin
-    .from('jornadas').select('id, numero, fecha, hora_inicio, hora_fin, foto_inicial, intro_min')
+    .from('jornadas').select(COLS_JORNADA)
     .eq('cohorte_id', cohorteId).order('numero');
 
   const jornadasOut = [];
@@ -68,6 +68,8 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
       fecha_legible: fechaLegibleProg(jc.jornada.fecha),
       hora_inicio: jc.jornada.hora_inicio, hora_fin: jc.jornada.hora_fin,
       foto_inicial: jc.jornada.foto_inicial, intro_min: jc.jornada.intro_min,
+      almuerzo: jc.jornada.almuerzo, almuerzo_min: jc.jornada.almuerzo_min,
+      almuerzo_tras_slot: jc.jornada.almuerzo_tras_slot,
       slots: jc.filas.filter((f) => f.tipo === 'proyecto').map((f) => {
         const c = f.proyecto_id ? contenido.get(f.proyecto_id) : null;
         return {
@@ -119,13 +121,21 @@ router.put('/admin/:cohorteId/config', ...soloAdmin, async (req, res) => {
 
 // PUT jornada — config + asignación ordenada de proyectos, recalcula y persiste horarios
 // La FECHA no está aquí a propósito: sale del cronograma (hitos 12/13) y se
-// sincroniza sola. La hora sí, porque los hitos son DATE y la escaleta necesita
-// saber a qué hora arranca la primera presentación.
+// sincroniza sola. La HORA DE INICIO sí, porque los hitos son DATE y la escaleta
+// necesita saber a qué hora arranca la primera presentación.
+// La HORA DE FIN tampoco está: no es un dato de entrada sino el resultado de la
+// escaleta (termina cuando termina la última franja). La calcula y la guarda
+// finDeJornada(), en services/escaleta.ts.
 const jornadaSchema = z.object({
   foto_inicial: z.boolean().optional(),
   intro_min: z.number().int().min(0).max(120).optional(),
   hora_inicio: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  hora_fin: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  // El almuerzo es de la jornada, no de la cohorte: un día se para a almorzar y
+  // el otro no, y la parada no siempre dura lo mismo. `almuerzo_tras_slot` en
+  // null deja que el motor lo ponga en el corte más cercano a la mitad del día.
+  almuerzo: z.boolean().optional(),
+  almuerzo_min: z.number().int().min(5).max(240).optional(),
+  almuerzo_tras_slot: z.number().int().min(1).max(100).nullable().optional(),
   proyecto_ids: z.array(z.string().uuid()).optional(),
 });
 router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
@@ -145,22 +155,17 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
   if (parsed.data.foto_inicial !== undefined) upd.foto_inicial = parsed.data.foto_inicial;
   if (parsed.data.intro_min !== undefined) upd.intro_min = parsed.data.intro_min;
   if (parsed.data.hora_inicio !== undefined) upd.hora_inicio = parsed.data.hora_inicio;
-  if (parsed.data.hora_fin !== undefined) upd.hora_fin = parsed.data.hora_fin;
+  if (parsed.data.almuerzo !== undefined) upd.almuerzo = parsed.data.almuerzo;
+  if (parsed.data.almuerzo_min !== undefined) upd.almuerzo_min = parsed.data.almuerzo_min;
+  if (parsed.data.almuerzo_tras_slot !== undefined) upd.almuerzo_tras_slot = parsed.data.almuerzo_tras_slot;
 
-  // Una jornada que termina antes de empezar no es un capricho teórico: la de la
-  // cohorte de prueba tenía inicio 19:15 y fin 17:30. Nadie lo validaba.
-  if (upd.hora_inicio !== undefined || upd.hora_fin !== undefined) {
-    const { data: actual } = await supabaseAdmin.from('jornadas').select('hora_inicio, hora_fin').eq('id', jid).maybeSingle();
-    const ini = String(upd.hora_inicio ?? (actual as any)?.hora_inicio ?? '').slice(0, 5);
-    const fin = String(upd.hora_fin ?? (actual as any)?.hora_fin ?? '').slice(0, 5);
-    if (ini && fin && toMin(fin) <= toMin(ini)) {
-      return res.status(400).json({ error: 'HORA_FIN_ANTES_DE_INICIO', hora_inicio: ini, hora_fin: fin });
-    }
-  }
+  // Ya no hace falta validar que la jornada no termine antes de empezar (la de la
+  // cohorte de prueba tenía inicio 19:15 y fin 17:30): el fin se deriva de la
+  // escaleta, que siempre avanza desde el inicio, así que no puede quedar antes.
 
   if (Object.keys(upd).length) await supabaseAdmin.from('jornadas').update(upd).eq('id', jid);
 
-  const { data: jornada } = await supabaseAdmin.from('jornadas').select('id, cohorte_id, hora_inicio, foto_inicial, intro_min, numero').eq('id', jid).maybeSingle();
+  const { data: jornada } = await supabaseAdmin.from('jornadas').select(`cohorte_id, ${COLS_JORNADA}`).eq('id', jid).maybeSingle();
   if (!jornada) return res.status(404).json({ error: 'NOT_FOUND' });
 
   if (parsed.data.proyecto_ids !== undefined) {
@@ -176,7 +181,7 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
     if (repetidos) return res.status(400).json({ error: 'PROYECTO_DUPLICADO' });
 
     const proyectos = parsed.data.proyecto_ids.map((id) => pf.get(id)!);
-    const filas = computarJornada(toMin((jornada as any).hora_inicio), !!(jornada as any).foto_inicial, (jornada as any).intro_min ?? 0, proyectos, 1, false, C);
+    const filas = computarJornada(opcionesDeJornada(jornada), proyectos, 1, false, C);
     const slots = filas.filter((f) => f.tipo === 'proyecto');
     // Reemplazar slots de la jornada. OJO: es un borrar-y-reinsertar; si el
     // insert falla y no lo miramos, la jornada queda SIN horario y el admin
@@ -198,13 +203,94 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /admin/:cohorteId/repartir — reparte los proyectos entre TODAS las jornadas
+//
+// Hasta ahora los proyectos solo entraban de uno en uno, a mano y a la jornada
+// que el admin tuviera delante. El resultado natural era acabar con todo el
+// evento apilado en el primer día (14 presentaciones seguidas, de 07:15 a 19:30)
+// y el segundo vacío. Repartir a ojo es trabajo mecánico que el sistema sabe
+// hacer: son N proyectos entre M días.
+//
+// Reparte TODOS los proyectos programables, no solo los que estén sin asignar:
+// mover cuatro del día 1 al día 2 es justo lo que hay que hacer para equilibrar.
+// El orden se respeta — primero lo ya programado tal como está, después lo que
+// nunca se asignó — así que repartir no baraja el trabajo previo del admin.
+router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
+  const cohorteId = req.params.cohorteId;
+  if (await bloqueadaSiPublicada(cohorteId, res)) return;
+  await sincronizarJornadasDesdeHitos(cohorteId);
+
+  const C = await getConfig(cohorteId);
+  const pf = await proyectosFase2(cohorteId);
+  const { data: jornadasRaw } = await supabaseAdmin
+    .from('jornadas').select(COLS_JORNADA).eq('cohorte_id', cohorteId).order('numero');
+  const js = (jornadasRaw ?? []) as any[];
+  if (!js.length) return res.status(400).json({ error: 'SIN_JORNADAS' });
+  if (!pf.size) return res.status(400).json({ error: 'SIN_PROYECTOS_PROGRAMABLES' });
+
+  // Orden de referencia: lo ya programado primero, respetando jornada y posición,
+  // y detrás lo que nunca se asignó, por nombre.
+  const { data: slotsPrev } = await supabaseAdmin
+    .from('slot_presentacion').select('jornada_id, orden, proyecto_id')
+    .in('jornada_id', js.map((j) => j.id));
+  const posJornada = new Map(js.map((j, i) => [j.id, i]));
+  const yaProgramados = ((slotsPrev ?? []) as any[])
+    .filter((s) => s.proyecto_id && pf.has(s.proyecto_id))
+    .sort((a, b) => (posJornada.get(a.jornada_id)! - posJornada.get(b.jornada_id)!) || (a.orden - b.orden))
+    .map((s) => s.proyecto_id as string);
+  const vistos = new Set(yaProgramados);
+  const nuevos = [...pf.values()]
+    .filter((p) => !vistos.has(p.proyecto_id))
+    .sort((a, b) => a.proyecto.localeCompare(b.proyecto))
+    .map((p) => p.proyecto_id);
+  const todos = [...yaProgramados, ...nuevos];
+
+  // Reparto parejo: 14 proyectos en 2 jornadas → 7 y 7; 13 → 7 y 6. El resto se
+  // le da a las primeras jornadas, que son las que arrancan más temprano.
+  const base = Math.floor(todos.length / js.length);
+  const sobran = todos.length % js.length;
+  const porJornada: string[][] = [];
+  let k = 0;
+  for (let i = 0; i < js.length; i++) {
+    const n = base + (i < sobran ? 1 : 0);
+    porJornada.push(todos.slice(k, k + n));
+    k += n;
+  }
+
+  // Borrar TODO antes de insertar nada: un proyecto no puede estar en dos
+  // jornadas (uq_slot_proyecto), así que mover uno del día 1 al día 2 mientras el
+  // slot viejo sigue en pie chocaría con la restricción.
+  const { error: errDel } = await supabaseAdmin
+    .from('slot_presentacion').delete().in('jornada_id', js.map((j) => j.id));
+  if (errDel) return res.status(500).json({ error: 'SLOTS_DELETE_FAILED', detail: errDel.message });
+
+  for (let i = 0; i < js.length; i++) {
+    const ids = porJornada[i];
+    if (!ids.length) continue;
+    const filas = computarJornada(opcionesDeJornada(js[i]), ids.map((id) => pf.get(id)!), 1, i === js.length - 1, C);
+    const { error: errIns } = await supabaseAdmin.from('slot_presentacion').insert(
+      filas.filter((f) => f.tipo === 'proyecto').map((f) => ({
+        jornada_id: js[i].id, orden: f.slot, proyecto_id: f.proyecto_id ?? null,
+        hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin),
+      })),
+    );
+    if (errIns) return res.status(500).json({ error: 'SLOTS_INSERT_FAILED', detail: errIns.message });
+  }
+
+  res.json({
+    ok: true,
+    repartidos: todos.length,
+    por_jornada: js.map((j, i) => ({ numero: j.numero, proyectos: porJornada[i].length })),
+  });
+});
+
 // GET Excel de calificación (server-side)
 router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const C = await getConfig(cohorteId);
   const pf = await proyectosFase2(cohorteId);
   const { data: jornadas } = await supabaseAdmin
-    .from('jornadas').select('id, numero, fecha, hora_inicio, foto_inicial, intro_min')
+    .from('jornadas').select(COLS_JORNADA)
     .eq('cohorte_id', cohorteId).order('numero');
 
   const wb = new ExcelJS.Workbook();

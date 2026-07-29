@@ -5,7 +5,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { encryptPII, decryptPII, sha256Hex } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { sendEmail } from '../services/email.js';
-import { sincronizarJornadasDesdeHitos } from '../services/escaleta.js';
+import { sincronizarJornadasDesdeHitos, recalcularFinesDeJornadas } from '../services/escaleta.js';
 
 // Módulo A (Fase 2) — Panelistas / Evaluadores.
 // Portal público por token (confirmar asistencia + logística) + panel admin.
@@ -47,7 +47,13 @@ async function cargarPanelista(id: string) {
 }
 
 // Jornadas de la cohorte (ordenadas por número).
+//
+// La hora de fin se recalcula antes de leer: aquí solo se muestra (listado,
+// resumen logístico, correo y portal del panelista), no se construye la
+// escaleta, así que sin este paso se enviaría a los panelistas el horario
+// anterior al último cambio en la programación.
 async function jornadasDeCohorte(cohorteId: string) {
+  await recalcularFinesDeJornadas(cohorteId);
   const { data } = await supabaseAdmin
     .from('jornadas')
     .select('id, numero, fecha, hora_inicio, hora_fin')
@@ -508,7 +514,7 @@ function htmlResumenLogistico(cohorte: string, r: Awaited<ReturnType<typeof comp
           <td style="padding:6px 8px;text-align:center;">${p.desayuna === null ? '<span style="color:#ccc;">n/a</span>' : si(p.desayuna)}</td>
         </tr>`).join('');
     return `
-      <h3 style="margin:22px 0 6px;color:#1a1a1a;font-size:15px;">Jornada ${pj.jornada.numero} — ${pj.jornada.fecha_legible} · ${String(pj.jornada.hora_inicio ?? '').slice(0, 5)}–${String(pj.jornada.hora_fin ?? '').slice(0, 5)}</h3>
+      <h3 style="margin:22px 0 6px;color:#1a1a1a;font-size:15px;">Jornada ${pj.jornada.numero} — ${pj.jornada.fecha_legible}${pj.jornada.hora_inicio ? ` · ${String(pj.jornada.hora_inicio).slice(0, 5)}${pj.jornada.hora_fin ? `–${String(pj.jornada.hora_fin).slice(0, 5)}` : ''}` : ''}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <tr style="background:#1a1a1a;color:#fff;text-align:left;">
           <th style="padding:6px 8px;">Panelista</th><th style="padding:6px 8px;">Transporte</th><th style="padding:6px 8px;">Dirección</th><th style="padding:6px 8px;">Almuerzo</th><th style="padding:6px 8px;">Desayuno</th>

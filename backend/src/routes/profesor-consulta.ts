@@ -4,7 +4,7 @@ import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
 import { proyectosFase2 } from '../services/proyectos-fase2.js';
 import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
 import {
-  getConfig, jornadaConSlots, programacionPublicadaAt, fechaLegibleProg, toHHMM,
+  getConfig, jornadaConSlots, programacionPublicadaAt, fechaLegibleProg, toHHMM, COLS_JORNADA,
 } from '../services/escaleta.js';
 
 // Vistas de SOLO CONSULTA del rol profesor (Fase 2).
@@ -193,7 +193,7 @@ router.get('/programacion', async (req: AuthenticatedRequest, res) => {
     const pf = await proyectosFase2(c.cohorte_id);
     const contenido = await contenidoPorProyecto([...pf.keys()]);
     const { data: jornadas } = await supabaseAdmin
-      .from('jornadas').select('id, numero, fecha, hora_inicio, hora_fin, foto_inicial, intro_min')
+      .from('jornadas').select(COLS_JORNADA)
       .eq('cohorte_id', c.cohorte_id).order('numero');
 
     const jornadasOut = [];
