@@ -38,23 +38,30 @@ export interface OpcionesJornada {
   inicioMin: number;
   foto: boolean;
   introMin: number;
+  // Break largo propio de la jornada. Es OTRA cosa que el break automático de
+  // fin de bloque (C.break_min, común a toda la cohorte) y otra cosa que el
+  // almuerzo: una jornada puede tener los tres.
+  breakJornada: boolean;
+  breakJornadaMin: number;
+  breakJornadaTrasSlot: number | null;
   almuerzo: boolean;              // ¿esta jornada para a almorzar?
   almuerzoMin: number;            // cuánto dura ese almuerzo, en minutos
   almuerzoTrasSlot: number | null; // tras qué presentación cae; null = automático
 }
 
 /**
- * ¿Después de qué presentación cae el almuerzo?
+ * ¿Después de qué presentación cae una pausa larga (break de jornada o almuerzo)?
  *
- * Si el admin lo fijó, se respeta (acotado: nunca antes de la 1ª presentación ni
+ * Si el admin la fijó, se respeta (acotada: nunca antes de la 1ª presentación ni
  * después de la última, donde ya va el cierre). Si no, el sistema parte la
- * jornada por la mitad y se pega al corte de bloque más cercano: así el almuerzo
- * SUSTITUYE al break que iba a caer ahí en vez de sumar una segunda pausa
- * pegada. Sin cortes de bloque (todo cabe en un bloque) parte por la mitad seca.
+ * jornada por la mitad y se pega al corte de bloque más cercano: así la pausa
+ * SUSTITUYE al break de bloque que iba a caer ahí en vez de sumar una segunda
+ * pausa pegada. Sin cortes de bloque (todo cabe en un bloque) parte por la
+ * mitad seca.
  *
  * Devuelve 0 cuando no hay dónde partir el día (0 o 1 presentación).
  */
-export function slotDelAlmuerzo(total: number, bloque: number, trasSlot: number | null): number {
+export function slotDePausa(total: number, bloque: number, trasSlot: number | null): number {
   if (total < 2) return 0;
   if (trasSlot != null) return Math.min(Math.max(trasSlot, 1), total - 1);
   const mitad = Math.round(total / 2);
@@ -87,7 +94,13 @@ export function computarJornada(J: OpcionesJornada, proyectos: Array<any>, slotB
   filas.push({ tipo: 'intro', desc: 'Introducción', ini: t, fin: t + introMin }); t += introMin;
   t += C.trans; // t == inicioMin
   const total = proyectos.length;
-  const trasAlmuerzo = J.almuerzo ? slotDelAlmuerzo(total, C.bloque, J.almuerzoTrasSlot) : 0;
+  const trasAlmuerzo = J.almuerzo ? slotDePausa(total, C.bloque, J.almuerzoTrasSlot) : 0;
+  let trasBreakJornada = J.breakJornada ? slotDePausa(total, C.bloque, J.breakJornadaTrasSlot) : 0;
+  // Si el break de la jornada y el almuerzo caen en el mismo punto (típico
+  // cuando los dos están en automático), manda el almuerzo: dos pausas largas
+  // seguidas no parten la jornada, hacen un hueco. Para tenerlos los dos hay
+  // que fijar al menos uno "tras el slot N".
+  if (trasBreakJornada && trasBreakJornada === trasAlmuerzo) trasBreakJornada = 0;
   for (let i = 0; i < total; i++) {
     const e = proyectos[i];
     filas.push({ tipo: 'proyecto', slot: slotBase + i, proyecto_id: e.proyecto_id, proyecto: e.proyecto, autores: e.autores, sector: e.sector, ini: t, fin: t + C.expo });
@@ -96,15 +109,19 @@ export function computarJornada(J: OpcionesJornada, proyectos: Array<any>, slotB
     const ultimo = i === total - 1;
     const finBloque = count % C.bloque === 0;
     const esAlmuerzo = !ultimo && count === trasAlmuerzo;
+    const esBreakJornada = !ultimo && count === trasBreakJornada;
     if (ultimo) {
       t += C.trans;
       filas.push({ tipo: 'cierre', desc: (esUltimoDia ? 'Evaluación y Cierre' : 'Cierre de jornada') + ' — Toma de foto', ini: t, fin: t + C.cierre }); t += C.cierre;
-    } else if (esAlmuerzo || finBloque) {
+    } else if (esAlmuerzo || esBreakJornada || finBloque) {
       t += C.trans;
       if (esAlmuerzo) {
-        // El almuerzo SUSTITUYE al break cuando caen en el mismo punto: dos
-        // pausas seguidas no son una jornada partida, son un hueco.
+        // El almuerzo SUSTITUYE al break de bloque cuando caen en el mismo
+        // punto: dos pausas seguidas no son una jornada partida, son un hueco.
         filas.push({ tipo: 'almuerzo', desc: 'Almuerzo', ini: t, fin: t + J.almuerzoMin }); t += J.almuerzoMin;
+      } else if (esBreakJornada) {
+        // El break largo de la jornada: mismo criterio, sustituye al de bloque.
+        filas.push({ tipo: 'break', desc: 'Break — Toma de foto', ini: t, fin: t + J.breakJornadaMin }); t += J.breakJornadaMin;
       } else {
         filas.push({ tipo: 'break', desc: 'Break — Toma de foto', ini: t, fin: t + C.break_min }); t += C.break_min;
       }
@@ -212,7 +229,9 @@ export async function programacionPublicadaAt(cohorteId: string): Promise<string
 // rompe el build, solo hace que esa pantalla calcule con el valor por defecto y
 // muestre una escaleta distinta a la de al lado.
 export const COLS_JORNADA =
-  'id, numero, fecha, hora_inicio, hora_fin, foto_inicial, intro_min, almuerzo, almuerzo_min, almuerzo_tras_slot';
+  'id, numero, fecha, hora_inicio, hora_fin, foto_inicial, intro_min, '
+  + 'break_jornada, break_jornada_min, break_jornada_tras_slot, '
+  + 'almuerzo, almuerzo_min, almuerzo_tras_slot';
 
 // Traduce una fila de `jornadas` a las opciones que entiende el motor.
 export function opcionesDeJornada(j: any): OpcionesJornada {
@@ -220,6 +239,9 @@ export function opcionesDeJornada(j: any): OpcionesJornada {
     inicioMin: toMin(j.hora_inicio),
     foto: !!j.foto_inicial,
     introMin: j.intro_min ?? 0,
+    breakJornada: !!j.break_jornada,
+    breakJornadaMin: j.break_jornada_min ?? 60,
+    breakJornadaTrasSlot: j.break_jornada_tras_slot ?? null,
     almuerzo: !!j.almuerzo,
     almuerzoMin: j.almuerzo_min ?? 60,
     almuerzoTrasSlot: j.almuerzo_tras_slot ?? null,

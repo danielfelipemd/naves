@@ -68,6 +68,8 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
       fecha_legible: fechaLegibleProg(jc.jornada.fecha),
       hora_inicio: jc.jornada.hora_inicio, hora_fin: jc.jornada.hora_fin,
       foto_inicial: jc.jornada.foto_inicial, intro_min: jc.jornada.intro_min,
+      break_jornada: jc.jornada.break_jornada, break_jornada_min: jc.jornada.break_jornada_min,
+      break_jornada_tras_slot: jc.jornada.break_jornada_tras_slot,
       almuerzo: jc.jornada.almuerzo, almuerzo_min: jc.jornada.almuerzo_min,
       almuerzo_tras_slot: jc.jornada.almuerzo_tras_slot,
       slots: jc.filas.filter((f) => f.tipo === 'proyecto').map((f) => {
@@ -130,9 +132,13 @@ const jornadaSchema = z.object({
   foto_inicial: z.boolean().optional(),
   intro_min: z.number().int().min(0).max(120).optional(),
   hora_inicio: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  // El almuerzo es de la jornada, no de la cohorte: un día se para a almorzar y
-  // el otro no, y la parada no siempre dura lo mismo. `almuerzo_tras_slot` en
-  // null deja que el motor lo ponga en el corte más cercano a la mitad del día.
+  // El break largo y el almuerzo son de la jornada, no de la cohorte: un día se
+  // para a almorzar y el otro no, y la parada no siempre dura lo mismo. Son dos
+  // pausas independientes y una jornada puede tener las dos. `*_tras_slot` en
+  // null deja que el motor la ponga en el corte más cercano a la mitad del día.
+  break_jornada: z.boolean().optional(),
+  break_jornada_min: z.number().int().min(5).max(240).optional(),
+  break_jornada_tras_slot: z.number().int().min(1).max(100).nullable().optional(),
   almuerzo: z.boolean().optional(),
   almuerzo_min: z.number().int().min(5).max(240).optional(),
   almuerzo_tras_slot: z.number().int().min(1).max(100).nullable().optional(),
@@ -155,6 +161,9 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
   if (parsed.data.foto_inicial !== undefined) upd.foto_inicial = parsed.data.foto_inicial;
   if (parsed.data.intro_min !== undefined) upd.intro_min = parsed.data.intro_min;
   if (parsed.data.hora_inicio !== undefined) upd.hora_inicio = parsed.data.hora_inicio;
+  if (parsed.data.break_jornada !== undefined) upd.break_jornada = parsed.data.break_jornada;
+  if (parsed.data.break_jornada_min !== undefined) upd.break_jornada_min = parsed.data.break_jornada_min;
+  if (parsed.data.break_jornada_tras_slot !== undefined) upd.break_jornada_tras_slot = parsed.data.break_jornada_tras_slot;
   if (parsed.data.almuerzo !== undefined) upd.almuerzo = parsed.data.almuerzo;
   if (parsed.data.almuerzo_min !== undefined) upd.almuerzo_min = parsed.data.almuerzo_min;
   if (parsed.data.almuerzo_tras_slot !== undefined) upd.almuerzo_tras_slot = parsed.data.almuerzo_tras_slot;

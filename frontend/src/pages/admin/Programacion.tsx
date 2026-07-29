@@ -15,6 +15,8 @@ interface Jornada {
   id: string; numero: number; fecha: string; fecha_legible?: string;
   hora_inicio: string | null; hora_fin: string | null;
   foto_inicial: boolean; intro_min: number;
+  // Dos pausas largas independientes: el break de la jornada y el almuerzo.
+  break_jornada: boolean; break_jornada_min: number; break_jornada_tras_slot: number | null;
   almuerzo: boolean; almuerzo_min: number; almuerzo_tras_slot: number | null;
   slots: Slot[]; actividades: Actividad[];
 }
@@ -163,6 +165,7 @@ export default function Programacion() {
 
   async function guardarJornada(j: Jornada, cambios: {
     foto_inicial?: boolean; intro_min?: number; hora_inicio?: string;
+    break_jornada?: boolean; break_jornada_min?: number; break_jornada_tras_slot?: number | null;
     almuerzo?: boolean; almuerzo_min?: number; almuerzo_tras_slot?: number | null;
     proyecto_ids?: string[];
   }) {
@@ -264,7 +267,7 @@ export default function Programacion() {
                 </span>
                 {publicada ? (
                   <span className="text-xs text-white/70 ml-auto">
-                    {(j.hora_inicio ?? '').slice(0, 5) || '—'}–{(j.hora_fin ?? '').slice(0, 5) || '—'} · {j.foto_inicial ? 'con foto inicial · ' : ''}intro {j.intro_min} min{j.almuerzo ? ` · almuerzo ${j.almuerzo_min} min` : ''}
+                    {(j.hora_inicio ?? '').slice(0, 5) || '—'}–{(j.hora_fin ?? '').slice(0, 5) || '—'} · {j.foto_inicial ? 'con foto inicial · ' : ''}intro {j.intro_min} min{j.break_jornada ? ` · break ${j.break_jornada_min} min` : ''}{j.almuerzo ? ` · almuerzo ${j.almuerzo_min} min` : ''}
                   </span>
                 ) : (
                   <>
@@ -282,10 +285,33 @@ export default function Programacion() {
                     </span>
                     <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
                     <label className="text-xs flex items-center gap-1">Intro <input type="number" value={j.intro_min} min={0} onChange={(e) => guardarJornada(j, { intro_min: Number(e.target.value) })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
-                    {/* El almuerzo es de cada jornada: un día se para a almorzar
-                        y el otro no, y la parada no siempre dura lo mismo. Al
-                        activarlo aparecen su duración y dónde cae. */}
-                    <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={j.almuerzo} onChange={(e) => guardarJornada(j, { almuerzo: e.target.checked })} /> Almuerzo</label>
+                    {/* Break y almuerzo son DOS pausas distintas y de cada
+                        jornada: un día se para a almorzar y el otro no, y la
+                        parada no siempre dura lo mismo. Se pueden tener las dos.
+                        Aparte está el break automático de fin de bloque, que es
+                        de la cohorte y dura lo mismo en todas las jornadas. */}
+                    <label className="text-xs flex items-center gap-1" title="Un break largo propio de esta jornada, además de los breaks automáticos de fin de bloque."><input type="checkbox" checked={j.break_jornada} onChange={(e) => guardarJornada(j, { break_jornada: e.target.checked })} /> Break</label>
+                    {j.break_jornada && (
+                      <>
+                        <label className="text-xs flex items-center gap-1" title="Cuánto dura el break de esta jornada.">
+                          <input type="number" min={5} max={240} step={5} defaultValue={j.break_jornada_min}
+                            onBlur={(e) => { const v = Number(e.target.value); if (v >= 5 && v <= 240 && v !== j.break_jornada_min) guardarJornada(j, { break_jornada_min: v }); }}
+                            className="w-14 text-inalde-text rounded px-1 py-0.5" /> min
+                        </label>
+                        <label className="text-xs flex items-center gap-1" title="Después de qué presentación cae el break. Déjalo vacío y el sistema lo pone en el corte más cercano a la mitad de la jornada.">
+                          tras el slot
+                          <input type="number" min={1} max={Math.max(1, j.slots.length - 1)} placeholder="auto"
+                            defaultValue={j.break_jornada_tras_slot ?? ''}
+                            onBlur={(e) => {
+                              const t = e.target.value.trim();
+                              const v = t === '' ? null : Number(t);
+                              if (v !== (j.break_jornada_tras_slot ?? null)) guardarJornada(j, { break_jornada_tras_slot: v });
+                            }}
+                            className="w-16 text-inalde-text rounded px-1 py-0.5" />
+                        </label>
+                      </>
+                    )}
+                    <label className="text-xs flex items-center gap-1" title="La parada para almorzar de esta jornada. Es independiente del break."><input type="checkbox" checked={j.almuerzo} onChange={(e) => guardarJornada(j, { almuerzo: e.target.checked })} /> Almuerzo</label>
                     {j.almuerzo && (
                       <>
                         <label className="text-xs flex items-center gap-1" title="Cuánto dura el almuerzo de esta jornada.">
@@ -293,7 +319,7 @@ export default function Programacion() {
                             onBlur={(e) => { const v = Number(e.target.value); if (v >= 5 && v <= 240 && v !== j.almuerzo_min) guardarJornada(j, { almuerzo_min: v }); }}
                             className="w-14 text-inalde-text rounded px-1 py-0.5" /> min
                         </label>
-                        <label className="text-xs flex items-center gap-1" title="Después de qué presentación se para a almorzar. Déjalo vacío y el sistema lo pone en el corte más cercano a la mitad de la jornada, sustituyendo al break que iba ahí.">
+                        <label className="text-xs flex items-center gap-1" title="Después de qué presentación se para a almorzar. Déjalo vacío y el sistema lo pone en el corte más cercano a la mitad de la jornada. Si coincide con el break, manda el almuerzo: fija uno de los dos a mano para tener los dos.">
                           tras el slot
                           <input type="number" min={1} max={Math.max(1, j.slots.length - 1)} placeholder="auto"
                             defaultValue={j.almuerzo_tras_slot ?? ''}
