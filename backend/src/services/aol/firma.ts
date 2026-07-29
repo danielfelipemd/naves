@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../db/supabase.js';
+import { codigoAolDeEtiqueta } from './cohorte-codigo.js';
 
 // =====================================================================
 // AoL §8 — Firma de la calificación (R7). Inserta aol_calificacion + una fila en
@@ -15,16 +16,10 @@ import { supabaseAdmin } from '../../db/supabase.js';
 
 const norm = (s: string) => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-// Deriva {codigo, modalidad, anio_inicio, anio_fin} de la etiqueta de plataforma
-// (p. ej. "MBA INT 24-26", "QA MBA FS 24-26").
-function parseCohorte(etiqueta: string): { codigo: string; modalidad: string; anio_inicio: number; anio_fin: number } {
-  const modalidad = /\bINT\b/i.test(etiqueta) ? 'INT' : 'FS';
-  const anios = etiqueta.match(/(\d{2,4})\s*[-–]\s*(\d{2,4})/);
-  const to4 = (s: string) => (s.length === 2 ? 2000 + Number(s) : Number(s));
-  const anio_inicio = anios ? to4(anios[1]) : 0;
-  const anio_fin = anios ? to4(anios[2]) : 0;
-  return { codigo: `${modalidad} ${anio_inicio}-${anio_fin}`, modalidad, anio_inicio, anio_fin };
-}
+// El código de cohorte vive en cohorte-codigo.ts (compartido con dashboard y
+// export). Las cohortes de prueba reciben prefijo "QA " para no mezclarse con
+// los datos reales del histórico AACSB.
+const parseCohorte = codigoAolDeEtiqueta;
 
 async function materializarCohorte(etiqueta: string): Promise<number> {
   const c = parseCohorte(etiqueta);
@@ -33,7 +28,9 @@ async function materializarCohorte(etiqueta: string): Promise<number> {
   const { data, error } = await supabaseAdmin.from('cohorte').insert({
     codigo: c.codigo, modalidad: c.modalidad, anio_inicio: c.anio_inicio, anio_fin: c.anio_fin,
     anio_medicion: c.anio_fin, tiene_detalle_individual: true,
-    notas: 'Cohorte activa creada por el módulo AoL de la plataforma.',
+    notas: c.es_prueba
+      ? 'COHORTE DE PRUEBA — datos de ensayo, NO reportables a AACSB.'
+      : 'Cohorte activa creada por el módulo AoL de la plataforma.',
   }).select('id').maybeSingle();
   if (error) throw new Error('AOL_COHORTE: ' + error.message);
   return (data as any).id;

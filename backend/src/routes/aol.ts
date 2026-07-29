@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../db/supabase.js';
+import { codigoAolDeEtiqueta } from '../services/aol/cohorte-codigo.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { proyectosFase2 } from '../services/proyectos-fase2.js';
 import { analizarProyecto } from '../services/aol/pipeline.js';
@@ -204,10 +205,7 @@ router.get('/dashboard/:cohorteId', ...soloAdmin, async (req: AuthenticatedReque
   const { data: coh } = await supabaseAdmin.from('cohortes').select('id, etiqueta').eq('id', cohorteId).maybeSingle();
   if (!coh) return res.status(404).json({ error: 'COHORTE_NO_ENCONTRADA' });
   const etiqueta = (coh as any).etiqueta ?? cohorteId;
-  const modalidad = /\bINT\b/i.test(etiqueta) ? 'INT' : 'FS';
-  const anios = etiqueta.match(/(\d{2,4})\s*[-–]\s*(\d{2,4})/);
-  const to4 = (s: string) => (s.length === 2 ? 2000 + Number(s) : Number(s));
-  const codigoAol = anios ? `${modalidad} ${to4(anios[1])}-${to4(anios[2])}` : '';
+  const { codigo: codigoAol, modalidad, es_prueba: esPrueba } = codigoAolDeEtiqueta(etiqueta, cohorteId);
 
   // Población objeto de AoL: equipos BP de la cohorte; otras modalidades excluidas.
   const { data: equipos } = await supabaseAdmin
@@ -229,7 +227,9 @@ router.get('/dashboard/:cohorteId', ...soloAdmin, async (req: AuthenticatedReque
   ]);
 
   // Comparación vs. la última cohorte cerrada de la MISMA modalidad.
-  const hist = (historico ?? []) as any[];
+  // Las cohortes de prueba (código con prefijo "QA ") no son datos reportables:
+  // se excluyen del histórico para que no aparezcan junto a las cohortes reales.
+  const hist = ((historico ?? []) as any[]).filter((r) => !String(r.cohorte ?? '').startsWith('QA '));
   const cohortesModalidad = [...new Set(hist.map((r) => r.cohorte))].filter((c: string) => c.startsWith(modalidad) && c !== codigoAol);
   const anioDe = (c: string) => Number((c.match(/(\d{4})\s*-\s*(\d{4})/) ?? [])[2] ?? 0);
   const cohorteComparacion = cohortesModalidad.sort((a, b) => anioDe(b) - anioDe(a))[0] ?? null;
@@ -241,7 +241,7 @@ router.get('/dashboard/:cohorteId', ...soloAdmin, async (req: AuthenticatedReque
   ]);
 
   res.json({
-    cohorte_id: cohorteId, etiqueta, codigo_aol: codigoAol, modalidad,
+    cohorte_id: cohorteId, etiqueta, codigo_aol: codigoAol, modalidad, es_prueba: esPrueba,
     kpis: {
       participantes: null, // el dashboard de control ya lo cubre; aquí el foco es AoL
       equipos_bp: bp.length, otras_modalidades: otras,
@@ -304,10 +304,7 @@ router.get('/export/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest,
   const { data: coh } = await supabaseAdmin.from('cohortes').select('etiqueta').eq('id', cohorteId).maybeSingle();
   if (!coh) return res.status(404).json({ error: 'COHORTE_NO_ENCONTRADA' });
   const etiqueta = (coh as any).etiqueta ?? cohorteId;
-  const modalidad = /\bINT\b/i.test(etiqueta) ? 'INT' : 'FS';
-  const anios = etiqueta.match(/(\d{2,4})\s*[-–]\s*(\d{2,4})/);
-  const to4 = (s: string) => (s.length === 2 ? 2000 + Number(s) : Number(s));
-  const codigoAol = anios ? `${modalidad} ${to4(anios[1])}-${to4(anios[2])}` : etiqueta;
+  const codigoAol = codigoAolDeEtiqueta(etiqueta, cohorteId).codigo || etiqueta;
 
   const [{ data: aacsb }, { data: conclusiones }, { data: resumen }] = await Promise.all([
     supabaseAdmin.from('aacsb_tabla').select('*').order('id'),
