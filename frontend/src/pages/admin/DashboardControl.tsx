@@ -71,8 +71,8 @@ interface Dashboard {
       firmadas: number;
       faltan_datos?: number;
     };
-    // El backend sigue devolviendo `informe_cohorte`, pero la pantalla ya no lo
-    // muestra: el informe se dejó de llevar aquí.
+    // El informe de cohorte se retiró de esta pantalla y del backend: lo produce
+    // el módulo AoL, la casilla manual solo duplicaba el hito.
   };
   bloque4: {
     trabajos_por_modalidad?: Record<string, number>;

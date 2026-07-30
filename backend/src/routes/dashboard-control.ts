@@ -1,20 +1,22 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { entregaFinalCompleta } from '../services/entrega-final.js';
 
 // === Dashboard de control de cohorte (Comentario 15 QA, JMV 20-jul-2026) =====
 //
-// Vista de control para el super_admin: cuánto ha avanzado una cohorte a lo
-// largo del proceso NAVES. Casi todo se calcula por AGREGACIÓN de datos que ya
-// existen (participantes, equipos, anteproyectos, entregas, checkboxes de
-// Reunión 1/2, programación, perfil emprendedor del registro). El único dato
-// propio es el indicador binario del INFORME de cohorte
-// (cohortes.informe_cohorte_realizado, migración 35).
+// Cuánto ha avanzado una cohorte a lo largo del proceso NAVES. TODO se calcula
+// por AGREGACIÓN de datos que ya existen (participantes, equipos, anteproyectos,
+// entregas, checkboxes de Reunión 1/2, programación, perfil emprendedor del
+// registro): esta ruta no guarda nada propio.
 //
 // El bloque de ACTAS resume la tabla `acta` del módulo de Actas de Grado
 // (migración 38) con los mismos criterios de estado que usa su propio panel.
+//
+// El indicador manual de INFORME de cohorte (cohortes.informe_cohorte_realizado,
+// migración 35) se retiró: el informe real lo produce el módulo AoL, así que la
+// casilla suelta solo duplicaba el hito. La columna sigue en la base con su
+// último valor; ninguna pantalla la lee ni la escribe.
 //
 // DOS ALCANCES en la misma ruta:
 //   - 'cohorte' (super_admin): la cohorte entera, las tres modalidades.
@@ -27,13 +29,11 @@ import { entregaFinalCompleta } from '../services/entrega-final.js';
 // cumple y cuál no) para que la pantalla pueda abrirlo al hacer clic: un
 // porcentaje sin nombres no le dice al profesor a quién llamar.
 //
-// Solo lectura salvo el checkbox del informe (POST /:cohorteId/informe).
+// La ruta entera es de SOLO LECTURA.
 
 const router = Router();
-const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
-// El dashboard es de SOLO LECTURA, así que el profesor también entra: necesita
-// ver el avance de la cohorte que acompaña. El alcance se restringe abajo (solo
-// sus cohortes). Marcar el informe sigue siendo exclusivo del super_admin.
+// Al ser solo lectura el profesor también entra: necesita ver el avance de la
+// cohorte que acompaña. El alcance se restringe abajo (solo sus cohortes).
 const adminOProfesor = [requireAuth(), requireRole('super_admin', 'profesor')] as const;
 
 /**
@@ -122,7 +122,7 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
 
   const { data: cohorte, error: errCoh } = await supabaseAdmin
     .from('cohortes')
-    .select('id, etiqueta, informe_cohorte_realizado')
+    .select('id, etiqueta')
     .eq('id', cohorteId)
     .maybeSingle();
   if (errCoh) return res.status(500).json({ error: errCoh.message });
@@ -272,7 +272,6 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
   };
   const definitivosEntregados = equipos.filter(definitivoEntregadoDeEquipo).length;
   const reunion1 = equipos.filter((e) => e.reunion_1_profesor_at).length;
-  const definitivosElegidos = equipos.filter((e) => e.proyecto_definitivo_id).length;
   const reunion2 = equipos.filter((e) => e.reunion_2_profesor_at).length;
 
   // --- Caracterización por modalidad ---------------------------------------
@@ -430,14 +429,6 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
       ),
     },
     {
-      clave: 'definitivos_elegidos',
-      label: 'Proyectos definitivos elegidos',
-      ayuda: 'Equipos con el proyecto definitivo ya marcado tras la Reunión 1.',
-      n: definitivosElegidos,
-      total: totalEquipos,
-      detalle: detalleEquipos((e) => !!e.proyecto_definitivo_id),
-    },
-    {
       clave: 'reunion_2',
       label: 'Reunión 2 realizada',
       ayuda: esAdmin
@@ -508,11 +499,6 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
     },
   ];
 
-  // El profesor no ve "Proyectos definitivos elegidos": para él la elección no
-  // es un hito de avance sino su propia tarea, y ya la resuelve en su pantalla
-  // de "Elegir proyecto definitivo".
-  const bloque2 = esAdmin ? pasos : pasos.filter((p) => p.clave !== 'definitivos_elegidos');
-
   res.json({
     alcance,
     cohorte: { id: cohorte.id, etiqueta: cohorte.etiqueta },
@@ -531,7 +517,7 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
       reunion_1: { n: reunion1, total: totalEquipos },
       reunion_2: { n: reunion2, total: totalEquipos },
     },
-    bloque2,
+    bloque2: pasos,
     bloque3: {
       actas: {
         disponible: true,
@@ -547,7 +533,6 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
         // Con datos incompletos todavía no se puede generar el acta.
         faltan_datos: cuentaActas(['faltan_datos']),
       },
-      informe_cohorte: { realizado: !!cohorte.informe_cohorte_realizado },
     },
     bloque4: {
       // El reparto por modalidad solo tiene sentido en la foto de cohorte: en el
@@ -562,28 +547,6 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
       preocupaciones: preocupaciones,
     },
   });
-});
-
-// === POST /:cohorteId/informe — marca el informe de cohorte ================
-const informeSchema = z.object({ realizado: z.boolean() });
-router.post('/:cohorteId/informe', ...soloAdmin, async (req, res) => {
-  const parsed = informeSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
-
-  const { data: cohorte } = await supabaseAdmin
-    .from('cohortes')
-    .select('id')
-    .eq('id', req.params.cohorteId)
-    .maybeSingle();
-  if (!cohorte) return res.status(404).json({ error: 'COHORTE_NOT_FOUND' });
-
-  const { error } = await supabaseAdmin
-    .from('cohortes')
-    .update({ informe_cohorte_realizado: parsed.data.realizado })
-    .eq('id', req.params.cohorteId);
-  if (error) return res.status(500).json({ error: error.message });
-
-  res.json({ ok: true, realizado: parsed.data.realizado });
 });
 
 export default router;
