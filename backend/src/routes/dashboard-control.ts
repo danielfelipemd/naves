@@ -407,41 +407,11 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
     return nombres.length ? nombres.join(' · ') : null;
   };
 
+  // Orden de lectura: primero el acompañamiento vivo (reuniones y entregas), que
+  // es lo que se mueve semana a semana; al final el arranque de la cohorte
+  // (participantes, equipos, anteproyectos), que se completa temprano y se queda
+  // clavado en 100 % ocupando la parte alta de la lista.
   const pasos = [
-    {
-      clave: 'participantes',
-      label: 'Participantes cargados',
-      ayuda: 'Participantes con la cuenta ya activada.',
-      n: participantesActivos,
-      total: totalParticipantes,
-      detalle: participantes.map((p) => ({
-        id: p.id,
-        nombre: p.nombre_completo ?? 'Sin nombre',
-        ok: p.estado === 'activo',
-        // Al activo no se le repite el estado: ya lo dice la etiqueta "Listo".
-        nota: p.estado === 'activo' ? null : (ESTADO_PARTICIPANTE[p.estado] ?? p.estado),
-      })).sort((a, b) => Number(a.ok) - Number(b.ok) || a.nombre.localeCompare(b.nombre)),
-    },
-    {
-      clave: 'equipos',
-      label: 'Equipos conformados',
-      ayuda: 'Equipos con participantes registrados.',
-      n: equipos.filter((e) => miembrosDe(e).length > 0).length,
-      total: totalEquipos,
-      detalle: detalleEquipos((e) => miembrosDe(e).length > 0, miembrosComoNota),
-    },
-    {
-      clave: 'anteproyectos',
-      label: 'Anteproyectos entregados',
-      ayuda: 'El equipo envió su anteproyecto (ya no está en borrador).',
-      n: anteEntregados,
-      total: totalEquipos,
-      detalle: detalleEquipos(anteEntregadoDeEquipo, (e) => {
-        const a = pickAnte(e.anteproyectos);
-        if (!a) return 'Sin anteproyecto creado';
-        return a.estado === 'borrador' ? 'Todavía en borrador' : null;
-      }),
-    },
     {
       clave: 'reunion_1',
       label: 'Reunión 1 realizada',
@@ -500,6 +470,41 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
       n: programados,
       total: totalEquipos,
       detalle: detalleEquipos(programadoDeEquipo),
+    },
+    // --- Arranque de la cohorte (cierra la lista) ---------------------------
+    {
+      clave: 'participantes',
+      label: 'Participantes cargados',
+      ayuda: 'Participantes con la cuenta ya activada.',
+      n: participantesActivos,
+      total: totalParticipantes,
+      detalle: participantes.map((p) => ({
+        id: p.id,
+        nombre: p.nombre_completo ?? 'Sin nombre',
+        ok: p.estado === 'activo',
+        // Al activo no se le repite el estado: ya lo dice la etiqueta "Listo".
+        nota: p.estado === 'activo' ? null : (ESTADO_PARTICIPANTE[p.estado] ?? p.estado),
+      })).sort((a, b) => Number(a.ok) - Number(b.ok) || a.nombre.localeCompare(b.nombre)),
+    },
+    {
+      clave: 'equipos',
+      label: 'Equipos conformados',
+      ayuda: 'Equipos con participantes registrados.',
+      n: equipos.filter((e) => miembrosDe(e).length > 0).length,
+      total: totalEquipos,
+      detalle: detalleEquipos((e) => miembrosDe(e).length > 0, miembrosComoNota),
+    },
+    {
+      clave: 'anteproyectos',
+      label: 'Anteproyectos entregados',
+      ayuda: 'El equipo envió su anteproyecto (ya no está en borrador).',
+      n: anteEntregados,
+      total: totalEquipos,
+      detalle: detalleEquipos(anteEntregadoDeEquipo, (e) => {
+        const a = pickAnte(e.anteproyectos);
+        if (!a) return 'Sin anteproyecto creado';
+        return a.estado === 'borrador' ? 'Todavía en borrador' : null;
+      }),
     },
   ];
 

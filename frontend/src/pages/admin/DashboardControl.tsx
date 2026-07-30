@@ -149,31 +149,77 @@ function pct(n: number, total: number): number {
 // --- Tarjeta KPI (número grande) -------------------------------------------
 // `desglose` agrega el detalle por modalidad dentro de la misma tarjeta: un
 // solo número agregado de las tres modalidades no es interpretable.
-function KpiCard({ label, value, sub, desglose }: {
+// `avance` cierra la tarjeta con lo que YA está y lo que FALTA: el número
+// grande solo cuenta la mitad de la historia ("11" no dice si faltan 3 o 30).
+function KpiCard({ label, value, sub, avance, desglose }: {
   label: string;
   value: string | number;
   sub?: string;
+  /** `pendiente` nombra lo que falta: "faltan 3 <pendiente>". */
+  avance?: { n: number; total: number; pendiente?: string };
   desglose?: Record<string, NTotal>;
 }) {
+  const p = avance ? pct(avance.n, avance.total) : 0;
+  const faltan = avance ? Math.max(0, avance.total - avance.n) : 0;
   return (
-    <div className="card-inalde flex flex-col justify-between p-5">
-      <p className="font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray">{label}</p>
-      <p className="font-primary font-bold text-4xl text-inalde-text mt-2 leading-none">{value}</p>
-      {sub && <p className="text-xs text-inalde-gray mt-1">{sub}</p>}
-      {desglose && (
-        <ul className="mt-3 pt-3 border-t border-inalde-gray-light space-y-1">
-          {MODALIDAD_ORDEN.filter((m) => desglose[m]).map((m) => (
-            <li key={m} className="flex items-center justify-between gap-2 text-xs">
-              <span className="flex items-center gap-1.5 text-inalde-gray truncate">
-                <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: MODALIDAD_COLOR[m] }} />
-                {MODALIDAD_LABEL[m]}
-              </span>
-              <span className="font-semibold text-inalde-text whitespace-nowrap">
-                {desglose[m].n} <span className="text-inalde-gray font-normal">/ {desglose[m].total}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+    <div className="card-inalde flex flex-col p-5">
+      {/* Los números grandes de las cuatro tarjetas tienen que caer a la MISMA
+          altura para poder compararlos de un vistazo. Antes 'justify-between'
+          repartía el sobrante y cada número quedaba donde alcanzara. Ahora el
+          rótulo reserva sus tres líneas (a este ancho el más largo ocupa tres),
+          el número va justo debajo y el desglose se ancla al pie. */}
+      <p className="font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray leading-4 min-h-[3rem]">
+        {label}
+      </p>
+      <p className="font-primary font-bold text-4xl text-inalde-text mt-1 leading-none tabular-nums">{value}</p>
+      {sub && <p className="text-xs text-inalde-gray mt-2">{sub}</p>}
+      {(avance || desglose) && (
+        <div className="mt-auto pt-3 border-t border-inalde-gray-light">
+          {avance && (
+            <>
+              {/* La barra repite el dato en forma de longitud y color: se lee sin
+                  tener que procesar el número. */}
+              <div
+                className="h-1.5 rounded-full bg-inalde-gray-light overflow-hidden"
+                role="img"
+                aria-label={`${avance.n} de ${avance.total}`}
+              >
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${p}%`, backgroundColor: colorAvance(p) }}
+                />
+              </div>
+              <p className="flex items-baseline justify-between gap-2 text-xs mt-2 tabular-nums">
+                <span className="font-semibold text-inalde-text">{p}&nbsp;%</span>
+                {faltan === 0 ? (
+                  <span className="font-semibold" style={{ color: colorAvance(100) }}>
+                    Sin pendientes
+                  </span>
+                ) : (
+                  <span className="text-inalde-gray">
+                    Faltan {faltan} {avance.pendiente ?? 'equipos'}
+                  </span>
+                )}
+              </p>
+            </>
+          )}
+          {desglose && (
+            <ul className={`space-y-1 ${avance ? 'mt-3 pt-3 border-t border-inalde-gray-light' : ''}`}>
+              {/* Una modalidad sin equipos (0/0) no dice nada: se omite. */}
+              {MODALIDAD_ORDEN.filter((m) => desglose[m] && desglose[m].total > 0).map((m) => (
+                <li key={m} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="flex items-center gap-1.5 text-inalde-gray truncate">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: MODALIDAD_COLOR[m] }} />
+                    {MODALIDAD_LABEL[m]}
+                  </span>
+                  <span className="font-semibold text-inalde-text whitespace-nowrap tabular-nums">
+                    {desglose[m].n} <span className="text-inalde-gray font-normal">/ {desglose[m].total}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
@@ -444,21 +490,42 @@ export default function DashboardControl() {
                   label="Reunión 1 realizada"
                   value={data.bloque1.reunion_1?.n ?? 0}
                   sub={deMisEquipos}
+                  avance={{ n: data.bloque1.reunion_1?.n ?? 0, total: misEquipos }}
                 />
                 <KpiCard
                   label="Reunión 2 realizada"
                   value={data.bloque1.reunion_2?.n ?? 0}
                   sub={deMisEquipos}
+                  avance={{ n: data.bloque1.reunion_2?.n ?? 0, total: misEquipos }}
                 />
                 <KpiCard
                   label="Trabajos definitivos entregados"
                   value={data.bloque1.trabajos_definitivos_entregados.n}
                   sub={deMisEquipos}
+                  avance={{
+                    n: data.bloque1.trabajos_definitivos_entregados.n,
+                    total: data.bloque1.trabajos_definitivos_entregados.total,
+                  }}
                 />
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <KpiCard label="Participantes activos" value={data.bloque1.participantes_activos} />
+                {/* Sin el total de la lista, "84" no dice si falta alguien por
+                    activar la cuenta. */}
+                <KpiCard
+                  label="Participantes activos"
+                  value={data.bloque1.participantes_activos}
+                  sub={data.bloque1.participantes_total !== undefined
+                    ? `de ${data.bloque1.participantes_total} en la lista`
+                    : undefined}
+                  avance={data.bloque1.participantes_total !== undefined
+                    ? {
+                        n: data.bloque1.participantes_activos,
+                        total: data.bloque1.participantes_total,
+                        pendiente: 'por activar',
+                      }
+                    : undefined}
+                />
                 <KpiCard
                   label="Proyectos NAVES (equipos)"
                   value={data.bloque1.proyectos}
@@ -470,12 +537,20 @@ export default function DashboardControl() {
                   label="Anteproyectos entregados"
                   value={data.bloque1.anteproyectos_entregados.n}
                   sub={`de ${data.bloque1.anteproyectos_entregados.total} equipos`}
+                  avance={{
+                    n: data.bloque1.anteproyectos_entregados.n,
+                    total: data.bloque1.anteproyectos_entregados.total,
+                  }}
                   desglose={data.bloque1.anteproyectos_entregados.por_modalidad}
                 />
                 <KpiCard
                   label="Trabajos definitivos entregados"
                   value={data.bloque1.trabajos_definitivos_entregados.n}
                   sub={`de ${data.bloque1.trabajos_definitivos_entregados.total} equipos`}
+                  avance={{
+                    n: data.bloque1.trabajos_definitivos_entregados.n,
+                    total: data.bloque1.trabajos_definitivos_entregados.total,
+                  }}
                 />
               </div>
             )}
