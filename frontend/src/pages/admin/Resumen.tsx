@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../auth/store';
 import { api } from '../../lib/api';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; participantes_count: number; equipos_count: number; }
@@ -115,7 +114,6 @@ const GROUPS: Group[] = [
 ];
 
 export default function Resumen() {
-  const { nombre } = useAuth();
   const [data, setData] = useState({
     cohortes: [] as Cohorte[],
     profesores: 0,
@@ -146,9 +144,8 @@ export default function Resumen() {
       <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
         <p className="section-subtitle mb-2">Panel administrativo</p>
         <h1 className="section-title">Selecciona qué quieres administrar</h1>
-        <p className="text-sm text-inalde-gray mt-2">
-          Sesión: <span className="text-inalde-text">{nombre ?? '—'}</span>
-        </p>
+        {/* Quién tiene la sesión abierta se muestra en la cabecera, junto a la
+            campana: ahí se ve desde cualquier pantalla, no solo desde aquí. */}
       </div>
 
       {data.loading && <p className="text-inalde-gray text-sm mb-6">Cargando estadísticas…</p>}

@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { NotificationBell } from './NotificationBell';
+import { useAuth } from '../../auth/store';
 
 // Breadcrumb (miga de pan) por pantalla — regla de navegación del sistema (QA #6).
 // Solo pantallas de participante/profesor: las de /admin ya tienen su propia miga
@@ -19,6 +20,59 @@ const CRUMBS: Record<string, string> = {
   '/profesor/equipos': 'Consulta de equipos',
   '/profesor/programacion': 'Programación',
 };
+
+const ROL_LABEL: Record<string, string> = {
+  participante: 'Participante',
+  profesor: 'Profesor',
+  super_admin: 'Dirección del programa',
+  marketing: 'Marketing',
+  operaciones: 'Operaciones',
+  asistente_programa: 'Asistente de programa',
+};
+
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return '·';
+  return (partes[0][0] + (partes[1]?.[0] ?? '')).toUpperCase();
+}
+
+// Quién tiene la sesión abierta. Va en la cabecera, al lado de la campana: se ve
+// en TODAS las pantallas y siempre en el mismo sitio. Antes solo aparecía dentro
+// del panel administrativo, así que en el resto del sistema no había forma de
+// saber con qué cuenta se estaba trabajando.
+function SesionActual() {
+  const session = useAuth((s) => s.session);
+  const nombre = useAuth((s) => s.nombre);
+  const role = useAuth((s) => s.role);
+  if (!session) return null;
+
+  const rol = role ? ROL_LABEL[role] ?? null : null;
+  return (
+    <div
+      className="flex items-center gap-2 sm:gap-2.5 min-w-0"
+      title={nombre ? `Sesión de ${nombre}${rol ? ` · ${rol}` : ''}` : 'Sesión abierta'}
+    >
+      <span
+        aria-hidden="true"
+        className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-inalde-red text-white
+          font-primary font-bold text-xs sm:text-sm flex items-center justify-center"
+      >
+        {nombre ? iniciales(nombre) : '·'}
+      </span>
+      {/* En pantallas estrechas manda el espacio: queda la inicial, que con el
+          title sigue diciendo quién es. */}
+      <span className="hidden md:flex flex-col min-w-0 leading-tight">
+        <span className="font-primary font-semibold text-xs text-inalde-text truncate max-w-[13rem]">
+          {nombre ?? 'Sesión abierta'}
+        </span>
+        {rol && (
+          <span className="text-[10px] tracking-wider uppercase text-inalde-gray truncate">{rol}</span>
+        )}
+      </span>
+      <span className="sr-only">Sesión iniciada por {nombre ?? 'usuario sin nombre'}</span>
+    </div>
+  );
+}
 
 export function Header() {
   const navigate = useNavigate();
@@ -75,7 +129,8 @@ export function Header() {
             </p>
           </div>
         </a>
-        <div className="ml-auto">
+        <div className="ml-auto pl-3 flex items-center gap-3 sm:gap-4 min-w-0">
+          <SesionActual />
           <NotificationBell />
         </div>
       </div>
