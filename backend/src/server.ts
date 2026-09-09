@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 import { config } from './config.js';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
@@ -67,7 +68,12 @@ const sensitiveAuthLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50 });
 const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 600 });
 const ciiuLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 1000 });
 
+// Health: montado en '/' y tambien bajo '/api'. El '/api' importa porque el
+// proxy solo enruta /api/* al backend (en '/' contesta el frontend con su HTML),
+// y va ANTES del catch-all `app.use('/api', seleccionRouter)`, que aplica
+// requireAuth global y devolvia MISSING_BEARER a los sondeos de monitoreo.
 app.use('/', healthRouter);
+app.use('/api', healthRouter);
 // Proxy publico (auth via token efimero en query string) — antes de cualquier
 // router con requireAuth para que no se aplique el middleware global de auth.
 app.use('/api/archivos', archivosProxyRouter);
@@ -107,6 +113,18 @@ app.use('/api/aol', aolRouter);
 // 404 + error handlers
 app.use((_req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // Errores de subida (multer). Sin esto caian en el 500 generico y el usuario
+  // veia "problema del lado del servidor" al mandar un PDF grande, en vez de
+  // enterarse de que el archivo pesa demasiado.
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        error: 'FILE_TOO_LARGE',
+        mensaje: 'El archivo supera el tamaño máximo permitido (25 MB). Comprime el PDF e inténtalo de nuevo.',
+      });
+    }
+    return res.status(400).json({ error: 'UPLOAD_ERROR', mensaje: `No pudimos recibir el archivo (${err.code}).` });
+  }
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'INTERNAL', message: err.message });
 });
