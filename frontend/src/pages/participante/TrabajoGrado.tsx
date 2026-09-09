@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { BarraProgreso } from '../../components/inalde/BarraProgreso';
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
 
@@ -124,6 +125,10 @@ function DropZone(props: {
   hint: string;
   disabled: boolean;
   subiendoEste: boolean;
+  /** 0-100 mientras este archivo sube; null si no hay subida en curso. */
+  progreso?: number | null;
+  /** Nombre y peso del archivo en curso, para mostrarlos en la barra. */
+  archivoEnCurso?: { nombre: string; bytes: number } | null;
   validate: (f: File) => boolean;
   errMsg: string;
   onFile: (f: File) => void;
@@ -132,7 +137,7 @@ function DropZone(props: {
   // instrucción genérica de arrastrar/soltar.
   cta?: string;
 }) {
-  const { accept, hint, disabled, subiendoEste, validate, errMsg, onFile, inputRef, cta } = props;
+  const { accept, hint, disabled, subiendoEste, progreso, archivoEnCurso, validate, errMsg, onFile, inputRef, cta } = props;
   const [drag, setDrag] = useState(false);
   const [errMime, setErrMime] = useState(false);
 
@@ -172,13 +177,27 @@ function DropZone(props: {
         onChange={(e) => handleFiles(e.target.files)}
         className="hidden"
       />
-      <p className="text-sm text-inalde-text font-semibold">
-        {subiendoEste ? 'Cargando…' : (cta ?? 'Arrastra el archivo aquí o haz clic para seleccionarlo')}
-      </p>
-      {cta && !subiendoEste && (
-        <p className="text-xs text-inalde-gray mt-0.5">Arrastra el archivo o haz clic para seleccionarlo</p>
+      {subiendoEste ? (
+        // Durante la subida la zona deja de invitar a soltar un archivo y pasa
+        // a informar: cuánto lleva y que no cierre la ventana.
+        <div onClick={(e) => e.stopPropagation()} className="cursor-default">
+          <BarraProgreso
+            porcentaje={progreso ?? 0}
+            nombre={archivoEnCurso?.nombre}
+            bytes={archivoEnCurso?.bytes}
+          />
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-inalde-text font-semibold">
+            {cta ?? 'Arrastra el archivo aquí o haz clic para seleccionarlo'}
+          </p>
+          {cta && (
+            <p className="text-xs text-inalde-gray mt-0.5">Arrastra el archivo o haz clic para seleccionarlo</p>
+          )}
+          <p className="text-xs text-inalde-gray mt-1">{hint} · máximo 25 MB</p>
+        </>
       )}
-      <p className="text-xs text-inalde-gray mt-1">{hint} · máximo 25 MB</p>
       {errMime && (
         <p className="text-xs text-inalde-red mt-2">El tipo de archivo no es válido. {errMsg}</p>
       )}
@@ -192,6 +211,8 @@ function AssetUploader(props: {
   tipo: TipoAsset;
   asset: AssetState | null;
   subiendo: boolean;
+  progreso?: number | null;
+  archivoEnCurso?: { nombre: string; bytes: number } | null;
   disabled: boolean;
   onFile: (f: File) => void;
   onOpen: () => void;
@@ -223,6 +244,8 @@ function AssetUploader(props: {
           errMsg={`Formato permitido: ${cfg.hint}.`}
           disabled={props.disabled}
           subiendoEste={props.subiendo}
+          progreso={props.progreso}
+          archivoEnCurso={props.archivoEnCurso}
           onFile={props.onFile}
           inputRef={props.inputRef}
         />
@@ -245,6 +268,10 @@ export default function TrabajoGrado() {
   const [guardandoDirector, setGuardandoDirector] = useState(false);
 
   const [subiendoAsset, setSubiendoAsset] = useState<TipoAsset | null>(null);
+  // Progreso real de la subida en curso (bytes enviados al servidor), para la
+  // barra: un archivo grande tarda medio minuto y antes solo se veía "Cargando…".
+  const [progreso, setProgreso] = useState<number | null>(null);
+  const [archivoEnCurso, setArchivoEnCurso] = useState<{ nombre: string; bytes: number } | null>(null);
   // Ficha activa (null = sigue el valor por defecto según el estado). Fichas:
   // 'anteproyecto', 'avance' (solo caso/PI) y 'proyecto'.
   const [ficha, setFicha] = useState<'anteproyecto' | 'avance' | 'proyecto' | null>(null);
@@ -338,12 +365,20 @@ export default function TrabajoGrado() {
     try {
       const fd = new FormData();
       fd.append('file', file);
+      setProgreso(0);
+      setArchivoEnCurso({ nombre: file.name, bytes: file.size });
       // timeout: 0 desactiva el limite por defecto de 15s; un anteproyecto
       // grande en conexion lenta tarda mas. signal permite cancelar.
       await api.post(`/anteproyectos/${ant.id}/archivo/${tipo}`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 0,
         signal: controller.signal,
+        onUploadProgress: (ev) => {
+          // ev.total falta si el navegador no conoce el tamaño; caemos al del
+          // File para no dejar la barra clavada en 0 durante toda la subida.
+          const total = ev.total ?? file.size;
+          setProgreso(total ? Math.round((ev.loaded * 100) / total) : 100);
+        },
       });
       await cargar();
     } catch (e: any) {
@@ -357,6 +392,8 @@ export default function TrabajoGrado() {
     } finally {
       abortRef.current = null;
       setSubiendo(null);
+      setProgreso(null);
+      setArchivoEnCurso(null);
       if (tipo === 'anteproyecto' && inputAntRef.current) inputAntRef.current.value = '';
       if (tipo === 'avance' && inputAvanceRef.current) inputAvanceRef.current.value = '';
       if (tipo === 'proyecto-final' && inputFinalRef.current) inputFinalRef.current.value = '';
@@ -372,15 +409,23 @@ export default function TrabajoGrado() {
     try {
       const fd = new FormData();
       fd.append('file', file);
+      setProgreso(0);
+      setArchivoEnCurso({ nombre: file.name, bytes: file.size });
       await api.post(`/anteproyectos/${ant.id}/asset/${tipo}`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 0,
+        onUploadProgress: (ev) => {
+          const total = ev.total ?? file.size;
+          setProgreso(total ? Math.round((ev.loaded * 100) / total) : 100);
+        },
       });
       await cargar();
     } catch (e: any) {
       setError(formatBackendError(e));
     } finally {
       setSubiendoAsset(null);
+      setProgreso(null);
+      setArchivoEnCurso(null);
       const ref = inputAssetRefs[tipo].current;
       if (ref) ref.value = '';
     }
@@ -749,6 +794,8 @@ export default function TrabajoGrado() {
                           validate={(f) => aceptaMime('anteproyecto', f)} errMsg="Solo PDF."
                           disabled={!!subiendo || !directorAsignado}
                           subiendoEste={subiendo === 'anteproyecto'}
+                          progreso={subiendo === 'anteproyecto' ? progreso : null}
+                          archivoEnCurso={subiendo === 'anteproyecto' ? archivoEnCurso : null}
                           onFile={(f) => subir('anteproyecto', f)} inputRef={inputAntRef}
                         />
                       </>
@@ -826,6 +873,8 @@ export default function TrabajoGrado() {
                           validate={(f) => aceptaMime('anteproyecto', f)} errMsg="Solo PDF."
                           disabled={!!subiendo}
                           subiendoEste={subiendo === 'avance'}
+                          progreso={subiendo === 'avance' ? progreso : null}
+                          archivoEnCurso={subiendo === 'avance' ? archivoEnCurso : null}
                           onFile={(f) => subir('avance', f)} inputRef={inputAvanceRef}
                         />
                       </>
@@ -930,6 +979,8 @@ export default function TrabajoGrado() {
                             validate={(f) => aceptaMime('proyecto-final', f)} errMsg="Solo PDF."
                             disabled={!!subiendo}
                             subiendoEste={subiendo === 'proyecto-final'}
+                          progreso={subiendo === 'proyecto-final' ? progreso : null}
+                          archivoEnCurso={subiendo === 'proyecto-final' ? archivoEnCurso : null}
                             onFile={(f) => subir('proyecto-final', f)} inputRef={inputFinalRef}
                           />
                         </>
@@ -946,6 +997,8 @@ export default function TrabajoGrado() {
                             tipo={t}
                             asset={ant?.assets?.[t] ?? null}
                             subiendo={subiendoAsset === t}
+                            progreso={subiendoAsset === t ? progreso : null}
+                            archivoEnCurso={subiendoAsset === t ? archivoEnCurso : null}
                             disabled={!!subiendoAsset || vencido}
                             onFile={(f) => subirAsset(t, f)}
                             onOpen={() => abrirAsset(t)}

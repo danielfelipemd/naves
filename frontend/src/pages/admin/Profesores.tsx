@@ -4,6 +4,7 @@ import { formatBackendError } from '../../lib/errors';
 import { AreasPicker } from '../../components/inalde/AreasPicker';
 import { AREAS_AFINIDAD } from '../../lib/areas';
 import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
+import { BarraProgreso } from '../../components/inalde/BarraProgreso';
 
 const AREAS_SET = new Set<string>(AREAS_AFINIDAD);
 function sanitizeAreas(input: string[] | undefined | null): string[] {
@@ -35,6 +36,8 @@ const etiquetaArea = (v: string) => ROLES_AREA.find((r) => r.valor === v)?.etiqu
 
 export default function Profesores() {
   const [profesores, setProfesores] = useState<Profesor[]>([]);
+  // Progreso de la subida en curso (0-100). Null cuando no hay ninguna.
+  const [progreso, setProgreso] = useState<number | null>(null);
   const orden = useOrdenTabla();
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState<{
@@ -99,6 +102,13 @@ export default function Profesores() {
       fd.append('file', f);
       const { data } = await api.post('/admin/profesores/cargar-excel', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        // Sin esto hereda el timeout global de 15 s del cliente y un Excel
+        // grande se corta a medio subir con un error de red confuso.
+        timeout: 0,
+        onUploadProgress: (ev) => {
+          const total = ev.total ?? f.size;
+          setProgreso(total ? Math.round((ev.loaded * 100) / total) : 100);
+        },
       });
       setBulkResult(data);
       setMsg({ kind: 'ok', text: `Carga finalizada: ${data.inserted} profesor(es) creado(s).` });
@@ -106,7 +116,7 @@ export default function Profesores() {
       await load();
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setProgreso(null); }
   }
 
   async function load() {
@@ -220,6 +230,7 @@ export default function Profesores() {
               className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-40">
               {busy ? 'Cargando…' : 'Cargar profesores →'}
             </button>
+            {busy && progreso !== null && <div className="mt-3"><BarraProgreso porcentaje={progreso} /></div>}
           </div>
           {bulkResult && (
             <div className="mt-3 rounded border border-inalde-gray-light p-3 text-xs">

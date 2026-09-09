@@ -115,3 +115,11 @@
   .clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .clamp-4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 }
+
+/* Banda que recorre la barra de progreso cuando ya no hay porcentaje que
+   mostrar: el navegador terminó de enviar el archivo y el backend lo está
+   guardando. Comunica "sigue trabajando" sin fingir un avance que no medimos. */
+@keyframes barra-indeterminada {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}

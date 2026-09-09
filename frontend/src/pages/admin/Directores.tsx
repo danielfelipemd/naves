@@ -4,6 +4,7 @@ import { formatBackendError } from '../../lib/errors';
 import { AreasPicker } from '../../components/inalde/AreasPicker';
 import { AREAS_AFINIDAD } from '../../lib/areas';
 import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
+import { BarraProgreso } from '../../components/inalde/BarraProgreso';
 
 const AREAS_SET = new Set<string>(AREAS_AFINIDAD);
 function sanitizeAreas(input: string[] | undefined | null): string[] {
@@ -21,6 +22,8 @@ interface Director {
 
 export default function Directores() {
   const [items, setItems] = useState<Director[]>([]);
+  // Progreso de la subida en curso (0-100). Null cuando no hay ninguna.
+  const [progreso, setProgreso] = useState<number | null>(null);
   const orden = useOrdenTabla();
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState<{ nombre_completo: string; email: string; areas_afinidad: string[] }>({
@@ -81,6 +84,13 @@ export default function Directores() {
       fd.append('file', f);
       const { data } = await api.post('/directores/cargar-excel', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        // Sin esto hereda el timeout global de 15 s del cliente y un Excel
+        // grande se corta a medio subir con un error de red confuso.
+        timeout: 0,
+        onUploadProgress: (ev) => {
+          const total = ev.total ?? f.size;
+          setProgreso(total ? Math.round((ev.loaded * 100) / total) : 100);
+        },
       });
       setBulkResult(data);
       setMsg({ kind: 'ok', text: `Carga finalizada: ${data.inserted} director(es) creado(s)${data.duplicados ? `, ${data.duplicados} duplicado(s) omitido(s)` : ''}.` });
@@ -88,7 +98,7 @@ export default function Directores() {
       await load();
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setProgreso(null); }
   }
 
   async function load() {
@@ -205,6 +215,7 @@ export default function Directores() {
               className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-40">
               {busy ? 'Cargando…' : 'Cargar directores →'}
             </button>
+            {busy && progreso !== null && <div className="mt-3"><BarraProgreso porcentaje={progreso} /></div>}
           </div>
           {bulkResult && (
             <div className="mt-3 rounded border border-inalde-gray-light p-3 text-xs">

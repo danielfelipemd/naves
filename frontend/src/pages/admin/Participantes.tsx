@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
+import { BarraProgreso } from '../../components/inalde/BarraProgreso';
 
 interface Cohorte { id: string; etiqueta: string; participantes_count: number; activa: boolean; }
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
@@ -19,6 +20,8 @@ interface Participante {
 
 export default function Participantes() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
+  // Progreso de la subida en curso (0-100). Null cuando no hay ninguna.
+  const [progreso, setProgreso] = useState<number | null>(null);
   const [cohorteUpload, setCohorteUpload] = useState('');
   const [participantes, setParticipantes] = useState<Participante[]>([]);
   const [filtroNombre, setFiltroNombre] = useState('');
@@ -145,13 +148,22 @@ export default function Participantes() {
     fd.append('file', file);
     setBusy(true);
     try {
-      const { data } = await api.post('/admin/participantes/cargar-excel', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { data } = await api.post('/admin/participantes/cargar-excel', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        // Sin esto hereda el timeout global de 15 s del cliente y un Excel
+        // grande se corta a medio subir con un error de red confuso.
+        timeout: 0,
+        onUploadProgress: (ev) => {
+          const total = ev.total ?? file.size;
+          setProgreso(total ? Math.round((ev.loaded * 100) / total) : 100);
+        },
+      });
       setResult(data);
       await loadCohortes();
       await loadParticipantes();
     } catch (e: any) {
       setErr(formatBackendError(e));
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setProgreso(null); }
   }
 
   function startEdit(p: Participante) {
@@ -259,6 +271,8 @@ export default function Participantes() {
           <button onClick={upload} disabled={busy} className="btn-inalde-primary !py-2 !px-4 !text-xs">
             {busy ? 'Procesando…' : 'Cargar →'}
           </button>
+
+          {busy && progreso !== null && <BarraProgreso porcentaje={progreso} />}
 
           {result && (
             <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-sm">

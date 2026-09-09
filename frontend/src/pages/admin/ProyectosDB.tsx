@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { BarraProgreso } from '../../components/inalde/BarraProgreso';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Dia { fecha: string; legible: string; }
@@ -15,6 +16,8 @@ interface Proyecto {
 
 export default function ProyectosDB() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
+  // Progreso de la subida en curso (0-100). Null cuando no hay ninguna.
+  const [progreso, setProgreso] = useState<number | null>(null);
   const [cohorte, setCohorte] = useState('');
   const [dias, setDias] = useState<Dia[]>([]);
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
@@ -94,7 +97,16 @@ export default function ProyectosDB() {
     setBusy(p.proyecto_id + tipo); setErr('');
     try {
       const fd = new FormData(); fd.append('archivo', file); fd.append('tipo', tipo);
-      await api.post(`/proyectos-db/admin/proyecto/${p.proyecto_id}/asset`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post(`/proyectos-db/admin/proyecto/${p.proyecto_id}/asset`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        // Sin esto hereda el timeout global de 15 s del cliente y un one pager
+        // grande se corta a medio subir con un error de red confuso.
+        timeout: 0,
+        onUploadProgress: (ev) => {
+          const total = ev.total ?? file.size;
+          setProgreso(total ? Math.round((ev.loaded * 100) / total) : 100);
+        },
+      });
       await load();
     } catch (e: any) { setErr(errorLegible(e)); }
     finally { setBusy(''); }
@@ -104,7 +116,7 @@ export default function ProyectosDB() {
     setBusy(p.proyecto_id + tipo); setErr('');
     try { await api.delete(`/proyectos-db/admin/proyecto/${p.proyecto_id}/asset?tipo=${tipo}`); await load(); }
     catch (e: any) { setErr(errorLegible(e)); }
-    finally { setBusy(''); }
+    finally { setBusy(''); setProgreso(null); }
   }
 
   const conHorario = proyectos.filter((p) => p.fecha).length;
@@ -219,6 +231,9 @@ export default function ProyectosDB() {
                       <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) subirAsset(p, 'one_pager', f); e.target.value = ''; }} />
                     </label>
                     {p.tiene_one_pager && <button onClick={() => quitarAsset(p, 'one_pager')} className="text-[11px] text-inalde-gray hover:text-inalde-red">quitar</button>}
+                    {progreso !== null && (busy === p.proyecto_id + 'logo' || busy === p.proyecto_id + 'one_pager') && (
+                      <div className="w-full mt-2"><BarraProgreso porcentaje={progreso} /></div>
+                    )}
                   </div>
                 )}
 

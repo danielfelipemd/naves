@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { BarraProgreso } from '../../components/inalde/BarraProgreso';
 
 interface Hito {
   posicion: number;
@@ -66,6 +67,8 @@ function sortCohortes(arr: Cohorte[]): Cohorte[] {
 
 export default function Cohortes() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
+  // Progreso de la subida en curso (0-100). Null cuando no hay ninguna.
+  const [progreso, setProgreso] = useState<number | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<Cohorte>>({});
   const [hitosDraft, setHitosDraft] = useState<Hito[]>([]);
@@ -162,6 +165,13 @@ export default function Cohortes() {
       fd.append('file', file);
       const r = await api.post(`/admin/cohortes/${cohorteId}/cargar-excel`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        // Sin esto hereda el timeout global de 15 s del cliente y un Excel
+        // grande se corta a medio subir con un error de red confuso.
+        timeout: 0,
+        onUploadProgress: (ev) => {
+          const total = ev.total ?? file.size;
+          setProgreso(total ? Math.round((ev.loaded * 100) / total) : 100);
+        },
       });
       const op = r.data?.operativas_actualizadas ?? 0;
       const hi = r.data?.hitos_actualizados ?? 0;
@@ -169,6 +179,8 @@ export default function Cohortes() {
       await load();
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally {
+      setProgreso(null);
     }
   }
 
@@ -298,6 +310,9 @@ export default function Cohortes() {
                           }} />
                       </label>
                     </div>
+                    {progreso !== null && (
+                      <div className="mt-3"><BarraProgreso porcentaje={progreso} /></div>
+                    )}
                   </div>
 
                   <div>
