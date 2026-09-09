@@ -44,6 +44,11 @@ process.on('uncaughtException', (err) => {
 
 const app = express();
 
+// Detrás del proxy de EasyPanel/Traefik. Sin esto req.ip es la IP del proxy:
+// el registro de accesos guardaría siempre la misma IP y los rate limiters por
+// IP tratarían a todos los usuarios como uno solo.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({
   origin: config.cors.origins.length ? config.cors.origins : true,

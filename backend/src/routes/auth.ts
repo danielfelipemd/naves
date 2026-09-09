@@ -192,8 +192,14 @@ router.get('/', (_req, res) => res.json({ module: 'auth', status: 'ok' }));
 /** GET /api/auth/me — devuelve el perfil + permisos del usuario logueado */
 import { requireAuth } from './../auth/middleware.js';
 import { getUserPermisos } from './../auth/permissions.js';
+import { registrarAcceso } from './../services/registro-acceso.js';
 
 router.get('/me', requireAuth(), async (req: any, res) => {
+  // El login ocurre contra Supabase Auth sin pasar por aquí; esta es la primera
+  // llamada autenticada del cliente, así que es donde se deja el rastro del acceso.
+  // Sin await: no debe añadir latencia ni tumbar la sesión si falla.
+  void registrarAcceso(req.user, req);
+
   const permisos = await getUserPermisos(req.user.sub);
 
   // Resolver nombre_completo + estado (para forzar cambio de clave inicial en participantes)

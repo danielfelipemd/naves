@@ -640,7 +640,7 @@ router.get('/participantes', async (_req, res) => {
     .from('participantes_lista')
     .select(`
       id, auth_user_id, cohorte_id, nombre_completo, cedula_encriptada, email_encriptado,
-      estado, fecha_creacion, tipo_trabajo_grado,
+      estado, fecha_creacion, tipo_trabajo_grado, ultimo_login,
       miembros_equipo ( equipo_id )
     `)
     .order('nombre_completo');
@@ -659,6 +659,7 @@ router.get('/participantes', async (_req, res) => {
       email,
       estado: p.estado,
       tipo_trabajo_grado: p.tipo_trabajo_grado,
+      ultimo_login: p.ultimo_login,
       en_equipo,
     };
   });

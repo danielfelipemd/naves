@@ -342,6 +342,7 @@ export default function Profesores() {
             <ThOrden orden={orden} campo="rol">Rol</ThOrden>
             <ThOrden orden={orden} campo="areas">Áreas</ThOrden>
             <ThOrden orden={orden} campo="estado">Estado</ThOrden>
+            <ThOrden orden={orden} campo="acceso">Último acceso</ThOrden>
             <th className="px-3 py-2"></th>
           </tr>
         </thead>
@@ -351,6 +352,7 @@ export default function Profesores() {
             rol: (p) => (p.es_super_admin ? 'super_admin' : (p.tipo ?? 'profesor')),
             areas: (p) => (p.areas_afinidad ?? []).join(', '),
             estado: (p) => (p.activo ? 'activo' : 'inactivo'),
+            acceso: (p) => p.ultimo_login ?? '',
           }).map((p) => (
             editing === p.id ? (
               <>
@@ -364,6 +366,7 @@ export default function Profesores() {
                   <td className="px-3 py-2">
                     <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!editDraft.activo} onChange={(e) => setEditDraft({ ...editDraft, activo: e.target.checked })} /> activo</label>
                   </td>
+                  <td className="px-3 py-2 text-xs text-inalde-gray">{formatUltimoAcceso(p.ultimo_login)}</td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <button onClick={saveEdit} disabled={busy} className="text-xs font-semibold text-inalde-red mr-2">Guardar</button>
                     <button onClick={() => setEditing(null)} className="text-xs text-inalde-gray">×</button>
@@ -371,7 +374,7 @@ export default function Profesores() {
                 </tr>
                 <tr key={`${p.id}-extra`} className="bg-inalde-red/5 border-b-2 border-inalde-red/30">
                   <td></td>
-                  <td colSpan={5} className="px-3 pb-4 pt-2">
+                  <td colSpan={6} className="px-3 pb-4 pt-2">
                     <div className="grid sm:grid-cols-3 gap-3">
                       <div>
                         <label className="block font-primary font-semibold text-[10px] tracking-wider uppercase text-inalde-gray mb-1">Email institucional</label>
@@ -424,6 +427,9 @@ export default function Profesores() {
                     {p.activo ? 'Activo' : 'Inactivo'}
                   </span>
                 </td>
+                <td className="px-3 py-2 text-xs text-inalde-gray whitespace-nowrap">
+                  {formatUltimoAcceso(p.ultimo_login)}
+                </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   <button onClick={() => { setEditing(p.id); setEditDraft({ ...p, areas_afinidad: sanitizeAreas(p.areas_afinidad) }); }} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover mr-3">Editar</button>
                   <button
@@ -441,6 +447,21 @@ export default function Profesores() {
       </table>
       </div>
     </>
+  );
+}
+
+/**
+ * Fecha del último ingreso al sistema. El backend la registra en GET /auth/me,
+ * que es la primera llamada tras el login contra Supabase Auth.
+ */
+function formatUltimoAcceso(iso: string | null): React.ReactNode {
+  if (!iso) return <span className="italic text-inalde-gray/70">Nunca</span>;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return <span className="italic text-inalde-gray/70">—</span>;
+  return (
+    <span title={d.toLocaleString('es-CO')}>
+      {d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+    </span>
   );
 }
 
