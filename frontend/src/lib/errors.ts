@@ -51,7 +51,7 @@ export function formatBackendError(e: any): string {
     ALREADY_SET: 'Tu modalidad ya está fijada; no se puede cambiar.',
     INVALID_CIIU: 'Uno o varios códigos CIIU no son válidos.',
     INVALID_MIME: 'El tipo de archivo no es válido. El anteproyecto y el proyecto final se cargan en PDF.',
-    FILE_TOO_LARGE: 'El archivo supera el tamaño máximo de 25 MB.',
+    FILE_TOO_LARGE: 'El archivo pesa más de lo permitido para esta carga. Comprímelo e inténtalo de nuevo.',
     POSITION_TAKEN: 'Esa posición ya está ocupada por otro miembro.',
     COHORTE_MISMATCH: 'El participante pertenece a otra cohorte.',
     PARTICIPANT_NOT_ACTIVE: 'Tu cuenta no está activa. Contacta al administrador.',

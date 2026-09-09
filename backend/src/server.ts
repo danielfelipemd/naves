@@ -118,9 +118,11 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   // enterarse de que el archivo pesa demasiado.
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
+      // El tope depende del endpoint (25 MB los trabajos de grado, 5-8 MB los
+      // Excel y assets), asi que el mensaje NO puede citar una cifra fija.
       return res.status(413).json({
         error: 'FILE_TOO_LARGE',
-        mensaje: 'El archivo supera el tamaño máximo permitido (25 MB). Comprime el PDF e inténtalo de nuevo.',
+        mensaje: 'El archivo pesa más de lo permitido para esta carga. Comprímelo o divídelo e inténtalo de nuevo.',
       });
     }
     return res.status(400).json({ error: 'UPLOAD_ERROR', mensaje: `No pudimos recibir el archivo (${err.code}).` });
