@@ -1,5 +1,11 @@
 import PDFDocument from 'pdfkit';
 
+// Maquetación. El contenido va sangrado bajo el número de sección; sin fijar
+// esa sangría a mano, PDFKit la pierde en cada salto de página y la segunda
+// hoja salía pegada al margen, con un aspecto distinto de la primera.
+const MARGEN = 40;
+const SANGRIA = 70;
+
 const INALDE_RED = '#e30613';
 const INALDE_GOLD = '#9f885f';
 const INALDE_GRAY = '#6b6b6b';
@@ -61,31 +67,51 @@ function header(doc: PDFKit.PDFDocument, title: string, subtitle?: string) {
   }
   doc.moveTo(40, subtitle ? 115 : 100).lineTo(doc.page.width - 40, subtitle ? 115 : 100).strokeColor(INALDE_RED).lineWidth(2).stroke();
   doc.moveDown();
-  doc.x = 40;
+  doc.x = SANGRIA;
   doc.y = subtitle ? 130 : 115;
   doc.fillColor(INALDE_TEXT);
 }
 
+/**
+ * Salto de página que conserva la maquetación: repone la franja superior y
+ * devuelve el cursor a la sangría del contenido. Usar SIEMPRE en vez de
+ * `doc.addPage()` a secas.
+ */
+function nuevaPagina(doc: PDFKit.PDFDocument) {
+  doc.addPage();
+  doc.rect(0, 0, doc.page.width, 26).fill(INALDE_RED);
+  doc.fillColor('white').font('Helvetica-Bold').fontSize(9).text('NAVES', MARGEN, 9);
+  doc.fillColor(INALDE_TEXT);
+  doc.x = SANGRIA;
+  doc.y = 46;
+}
+
 function section(doc: PDFKit.PDFDocument, num: number | null, title: string) {
-  if (doc.y > doc.page.height - 100) doc.addPage();
+  if (doc.y > doc.page.height - 100) nuevaPagina(doc);
   doc.moveDown(0.5);
   if (num !== null) {
     const y = doc.y;
     doc.circle(50, y + 8, 9).fill(INALDE_RED);
     doc.fillColor('white').font('Helvetica-Bold').fontSize(10).text(String(num), 47, y + 4);
-    doc.fillColor(INALDE_TEXT).font('Helvetica-Bold').fontSize(13).text(title, 70, y + 1);
+    doc.fillColor(INALDE_TEXT).font('Helvetica-Bold').fontSize(13).text(title, SANGRIA, y + 1);
   } else {
     doc.fillColor(INALDE_GOLD).font('Helvetica-Bold').fontSize(10).text(title.toUpperCase(), { characterSpacing: 1.5 });
   }
   doc.moveDown(0.4);
   doc.fillColor(INALDE_TEXT);
+  // text(..., x, y) deja el cursor en esa x; sin esto las secciones numeradas
+  // y las de subtítulo quedarían con sangrías distintas.
+  doc.x = SANGRIA;
 }
 
 function field(doc: PDFKit.PDFDocument, label: string, value: string | null | undefined) {
   if (!value) return;
-  if (doc.y > doc.page.height - 80) doc.addPage();
-  doc.fontSize(8).fillColor(INALDE_GRAY).font('Helvetica-Bold').text(label.toUpperCase(), { characterSpacing: 1 });
-  doc.fontSize(10).fillColor(INALDE_TEXT).font('Helvetica').text(value, { width: doc.page.width - 80 });
+  if (doc.y > doc.page.height - 80) nuevaPagina(doc);
+  const ancho = doc.page.width - SANGRIA - MARGEN;
+  doc.x = SANGRIA;
+  doc.fontSize(8).fillColor(INALDE_GRAY).font('Helvetica-Bold').text(label.toUpperCase(), { characterSpacing: 1, width: ancho });
+  doc.x = SANGRIA;
+  doc.fontSize(10).fillColor(INALDE_TEXT).font('Helvetica').text(value, { width: ancho });
   doc.moveDown(0.4);
 }
 
@@ -93,9 +119,14 @@ function footer(doc: PDFKit.PDFDocument) {
   const range = doc.bufferedPageRange();
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(range.start + i);
+    // El pie se dibuja DENTRO del margen inferior. Sin `lineBreak: false` +
+    // `height`, PDFKit lo interpreta como texto que no cabe y añade una página
+    // nueva por cada pie: el documento terminaba con tantas hojas en blanco
+    // como páginas reales tenía.
     doc.fontSize(8).fillColor(INALDE_GRAY).font('Helvetica')
       .text(`NAVES — INALDE Business School · página ${i + 1} de ${range.count}`,
-        40, doc.page.height - 30, { align: 'center', width: doc.page.width - 80 });
+        MARGEN, doc.page.height - 28,
+        { align: 'center', width: doc.page.width - MARGEN * 2, lineBreak: false, height: 12 });
   }
 }
 
@@ -123,23 +154,29 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
 
     section(doc, 1, 'Equipo emprendedor');
     for (const m of [...data.equipos.miembros_equipo].sort((a, b) => a.posicion - b.posicion)) {
+      if (doc.y > doc.page.height - 80) nuevaPagina(doc);
+      doc.x = SANGRIA;
       doc.fontSize(11).fillColor(INALDE_TEXT).font('Helvetica-Bold').text(`Miembro ${m.posicion}: ${m.participantes_lista.nombre_completo}`);
       const meta = [m.perfil, m.fue_emprendedor ? 'ya fue emprendedor' : 'sin experiencia previa'].filter(Boolean).join(' · ');
+      doc.x = SANGRIA;
       doc.fontSize(9).fillColor(INALDE_GRAY).font('Helvetica').text(meta);
       doc.moveDown(0.3);
     }
 
     section(doc, 2, 'Proyectos');
     for (const p of [...data.proyectos].sort((a, b) => a.posicion - b.posicion)) {
-      if (doc.y > doc.page.height - 200) doc.addPage();
+      if (doc.y > doc.page.height - 200) nuevaPagina(doc);
       doc.moveDown(0.3);
       const yStart = doc.y;
+      doc.x = SANGRIA;
       doc.fontSize(13).fillColor(INALDE_TEXT).font('Helvetica-Bold').text(`Proyecto ${p.posicion}: ${p.nombre}`);
       const tag = p.estado_seleccion === 'definitivo' ? 'DEFINITIVO'
                 : p.estado_seleccion === 'archivado' ? 'ARCHIVADO' : 'pendiente';
       const tagColor = p.estado_seleccion === 'definitivo' ? INALDE_RED
                      : p.estado_seleccion === 'archivado' ? INALDE_GRAY : INALDE_GOLD;
+      doc.x = SANGRIA;
       doc.fontSize(8).fillColor(tagColor).font('Helvetica-Bold').text(tag, { characterSpacing: 1 });
+      doc.x = SANGRIA;
       doc.fontSize(9).fillColor(INALDE_GRAY).font('Helvetica')
         .text([p.tipo, p.sector, p.ciiu ? `CIIU ${p.ciiu}` : null, p.estado].filter(Boolean).join(' · '));
       doc.moveDown(0.4);
@@ -162,9 +199,10 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
       if (canvasVacio) {
         // Sin este aviso el PDF terminaba en un título y una página en blanco:
         // el lector no sabía si era un fallo del sistema o un formulario a medias.
+        doc.x = SANGRIA;
         doc.fontSize(10).fillColor(INALDE_GRAY).font('Helvetica-Oblique')
           .text('El equipo todavía no ha diligenciado el Canvas del negocio en el formulario del anteproyecto.',
-            { width: doc.page.width - 80 });
+            { width: doc.page.width - SANGRIA - MARGEN });
         doc.font('Helvetica').moveDown(0.4);
       }
       field(doc, 'Cliente',            p.canvas_cliente);
@@ -187,7 +225,8 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
       if (p.hitos?.length) {
         section(doc, null, 'Cronograma');
         for (const h of [...p.hitos].sort((a, b) => a.posicion - b.posicion)) {
-          if (doc.y > doc.page.height - 60) doc.addPage();
+          if (doc.y > doc.page.height - 60) nuevaPagina(doc);
+          doc.x = SANGRIA;
           doc.fontSize(9).fillColor(INALDE_TEXT).font('Helvetica')
             .text(`${h.posicion}. ${h.descripcion}`, { continued: true })
             // La flecha tipográfica no existe en Helvetica y PDFKit la sustituye
