@@ -33,6 +33,11 @@ interface ProyectoData {
   fuentes_primarias: string | null;
   fuentes_secundarias: string | null;
   hitos: Array<{ posicion: number; descripcion: string; fecha_inicio: string; fecha_fin: string }>;
+  // Contenido del proyecto definitivo (resumen y post de LinkedIn). Vive en
+  // `proyecto_contenido`, aparte del Canvas, y hasta ahora no salía en el PDF:
+  // un equipo que tenía resumen pero no había diligenciado el Canvas recibía un
+  // documento en blanco.
+  proyecto_contenido?: { resumen: string | null; linkedin: string | null } | Array<{ resumen: string | null; linkedin: string | null }> | null;
 }
 
 export interface AnteproyectoPdfData {
@@ -139,7 +144,29 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
         .text([p.tipo, p.sector, p.ciiu ? `CIIU ${p.ciiu}` : null, p.estado].filter(Boolean).join(' · '));
       doc.moveDown(0.4);
 
+      // Resumen del proyecto definitivo: es lo primero que interesa leer.
+      const cont = Array.isArray(p.proyecto_contenido) ? p.proyecto_contenido[0] : p.proyecto_contenido;
+      if (cont?.resumen || cont?.linkedin) {
+        section(doc, null, 'Resumen del proyecto');
+        field(doc, 'Resumen', cont?.resumen);
+        field(doc, 'Publicación LinkedIn', cont?.linkedin);
+      }
+
+      const canvasVacio = ![
+        p.canvas_cliente, p.canvas_problema, p.canvas_solucion, p.canvas_canales,
+        p.canvas_relaciones, p.canvas_ingresos, p.canvas_recursos,
+        p.canvas_actividades, p.canvas_socios, p.canvas_costos,
+      ].some((v) => (v ?? '').trim());
+
       section(doc, null, 'Canvas del negocio');
+      if (canvasVacio) {
+        // Sin este aviso el PDF terminaba en un título y una página en blanco:
+        // el lector no sabía si era un fallo del sistema o un formulario a medias.
+        doc.fontSize(10).fillColor(INALDE_GRAY).font('Helvetica-Oblique')
+          .text('El equipo todavía no ha diligenciado el Canvas del negocio en el formulario del anteproyecto.',
+            { width: doc.page.width - 80 });
+        doc.font('Helvetica').moveDown(0.4);
+      }
       field(doc, 'Cliente',            p.canvas_cliente);
       field(doc, 'Problema',           p.canvas_problema);
       field(doc, 'Solución',           p.canvas_solucion);
@@ -163,7 +190,9 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
           if (doc.y > doc.page.height - 60) doc.addPage();
           doc.fontSize(9).fillColor(INALDE_TEXT).font('Helvetica')
             .text(`${h.posicion}. ${h.descripcion}`, { continued: true })
-            .fillColor(INALDE_GRAY).text(`  (${h.fecha_inicio} → ${h.fecha_fin})`);
+            // La flecha tipográfica no existe en Helvetica y PDFKit la sustituye
+            // por un glifo roto; un guion largo se ve bien y comunica lo mismo.
+            .fillColor(INALDE_GRAY).text(`  (${h.fecha_inicio} - ${h.fecha_fin})`);
         }
       }
       doc.moveDown(0.6);

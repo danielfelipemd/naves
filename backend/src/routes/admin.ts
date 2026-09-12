@@ -1298,7 +1298,8 @@ router.get('/anteproyectos/:id/pdf', async (req, res) => {
       equipos ( nombre_equipo, cohorte_id,
         miembros_equipo ( posicion, fue_emprendedor, perfil,
           participantes_lista ( nombre_completo ) ) ),
-      proyectos ( *, hitos ( posicion, descripcion, fecha_inicio, fecha_fin ) )
+      proyectos ( *, hitos ( posicion, descripcion, fecha_inicio, fecha_fin ),
+        proyecto_contenido ( resumen, linkedin ) )
     `)
     .eq('id', req.params.id)
     .maybeSingle();
