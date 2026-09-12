@@ -129,7 +129,8 @@ export default function AnteproyectoDetail() {
         <CasoPIView data={data} busy={busy} onAprobar={aprobar} onAbrirArchivo={abrirArchivo}
           subiendo={subiendo} progreso={progreso} onSubir={subirPorElEquipo} />
       ) : (
-        <BusinessPlanView data={data} />
+        <BusinessPlanView data={data} onAbrirArchivo={abrirArchivo}
+          subiendo={subiendo} progreso={progreso} onSubir={subirPorElEquipo} />
       )}
     </>
   );
@@ -299,7 +300,16 @@ function CasoPIView({
 // =============================================================================
 // Vista para Business Plan (la original, intacta)
 // =============================================================================
-function BusinessPlanView({ data }: { data: any }) {
+function BusinessPlanView({
+  data, onAbrirArchivo, subiendo, progreso, onSubir,
+}: {
+  data: any;
+  onAbrirArchivo: (tipo: 'anteproyecto' | 'avance' | 'proyecto-final') => void;
+  subiendo: string | null;
+  progreso: number | null;
+  onSubir: (tipo: 'anteproyecto' | 'avance' | 'proyecto-final', f: File) => void;
+}) {
+  const proyectoFinalPath = data.archivo_proyecto_final_path as string | null;
   return (
     <>
       <h2 className="section-subtitle mb-3">Miembros</h2>
@@ -343,6 +353,28 @@ function BusinessPlanView({ data }: { data: any }) {
             )}
           </div>
         ))}
+      </div>
+
+      {/* === Proyecto final ================================================
+          En Business Plan el anteproyecto es el formulario de arriba, no un
+          archivo; el único documento que se carga es el proyecto final. */}
+      <h2 className="section-subtitle mt-8 mb-3">Proyecto final</h2>
+      <div className="border border-inalde-gray-light rounded p-5">
+        {proyectoFinalPath ? (
+          <>
+            <p className="text-sm text-inalde-gray mb-2">
+              Cargado el {new Date(data.archivo_proyecto_final_uploaded_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
+            </p>
+            <button onClick={() => onAbrirArchivo('proyecto-final')}
+              className="text-inalde-red font-semibold hover:underline text-sm">
+              Ver / descargar →
+            </button>
+          </>
+        ) : (
+          <p className="text-sm text-inalde-gray italic">El equipo aún no ha cargado el proyecto final.</p>
+        )}
+        <CargaAdmin yaExiste={!!proyectoFinalPath} subiendo={subiendo === 'proyecto-final'} progreso={progreso}
+          onFile={(f) => onSubir('proyecto-final', f)} />
       </div>
     </>
   );
