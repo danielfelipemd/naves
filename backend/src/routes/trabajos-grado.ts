@@ -18,6 +18,7 @@ import { notificarRegistroAnteproyectoAParticipantes } from '../services/notific
 import { entregaTrabajoGradoCompleta, notificarEntregaTrabajoGrado } from '../services/notificaciones-entrega.js';
 import { programacionPublicadaAt } from '../services/escaleta.js';
 import { decryptPII } from '../auth/crypto.js';
+import { buildAnteproyectoPDF } from '../services/pdf.js';
 
 // (Antes este archivo enviaba un correo al Comité del MBA por cada carga.
 // Eso fue retirado: el Comité recibe un solo correo consolidado cuando el
@@ -643,6 +644,178 @@ router.post('/:id/asset/:tipo', upload.single('file'), async (req: Authenticated
   }
 
   res.status(201).json({ ok: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)) });
+});
+
+
+// =====================================================================
+// DESCARGAR DOCUMENTOS — inventario único para el participante
+// =====================================================================
+/**
+ * GET /api/anteproyectos/mis-documentos
+ *
+ * Devuelve TODO lo descargable del equipo del participante en una sola
+ * llamada, con lo que aplica a su modalidad y marcando lo que aún no está
+ * cargado (así la pantalla sirve también de recordatorio de lo que falta).
+ *
+ * El anteproyecto se comporta distinto según la modalidad:
+ *  - caso / proyecto_investigacion: es un PDF que el equipo subió.
+ *  - business_plan: es un formulario, no un archivo. Se ofrece como PDF
+ *    generado al vuelo (ver /mis-documentos/anteproyecto.pdf), disponible
+ *    en cuanto el anteproyecto existe.
+ */
+router.get('/mis-documentos', async (req: AuthenticatedRequest, res) => {
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+
+  const { data: miembro } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).maybeSingle();
+  if (!miembro) return res.json({ en_equipo: false, documentos: [] });
+
+  const { data: ant } = await supabaseAdmin
+    .from('anteproyectos')
+    .select(`
+      id, estado,
+      archivo_anteproyecto_path, archivo_anteproyecto_mime, archivo_anteproyecto_size_bytes, archivo_anteproyecto_uploaded_at,
+      archivo_avance_path, archivo_avance_mime, archivo_avance_size_bytes, archivo_avance_uploaded_at,
+      archivo_proyecto_final_path, archivo_proyecto_final_mime, archivo_proyecto_final_size_bytes, archivo_proyecto_final_uploaded_at,
+      equipos:equipos!inner ( id, nombre_equipo, tipo_trabajo_grado, proyecto_definitivo_id )
+    `)
+    .eq('equipo_id', miembro.equipo_id)
+    .maybeSingle();
+  if (!ant) return res.json({ en_equipo: true, documentos: [] });
+
+  const eq = (ant as any).equipos ?? {};
+  const modalidad = eq.tipo_trabajo_grado as string | null;
+  const esCasoPI = modalidad === 'caso' || modalidad === 'proyecto_investigacion';
+  const a = ant as any;
+
+  type Doc = {
+    clave: string; titulo: string; descripcion: string;
+    disponible: boolean; url: string | null;
+    mime?: string | null; size_bytes?: number | null; subido_at?: string | null;
+    nota?: string;
+  };
+  const documentos: Doc[] = [];
+
+  // --- Anteproyecto -------------------------------------------------
+  if (esCasoPI) {
+    documentos.push({
+      clave: 'anteproyecto',
+      titulo: 'Anteproyecto',
+      descripcion: 'El documento de anteproyecto que cargó tu equipo.',
+      disponible: !!a.archivo_anteproyecto_path,
+      url: a.archivo_anteproyecto_path ? `/anteproyectos/${a.id}/archivo/anteproyecto` : null,
+      mime: a.archivo_anteproyecto_mime,
+      size_bytes: a.archivo_anteproyecto_size_bytes,
+      subido_at: a.archivo_anteproyecto_uploaded_at,
+    });
+  } else {
+    // Business Plan: el anteproyecto vive como formulario. El PDF se arma
+    // en el momento de la descarga, así refleja siempre lo último guardado.
+    documentos.push({
+      clave: 'anteproyecto_pdf',
+      titulo: 'Anteproyecto (PDF)',
+      descripcion: 'Tu anteproyecto NAVES en PDF, generado con la información registrada.',
+      disponible: true,
+      url: `/anteproyectos/${a.id}/anteproyecto.pdf`,
+      nota: a.estado === 'borrador' ? 'En borrador: refleja lo guardado hasta ahora.' : undefined,
+    });
+  }
+
+  // --- Avance (solo caso/PI) ----------------------------------------
+  if (esCasoPI) {
+    documentos.push({
+      clave: 'avance',
+      titulo: 'Avance',
+      descripcion: 'La entrega intermedia entre el anteproyecto y el proyecto final.',
+      disponible: !!a.archivo_avance_path,
+      url: a.archivo_avance_path ? `/anteproyectos/${a.id}/archivo/avance` : null,
+      mime: a.archivo_avance_mime,
+      size_bytes: a.archivo_avance_size_bytes,
+      subido_at: a.archivo_avance_uploaded_at,
+    });
+  }
+
+  // --- Proyecto final -----------------------------------------------
+  documentos.push({
+    clave: 'proyecto-final',
+    titulo: 'Proyecto final',
+    descripcion: 'El documento definitivo de tu trabajo de grado.',
+    disponible: !!a.archivo_proyecto_final_path,
+    url: a.archivo_proyecto_final_path ? `/anteproyectos/${a.id}/archivo/proyecto-final` : null,
+    mime: a.archivo_proyecto_final_mime,
+    size_bytes: a.archivo_proyecto_final_size_bytes,
+    subido_at: a.archivo_proyecto_final_uploaded_at,
+  });
+
+  // --- Material del proyecto definitivo -----------------------------
+  // Solo existe una vez que el equipo eligió su proyecto definitivo.
+  if (eq.proyecto_definitivo_id) {
+    const { data: cont } = await supabaseAdmin
+      .from('proyecto_contenido')
+      .select('logo_path, one_pager_path, modelo_financiero_path')
+      .eq('proyecto_id', eq.proyecto_definitivo_id)
+      .maybeSingle();
+    const c = (cont ?? {}) as any;
+    const assets: Array<[string, string, string, string | null]> = [
+      ['one_pager', 'One Pager', 'El resumen ejecutivo de una página de tu proyecto.', c.one_pager_path],
+      ['logo', 'Logo', 'El logo de tu proyecto.', c.logo_path],
+      ['modelo_financiero', 'Modelo financiero', 'El modelo financiero en Excel.', c.modelo_financiero_path],
+    ];
+    for (const [clave, titulo, descripcion, path] of assets) {
+      documentos.push({
+        clave, titulo, descripcion,
+        disponible: !!path,
+        url: path ? `/anteproyectos/${a.id}/asset/${clave}` : null,
+      });
+    }
+  }
+
+  res.json({
+    en_equipo: true,
+    equipo: eq.nombre_equipo ?? null,
+    modalidad,
+    estado: a.estado,
+    documentos,
+  });
+});
+
+/**
+ * GET /api/anteproyectos/:id/anteproyecto.pdf
+ *
+ * El anteproyecto de Business Plan en PDF, armado en el momento. Mismo
+ * generador que usa el panel de administración; aquí se exige además que
+ * quien lo pide sea miembro del equipo.
+ */
+router.get('/:id/anteproyecto.pdf', async (req: AuthenticatedRequest, res) => {
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+
+  const ant = await loadAnteproyectoConEquipo(req.params.id);
+  if (!ant) return res.status(404).json({ error: 'NOT_FOUND' });
+  if (!(await isMiembroDelEquipo(pid, ant.equipo_id))) {
+    return res.status(403).json({ error: 'NOT_TEAM_MEMBER' });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('anteproyectos')
+    .select(`
+      estado, fecha_envio,
+      equipos ( nombre_equipo, cohorte_id,
+        miembros_equipo ( posicion, fue_emprendedor, perfil,
+          participantes_lista ( nombre_completo ) ) ),
+      proyectos ( *, hitos ( posicion, descripcion, fecha_inicio, fecha_fin ) )
+    `)
+    .eq('id', req.params.id)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: 'NOT_FOUND' });
+
+  const pdf = await buildAnteproyectoPDF(data as any);
+  const nombre = (data.equipos as any)?.nombre_equipo?.replace(/[^a-zA-Z0-9]/g, '_') ?? req.params.id.slice(0, 8);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="anteproyecto-${nombre}.pdf"`);
+  res.send(pdf);
 });
 
 export default router;
