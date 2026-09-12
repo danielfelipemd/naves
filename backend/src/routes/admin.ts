@@ -11,6 +11,11 @@ import { sendEmail } from '../services/email.js';
 import { AREAS_AFINIDAD } from '../lib/areas.js';
 import { normalizeHeaderKey, findCol, cellStr, cellBool, buildTemplateXlsx } from '../lib/excel.js';
 import { copyPerfilParticipanteAMiembro } from './equipos.js';
+import {
+  uploadTrabajoGradoFile,
+  extForMime,
+  type TipoArchivoTrabajo,
+} from '../services/storage.js';
 
 const AREAS_LOWER = new Map<string, string>(AREAS_AFINIDAD.map((a) => [a.toLowerCase(), a]));
 function matchAreas(raw: string[]): string[] {
@@ -2090,6 +2095,130 @@ router.delete('/equipos/:id', async (req, res) => {
   }
 
   res.json({ ok: true, miembros_liberados: miembrosIds.length, proyectos_borrados: proyectoIds.length });
+});
+
+
+// =====================================================================
+// CARGA POR EL ADMINISTRADOR — documentos del trabajo de grado
+// =====================================================================
+/**
+ * POST /api/admin/equipos/:equipoId/archivo/:tipo
+ * Multipart: file
+ *
+ * Sube el anteproyecto, el avance o el proyecto final EN NOMBRE de un equipo.
+ *
+ * Existe para los casos que el flujo normal no cubre: un equipo que no alcanzó
+ * a entregar a tiempo, un archivo corrupto que hay que reemplazar, una entrega
+ * que llegó por correo. Por eso, a diferencia de la ruta del participante:
+ *
+ *  - NO se aplican las fechas límite del cronograma.
+ *  - SÍ se puede reemplazar un documento ya entregado (el participante no
+ *    puede: recibe 409 ALREADY_SUBMITTED).
+ *
+ * Como es una excepción a las reglas que todos los demás cumplen, queda
+ * registrada en `auditoria` con el administrador que la hizo.
+ */
+const TIPOS_ARCHIVO_ADMIN = new Set(['anteproyecto', 'avance', 'proyecto-final']);
+
+const COL_ADMIN: Record<string, { path: string; mime: string; size: string; uploaded: string }> = {
+  'anteproyecto': {
+    path: 'archivo_anteproyecto_path', mime: 'archivo_anteproyecto_mime',
+    size: 'archivo_anteproyecto_size_bytes', uploaded: 'archivo_anteproyecto_uploaded_at',
+  },
+  'avance': {
+    path: 'archivo_avance_path', mime: 'archivo_avance_mime',
+    size: 'archivo_avance_size_bytes', uploaded: 'archivo_avance_uploaded_at',
+  },
+  'proyecto-final': {
+    path: 'archivo_proyecto_final_path', mime: 'archivo_proyecto_final_mime',
+    size: 'archivo_proyecto_final_size_bytes', uploaded: 'archivo_proyecto_final_uploaded_at',
+  },
+};
+
+// 25 MB, el mismo tope que el participante.
+const uploadTrabajo = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+
+router.post('/equipos/:equipoId/archivo/:tipo', uploadTrabajo.single('file'), async (req: AuthenticatedRequest, res) => {
+  const tipo = req.params.tipo;
+  if (!TIPOS_ARCHIVO_ADMIN.has(tipo)) return res.status(400).json({ error: 'TIPO_INVALIDO' });
+  if (!req.file) return res.status(400).json({ error: 'NO_FILE' });
+  if (req.file.mimetype !== 'application/pdf') {
+    return res.status(400).json({ error: 'INVALID_MIME', mime: req.file.mimetype });
+  }
+
+  const { data: ant } = await supabaseAdmin
+    .from('anteproyectos')
+    .select('id, equipo_id, equipos:equipos!inner ( id, nombre_equipo, cohorte_id, tipo_trabajo_grado )')
+    .eq('equipo_id', req.params.equipoId)
+    .maybeSingle();
+  if (!ant) return res.status(404).json({ error: 'EQUIPO_SIN_ANTEPROYECTO' });
+
+  const eq = (ant as any).equipos ?? {};
+  const modalidad = eq.tipo_trabajo_grado as string | null;
+  const esCasoPI = modalidad === 'caso' || modalidad === 'proyecto_investigacion';
+
+  // El anteproyecto y el avance solo existen como archivo en caso/PI: en
+  // Business Plan el anteproyecto es el formulario y no hay avance.
+  if ((tipo === 'anteproyecto' || tipo === 'avance') && !esCasoPI) {
+    return res.status(400).json({
+      error: 'MODALIDAD_NO_USA_ARCHIVOS',
+      modalidad,
+      mensaje: 'En Business Plan el anteproyecto se diligencia en el formulario; no se carga como archivo.',
+    });
+  }
+
+  const cols = COL_ADMIN[tipo];
+  const { data: previo } = await supabaseAdmin
+    .from('anteproyectos').select(cols.path).eq('id', ant.id).maybeSingle();
+  const reemplaza = !!(previo as any)?.[cols.path];
+
+  let subida: { path: string; size: number };
+  try {
+    subida = await uploadTrabajoGradoFile(
+      ant.equipo_id, tipo as TipoArchivoTrabajo,
+      req.file.buffer, req.file.mimetype,
+      req.file.originalname || `documento.${extForMime(req.file.mimetype) ?? 'pdf'}`,
+    );
+  } catch (e: any) {
+    return res.status(500).json({ error: 'UPLOAD_FAILED', detail: e?.message });
+  }
+
+  const ahora = new Date().toISOString();
+  const { error: errDb } = await supabaseAdmin
+    .from('anteproyectos')
+    .update({
+      [cols.path]: subida.path,
+      [cols.mime]: req.file.mimetype,
+      [cols.size]: subida.size,
+      [cols.uploaded]: ahora,
+    })
+    .eq('id', ant.id);
+  // Si el update falla, el archivo queda en Storage sin referencia: se avisa en
+  // vez de devolver un ok que no se corresponde con lo guardado.
+  if (errDb) return res.status(500).json({ error: 'DB_UPDATE_FAILED', detail: errDb.message });
+
+  // Rastro de la excepción: quién la hizo, sobre qué equipo y si reemplazó algo.
+  await supabaseAdmin.from('auditoria').insert({
+    actor_tipo: 'super_admin',
+    actor_id: req.user?.profesorId ?? null,
+    accion: 'ADMIN_CARGA_DOCUMENTO',
+    entidad_tipo: 'anteproyectos',
+    entidad_id: ant.id,
+    detalles: {
+      tipo,
+      equipo: eq.nombre_equipo,
+      cohorte_id: eq.cohorte_id,
+      reemplazo: reemplaza,
+      size_bytes: subida.size,
+      fuera_de_plazo: true,
+    },
+    timestamp: ahora,
+  }).then(() => { /* el rastro no debe tumbar la carga */ }, () => { /* idem */ });
+
+  res.status(201).json({
+    ok: true, tipo, equipo: eq.nombre_equipo,
+    path: subida.path, size: subida.size, reemplazo: reemplaza,
+  });
 });
 
 export default router;

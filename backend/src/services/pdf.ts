@@ -5,11 +5,14 @@ import PDFDocument from 'pdfkit';
 // hoja salía pegada al margen, con un aspecto distinto de la primera.
 const MARGEN = 40;
 const SANGRIA = 70;
+// Aire entre el texto y el borde del recuadro de cada sección.
+const PADDING = 8;
 
 const INALDE_RED = '#e30613';
 const INALDE_GOLD = '#9f885f';
 const INALDE_GRAY = '#6b6b6b';
 const INALDE_TEXT = '#1a1a1a';
+const INALDE_BORDE = '#e8e8e8';
 
 interface MiembroData {
   posicion: number;
@@ -86,6 +89,58 @@ function nuevaPagina(doc: PDFKit.PDFDocument) {
   doc.y = 46;
 }
 
+/**
+ * Recuadro alrededor de una sección.
+ *
+ * El marco NO se puede dibujar antes del contenido: no sabemos cuánto ocupará
+ * ni en qué página terminará. Se abre guardando la posición, se escribe dentro
+ * y al cerrar se dibuja el borde con la altura real. Si el contenido saltó de
+ * página, se dibuja solo el tramo de la página donde empezó, así el recuadro
+ * nunca deforma la maquetación ni deja un marco cruzando hojas.
+ */
+interface Recuadro { yInicio: number; paginaInicio: number }
+
+function abrirRecuadro(doc: PDFKit.PDFDocument): Recuadro {
+  doc.moveDown(0.3);
+  return { yInicio: doc.y, paginaInicio: doc.bufferedPageRange().count };
+}
+
+function cerrarRecuadro(doc: PDFKit.PDFDocument, r: Recuadro) {
+  const x = SANGRIA - PADDING;
+  const ancho = doc.page.width - MARGEN - x;
+  const yActual = doc.y;
+  const mismaPagina = doc.bufferedPageRange().count === r.paginaInicio;
+
+  if (mismaPagina) {
+    const alto = yActual + PADDING - (r.yInicio - PADDING);
+    if (alto > 0) {
+      doc.save()
+        .roundedRect(x, r.yInicio - PADDING, ancho, alto, 4)
+        .strokeColor(INALDE_BORDE).lineWidth(0.75).stroke()
+        .restore();
+    }
+  } else {
+    // La sección se partió entre hojas: se enmarca el tramo de la página
+    // actual, desde su cabecera hasta donde llegó el texto. El tramo de la
+    // hoja anterior se queda sin cerrar por abajo, que es justo lo que
+    // comunica la continuación.
+    // Empieza bajo la franja NAVES (26 px) con aire, no pegado al borde.
+    const yTope = 40;
+    const alto = yActual + PADDING - yTope;
+    if (alto > 0) {
+      doc.save()
+        .roundedRect(x, yTope, ancho, alto, 4)
+        .strokeColor(INALDE_BORDE).lineWidth(0.75).stroke()
+        .restore();
+    }
+  }
+
+  // El cursor sigue donde terminó el texto: mover la y al pie de la página
+  // forzaba un salto y el documento se llenaba de hojas a medias.
+  doc.x = SANGRIA;
+  doc.y = yActual + PADDING + 4;
+}
+
 function section(doc: PDFKit.PDFDocument, num: number | null, title: string) {
   if (doc.y > doc.page.height - 100) nuevaPagina(doc);
   doc.moveDown(0.5);
@@ -111,7 +166,8 @@ function field(doc: PDFKit.PDFDocument, label: string, value: string | null | un
   doc.x = SANGRIA;
   doc.fontSize(8).fillColor(INALDE_GRAY).font('Helvetica-Bold').text(label.toUpperCase(), { characterSpacing: 1, width: ancho });
   doc.x = SANGRIA;
-  doc.fontSize(10).fillColor(INALDE_TEXT).font('Helvetica').text(value, { width: ancho });
+  doc.fontSize(10).fillColor(INALDE_TEXT).font('Helvetica')
+    .text(value, { width: ancho, align: 'justify' });
   doc.moveDown(0.4);
 }
 
@@ -184,9 +240,11 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
       // Resumen del proyecto definitivo: es lo primero que interesa leer.
       const cont = Array.isArray(p.proyecto_contenido) ? p.proyecto_contenido[0] : p.proyecto_contenido;
       if (cont?.resumen || cont?.linkedin) {
+        const rRes = abrirRecuadro(doc);
         section(doc, null, 'Resumen del proyecto');
         field(doc, 'Resumen', cont?.resumen);
         field(doc, 'Publicación LinkedIn', cont?.linkedin);
+        cerrarRecuadro(doc, rRes);
       }
 
       const canvasVacio = ![
@@ -195,6 +253,7 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
         p.canvas_actividades, p.canvas_socios, p.canvas_costos,
       ].some((v) => (v ?? '').trim());
 
+      const rCanvas = abrirRecuadro(doc);
       section(doc, null, 'Canvas del negocio');
       if (canvasVacio) {
         // Sin este aviso el PDF terminaba en un título y una página en blanco:
@@ -215,14 +274,18 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
       field(doc, 'Actividades',        p.canvas_actividades);
       field(doc, 'Socios',             p.canvas_socios);
       field(doc, 'Costos',             p.canvas_costos);
+      cerrarRecuadro(doc, rCanvas);
 
       if (p.fuentes_primarias || p.fuentes_secundarias) {
+        const rVal = abrirRecuadro(doc);
         section(doc, null, 'Validación del mercado');
         field(doc, 'Fuentes primarias',   p.fuentes_primarias);
         field(doc, 'Fuentes secundarias', p.fuentes_secundarias);
+        cerrarRecuadro(doc, rVal);
       }
 
       if (p.hitos?.length) {
+        const rCron = abrirRecuadro(doc);
         section(doc, null, 'Cronograma');
         for (const h of [...p.hitos].sort((a, b) => a.posicion - b.posicion)) {
           if (doc.y > doc.page.height - 60) nuevaPagina(doc);
@@ -233,6 +296,7 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
             // por un glifo roto; un guion largo se ve bien y comunica lo mismo.
             .fillColor(INALDE_GRAY).text(`  (${h.fecha_inicio} - ${h.fecha_fin})`);
         }
+        cerrarRecuadro(doc, rCron);
       }
       doc.moveDown(0.6);
       void yStart;
