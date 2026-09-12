@@ -753,7 +753,6 @@ export default function Anteproyectos() {
                           <th className="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-center" title="¿Busca asociación con otro proyecto?">Asoc.</th>
                           <ThOrden orden={orden} campo="modalidad" variante="oscuro" thClassName="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Modalidad</ThOrden>
                           <ThOrden orden={orden} campo="profesor" variante="oscuro" thClassName="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Profesor / Director</ThOrden>
-                          <ThOrden orden={orden} campo="estado" variante="oscuro" thClassName="px-2.5 py-3 text-[11px] uppercase tracking-wider text-white/90 font-semibold text-left">Estado</ThOrden>
                         </tr>
                       </thead>
                       <tbody>
@@ -798,6 +797,17 @@ export default function Anteproyectos() {
                                   )
                                 )}
                               </div>
+                              {/* Estado de la entrega. Vivía en una columna
+                                  aparte; se integró aquí para leer de un vistazo
+                                  el ciclo completo del equipo. */}
+                              <div className="mt-2">
+                                {m.estado ? (
+                                  <span className={`text-[11px] uppercase tracking-wider font-semibold ${m.estado.cls}`}>{m.estado.label}</span>
+                                ) : (
+                                  <span className="text-[11px] uppercase tracking-wider font-semibold text-inalde-gray">No enviado</span>
+                                )}
+                              </div>
+
                               {/* Reuniones: las marca el profesor del equipo (o el
                                   super_admin). Solo para equipos enviados. */}
                               <div className="mt-2 space-y-1">
@@ -821,6 +831,16 @@ export default function Anteproyectos() {
                                   );
                                 })}
                               </div>
+
+                              {/* Entrar al detalle: cierra el bloque, después de
+                                  todo lo que describe el estado del equipo. */}
+                              {m.anteproyecto_id && (
+                                <button
+                                  onClick={() => navigate(`/admin/anteproyectos/${m.anteproyecto_id}`)}
+                                  className="block mt-2 text-[11px] font-semibold text-inalde-red hover:underline">
+                                  Ver →
+                                </button>
+                              )}
                             </td>
                             <td className="px-2.5 py-3 align-top">
                               <div className="max-w-[210px] min-w-[140px]">
@@ -977,23 +997,6 @@ export default function Anteproyectos() {
                                   </p>
                                 </div>
                               )}
-                              </div>
-                            </td>
-                            <td className="px-2.5 py-3 align-top">
-                              <div className="min-w-[110px]">
-                                {m.estado && (
-                                  <span className={`text-xs uppercase tracking-wider font-semibold ${m.estado.cls}`}>{m.estado.label}</span>
-                                )}
-                                {!enviado && (
-                                  <p className="text-[9px] uppercase tracking-wider text-inalde-gray mt-0.5">No enviado</p>
-                                )}
-                                {m.anteproyecto_id && (
-                                  <button
-                                    onClick={() => navigate(`/admin/anteproyectos/${m.anteproyecto_id}`)}
-                                    className="block mt-1.5 text-[11px] font-semibold text-inalde-red hover:underline">
-                                    Ver →
-                                  </button>
-                                )}
                               </div>
                             </td>
                           </tr>
