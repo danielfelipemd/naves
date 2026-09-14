@@ -47,7 +47,7 @@ interface Tiles {
 interface Data {
   cohorte_id: string;
   etiqueta: string;
-  director_mba: { nombre: string; cargo: string };
+  director_mba: { nombre: string; cargo: string; email: string | null };
   tiles: Tiles;
   actas: Acta[];
   firmantes: Firmante[];
@@ -159,8 +159,19 @@ export default function ActasPanel() {
 
   // Config Director MBA (editable).
   const [mbaNombre, setMbaNombre] = useState('');
-  const [mbaCargo, setMbaCargo] = useState('');
+  const [mbaCargo, setMbaCargo] = useState('');  const [mbaEmail, setMbaEmail] = useState('');
+  // Candidatos a Director MBA: se elige de la lista para no volver a tener el
+  // mismo nombre escrito de dos formas distintas.
+  const [candidatos, setCandidatos] = useState<Array<{ nombre: string; email: string | null; origen: string }>>([]);
+  const [enviandoEnlaces, setEnviandoEnlaces] = useState(false);
+  const [resultadoEnlaces, setResultadoEnlaces] = useState<any[] | null>(null);
+
   const [guardandoMba, setGuardandoMba] = useState(false);
+
+  useEffect(() => { (async () => {
+    try { setCandidatos(((await api.get('/actas/candidatos-director-mba')).data as any).candidatos ?? []); }
+    catch { /* si falla, siempre se puede escribir a mano */ }
+  })(); }, []);
 
   useEffect(() => { (async () => {
     try {
@@ -180,6 +191,7 @@ export default function ActasPanel() {
       setData(d);
       setMbaNombre(d.director_mba?.nombre ?? '');
       setMbaCargo(d.director_mba?.cargo ?? '');
+      setMbaEmail(d.director_mba?.email ?? '');
     } catch (e) {
       setErr(formatBackendError(e));
     } finally {
@@ -193,7 +205,7 @@ export default function ActasPanel() {
     if (!cohorte) return;
     setGuardandoMba(true); setErr(''); setOkMsg('');
     try {
-      await api.post(`/actas/cohorte/${cohorte}/director-mba`, { nombre: mbaNombre.trim(), cargo: mbaCargo.trim() });
+      await api.post(`/actas/cohorte/${cohorte}/director-mba`, { nombre: mbaNombre.trim(), cargo: mbaCargo.trim(), email: mbaEmail.trim() });
       setOkMsg('Director MBA actualizado.');
       await cargar();
     } catch (e) {
@@ -208,6 +220,18 @@ export default function ActasPanel() {
     try { await fn(); setOkMsg(exito); await cargar(); }
     catch (e) { setErr(formatBackendError(e)); }
     finally { setAccion(''); }
+  }
+
+  /** Crea los enlaces de firma y se los manda por correo a cada firmante. */
+  async function enviarEnlaces() {
+    if (!confirm('Se enviará a cada profesor y director un correo con su enlace para firmar. ¿Continuar?')) return;
+    setEnviandoEnlaces(true); setResultadoEnlaces(null);
+    try {
+      const r = await api.post(`/actas/enlaces/${cohorte}`, {});
+      setResultadoEnlaces((r.data as any)?.enlaces ?? []);
+    } catch (e) {
+      setErr(formatBackendError(e));
+    } finally { setEnviandoEnlaces(false); }
   }
 
   const generar = () => correr('generar', () => api.post(`/actas/generar/${cohorte}`).then(() => {}), 'Actas generadas/actualizadas.');
@@ -265,6 +289,34 @@ export default function ActasPanel() {
             <div className="card-inalde p-5">
               <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Config Director MBA</h2>
               <p className="text-xs text-inalde-gray mb-4">Firma el cierre de todas las actas de la cohorte.</p>
+              {candidatos.length > 0 && (
+                <div className="mb-3">
+                  <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">
+                    Seleccionar de la lista
+                  </label>
+                  <select
+                    className="input-inalde !py-2 !text-sm"
+                    value={candidatos.find((c) => c.nombre === mbaNombre) ? mbaNombre : ''}
+                    onChange={(e) => {
+                      const c = candidatos.find((x) => x.nombre === e.target.value);
+                      if (!c) return;
+                      setMbaNombre(c.nombre);
+                      // El correo se trae solo: tecleado a mano es donde se cuelan
+                      // las erratas que luego impiden enviarle su enlace.
+                      if (c.email) setMbaEmail(c.email);
+                    }}
+                  >
+                    <option value="">— Elegir profesor o director —</option>
+                    {candidatos.map((c) => (
+                      <option key={`${c.origen}-${c.nombre}`} value={c.nombre}>
+                        {c.nombre} · {c.origen}{c.email ? '' : ' (sin correo)'}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-inalde-gray mt-1">O escribe los datos a mano abajo.</p>
+                </div>
+              )}
+
               <div className="grid sm:grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Nombre</label>
@@ -274,6 +326,16 @@ export default function ActasPanel() {
                   <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Cargo</label>
                   <input className="input-inalde !py-2 !text-sm" value={mbaCargo} onChange={(e) => setMbaCargo(e.target.value)} placeholder="Director del MBA" />
                 </div>
+              </div>
+              <div className="mb-3">
+                <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">
+                  Correo electrónico
+                </label>
+                <input className="input-inalde !py-2 !text-sm" type="email" value={mbaEmail}
+                  onChange={(e) => setMbaEmail(e.target.value)} placeholder="director.mba@inalde.edu.co" />
+                <p className="text-[11px] text-inalde-gray mt-1">
+                  Ahí le llega su enlace para firmar. Sin correo no se le puede pedir la firma.
+                </p>
               </div>
               <button type="button" className="btn-inalde-secondary" onClick={guardarMba} disabled={guardandoMba || !mbaNombre.trim() || !mbaCargo.trim()}>
                 {guardandoMba ? 'Guardando…' : 'Guardar Director MBA'}
@@ -289,11 +351,34 @@ export default function ActasPanel() {
                 <button type="button" className="btn-inalde-secondary" onClick={enviar} disabled={!!accion}>
                   {accion === 'enviar' ? 'Enviando…' : 'Enviar a firma'}
                 </button>
+                <button type="button" className="btn-inalde-secondary" onClick={enviarEnlaces} disabled={enviandoEnlaces || !!accion}>
+                  {enviandoEnlaces ? 'Enviando enlaces…' : '✉️ Enviar enlaces de firma'}
+                </button>
                 <Link to="/admin/actas/lote" className="btn-inalde-secondary">Ir a firma en lote →</Link>
                 <button type="button" className="btn-inalde-ghost" onClick={archivar} disabled={!!accion}>
                   {accion === 'archivar' ? 'Archivando…' : 'Archivar completas'}
                 </button>
               </div>
+
+              {resultadoEnlaces && (
+                <div className="mt-4 border-t border-inalde-gray-light pt-3">
+                  <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-2">
+                    {resultadoEnlaces.length} enlace{resultadoEnlaces.length === 1 ? '' : 's'} creado{resultadoEnlaces.length === 1 ? '' : 's'}
+                  </p>
+                  <div className="space-y-1 max-h-[160px] overflow-auto">
+                    {resultadoEnlaces.map((e, i) => (
+                      <div key={i} className="text-xs flex items-baseline justify-between gap-2">
+                        <span className="truncate">
+                          <strong>{e.nombre}</strong> <span className="text-inalde-gray">· {e.actas} acta{e.actas === 1 ? '' : 's'}</span>
+                        </span>
+                        <span className={`whitespace-nowrap ${e.correo === 'enviado' ? 'text-green-700' : 'text-inalde-red'}`}>
+                          {e.correo === 'enviado' ? '✓ enviado' : (e.email ? 'no enviado' : 'sin correo')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

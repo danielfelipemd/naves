@@ -101,7 +101,7 @@ router.post('/cohorte/:cohorteId/director-mba', ...soloAdmin, async (req: Authen
 router.get('/', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const cohorteId = String(req.query.cohorte_id ?? '').trim();
   if (!cohorteId) return res.status(400).json({ error: 'FALTA_COHORTE' });
-  const { data: coh } = await supabaseAdmin.from('cohortes').select('etiqueta, director_mba_nombre, director_mba_cargo').eq('id', cohorteId).maybeSingle();
+  const { data: coh } = await supabaseAdmin.from('cohortes').select('etiqueta, director_mba_nombre, director_mba_cargo, director_mba_email').eq('id', cohorteId).maybeSingle();
   const { data: actas } = await supabaseAdmin.from('acta').select('*').eq('cohorte_id', cohorteId).order('nombre_participante');
   const rows = (actas ?? []) as any[];
 
@@ -129,7 +129,7 @@ router.get('/', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
 
   res.json({
     cohorte_id: cohorteId, etiqueta: (coh as any)?.etiqueta ?? cohorteId,
-    director_mba: { nombre: (coh as any)?.director_mba_nombre ?? null, cargo: (coh as any)?.director_mba_cargo ?? null },
+    director_mba: { nombre: (coh as any)?.director_mba_nombre ?? null, cargo: (coh as any)?.director_mba_cargo ?? null, email: (coh as any)?.director_mba_email ?? null },
     tiles, actas: rows,
     firmantes: [...firmantes.values()].sort((a, b) => (a.total - a.firmadas) - (b.total - b.firmadas) === 0 ? a.rol.localeCompare(b.rol) : (b.total - b.firmadas) - (a.total - a.firmadas)),
     microformularios_pendientes: micros ?? [],
@@ -514,6 +514,24 @@ const ROL_LEGIBLE: Record<string, string> = {
   jurado: 'los jurados',
   director_mba: 'el Director MBA',
 };
+
+// GET /api/actas/candidatos-director-mba — quiénes pueden firmar el cierre.
+// Se ofrece elegir en vez de teclear el nombre: escribirlo a mano es como se
+// llegó a tener "Álvaro Moreno García" en la cohorte y "Álvaro José Moreno
+// García" en la tabla, que son la misma persona con dos textos distintos.
+router.get('/candidatos-director-mba', ...soloAdmin, async (_req: AuthenticatedRequest, res) => {
+  const salida: Array<{ nombre: string; email: string | null; origen: string }> = [];
+  for (const [tabla, origen] of [['profesores', 'Profesor'], ['directores', 'Director']] as const) {
+    const { data } = await supabaseAdmin.from(tabla).select('nombre_completo, email_encriptado');
+    for (const r of ((data ?? []) as any[])) {
+      let email: string | null = null;
+      try { email = r.email_encriptado ? decryptPII(r.email_encriptado) : null; } catch { /* ilegible */ }
+      salida.push({ nombre: r.nombre_completo, email, origen });
+    }
+  }
+  salida.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  res.json({ candidatos: salida });
+});
 
 // GET /api/actas/lotes/:cohorteId — semáforo de impresión.
 router.get('/lotes/:cohorteId', ...adminOAsistente, async (req: AuthenticatedRequest, res) => {
