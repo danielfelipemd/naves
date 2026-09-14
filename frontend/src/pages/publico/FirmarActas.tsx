@@ -56,6 +56,11 @@ export default function FirmarActas() {
   const [error, setError] = useState('');
   const [exito, setExito] = useState<number | null>(null);
 
+  // Acta que se está leyendo. Nadie firma a ciegas: el documento se abre en
+  // el visor y el botón de firmar espera a que se hayan revisado todas.
+  const [abierta, setAbierta] = useState<number | null>(null);
+  const [leidas, setLeidas] = useState<Set<number>>(new Set());
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dibujando = useRef(false);
   const hayTrazo = useRef(false);
@@ -63,8 +68,11 @@ export default function FirmarActas() {
   useEffect(() => { (async () => {
     try {
       const r = await api.get(`/actas/firmar/${encodeURIComponent(token)}`);
-      setData(r.data as Data);
-      setTexto((r.data as Data).firmante?.nombre ?? '');
+      const d = r.data as Data;
+      setData(d);
+      setTexto(d.firmante?.nombre ?? '');
+      // Se abre la primera de entrada: el documento es lo primero que debe ver.
+      if (d.actas?.length) { setAbierta(d.actas[0].id); setLeidas(new Set([d.actas[0].id])); }
     } catch (e: any) {
       const code = e?.response?.data?.error;
       setErrorCarga(
@@ -76,6 +84,11 @@ export default function FirmarActas() {
       );
     } finally { setCargando(false); }
   })(); }, [token]);
+
+  function abrir(id: number) {
+    setAbierta(id);
+    setLeidas((prev) => new Set(prev).add(id));
+  }
 
   // --- Lienzo de trazo ---------------------------------------------------
   function posicion(e: React.MouseEvent | React.TouchEvent) {
@@ -191,6 +204,7 @@ export default function FirmarActas() {
   }
 
   const d = data!;
+  const faltanPorLeer = d.actas.length - leidas.size;
   return (
     <Marco>
       <p className="section-subtitle mb-1">Acta de Entrega de Trabajo de Grado</p>
@@ -200,22 +214,65 @@ export default function FirmarActas() {
         {' · '}{ROL_LABEL[d.firmante.rol] ?? d.firmante.rol}
       </p>
 
-      <div className="card-inalde p-5 mb-6">
-        <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-3">
-          Vas a firmar {d.actas.length} acta{d.actas.length === 1 ? '' : 's'}
-        </p>
-        <div className="max-h-[260px] overflow-auto divide-y divide-inalde-gray-light">
-          {d.actas.map((a) => (
-            <div key={a.id} className="py-2 flex items-baseline justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-inalde-text truncate">{a.participante}</p>
-                <p className="text-xs text-inalde-gray truncate">
-                  {a.proyecto || '—'} · {MODALIDAD[a.modalidad] ?? a.modalidad}
-                </p>
+      {/* Documento + índice. El acta abierta ocupa el espacio principal: lo que
+          se firma debe poder leerse, no solo contarse en una lista. */}
+      <div className="grid lg:grid-cols-[1fr_300px] gap-5 mb-6">
+        <div className="border border-inalde-gray-light rounded overflow-hidden bg-inalde-gray-bg">
+          {abierta ? (
+            <object
+              data={`/api/actas/firmar/${encodeURIComponent(token)}/acta/${abierta}/pdf#toolbar=1&view=FitH`}
+              type="application/pdf"
+              className="w-full h-[560px]"
+              aria-label="Acta en revisión"
+            >
+              {/* Los navegadores móviles no incrustan PDF: se ofrece abrirlo aparte. */}
+              <div className="p-6 text-center">
+                <p className="text-sm text-inalde-gray mb-3">Tu navegador no puede mostrar el acta aquí.</p>
+                <a className="btn-inalde-secondary" target="_blank" rel="noopener noreferrer"
+                  href={`/api/actas/firmar/${encodeURIComponent(token)}/acta/${abierta}/pdf`}>
+                  Abrir el acta en otra pestaña →
+                </a>
               </div>
-              <span className="text-xs text-inalde-gray whitespace-nowrap">{fmtFecha(a.fecha_sustentacion)}</span>
+            </object>
+          ) : (
+            <div className="h-[560px] flex items-center justify-center text-sm text-inalde-gray">
+              Selecciona un acta para leerla.
             </div>
-          ))}
+          )}
+        </div>
+
+        <div className="border border-inalde-gray-light rounded overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-inalde-gray-light bg-inalde-gray-bg/60">
+            <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray">
+              {d.actas.length} acta{d.actas.length === 1 ? '' : 's'} por firmar
+            </p>
+            <p className="text-[11px] text-inalde-gray mt-0.5">
+              Revisadas {leidas.size} de {d.actas.length}
+            </p>
+          </div>
+          <div className="overflow-auto max-h-[500px] divide-y divide-inalde-gray-light">
+            {d.actas.map((a) => {
+              const activa = abierta === a.id;
+              const vista = leidas.has(a.id);
+              return (
+                <button key={a.id} type="button" onClick={() => abrir(a.id)}
+                  className={`w-full text-left px-4 py-3 transition ${activa ? 'bg-inalde-red/5 border-l-[3px] border-inalde-red' : 'hover:bg-inalde-gray-bg/60 border-l-[3px] border-transparent'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className={`text-sm truncate ${activa ? 'font-semibold text-inalde-text' : 'text-inalde-text'}`}>
+                      {a.participante}
+                    </p>
+                    <span className={`text-[11px] shrink-0 ${vista ? 'text-green-700' : 'text-inalde-gray/60'}`}>
+                      {vista ? '✓ leída' : 'sin leer'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-inalde-gray truncate">
+                    {a.proyecto || '—'} · {MODALIDAD[a.modalidad] ?? a.modalidad}
+                  </p>
+                  <p className="text-[11px] text-inalde-gray/80">{fmtFecha(a.fecha_sustentacion)}</p>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -274,7 +331,15 @@ export default function FirmarActas() {
 
       {error && <div className="mb-4 rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm">{error}</div>}
 
-      <button onClick={firmar} disabled={enviando} className="btn-inalde-primary disabled:opacity-50">
+      {faltanPorLeer > 0 && (
+        <div className="mb-4 rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-sm">
+          Te falta{faltanPorLeer === 1 ? '' : 'n'} por abrir {faltanPorLeer} acta{faltanPorLeer === 1 ? '' : 's'}.
+          Revísala{faltanPorLeer === 1 ? '' : 's'} antes de firmar: tu firma vale para todas.
+        </div>
+      )}
+
+      <button onClick={firmar} disabled={enviando || faltanPorLeer > 0}
+        className="btn-inalde-primary disabled:opacity-50 disabled:cursor-not-allowed">
         {enviando ? 'Registrando tu firma…' : `Firmar ${d.actas.length} acta${d.actas.length === 1 ? '' : 's'} →`}
       </button>
 
@@ -291,7 +356,7 @@ export default function FirmarActas() {
 function Marco({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-inalde-gray-bg py-10 px-4">
-      <div className="max-w-[760px] mx-auto">
+      <div className="max-w-[1100px] mx-auto">
         <div className="bg-white rounded-lg shadow-inalde-card overflow-hidden">
           <div className="border-b-[3px] border-inalde-red px-6 sm:px-10 py-4">
             <p className="font-primary font-extrabold text-sm tracking-widest uppercase text-inalde-text">INALDE Business School</p>

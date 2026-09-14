@@ -242,6 +242,20 @@ router.get('/:id(\\d+)/pdf', ...soloAdmin, async (req: AuthenticatedRequest, res
 /** Datos mínimos del acta que ve quien va a firmar. Nada de PII de terceros. */
 const CAMPOS_FIRMANTE = 'id, nombre_participante, nombre_proyecto, modalidad, fecha_sustentacion, nota, estado, firmas';
 
+/**
+ * Igual que abrirEnlace pero sin exigir que el enlace siga sin usar: quien ya
+ * firmó puede volver a leer lo que firmó, que es lo razonable.
+ */
+async function abrirEnlaceParaLectura(token: string, res: any) {
+  const { data: e } = await supabaseAdmin.from('acta_enlace_firma')
+    .select('*').eq('token_hash', sha256Hex(token)).maybeSingle();
+  if (!e) { res.status(404).json({ error: 'ENLACE_NO_VALIDO' }); return null; }
+  const en = e as any;
+  if (en.revocado) { res.status(410).json({ error: 'ENLACE_REVOCADO' }); return null; }
+  if (new Date() > new Date(en.expira_en)) { res.status(410).json({ error: 'ENLACE_VENCIDO' }); return null; }
+  return en;
+}
+
 /** Carga y valida el enlace. Devuelve null y responde el error si no sirve. */
 async function abrirEnlace(token: string, res: any) {
   const { data: e } = await supabaseAdmin.from('acta_enlace_firma')
@@ -370,6 +384,26 @@ router.post('/firmar/:token', async (req, res) => {
     .eq('id', e.id);
 
   res.json({ ok: true, firmadas });
+});
+
+// GET /api/actas/firmar/:token/acta/:actaId/pdf — PÚBLICO. El PDF del acta
+// que el firmante va a firmar. Nadie debería firmar una lista a ciegas: aquí
+// lee el documento completo antes de estampar su firma. Solo entrega las actas
+// de SU enlace; cualquier otro id se rechaza.
+router.get('/firmar/:token/acta/:actaId/pdf', async (req, res) => {
+  const e = await abrirEnlaceParaLectura(req.params.token, res);
+  if (!e) return;
+  const actaId = Number(req.params.actaId);
+  if (!e.acta_ids.includes(actaId)) return res.status(403).json({ error: 'ACTA_FUERA_DEL_ENLACE' });
+
+  const { data: a } = await supabaseAdmin.from('acta').select('*').eq('id', actaId).maybeSingle();
+  if (!a) return res.status(404).json({ error: 'NO_ENCONTRADA' });
+  const pdf = await buildActaPDF(a as any);
+  res.setHeader('Content-Type', 'application/pdf');
+  // inline: se abre en el visor del navegador, no se descarga. El firmante
+  // lo lee ahí mismo sin salir de la pantalla de firma.
+  res.setHeader('Content-Disposition', 'inline; filename="acta.pdf"');
+  res.send(pdf);
 });
 
 // GET /api/actas/:id(\\d+)/verificar — comprueba que la cadena de firmas no
