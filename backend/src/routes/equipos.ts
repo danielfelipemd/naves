@@ -40,6 +40,40 @@ async function meAndCohorte(participanteId: string) {
 }
 
 // === GET /api/equipos/mi-equipo =================================
+/**
+ * GET /api/equipos/mi-profesor — el profesor asignado a mi equipo.
+ *
+ * Antes la pantalla consultaba `asignaciones_profesor` directamente desde el
+ * navegador, pero esa tabla tiene RLS sin políticas: la consulta devolvía
+ * siempre vacío y el participante leía "aún no se ha asignado profesor" aunque
+ * lo tuviera. Se resuelve aquí, con service_role y comprobando que quien
+ * pregunta pertenece al equipo.
+ */
+router.get('/mi-profesor', soloParticipante, async (req: AuthenticatedRequest, res) => {
+  const pid = req.user!.participanteId;
+  if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });
+
+  const { data: miembro } = await supabaseAdmin
+    .from('miembros_equipo').select('equipo_id').eq('participante_id', pid).maybeSingle();
+  if (!miembro) return res.json({ asignacion: null });
+
+  const { data: asig } = await supabaseAdmin
+    .from('asignaciones_profesor')
+    .select('profesor_id, profesores:profesores!asignaciones_profesor_profesor_id_fkey(nombre_completo, booking_url, areas_afinidad)')
+    .eq('equipo_id', (miembro as any).equipo_id)
+    .maybeSingle();
+
+  if (!asig) return res.json({ asignacion: null });
+  const prof = (asig as any).profesores ?? {};
+  res.json({
+    asignacion: {
+      nombre_completo: prof.nombre_completo ?? null,
+      booking_url: prof.booking_url ?? null,
+      areas_afinidad: prof.areas_afinidad ?? [],
+    },
+  });
+});
+
 router.get('/mi-equipo', soloParticipante, async (req: AuthenticatedRequest, res) => {
   const pid = req.user!.participanteId;
   if (!pid) return res.status(403).json({ error: 'NO_PARTICIPANT_ID' });

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
-import { supabase } from '../../lib/supabase';
 
 export default function MiProfesor() {
   const navigate = useNavigate();
@@ -13,17 +12,11 @@ export default function MiProfesor() {
     try {
       const eq = await api.get('/equipos/mi-equipo');
       if (!eq.data.equipo) { navigate('/'); return; }
-      // RLS permite ver la asignación de mi propio equipo
-      const { data: arr } = await supabase
-        .from('asignaciones_profesor')
-        // Hay DOS caminos de esta tabla a `profesores` (profesor_id y
-        // asignado_por), así que hay que decir por cuál: sin el nombre de la
-        // relación PostgREST responde PGRST201 y el catch dejaba la pantalla
-        // diciendo "aún no se ha asignado profesor" aunque sí lo hubiera.
-        .select('*, profesores:profesores!asignaciones_profesor_profesor_id_fkey(nombre_completo, booking_url, areas_afinidad)')
-        .eq('equipo_id', eq.data.equipo.id)
-        .limit(1);
-      setData(arr?.[0] ?? null);
+      // Lo resuelve el backend: `asignaciones_profesor` tiene RLS sin políticas,
+      // así que consultarla desde el navegador devolvía siempre vacío.
+      const r = await api.get('/equipos/mi-profesor');
+      const a = (r.data as any)?.asignacion;
+      setData(a ? { profesores: a } : null);
     } catch {}
     finally { setLoading(false); }
   })(); }, [navigate]);
