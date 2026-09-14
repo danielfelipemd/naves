@@ -52,7 +52,6 @@ interface Data {
   actas: Acta[];
   firmantes: Firmante[];
   microformularios_pendientes: MicroPendiente[];
-  proveedor_firma: { nombre: string; es_stub: boolean };
 }
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 
@@ -268,12 +267,6 @@ export default function ActasPanel() {
 
       {data && (
         <div className="flex flex-col gap-8">
-          {/* Aviso de proveedor de firma en modo simulación */}
-          {data.proveedor_firma.es_stub && (
-            <div className="rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-sm text-inalde-text">
-              <strong>Proveedor de firma no configurado</strong> — flujo en modo simulación. Las firmas se registran en el sistema pero no se envían a un proveedor real ({data.proveedor_firma.nombre}).
-            </div>
-          )}
 
           {/* Tiles */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -355,6 +348,7 @@ export default function ActasPanel() {
                   {enviandoEnlaces ? 'Enviando enlaces…' : '✉️ Enviar enlaces de firma'}
                 </button>
                 <Link to="/admin/actas/lote" className="btn-inalde-secondary">Ir a firma en lote →</Link>
+                <Link to="/admin/actas/impresion" className="btn-inalde-secondary">🖨️ Impresión por lotes →</Link>
                 <button type="button" className="btn-inalde-ghost" onClick={archivar} disabled={!!accion}>
                   {accion === 'archivar' ? 'Archivando…' : 'Archivar completas'}
                 </button>

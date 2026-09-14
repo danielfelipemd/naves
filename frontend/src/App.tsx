@@ -30,6 +30,7 @@ import TrabajosSectorPublico from './pages/publico/TrabajosSector';
 import ActasPanel from './pages/admin/actas/Panel';
 import ActaDetalle from './pages/admin/actas/Acta';
 import ActasFirmaLote from './pages/admin/actas/FirmaLote';
+import ActasLotes from './pages/admin/actas/Lotes';
 import ActaMicroformulario from './pages/publico/ActaMicroformulario';
 import FirmarActas from './pages/publico/FirmarActas';
 import AdminTrabajosSector from './pages/admin/TrabajosSectorAdmin';
@@ -86,7 +87,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   const { session, loading, role } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-inalde-gray">Cargando…</div>;
   if (!session) return <Navigate to="/login" replace />;
-  if (role !== 'super_admin' && role !== 'profesor') return <Navigate to="/" replace />;
+  if (role !== 'super_admin' && role !== 'profesor' && role !== 'asistente_programa') return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -95,6 +96,15 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 // roles-permisos, resumen). El profesor que llegue aqui es rebotado al
 // dashboard. Sabana, anteproyectos y solicitudes NO usan este wrapper
 // porque tambien son accesibles para profesor (con filtros backend).
+// La impresión y el archivo en papel los hace la asistente del programa, no el
+// super_admin: esta pantalla es de los dos. Solo lee y descarga; no genera ni
+// firma nada.
+function ActasImpresionOnly({ children }: { children: React.ReactNode }) {
+  const { role } = useAuth();
+  if (role !== 'super_admin' && role !== 'asistente_programa') return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function SuperAdminOnly({ children }: { children: React.ReactNode }) {
   const { role } = useAuth();
   if (role !== 'super_admin') return <Navigate to="/" replace />;
@@ -159,6 +169,7 @@ export default function App() {
           <Route path="aol/export" element={<SuperAdminOnly><AolExport /></SuperAdminOnly>} />
           <Route path="actas" element={<SuperAdminOnly><ActasPanel /></SuperAdminOnly>} />
           <Route path="actas/lote" element={<SuperAdminOnly><ActasFirmaLote /></SuperAdminOnly>} />
+          <Route path="actas/impresion" element={<ActasImpresionOnly><ActasLotes /></ActasImpresionOnly>} />
           <Route path="actas/:id" element={<SuperAdminOnly><ActaDetalle /></SuperAdminOnly>} />
           <Route path="solicitudes" element={<AdminSolicitudes />} />
           <Route path="roles-permisos" element={<SuperAdminOnly><AdminRolesPermisos /></SuperAdminOnly>} />
