@@ -7,6 +7,8 @@ import { proveedorActivo } from '../services/actas/proveedor-firma.js';
 import { buildActaPDF, buildLoteActasPDF } from '../services/actas/pdf-acta.js';
 import { firmar, ultimoHash, verificarCadena } from '../services/actas/firma.js';
 import { sha256Hex } from '../auth/crypto.js';
+import { sendEmail } from '../services/email.js';
+import { decryptPII } from '../auth/crypto.js';
 
 // =====================================================================
 // Actas de Grado — /admin/programacion → Actas. Máquina de estados + firma en
@@ -23,6 +25,45 @@ const soloAdmin = [requireAuth(), requireRole('super_admin')];
 const adminOAsistente = [requireAuth(), requireRole('super_admin', 'asistente_programa')];
 
 const ROLES_INTERNOS = ['profesor', 'director_proyecto', 'jurado'];
+
+const PUBLIC_URL = (process.env.PUBLIC_URL ?? '').trim().replace(/\/$/, '') || 'https://naves-inalde.com';
+
+/**
+ * Correo con el enlace de firma. Quien lo recibe firma dos veces al año y no
+ * conoce el sistema: se le dice qué tiene que hacer, cuánto le toma y hasta
+ * cuándo, sin jerga ni instrucciones de varios pasos.
+ */
+function plantillaFirma(nombre: string, cuantas: number, url: string): string {
+  return `
+  <div style="font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;max-width:560px;margin:0 auto">
+    <div style="border-bottom:3px solid #e30613;padding-bottom:12px;margin-bottom:24px">
+      <div style="font-weight:700;letter-spacing:1.5px;font-size:13px">INALDE BUSINESS SCHOOL</div>
+      <div style="color:#6b6b6b;font-size:11px;text-transform:uppercase;letter-spacing:1px">Trabajo de grado · MBA</div>
+    </div>
+    <p style="font-size:15px">Estimado(a) <strong>${nombre}</strong>,</p>
+    <p style="font-size:14px;line-height:1.6">
+      Ya ${cuantas === 1 ? 'está lista un acta' : `están listas ${cuantas} actas`} de entrega de trabajo de grado
+      que ${cuantas === 1 ? 'requiere su firma' : 'requieren su firma'}.
+    </p>
+    <p style="font-size:14px;line-height:1.6">
+      Al abrir el enlace podrá <strong>leer cada acta</strong> y firmar${cuantas === 1 ? 'la' : 'las'} todas
+      de una sola vez. Puede dibujar su firma, escribir su nombre o adjuntar una imagen.
+    </p>
+    <p style="text-align:center;margin:32px 0">
+      <a href="${url}" style="background:#e30613;color:#fff;text-decoration:none;padding:14px 28px;border-radius:4px;font-weight:700;font-size:14px;display:inline-block">
+        Revisar y firmar ${cuantas === 1 ? 'el acta' : `las ${cuantas} actas`}
+      </a>
+    </p>
+    <p style="font-size:12px;color:#6b6b6b;line-height:1.6">
+      El enlace es personal y vence en 7 días. Si no funciona el botón, copie esta dirección en su navegador:<br>
+      <span style="word-break:break-all">${url}</span>
+    </p>
+    <p style="font-size:11px;color:#6b6b6b;border-top:1px solid #e8e8e8;padding-top:12px;margin-top:24px">
+      Firma electrónica conforme a la Ley 527 de 1999 y el Decreto 2364 de 2012.
+      Si tiene alguna duda, escriba a la asistente del programa.
+    </p>
+  </div>`;
+}
 
 // Estado del acta según el avance de sus firmas (§2).
 function avanzarEstado(firmas: any[], estadoActual: string): string {
@@ -46,7 +87,12 @@ router.post('/generar/:cohorteId', ...soloAdmin, async (req: AuthenticatedReques
 router.post('/cohorte/:cohorteId/director-mba', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const nombre = (req.body?.nombre ?? '').trim() || null;
   const cargo = (req.body?.cargo ?? '').trim() || null;
-  const { error } = await supabaseAdmin.from('cohortes').update({ director_mba_nombre: nombre, director_mba_cargo: cargo }).eq('id', req.params.cohorteId);
+  // El correo es necesario para mandarle su enlace de firma: el Director MBA
+  // firma todas las actas de la cohorte y no es un usuario del sistema.
+  const email = (req.body?.email ?? '').trim() || null;
+  const { error } = await supabaseAdmin.from('cohortes')
+    .update({ director_mba_nombre: nombre, director_mba_cargo: cargo, director_mba_email: email })
+    .eq('id', req.params.cohorteId);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
@@ -298,6 +344,30 @@ router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedReques
     }
   }
 
+  // Correos de quienes van a firmar: profesores y directores de proyecto están
+  // en tablas distintas y con el correo cifrado.
+  const emailPorNombre = new Map<string, string>();
+  for (const t of ['profesores', 'directores'] as const) {
+    const { data } = await supabaseAdmin.from(t).select('nombre_completo, email_encriptado');
+    for (const r of ((data ?? []) as any[])) {
+      try {
+        const mail = r.email_encriptado ? decryptPII(r.email_encriptado) : null;
+        if (mail) emailPorNombre.set(r.nombre_completo, mail);
+      } catch { /* un correo ilegible no debe frenar la creación de enlaces */ }
+    }
+  }
+
+  // El Director MBA no es un usuario del sistema: su nombre y su correo se
+  // configuran en la cohorte. Sin esto no hay a dónde mandarle su enlace,
+  // aunque firma todas las actas.
+  const { data: coh } = await supabaseAdmin.from('cohortes')
+    .select('director_mba_nombre, director_mba_email').eq('id', req.params.cohorteId).maybeSingle();
+  const dirMba = coh as any;
+  if (dirMba?.director_mba_nombre && dirMba?.director_mba_email) {
+    emailPorNombre.set(dirMba.director_mba_nombre, dirMba.director_mba_email);
+  }
+
+  const enviar = req.body?.enviar_correo !== false;
   const creados: any[] = [];
   for (const g of grupos.values()) {
     const token = randomBytes(32).toString('base64url');
@@ -305,13 +375,29 @@ router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedReques
       token_hash: sha256Hex(token),
       cohorte_id: req.params.cohorteId,
       rol: g.rol, firmante_nombre: g.nombre,
+      firmante_email: emailPorNombre.get(g.nombre) ?? null,
       acta_ids: g.actaIds,
       // 7 días: suficiente para firmar sin dejar la puerta abierta un mes.
       expira_en: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
       creado_por: req.user?.profesorId ?? null,
     });
     if (error) return res.status(500).json({ error: error.message });
-    creados.push({ rol: g.rol, nombre: g.nombre, actas: g.actaIds.length, enlace: `/actas/firmar/${token}` });
+    const email = emailPorNombre.get(g.nombre) ?? null;
+    let correo: string | null = null;
+    if (enviar && email) {
+      const url = `${PUBLIC_URL}/actas/firmar/${token}`;
+      const n = g.actaIds.length;
+      const r = await sendEmail(
+        email,
+        `Actas por firmar — Trabajo de Grado MBA (${n})`,
+        plantillaFirma(g.nombre, n, url),
+      );
+      correo = r.ok ? 'enviado' : (r.reason ?? 'no enviado');
+    }
+    creados.push({
+      rol: g.rol, nombre: g.nombre, actas: g.actaIds.length,
+      email, correo, enlace: `/actas/firmar/${token}`,
+    });
   }
   res.json({ creados: creados.length, enlaces: creados });
 });
