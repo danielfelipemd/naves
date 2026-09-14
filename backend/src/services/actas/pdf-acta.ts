@@ -1,4 +1,6 @@
 import PDFDocument from 'pdfkit';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // =====================================================================
 // PDF del Acta de Entrega de Trabajo de Grado (Formato MBA · Versión 3).
@@ -12,6 +14,24 @@ const ROJO = '#e30613';
 const GRIS = '#6b6b6b';
 const TEXTO = '#1a1a1a';
 const LINEA = '#e8e8e8';
+const FONDO = '#f7f7f7';
+const ORO = '#9f885f';
+
+// El logo va empaquetado con el backend (ver Dockerfile). Se lee una sola vez:
+// el mismo PDF se genera decenas de veces al imprimir un lote.
+let logoCache: Buffer | null | undefined;
+function logo(): Buffer | null {
+  if (logoCache !== undefined) return logoCache;
+  for (const ruta of [
+    path.resolve(process.cwd(), 'assets/inalde-logo.jpg'),
+    path.resolve(process.cwd(), '../assets/inalde-logo.jpg'),
+  ]) {
+    try { logoCache = fs.readFileSync(ruta); return logoCache; } catch { /* siguiente */ }
+  }
+  // Sin logo el acta sigue siendo válida: se imprime igual, solo sin la marca.
+  logoCache = null;
+  return null;
+}
 const MARGEN = 50;
 
 export interface FirmaActa {
@@ -25,6 +45,8 @@ export interface FirmaActa {
   hash?: string | null;
   sello?: string | null;
   ip?: string | null;
+  /** Trazo de la firma en data URI, para estamparlo sobre la línea. */
+  imagen?: string | null;
 }
 
 export interface ActaPdfData {
@@ -67,6 +89,46 @@ function nombreJurado(j: { nombre?: string } | string): string {
   return typeof j === 'string' ? j : (j?.nombre ?? '—');
 }
 
+/** Título de sección con banda de fondo: separa visualmente los bloques. */
+function seccion(doc: PDFKit.PDFDocument, titulo: string) {
+  const ancho = doc.page.width - MARGEN * 2;
+  const y = doc.y;
+  doc.rect(MARGEN, y, ancho, 15).fill(FONDO);
+  doc.rect(MARGEN, y, 2.5, 15).fill(ROJO);
+  doc.fillColor(TEXTO).font('Helvetica-Bold').fontSize(7.5)
+    .text(titulo.toUpperCase(), MARGEN + 9, y + 4.5, { characterSpacing: 1.2, width: ancho - 18 });
+  doc.y = y + 21;
+  doc.x = MARGEN;
+}
+
+/** Bloque de firma: línea, nombre y cargo. Si está firmada, estampa el trazo. */
+function bloqueFirma(
+  doc: PDFKit.PDFDocument, x: number, anchoB: number,
+  nombre: string | null, cargo: string | null, f?: FirmaActa,
+) {
+  const yTop = doc.y;
+  // Espacio para el trazo, encima de la línea.
+  if (f?.estado === 'firmada' && f.imagen && f.imagen.startsWith('data:image')) {
+    try {
+      const b64 = f.imagen.split(',')[1] ?? '';
+      doc.image(Buffer.from(b64, 'base64'), x + 4, yTop, { fit: [anchoB - 8, 26], align: 'center' });
+    } catch { /* una firma ilegible no debe impedir imprimir el acta */ }
+  }
+  const yLinea = yTop + 30;
+  doc.moveTo(x, yLinea).lineTo(x + anchoB, yLinea).strokeColor(TEXTO).lineWidth(0.8).stroke();
+  doc.fontSize(8.5).fillColor(TEXTO).font('Helvetica-Bold')
+    .text(nombre || '—', x, yLinea + 4, { width: anchoB });
+  if (cargo) {
+    doc.fontSize(6.5).fillColor(GRIS).font('Helvetica')
+      .text(cargo, x, doc.y, { width: anchoB });
+  }
+  if (f?.estado === 'firmada') {
+    doc.fontSize(6).fillColor('#15803d').font('Helvetica')
+      .text(`Firmada electrónicamente · ${fmtFechaHora(f.firmada_en ?? f.fecha)}`, x, doc.y + 1, { width: anchoB });
+  }
+  doc.x = MARGEN;
+}
+
 /** Campo con su etiqueta encima y una línea debajo, como el formato en papel. */
 function campo(doc: PDFKit.PDFDocument, etiqueta: string, valor: string, x: number, ancho: number) {
   const y = doc.y;
@@ -99,103 +161,127 @@ function pintarActa(doc: PDFKit.PDFDocument, a: ActaPdfData) {
     a.firmas?.find((f) => roles.some((r) => (f.rol ?? '').toLowerCase().includes(r)));
 
   // --- Encabezado institucional -------------------------------------
-  doc.rect(0, 0, doc.page.width, 4).fill(ROJO);
+  const img = logo();
+  if (img) {
+    try { doc.image(img, MARGEN, 26, { fit: [96, 34] }); } catch { /* seguir sin logo */ }
+  }
+  const xTexto = img ? MARGEN + 108 : MARGEN;
   doc.fillColor(TEXTO).font('Helvetica-Bold').fontSize(9)
-    .text('INALDE BUSINESS SCHOOL', MARGEN, 28, { characterSpacing: 1.5 });
-  doc.fillColor(GRIS).font('Helvetica').fontSize(7)
-    .text('Proceso Ejecución de Programas · Formato de Acta Proyecto de Grado MBA · Versión 3', MARGEN, doc.y + 2);
-  doc.moveTo(MARGEN, doc.y + 6).lineTo(doc.page.width - MARGEN, doc.y + 6).strokeColor(ROJO).lineWidth(2).stroke();
+    .text('INALDE BUSINESS SCHOOL', xTexto, 30, { characterSpacing: 1.4 });
+  doc.fillColor(GRIS).font('Helvetica').fontSize(6.5)
+    .text('Universidad de La Sabana', xTexto, doc.y + 1);
+  doc.fillColor(GRIS).font('Helvetica').fontSize(6.5)
+    .text('Proceso Ejecución de Programas · Formato de Acta Proyecto de Grado MBA · Versión 3',
+      xTexto, doc.y + 1);
 
-  doc.y += 18;
-  doc.fillColor(TEXTO).font('Helvetica-Bold').fontSize(13)
-    .text('ACTA DE ENTREGA DE TRABAJO DE GRADO', MARGEN, doc.y, { width: ancho, align: 'center', characterSpacing: 0.5 });
-  doc.y += 14;
+  doc.moveTo(MARGEN, 68).lineTo(doc.page.width - MARGEN, 68).strokeColor(ROJO).lineWidth(2).stroke();
 
-  // --- Modalidad (casilla marcada) ----------------------------------
-  let x = MARGEN + 40;
+  // --- Título --------------------------------------------------------
+  doc.y = 82;
+  doc.fillColor(ORO).font('Helvetica-Bold').fontSize(7)
+    .text('TRABAJO DE GRADO · MBA', MARGEN, doc.y, { width: ancho, align: 'center', characterSpacing: 2 });
+  doc.fillColor(TEXTO).font('Helvetica-Bold').fontSize(14)
+    .text('ACTA DE ENTREGA DE TRABAJO DE GRADO', MARGEN, doc.y + 3, { width: ancho, align: 'center' });
+  doc.y += 16;
+
+  // --- Modalidad -----------------------------------------------------
+  seccion(doc, 'Modalidad de trabajo de grado');
+  let x = MARGEN + 6;
   const yMod = doc.y;
   for (const [key, label] of MODALIDADES) {
     const marcada = a.modalidad === key;
-    doc.rect(x, yMod, 9, 9).strokeColor(marcada ? ROJO : LINEA).lineWidth(1).stroke();
-    if (marcada) doc.fillColor(ROJO).font('Helvetica-Bold').fontSize(8).text('X', x + 2, yMod + 1);
-    doc.fillColor(marcada ? TEXTO : GRIS).font(marcada ? 'Helvetica-Bold' : 'Helvetica').fontSize(8)
-      .text(label, x + 13, yMod + 1);
-    x += 13 + doc.widthOfString(label) + 26;
+    doc.rect(x, yMod, 9, 9).lineWidth(marcada ? 1.4 : 0.8).strokeColor(marcada ? ROJO : '#bdbdbd').stroke();
+    if (marcada) doc.fillColor(ROJO).font('Helvetica-Bold').fontSize(8).text('X', x + 2.2, yMod + 1.2);
+    doc.fillColor(marcada ? TEXTO : GRIS).font(marcada ? 'Helvetica-Bold' : 'Helvetica').fontSize(8.5)
+      .text(label, x + 14, yMod + 1);
+    x += 14 + doc.widthOfString(label) + 30;
   }
-  doc.y = yMod + 22;
+  doc.y = yMod + 20;
   doc.x = MARGEN;
 
-  // --- Fecha y lugar (dos columnas) ---------------------------------
-  const mitad = (ancho - 20) / 2;
+  // --- Datos de la sustentación --------------------------------------
+  seccion(doc, 'Datos de la sustentación');
+  const mitad = (ancho - 24) / 2;
   const yFL = doc.y;
   campo(doc, 'Fecha de sustentación', fmtFecha(a.fecha_sustentacion), MARGEN, mitad);
   const yTrasFecha = doc.y;
   doc.y = yFL;
-  campo(doc, 'Lugar', a.lugar || 'INALDE Business School', MARGEN + mitad + 20, mitad);
+  campo(doc, 'Lugar', a.lugar || 'INALDE Business School', MARGEN + mitad + 24, mitad);
   doc.y = Math.max(yTrasFecha, doc.y);
   doc.x = MARGEN;
 
-  // --- Participante (con su marca de firma) -------------------------
-  const yPart = doc.y;
   campo(doc, 'Nombre del participante', a.nombre_participante || '—', MARGEN, ancho);
-  marcaFirma(doc, firmaDe('participante'), yPart + 9, ancho);
-
   campo(doc, 'Nombre del proyecto', a.nombre_proyecto || '—', MARGEN, ancho);
 
-  const yDir = doc.y;
-  campo(doc, 'Director del proyecto', a.director_nombre || '—', MARGEN, ancho);
-  marcaFirma(doc, firmaDe('director de proyecto', 'director_proyecto', 'profesor'), yDir + 9, ancho);
+  // --- Tribunal ------------------------------------------------------
+  seccion(doc, a.modalidad === 'business_plan' ? 'Evaluación' : 'Tribunal evaluador');
+  campo(doc, a.modalidad === 'business_plan' ? 'Profesor NAVES' : 'Director del proyecto',
+    a.director_nombre || '—', MARGEN, ancho);
 
-  // --- Sustentación / jurados ---------------------------------------
-  doc.fontSize(7).fillColor(GRIS).font('Helvetica-Bold')
-    .text('SUSTENTACIÓN', MARGEN, doc.y, { characterSpacing: 0.8 });
-  doc.y += 2;
-  if (a.modalidad === 'business_plan') {
-    doc.fontSize(9).fillColor(GRIS).font('Helvetica-Oblique')
-      .text('Business Plan — sin jurados.', MARGEN, doc.y, { width: ancho });
-    doc.y += 8;
-  } else if (!a.jurados?.length) {
-    doc.fontSize(9).fillColor(ROJO).font('Helvetica')
-      .text('Pendiente: aún no se han registrado los jurados.', MARGEN, doc.y, { width: ancho });
-    doc.y += 8;
+  if (a.modalidad !== 'business_plan') {
+    if (!a.jurados?.length) {
+      doc.fontSize(8.5).fillColor(ROJO).font('Helvetica-Oblique')
+        .text('Pendiente: aún no se han registrado los jurados.', MARGEN, doc.y, { width: ancho });
+      doc.y += 10;
+    } else {
+      a.jurados.forEach((j, i) => campo(doc, `Jurado ${i + 1}`, nombreJurado(j), MARGEN, ancho));
+    }
+  }
+
+  // --- Resultado ------------------------------------------------------
+  seccion(doc, 'Resultado de la sustentación');
+  const aceptado = a.nota === 'aceptado';
+  const yR = doc.y;
+  if (a.nota) {
+    const etiqueta = aceptado ? 'ACEPTADO' : 'RECHAZADO';
+    const anchoCaja = doc.widthOfString(etiqueta) + 26;
+    doc.roundedRect(MARGEN, yR, anchoCaja, 20, 3)
+      .fillAndStroke(aceptado ? '#f0fdf4' : '#fef2f2', aceptado ? '#15803d' : ROJO);
+    doc.fillColor(aceptado ? '#15803d' : ROJO).font('Helvetica-Bold').fontSize(10)
+      .text(etiqueta, MARGEN + 13, yR + 6, { characterSpacing: 1 });
   } else {
-    a.jurados.forEach((j, i) => {
+    doc.fillColor(GRIS).font('Helvetica-Oblique').fontSize(9)
+      .text('Pendiente de registrar', MARGEN, yR + 4);
+  }
+  doc.y = yR + 28;
+  doc.x = MARGEN;
+
+  campo(doc, 'Observaciones', a.observaciones || 'Sin observaciones.', MARGEN, ancho);
+
+  // --- Firmas ---------------------------------------------------------
+  // Van al pie, como en el formato en papel: es lo último que se completa.
+  const firmasEnActa: Array<[string, string | null, string | null, FirmaActa | undefined]> = [
+    ['participante', a.nombre_participante, 'Participante · autor del trabajo de grado', firmaDe('participante')],
+  ];
+  if (a.modalidad === 'business_plan') {
+    firmasEnActa.push(['profesor', a.director_nombre, 'Profesor NAVES', firmaDe('profesor')]);
+  } else {
+    firmasEnActa.push(['director_proyecto', a.director_nombre, 'Director del proyecto', firmaDe('director de proyecto', 'director_proyecto')]);
+    (a.jurados ?? []).forEach((j, i) => {
       const n = nombreJurado(j);
-      const yJ = doc.y;
-      doc.fontSize(10).fillColor(TEXTO).font('Helvetica')
-        .text(`Jurado ${i + 1}: ${n}`, MARGEN, yJ, { width: ancho });
-      marcaFirma(doc, firmaDe(`jurado ${i + 1}`, n.toLowerCase()), yJ, ancho);
-      const yl = doc.y + 2;
-      doc.moveTo(MARGEN, yl).lineTo(MARGEN + ancho, yl).strokeColor(LINEA).lineWidth(0.5).stroke();
-      doc.y = yl + 6;
+      firmasEnActa.push([`jurado_${i}`, n, `Jurado ${i + 1}`, firmaDe(`jurado ${i + 1}`, n.toLowerCase())]);
     });
   }
-  doc.y += 6;
+  firmasEnActa.push(['director_mba', a.director_mba_nombre, a.director_mba_cargo || 'Director MBA', firmaDe('director mba', 'director_mba')]);
 
-  // --- Resultado -----------------------------------------------------
-  doc.fontSize(7).fillColor(GRIS).font('Helvetica-Bold')
-    .text('NOTA / RESULTADO', MARGEN, doc.y, { characterSpacing: 0.8 });
-  const aceptado = a.nota === 'aceptado';
-  doc.fontSize(11).fillColor(a.nota ? (aceptado ? '#15803d' : ROJO) : GRIS).font('Helvetica-Bold')
-    .text(a.nota ? (aceptado ? 'ACEPTADO' : 'RECHAZADO') : '—', MARGEN, doc.y + 2, { characterSpacing: 1 });
+  // Las firmas siguen al contenido en vez de anclarse al pie: empujarlas abajo
+  // dejaba media hoja en blanco en las actas cortas (Business Plan).
   doc.y += 10;
+  seccion(doc, 'Firmas');
 
-  // --- Observaciones --------------------------------------------------
-  doc.fontSize(7).fillColor(GRIS).font('Helvetica-Bold')
-    .text('OBSERVACIONES', MARGEN, doc.y, { characterSpacing: 0.8 });
-  doc.fontSize(9).fillColor(TEXTO).font('Helvetica')
-    .text(a.observaciones || '—', MARGEN, doc.y + 2, { width: ancho, align: 'justify' });
-  doc.y += 10;
-
-  // --- Cierre: Director MBA ------------------------------------------
-  const yMba = doc.y;
-  doc.moveTo(MARGEN, yMba).lineTo(MARGEN + 240, yMba).strokeColor(TEXTO).lineWidth(0.8).stroke();
-  doc.fontSize(9).fillColor(TEXTO).font('Helvetica-Bold')
-    .text(a.director_mba_nombre || '—', MARGEN, yMba + 4);
-  doc.fontSize(7).fillColor(GRIS).font('Helvetica')
-    .text(a.director_mba_cargo || 'Director MBA', MARGEN, doc.y);
-  marcaFirma(doc, firmaDe('director mba', 'director_mba', 'mba'), yMba + 4, ancho);
-
+  const anchoF = (ancho - 24) / 2;
+  for (let i = 0; i < firmasEnActa.length; i += 2) {
+    const yFila = doc.y;
+    const [, n1, c1, f1] = firmasEnActa[i];
+    bloqueFirma(doc, MARGEN, anchoF, n1, c1, f1);
+    const yTras1 = doc.y;
+    if (firmasEnActa[i + 1]) {
+      doc.y = yFila;
+      const [, n2, c2, f2] = firmasEnActa[i + 1];
+      bloqueFirma(doc, MARGEN + anchoF + 24, anchoF, n2, c2, f2);
+    }
+    doc.y = Math.max(yTras1, doc.y) + 12;
+  }
 }
 
 export function buildActaPDF(a: ActaPdfData): Promise<Buffer> {

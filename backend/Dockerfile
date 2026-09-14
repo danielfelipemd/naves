@@ -11,6 +11,9 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=builder /app/dist ./dist
+# El logo institucional que va impreso en las actas. Sin esto el PDF sale sin
+# logo en producción, aunque en local se vea bien.
+COPY assets ./assets
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:3000/health || exit 1
