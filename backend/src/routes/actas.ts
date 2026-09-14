@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { generarActasCohorte } from '../services/actas/generar.js';
 import { proveedorActivo } from '../services/actas/proveedor-firma.js';
-import { buildActaPDF } from '../services/actas/pdf-acta.js';
+import { buildActaPDF, buildLoteActasPDF } from '../services/actas/pdf-acta.js';
 import { firmar, ultimoHash, verificarCadena } from '../services/actas/firma.js';
 import { sha256Hex } from '../auth/crypto.js';
 
@@ -17,6 +17,10 @@ import { sha256Hex } from '../auth/crypto.js';
 
 const router = Router();
 const soloAdmin = [requireAuth(), requireRole('super_admin')];
+// La impresión y el archivo en papel los hace la asistente del programa, no el
+// super_admin: se le da acceso a lo suyo (ver estado y descargar), nunca a
+// generar, firmar ni cambiar datos.
+const adminOAsistente = [requireAuth(), requireRole('super_admin', 'asistente_programa')];
 
 const ROLES_INTERNOS = ['profesor', 'director_proyecto', 'jurado'];
 
@@ -403,6 +407,100 @@ router.get('/firmar/:token/acta/:actaId/pdf', async (req, res) => {
   // inline: se abre en el visor del navegador, no se descarga. El firmante
   // lo lee ahí mismo sin salir de la pantalla de firma.
   res.setHeader('Content-Disposition', 'inline; filename="acta.pdf"');
+  res.send(pdf);
+});
+
+
+// =====================================================================
+// ENTREGA A LA ASISTENTE — impresión por lotes
+//
+// Las 64 actas de Business Plan se cierran rápido (las firman 3 profesores y
+// el Director MBA, en bloque); las de Caso dependen de varios directores y de
+// sus tribunales, así que llegan más tarde. Por eso se entrega POR LOTES: lo
+// que ya está firmado se imprime sin esperar a lo que falta.
+// =====================================================================
+
+/** Nombre legible de cada rol, para decir a quién se está esperando. */
+const ROL_LEGIBLE: Record<string, string> = {
+  participante: 'el participante',
+  profesor: 'el profesor',
+  director_proyecto: 'el director del proyecto',
+  jurado: 'los jurados',
+  director_mba: 'el Director MBA',
+};
+
+// GET /api/actas/lotes/:cohorteId — semáforo de impresión.
+router.get('/lotes/:cohorteId', ...adminOAsistente, async (req: AuthenticatedRequest, res) => {
+  const { data: actas } = await supabaseAdmin.from('acta')
+    .select('id, nombre_participante, modalidad, estado, firmas, completa_en')
+    .eq('cohorte_id', req.params.cohorteId);
+
+  const completas: any[] = [];
+  const pendientes: any[] = [];
+  const esperandoA = new Map<string, number>();
+
+  for (const a of (actas ?? []) as any[]) {
+    if (a.estado === 'faltan_datos') continue;
+    const firmas = (a.firmas ?? []) as any[];
+    const faltan = firmas.filter((f) => f.estado !== 'firmada');
+    const fila = {
+      id: a.id, participante: a.nombre_participante, modalidad: a.modalidad,
+      estado: a.estado, completa_en: a.completa_en,
+    };
+    if (!faltan.length) { completas.push(fila); continue; }
+    pendientes.push({ ...fila, faltan: faltan.map((f) => ({ rol: f.rol, nombre: f.nombre })) });
+    for (const f of faltan) {
+      // Se agrupa por PERSONA: "esperando a Fulano (12 actas)" es accionable;
+      // "esperando 12 firmas" no dice a quién hay que perseguir.
+      const clave = f.nombre ? `${ROL_LEGIBLE[f.rol] ?? f.rol}: ${f.nombre}` : (ROL_LEGIBLE[f.rol] ?? f.rol);
+      esperandoA.set(clave, (esperandoA.get(clave) ?? 0) + 1);
+    }
+  }
+
+  // Lotes por modalidad: es como se imprimen y archivan en papel.
+  const porModalidad = (lista: any[]) => {
+    const m = new Map<string, number>();
+    for (const x of lista) m.set(x.modalidad, (m.get(x.modalidad) ?? 0) + 1);
+    return [...m.entries()].map(([modalidad, total]) => ({ modalidad, total }));
+  };
+
+  res.json({
+    cohorte_id: req.params.cohorteId,
+    listas: { total: completas.length, por_modalidad: porModalidad(completas), actas: completas },
+    pendientes: {
+      total: pendientes.length,
+      esperando: [...esperandoA.entries()]
+        .map(([quien, actas]) => ({ quien, actas }))
+        .sort((a, b) => b.actas - a.actas),
+      actas: pendientes,
+    },
+  });
+});
+
+// GET /api/actas/lotes/:cohorteId/pdf — un solo PDF con todas las actas
+// completas, una por página, listo para mandar a la impresora.
+router.get('/lotes/:cohorteId/pdf', ...adminOAsistente, async (req: AuthenticatedRequest, res) => {
+  const modalidad = String(req.query.modalidad ?? '').trim();
+  let q = supabaseAdmin.from('acta').select('*').eq('cohorte_id', req.params.cohorteId);
+  if (modalidad) q = q.eq('modalidad', modalidad);
+  const { data: actas } = await q;
+
+  // Solo las que tienen TODAS las firmas: imprimir un acta a medias obligaría
+  // a reimprimirla, y en papel eso significa rehacer la carpeta.
+  const completas = ((actas ?? []) as any[])
+    .filter((a) => a.estado !== 'faltan_datos'
+      && ((a.firmas ?? []) as any[]).length > 0
+      && ((a.firmas ?? []) as any[]).every((f) => f.estado === 'firmada'))
+    .sort((a, b) => String(a.nombre_participante ?? '').localeCompare(String(b.nombre_participante ?? ''), 'es'));
+
+  if (!completas.length) {
+    return res.status(404).json({ error: 'SIN_ACTAS_COMPLETAS', mensaje: 'Todavía no hay actas con todas las firmas.' });
+  }
+
+  const pdf = await buildLoteActasPDF(completas as any[]);
+  const sufijo = modalidad ? `-${modalidad}` : '';
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="actas-${req.params.cohorteId}${sufijo}.pdf"`);
   res.send(pdf);
 });
 
