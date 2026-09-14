@@ -31,6 +31,7 @@ import ActasPanel from './pages/admin/actas/Panel';
 import ActaDetalle from './pages/admin/actas/Acta';
 import ActasFirmaLote from './pages/admin/actas/FirmaLote';
 import ActaMicroformulario from './pages/publico/ActaMicroformulario';
+import FirmarActas from './pages/publico/FirmarActas';
 import AdminTrabajosSector from './pages/admin/TrabajosSectorAdmin';
 import AdminDashboardControl from './pages/admin/DashboardControl';
 import AolTrabajos from './pages/admin/aol/Trabajos';
@@ -114,6 +115,7 @@ export default function App() {
         <Route path="/panelista/confirmar" element={<ConfirmarAsistencia />} />
         <Route path="/trabajos/:cohorteId" element={<TrabajosSectorPublico />} />
         <Route path="/actas/micro/:token" element={<ActaMicroformulario />} />
+        <Route path="/actas/firmar/:token" element={<FirmarActas />} />
 
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/mi-perfil" element={<ProtectedRoute><MiPerfil /></ProtectedRoute>} />
