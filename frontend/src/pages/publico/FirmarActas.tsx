@@ -160,6 +160,14 @@ export default function FirmarActas() {
       setError('Escribe los últimos dígitos de tu documento para confirmar tu identidad.');
       return;
     }
+    // Revisar cada acta es recomendable, no obligatorio: quien ya conoce el
+    // contenido no tiene por qué abrir veintidós documentos para firmarlos.
+    // Se avisa una vez y decide el firmante.
+    const sinLeer = (data?.actas.length ?? 0) - leidas.size;
+    if (sinLeer > 0 && !confirm(
+      `Vas a firmar ${data?.actas.length} actas y has abierto ${leidas.size}. `
+      + `Tu firma vale para todas. ¿Continuar?`,
+    )) return;
 
     setEnviando(true);
     try {
@@ -333,12 +341,12 @@ export default function FirmarActas() {
 
       {faltanPorLeer > 0 && (
         <div className="mb-4 rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-sm">
-          Te falta{faltanPorLeer === 1 ? '' : 'n'} por abrir {faltanPorLeer} acta{faltanPorLeer === 1 ? '' : 's'}.
-          Revísala{faltanPorLeer === 1 ? '' : 's'} antes de firmar: tu firma vale para todas.
+          Has revisado {leidas.size} de {d.actas.length} actas. Puedes abrir las que quieras desde la lista,
+          o firmarlas todas de una vez si ya conoces su contenido.
         </div>
       )}
 
-      <button onClick={firmar} disabled={enviando || faltanPorLeer > 0}
+      <button onClick={firmar} disabled={enviando}
         className="btn-inalde-primary disabled:opacity-50 disabled:cursor-not-allowed">
         {enviando ? 'Registrando tu firma…' : `Firmar ${d.actas.length} acta${d.actas.length === 1 ? '' : 's'} →`}
       </button>
