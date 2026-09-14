@@ -4,14 +4,14 @@ import { api } from '../../../lib/api';
 import { formatBackendError } from '../../../lib/errors';
 
 // Actas de Grado — firma en lote (dentro de /admin, sin Header propio). Cada
-// firmante firma TODAS sus actas de una sola vez ("un solo acto"). El proveedor
-// de firma puede estar en modo simulación (stub).
+// firmante firma TODAS sus actas de una sola vez ("un solo acto"). La firma la
+// sella el propio sistema: hash encadenado + HMAC, conforme a la Ley 527/1999.
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
 
 interface ActaLote { id: string; participante: string; modalidad: Modalidad; estado: string; }
 interface FirmanteLote { rol: string; nombre: string; actas: ActaLote[]; }
-interface Data { proveedor: { nombre: string; es_stub: boolean }; firmantes: FirmanteLote[]; }
+interface Data { firmantes: FirmanteLote[]; }
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 
 const MODALIDAD: Record<Modalidad, { corto: string; pill: string }> = {
@@ -92,11 +92,6 @@ export default function FirmaLote() {
 
       {data && (
         <>
-          {data.proveedor.es_stub && (
-            <div className="mb-6 rounded border-l-4 border-inalde-gold bg-amber-50 px-4 py-3 text-sm text-inalde-text">
-              <strong>Proveedor de firma no configurado</strong> — flujo en modo simulación. Las firmas se registran en el sistema pero no se envían a un proveedor real ({data.proveedor.nombre}).
-            </div>
-          )}
 
           {data.firmantes.length === 0 ? (
             <p className="text-inalde-gray text-sm">No hay firmantes con actas pendientes en esta cohorte.</p>

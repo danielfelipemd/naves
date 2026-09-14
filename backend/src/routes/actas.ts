@@ -3,7 +3,6 @@ import { randomBytes } from 'node:crypto';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { generarActasCohorte } from '../services/actas/generar.js';
-import { proveedorActivo } from '../services/actas/proveedor-firma.js';
 import { buildActaPDF, buildLoteActasPDF } from '../services/actas/pdf-acta.js';
 import { firmar, ultimoHash, verificarCadena } from '../services/actas/firma.js';
 import { sha256Hex } from '../auth/crypto.js';
@@ -11,10 +10,13 @@ import { sendEmail } from '../services/email.js';
 import { decryptPII } from '../auth/crypto.js';
 
 // =====================================================================
-// Actas de Grado — /admin/programacion → Actas. Máquina de estados + firma en
-// lote de un solo acto. El conector del proveedor de firma es un STUB hasta que
-// se confirme el proveedor (ver services/actas/proveedor-firma.ts); el resto
-// (generación, panel, microformulario, estados, archivo) opera completo.
+// Actas de Entrega de Trabajo de Grado.
+//
+// Una acta por participante, generada sin digitación desde el cronograma y la
+// sábana. La firma es PROPIA del sistema (services/actas/firma.ts): cada firma
+// lleva fecha del servidor, IP, el trazo y un código encadenado sellado con
+// HMAC, conforme a la Ley 527/1999 y el Decreto 2364/2012. No hay proveedor
+// externo ni modo simulación.
 // =====================================================================
 
 const router = Router();
@@ -133,7 +135,6 @@ router.get('/', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
     tiles, actas: rows,
     firmantes: [...firmantes.values()].sort((a, b) => (a.total - a.firmadas) - (b.total - b.firmadas) === 0 ? a.rol.localeCompare(b.rol) : (b.total - b.firmadas) - (a.total - a.firmadas)),
     microformularios_pendientes: micros ?? [],
-    proveedor_firma: { nombre: proveedorActivo.nombre, es_stub: proveedorActivo.esStub },
   });
 });
 
@@ -156,13 +157,13 @@ router.post('/:id(\\d+)', ...soloAdmin, async (req: AuthenticatedRequest, res) =
 });
 
 // POST /api/actas/:cohorteId/enviar — envía a firma las actas 'generada' (crea sobres
-// por firmante vía el proveedor; con el stub solo cambia el estado a 'enviada').
+// por firmante; el envío de los enlaces se hace desde /actas/enlaces/:cohorteId).
 router.post('/:cohorteId/enviar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const { data: listas } = await supabaseAdmin.from('acta').select('id').eq('cohorte_id', req.params.cohorteId).eq('estado', 'generada');
   const ids = ((listas ?? []) as any[]).map((a) => a.id);
-  if (!ids.length) return res.json({ enviadas: 0, proveedor: proveedorActivo.nombre });
+  if (!ids.length) return res.json({ enviadas: 0 });
   await supabaseAdmin.from('acta').update({ estado: 'enviada', enviada_en: new Date().toISOString() }).in('id', ids);
-  res.json({ enviadas: ids.length, proveedor: proveedorActivo.nombre, es_stub: proveedorActivo.esStub });
+  res.json({ enviadas: ids.length });
 });
 
 // GET /api/actas/lote/:cohorteId — actas agrupadas por firmante (para firma en lote).
@@ -176,12 +177,12 @@ router.get('/lote/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest, r
     g.actas.push({ id: a.id, participante: a.nombre_participante, modalidad: a.modalidad, estado: a.estado });
     grupos.set(key, g);
   }
-  res.json({ cohorte_id: req.params.cohorteId, proveedor: { nombre: proveedorActivo.nombre, es_stub: proveedorActivo.esStub }, firmantes: [...grupos.values()] });
+  res.json({ cohorte_id: req.params.cohorteId, firmantes: [...grupos.values()] });
 });
 
 // POST /api/actas/lote/:cohorteId/firmar — firma en lote de UN solo acto: el firmante
 // (rol+nombre) firma TODAS sus actas pendientes. Con el proveedor real esto lo
-// dispara el webhook; con el stub se marca aquí para operar de punta a punta.
+// firma con el mismo sellado que el enlace público: hash encadenado + HMAC.
 router.post('/lote/:cohorteId/firmar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const { rol, nombre } = req.body ?? {};
   if (!rol) return res.status(400).json({ error: 'FALTA_ROL' });
@@ -190,20 +191,28 @@ router.post('/lote/:cohorteId/firmar', ...soloAdmin, async (req: AuthenticatedRe
     : ROLES_INTERNOS.includes(rol) ? estado === 'en_firmas_internas'
     : rol === 'director_mba' ? estado === 'lista_para_cierre' : false;
 
-  const sobre = await proveedorActivo.crearSobreLote({ rol, nombre: nombre ?? '', email: null }, ((actas ?? []) as any[]).map((a) => a.id));
-  const ahora = new Date().toISOString();
+  // Firma REAL, con el mismo sellado que la del enlace público: hash encadenado
+  // + HMAC. Antes esto marcaba la casilla como firmada sin sello ni trazo, así
+  // que dejaba firmas que no se podían verificar.
+  const ip = (req.header('x-forwarded-for')?.split(',')[0] ?? req.socket?.remoteAddress ?? '').replace(/^::ffff:/, '') || null;
+  const ua = (req.header('user-agent') ?? '').slice(0, 300) || null;
+  const imagen = typeof req.body?.imagen === 'string' ? req.body.imagen : null;
   let firmadas = 0;
   for (const a of (actas ?? []) as any[]) {
     if (!turno(a.estado)) continue;
     const firmas = (a.firmas ?? []) as any[];
-    const f = firmas.find((x) => x.rol === rol && (nombre ? x.nombre === nombre : true) && x.estado !== 'firmada');
-    if (!f) continue;
-    f.estado = 'firmada'; f.firmada_en = ahora; f.fecha = ahora; f.certificado = { sobre: sobre.sobreId, proveedor: proveedorActivo.nombre };
+    const idx = firmas.findIndex((x) => x.rol === rol && (nombre ? x.nombre === nombre : true) && x.estado !== 'firmada');
+    if (idx < 0) continue;
+    const sellada = firmar(
+      { actaId: a.id, rol, nombre: nombre ?? firmas[idx].nombre ?? '', imagen, ip, userAgent: ua },
+      ultimoHash(firmas),
+    );
+    firmas[idx] = { ...firmas[idx], ...sellada };
     const nuevoEstado = avanzarEstado(firmas, a.estado);
-    await supabaseAdmin.from('acta').update({ firmas, estado: nuevoEstado, ...(nuevoEstado === 'completa' ? { completa_en: ahora } : {}) }).eq('id', a.id);
+    await supabaseAdmin.from('acta').update({ firmas, estado: nuevoEstado, ...(nuevoEstado === 'completa' ? { completa_en: new Date().toISOString() } : {}) }).eq('id', a.id);
     firmadas++;
   }
-  res.json({ firmadas, sobre: sobre.sobreId, es_stub: proveedorActivo.esStub });
+  res.json({ firmadas });
 });
 
 // === Microformulario para jurados tardíos (Caso/PI) — PÚBLICO (sin login) ======
@@ -258,13 +267,13 @@ router.post('/micro/:token', async (req, res) => {
 });
 
 // POST /api/actas/:cohorteId/archivar — marca las completas como archivadas.
-// (El PDF certificado de archivo lo entrega el proveedor de firma; con el stub se
-// registra el archivo lógico. El registro permanente vive en la base de datos.)
+// El PDF con las firmas y su certificado lo genera el propio sistema
+// (GET /actas/:id/pdf y el lote); aquí solo se cierra el ciclo de la cohorte.
 router.post('/:cohorteId/archivar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const { data: completas } = await supabaseAdmin.from('acta').select('id').eq('cohorte_id', req.params.cohorteId).eq('estado', 'completa');
   const ids = ((completas ?? []) as any[]).map((a) => a.id);
   if (ids.length) await supabaseAdmin.from('acta').update({ estado: 'archivada' }).in('id', ids);
-  res.json({ archivadas: ids.length, nota: proveedorActivo.esStub ? 'Archivo lógico (PDF certificado pendiente del proveedor de firma).' : 'Archivadas.' });
+  res.json({ archivadas: ids.length });
 });
 
 
