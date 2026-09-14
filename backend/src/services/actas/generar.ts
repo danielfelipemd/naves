@@ -62,11 +62,22 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
     : { data: [] as any[] };
   const nombreProy = new Map(((proys ?? []) as any[]).map((p) => [p.id, p.nombre]));
 
-  // Fecha de sustentación: jornada del slot del proyecto definitivo.
+  // Fecha y HORA de sustentación: del slot del proyecto en la programación.
+  // La hora importa: el acta se abre sola cuando la presentación ya terminó
+  // (§ apertura automática), y en una jornada hay hasta 20 presentaciones
+  // seguidas, así que la fecha sola no basta para saber cuáles ya pasaron.
   const { data: slots } = proyIds.length
-    ? await supabaseAdmin.from('slot_presentacion').select('proyecto_id, jornadas:jornada_id(fecha)').in('proyecto_id', proyIds)
+    ? await supabaseAdmin.from('slot_presentacion')
+        .select('proyecto_id, hora_inicio, hora_fin, jornadas:jornada_id(fecha)')
+        .in('proyecto_id', proyIds)
     : { data: [] as any[] };
-  const fechaPorProy = new Map(((slots ?? []) as any[]).map((s) => [s.proyecto_id, s.jornadas?.fecha ?? null]));
+  const sustentacionPorProy = new Map(((slots ?? []) as any[]).map((s) => {
+    const fecha = s.jornadas?.fecha ?? null;
+    // Bogotá es UTC-5 todo el año (sin horario de verano).
+    const inicio = fecha && s.hora_inicio ? `${fecha}T${s.hora_inicio}-05:00` : (fecha ?? null);
+    const fin = fecha && s.hora_fin ? new Date(`${fecha}T${s.hora_fin}-05:00`) : (fecha ? new Date(`${fecha}T23:59:59-05:00`) : null);
+    return [s.proyecto_id, { fecha: inicio, fin }];
+  }));
 
   // Resultado/jurados capturados por microformulario (Caso/PI).
   const { data: micros } = await supabaseAdmin.from('acta_microformulario').select('proyecto_id, datos, usado').eq('cohorte_id', cohorteId).eq('usado', true);
@@ -83,7 +94,11 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
     const modalidad = e.tipo_trabajo_grado;
     const proyId = e.proyecto_definitivo_id;
     const nombreProyecto = proyId ? (nombreProy.get(proyId) ?? null) : null;
-    const fecha = proyId ? (fechaPorProy.get(proyId) ?? null) : null;
+    const sust = proyId ? sustentacionPorProy.get(proyId) : null;
+    const fecha = sust?.fecha ?? null;
+    // ¿Ya terminó la presentación? El cronograma es la única fuente: nadie marca
+    // "ya ocurrió". Mientras no haya pasado la hora de fin, el acta no se abre.
+    const yaSustentó = !!(sust?.fin && new Date() >= sust.fin);
     const director = modalidad === 'business_plan'
       ? { nombre: profPorEquipo.get(e.id) ?? null, email: null }
       : (e.director_id ? dirById.get(e.director_id) ?? { nombre: null, email: null } : { nombre: null, email: null });
@@ -95,11 +110,16 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
       if (!p?.id) continue;
       const prev = actaPrev.get(p.id);
       // La nota sale del microformulario (Caso/PI) o de lo ya capturado; si no, falta.
-      const nota = micro?.nota ?? prev?.nota ?? null;
+      // Resultado: 'aceptado' por defecto en cuanto la sustentación ocurrió.
+      // Quien llega a sustentar va preparado, así que el rechazo es la excepción
+      // y se corrige a mano desde el acta. Así ningún profesor tiene que
+      // registrar nada en el caso normal, que es lo que se pidió.
+      const nota = micro?.nota ?? prev?.nota ?? (yaSustentó ? 'aceptado' : null);
 
       const faltan: string[] = [];
       if (!nombreProyecto) faltan.push('nombre del proyecto');
       if (!fecha) faltan.push('fecha de sustentación (programación)');
+      if (!yaSustentó && fecha) faltan.push('la presentación aún no ha ocurrido');
       if (!director.nombre) faltan.push(modalidad === 'business_plan' ? 'profesor asignado' : 'director de proyecto');
       if (modalidad !== 'business_plan' && !jurados.length) faltan.push('jurados (microformulario)');
       if (!nota) faltan.push('resultado de la sustentación');

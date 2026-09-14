@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { generarActasCohorte } from '../services/actas/generar.js';
 import { proveedorActivo } from '../services/actas/proveedor-firma.js';
+import { buildActaPDF } from '../services/actas/pdf-acta.js';
 
 // =====================================================================
 // Actas de Grado — /admin/programacion → Actas. Máquina de estados + firma en
@@ -212,6 +213,18 @@ router.post('/:cohorteId/archivar', ...soloAdmin, async (req: AuthenticatedReque
   const ids = ((completas ?? []) as any[]).map((a) => a.id);
   if (ids.length) await supabaseAdmin.from('acta').update({ estado: 'archivada' }).in('id', ids);
   res.json({ archivadas: ids.length, nota: proveedorActivo.esStub ? 'Archivo lógico (PDF certificado pendiente del proveedor de firma).' : 'Archivadas.' });
+});
+
+
+// GET /api/actas/:id/pdf — el acta en PDF, lista para imprimir y archivar.
+router.get('/:id(\\d+)/pdf', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const { data: a } = await supabaseAdmin.from('acta').select('*').eq('id', req.params.id).maybeSingle();
+  if (!a) return res.status(404).json({ error: 'NO_ENCONTRADA' });
+  const pdf = await buildActaPDF(a as any);
+  const nombre = String((a as any).nombre_participante ?? req.params.id).replace(/[^a-zA-Z0-9]/g, '_');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="acta-${nombre}.pdf"`);
+  res.send(pdf);
 });
 
 export default router;
