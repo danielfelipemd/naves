@@ -5,6 +5,8 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/mid
 import { generarActasCohorte } from '../services/actas/generar.js';
 import { proveedorActivo } from '../services/actas/proveedor-firma.js';
 import { buildActaPDF } from '../services/actas/pdf-acta.js';
+import { firmar, ultimoHash, verificarCadena } from '../services/actas/firma.js';
+import { sha256Hex } from '../auth/crypto.js';
 
 // =====================================================================
 // Actas de Grado — /admin/programacion → Actas. Máquina de estados + firma en
@@ -225,6 +227,157 @@ router.get('/:id(\\d+)/pdf', ...soloAdmin, async (req: AuthenticatedRequest, res
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="acta-${nombre}.pdf"`);
   res.send(pdf);
+});
+
+
+// =====================================================================
+// FIRMA ELECTRÓNICA — enlaces de alcance cerrado
+//
+// Un enlace de firma NO es una sesión. Solo permite ver y firmar las actas
+// que tiene asignadas; cualquier otra operación del sistema le está vedada,
+// porque estos endpoints no pasan por requireAuth ni miran req.user. Aunque
+// el correo se filtre, con ese enlace no se puede tocar nada más.
+// =====================================================================
+
+/** Datos mínimos del acta que ve quien va a firmar. Nada de PII de terceros. */
+const CAMPOS_FIRMANTE = 'id, nombre_participante, nombre_proyecto, modalidad, fecha_sustentacion, nota, estado, firmas';
+
+/** Carga y valida el enlace. Devuelve null y responde el error si no sirve. */
+async function abrirEnlace(token: string, res: any) {
+  const { data: e } = await supabaseAdmin.from('acta_enlace_firma')
+    .select('*').eq('token_hash', sha256Hex(token)).maybeSingle();
+  if (!e) { res.status(404).json({ error: 'ENLACE_NO_VALIDO' }); return null; }
+  const en = e as any;
+  if (en.revocado) { res.status(410).json({ error: 'ENLACE_REVOCADO' }); return null; }
+  if (en.usado_en) { res.status(409).json({ error: 'YA_FIRMADO' }); return null; }
+  if (new Date() > new Date(en.expira_en)) { res.status(410).json({ error: 'ENLACE_VENCIDO' }); return null; }
+  // Tras varios intentos fallidos de identidad, el enlace se cierra: evita
+  // que alguien con el correo pruebe documentos hasta acertar.
+  if (en.intentos_fallidos >= 5) { res.status(429).json({ error: 'ENLACE_BLOQUEADO' }); return null; }
+  return en;
+}
+
+const ipDe = (req: any) => (req.header('x-forwarded-for')?.split(',')[0] ?? req.socket?.remoteAddress ?? '').replace(/^::ffff:/, '') || null;
+
+// POST /api/actas/enlaces/:cohorteId — el admin crea los enlaces de firma.
+// Agrupa por firmante: un enlace por persona con TODAS sus actas pendientes.
+router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const soloRoles: string[] = Array.isArray(req.body?.roles) ? req.body.roles : [];
+  const { data: actas } = await supabaseAdmin.from('acta')
+    .select('id, firmas, estado').eq('cohorte_id', req.params.cohorteId);
+
+  const grupos = new Map<string, { rol: string; nombre: string; actaIds: number[] }>();
+  for (const a of (actas ?? []) as any[]) {
+    if (a.estado === 'faltan_datos') continue;
+    for (const f of (a.firmas ?? []) as any[]) {
+      if (f.estado === 'firmada' || f.rol === 'participante') continue;
+      if (soloRoles.length && !soloRoles.includes(f.rol)) continue;
+      if (!f.nombre) continue;
+      const key = `${f.rol}|${f.nombre}`;
+      const g = grupos.get(key) ?? { rol: f.rol as string, nombre: f.nombre as string, actaIds: [] as number[] };
+      g.actaIds.push(a.id);
+      grupos.set(key, g);
+    }
+  }
+
+  const creados: any[] = [];
+  for (const g of grupos.values()) {
+    const token = randomBytes(32).toString('base64url');
+    const { error } = await supabaseAdmin.from('acta_enlace_firma').insert({
+      token_hash: sha256Hex(token),
+      cohorte_id: req.params.cohorteId,
+      rol: g.rol, firmante_nombre: g.nombre,
+      acta_ids: g.actaIds,
+      // 7 días: suficiente para firmar sin dejar la puerta abierta un mes.
+      expira_en: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+      creado_por: req.user?.profesorId ?? null,
+    });
+    if (error) return res.status(500).json({ error: error.message });
+    creados.push({ rol: g.rol, nombre: g.nombre, actas: g.actaIds.length, enlace: `/actas/firmar/${token}` });
+  }
+  res.json({ creados: creados.length, enlaces: creados });
+});
+
+// GET /api/actas/firmar/:token — PÚBLICO. Lo que ve el firmante: sus actas y
+// nada más. No entrega datos de otras cohortes ni del resto del sistema.
+router.get('/firmar/:token', async (req, res) => {
+  const e = await abrirEnlace(req.params.token, res);
+  if (!e) return;
+  const { data: actas } = await supabaseAdmin.from('acta')
+    .select(CAMPOS_FIRMANTE).in('id', e.acta_ids);
+  res.json({
+    firmante: { nombre: e.firmante_nombre, rol: e.rol },
+    requiere_verificacion: !!e.verificacion_hash,
+    expira_en: e.expira_en,
+    actas: ((actas ?? []) as any[]).map((a) => ({
+      id: a.id, participante: a.nombre_participante, proyecto: a.nombre_proyecto,
+      modalidad: a.modalidad, fecha_sustentacion: a.fecha_sustentacion, nota: a.nota,
+    })),
+  });
+});
+
+// POST /api/actas/firmar/:token — PÚBLICO. Firma TODAS las actas del enlace
+// en un solo acto. Es lo único que este enlace puede hacer.
+router.post('/firmar/:token', async (req, res) => {
+  const e = await abrirEnlace(req.params.token, res);
+  if (!e) return;
+
+  // Comprobación de identidad: el enlace filtrado no basta por sí solo.
+  if (e.verificacion_hash) {
+    const dado = String(req.body?.verificacion ?? '').trim();
+    if (!dado || sha256Hex(dado) !== e.verificacion_hash) {
+      await supabaseAdmin.from('acta_enlace_firma')
+        .update({ intentos_fallidos: (e.intentos_fallidos ?? 0) + 1, ultimo_ip: ipDe(req) })
+        .eq('id', e.id);
+      return res.status(403).json({ error: 'VERIFICACION_INCORRECTA' });
+    }
+  }
+
+  const imagen = typeof req.body?.imagen === 'string' ? req.body.imagen : null;
+  if (!imagen) return res.status(400).json({ error: 'FALTA_FIRMA', mensaje: 'Dibuja, escribe o adjunta tu firma.' });
+  // Una firma es una imagen pequeña; el tope evita que alguien empuje un
+  // archivo enorme por este endpoint público.
+  if (imagen.length > 500_000) return res.status(413).json({ error: 'FIRMA_DEMASIADO_GRANDE' });
+
+  const { data: actas } = await supabaseAdmin.from('acta')
+    .select('id, estado, firmas').in('id', e.acta_ids);
+
+  const ip = ipDe(req);
+  const ua = (req.header('user-agent') ?? '').slice(0, 300) || null;
+  let firmadas = 0;
+
+  for (const a of (actas ?? []) as any[]) {
+    const firmas = (a.firmas ?? []) as any[];
+    // Solo la casilla que corresponde a ESTE firmante. El enlace no sirve
+    // para firmar en nombre de otro rol ni de otra persona.
+    const idx = firmas.findIndex((f) => f.rol === e.rol && f.nombre === e.firmante_nombre && f.estado !== 'firmada');
+    if (idx < 0) continue;
+    const sellada = firmar(
+      { actaId: a.id, rol: e.rol, nombre: e.firmante_nombre, imagen, ip, userAgent: ua },
+      ultimoHash(firmas),
+    );
+    firmas[idx] = { ...firmas[idx], ...sellada };
+    const nuevoEstado = avanzarEstado(firmas, a.estado);
+    await supabaseAdmin.from('acta').update({
+      firmas, estado: nuevoEstado,
+      ...(nuevoEstado === 'completa' ? { completa_en: new Date().toISOString() } : {}),
+    }).eq('id', a.id);
+    firmadas++;
+  }
+
+  await supabaseAdmin.from('acta_enlace_firma')
+    .update({ usado_en: new Date().toISOString(), ultimo_ip: ip, ultimo_user_agent: ua })
+    .eq('id', e.id);
+
+  res.json({ ok: true, firmadas });
+});
+
+// GET /api/actas/:id(\\d+)/verificar — comprueba que la cadena de firmas no
+// fue alterada. Dice exactamente dónde se rompe, si se rompe.
+router.get('/:id(\\d+)/verificar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const { data: a } = await supabaseAdmin.from('acta').select('id, firmas').eq('id', req.params.id).maybeSingle();
+  if (!a) return res.status(404).json({ error: 'NO_ENCONTRADA' });
+  res.json(verificarCadena((a as any).id, (a as any).firmas ?? []));
 });
 
 export default router;
