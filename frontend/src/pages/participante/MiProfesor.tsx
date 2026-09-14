@@ -16,7 +16,11 @@ export default function MiProfesor() {
       // RLS permite ver la asignación de mi propio equipo
       const { data: arr } = await supabase
         .from('asignaciones_profesor')
-        .select('*, profesores(nombre_completo, booking_url, areas_afinidad)')
+        // Hay DOS caminos de esta tabla a `profesores` (profesor_id y
+        // asignado_por), así que hay que decir por cuál: sin el nombre de la
+        // relación PostgREST responde PGRST201 y el catch dejaba la pantalla
+        // diciendo "aún no se ha asignado profesor" aunque sí lo hubiera.
+        .select('*, profesores:profesores!asignaciones_profesor_profesor_id_fkey(nombre_completo, booking_url, areas_afinidad)')
         .eq('equipo_id', eq.data.equipo.id)
         .limit(1);
       setData(arr?.[0] ?? null);
