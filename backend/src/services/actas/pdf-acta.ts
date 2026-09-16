@@ -262,7 +262,7 @@ function pintarActa(doc: PDFKit.PDFDocument, a: ActaPdfData) {
       firmasEnActa.push([`jurado_${i}`, n, `Jurado ${i + 1}`, firmaDe(`jurado ${i + 1}`, n.toLowerCase())]);
     });
   }
-  firmasEnActa.push(['director_mba', a.director_mba_nombre, a.director_mba_cargo || 'Director MBA', firmaDe('director mba', 'director_mba')]);
+  firmasEnActa.push(['director_mba', a.director_mba_nombre, a.director_mba_cargo || 'Director de Cohorte', firmaDe('director mba', 'director_mba')]);
 
   // Las firmas siguen al contenido en vez de anclarse al pie: empujarlas abajo
   // dejaba media hoja en blanco en las actas cortas (Business Plan).

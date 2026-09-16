@@ -276,9 +276,9 @@ export default function Acta() {
             </div>
           </div>
 
-          {/* Cierre — Director MBA */}
+          {/* Cierre — Director de Cohorte */}
           <BloqueFirma
-            titulo="Cierre — Director MBA"
+            titulo="Cierre — Director de Cohorte"
             nombre={acta.director_mba_nombre}
             cargo={acta.director_mba_cargo}
             firma={firmaDe('director mba', 'director_mba', 'mba')}

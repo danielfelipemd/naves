@@ -123,7 +123,7 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
       if (!director.nombre) faltan.push(modalidad === 'business_plan' ? 'profesor asignado' : 'director de proyecto');
       if (modalidad !== 'business_plan' && !jurados.length) faltan.push('jurados (microformulario)');
       if (!nota) faltan.push('resultado de la sustentación');
-      if (!dirMba) faltan.push('Director MBA de la cohorte (config)');
+      if (!dirMba) faltan.push('Director de Cohorte (config)');
 
       const estado = faltan.length ? 'faltan_datos' : (prev && prev.estado !== 'faltan_datos' ? prev.estado : 'generada');
       if (estado === 'faltan_datos') faltanDatos++; else generadas++;

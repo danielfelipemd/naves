@@ -6,7 +6,7 @@ import { ThOrden, useOrdenTabla } from '../../../lib/useOrdenTabla';
 
 // Actas de Grado — panel administrativo (dentro de /admin, sin Header propio).
 // Una acta por participante (Formato Acta Proyecto de Grado MBA v3). El panel
-// permite configurar el Director MBA, generar/enviar/archivar las actas, ver el
+// permite configurar el Director de Cohorte, generar/enviar/archivar las actas, ver el
 // avance de firmas y crear enlaces de microformulario para los directores de
 // Caso / Proyecto de Investigación que aún no han fijado sus jurados.
 
@@ -156,10 +156,10 @@ export default function ActasPanel() {
   const [okMsg, setOkMsg] = useState('');
   const [accion, setAccion] = useState('');
 
-  // Config Director MBA (editable).
+  // Config Director de Cohorte (editable).
   const [mbaNombre, setMbaNombre] = useState('');
   const [mbaCargo, setMbaCargo] = useState('');  const [mbaEmail, setMbaEmail] = useState('');
-  // Candidatos a Director MBA: se elige de la lista para no volver a tener el
+  // Candidatos a Director de Cohorte: se elige de la lista para no volver a tener el
   // mismo nombre escrito de dos formas distintas.
   const [candidatos, setCandidatos] = useState<Array<{ nombre: string; email: string | null; origen: string }>>([]);
   const [enviandoEnlaces, setEnviandoEnlaces] = useState(false);
@@ -205,7 +205,7 @@ export default function ActasPanel() {
     setGuardandoMba(true); setErr(''); setOkMsg('');
     try {
       await api.post(`/actas/cohorte/${cohorte}/director-mba`, { nombre: mbaNombre.trim(), cargo: mbaCargo.trim(), email: mbaEmail.trim() });
-      setOkMsg('Director MBA actualizado.');
+      setOkMsg('Director de Cohorte actualizado.');
       await cargar();
     } catch (e) {
       setErr(formatBackendError(e));
@@ -245,7 +245,7 @@ export default function ActasPanel() {
         <p className="section-subtitle mb-2">Actas de grado</p>
         <h1 className="section-title">Actas de Proyecto de Grado MBA</h1>
         <p className="text-sm text-inalde-gray mt-2">
-          Una acta por participante (Formato v3). Genera las actas, configura el Director MBA, envíalas a firma y sigue el avance de la cadena de firmas.
+          Un acta por participante (Formato v3). Genera las actas, configura el Director de Cohorte, envíalas a firma y sigue el avance de la cadena de firmas.
         </p>
       </div>
 
@@ -277,10 +277,10 @@ export default function ActasPanel() {
             <Tile label="Completas" valor={data.tiles.completas} />
           </div>
 
-          {/* Acciones + Config Director MBA */}
+          {/* Acciones + Config Director de Cohorte */}
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="card-inalde p-5">
-              <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Config Director MBA</h2>
+              <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Config Director de Cohorte</h2>
               <p className="text-xs text-inalde-gray mb-4">Firma el cierre de todas las actas de la cohorte.</p>
               {candidatos.length > 0 && (
                 <div className="mb-3">
@@ -313,11 +313,11 @@ export default function ActasPanel() {
               <div className="grid sm:grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Nombre</label>
-                  <input className="input-inalde !py-2 !text-sm" value={mbaNombre} onChange={(e) => setMbaNombre(e.target.value)} placeholder="Nombre del Director MBA" />
+                  <input className="input-inalde !py-2 !text-sm" value={mbaNombre} onChange={(e) => setMbaNombre(e.target.value)} placeholder="Nombre del Director de Cohorte" />
                 </div>
                 <div>
                   <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Cargo</label>
-                  <input className="input-inalde !py-2 !text-sm" value={mbaCargo} onChange={(e) => setMbaCargo(e.target.value)} placeholder="Director del MBA" />
+                  <input className="input-inalde !py-2 !text-sm" value={mbaCargo} onChange={(e) => setMbaCargo(e.target.value)} placeholder="Director de Cohorte" />
                 </div>
               </div>
               <div className="mb-3">
@@ -325,13 +325,13 @@ export default function ActasPanel() {
                   Correo electrónico
                 </label>
                 <input className="input-inalde !py-2 !text-sm" type="email" value={mbaEmail}
-                  onChange={(e) => setMbaEmail(e.target.value)} placeholder="director.mba@inalde.edu.co" />
+                  onChange={(e) => setMbaEmail(e.target.value)} placeholder="director.cohorte@inalde.edu.co" />
                 <p className="text-[11px] text-inalde-gray mt-1">
                   Ahí le llega su enlace para firmar. Sin correo no se le puede pedir la firma.
                 </p>
               </div>
               <button type="button" className="btn-inalde-secondary" onClick={guardarMba} disabled={guardandoMba || !mbaNombre.trim() || !mbaCargo.trim()}>
-                {guardandoMba ? 'Guardando…' : 'Guardar Director MBA'}
+                {guardandoMba ? 'Guardando…' : 'Guardar Director de Cohorte'}
               </button>
             </div>
 

@@ -26,7 +26,7 @@ const ROL_LABEL: Record<string, string> = {
   profesor: 'Profesor NAVES',
   director_proyecto: 'Director del proyecto',
   jurado: 'Jurado',
-  director_mba: 'Director MBA',
+  director_mba: 'Director de Cohorte',
 };
 
 const MODALIDAD: Record<string, string> = {

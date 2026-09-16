@@ -85,11 +85,11 @@ router.post('/generar/:cohorteId', ...soloAdmin, async (req: AuthenticatedReques
   catch (e: any) { res.status(400).json({ error: e?.message ?? 'GENERAR_FALLO' }); }
 });
 
-// POST /api/actas/cohorte/:cohorteId/director-mba — config del Director MBA.
+// POST /api/actas/cohorte/:cohorteId/director-mba — config del Director de Cohorte.
 router.post('/cohorte/:cohorteId/director-mba', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const nombre = (req.body?.nombre ?? '').trim() || null;
   const cargo = (req.body?.cargo ?? '').trim() || null;
-  // El correo es necesario para mandarle su enlace de firma: el Director MBA
+  // El correo es necesario para mandarle su enlace de firma: el Director de Cohorte
   // firma todas las actas de la cohorte y no es un usuario del sistema.
   const email = (req.body?.email ?? '').trim() || null;
   const { error } = await supabaseAdmin.from('cohortes')
@@ -380,7 +380,7 @@ router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedReques
     }
   }
 
-  // El Director MBA no es un usuario del sistema: su nombre y su correo se
+  // El Director de Cohorte no es un usuario del sistema: su nombre y su correo se
   // configuran en la cohorte. Sin esto no hay a dónde mandarle su enlace,
   // aunque firma todas las actas.
   const { data: coh } = await supabaseAdmin.from('cohortes')
@@ -554,7 +554,7 @@ router.get('/firmar/:token/acta/:actaId/pdf', async (req, res) => {
 // ENTREGA A LA ASISTENTE — impresión por lotes
 //
 // Las 64 actas de Business Plan se cierran rápido (las firman 3 profesores y
-// el Director MBA, en bloque); las de Caso dependen de varios directores y de
+// el Director de Cohorte, en bloque); las de Caso dependen de varios directores y de
 // sus tribunales, así que llegan más tarde. Por eso se entrega POR LOTES: lo
 // que ya está firmado se imprime sin esperar a lo que falta.
 // =====================================================================
@@ -565,7 +565,7 @@ const ROL_LEGIBLE: Record<string, string> = {
   profesor: 'el profesor',
   director_proyecto: 'el director del proyecto',
   jurado: 'los jurados',
-  director_mba: 'el Director MBA',
+  director_mba: 'el Director de Cohorte',
 };
 
 // GET /api/actas/candidatos-director-mba — quiénes pueden firmar el cierre.
