@@ -579,24 +579,36 @@ router.get('/candidatos-director-mba', ...soloAdmin, async (_req: AuthenticatedR
   // "director de proyecto" de un Caso o un Proyecto de Investigación. Aquí solo
   // se ofrece a quien puede firmar el cierre de TODA la cohorte.
   //
-  // Antes esta consulta traía las dos tablas ENTERAS, sin filtrar por activo:
-  // salían 24 opciones, incluidas cuentas inactivas, las de prueba QA y el
-  // staff de área (tipo='area', que no es profesor de trabajo de grado). Y como
-  // una misma persona puede estar en las dos tablas, aparecía repetida — lo que
-  // llevaba justo al problema que el selector quería evitar: el mismo nombre
-  // escrito de dos formas.
+  // Ser director de cohorte es un ENCARGO que el super admin asigna, no algo
+  // que se pueda deducir de "estar en la tabla de profesores". Deducirlo es lo
+  // que llenaba el desplegable con 22-24 nombres, incluidas las cuentas de
+  // prueba y el propio super admin. Ahora manda la marca puede_dirigir_cohorte,
+  // que se administra en Profesores y en Directores (migración 46).
   const [profs, dirs] = await Promise.all([
     supabaseAdmin.from('profesores')
-      .select('nombre_completo, email_encriptado').eq('activo', true).eq('tipo', 'profesor'),
+      .select('nombre_completo, email_encriptado, puede_dirigir_cohorte')
+      .eq('activo', true).eq('tipo', 'profesor').eq('es_super_admin', false),
     supabaseAdmin.from('directores')
-      .select('nombre_completo, email_encriptado').eq('estado', 'activo'),
+      .select('nombre_completo, email_encriptado, puede_dirigir_cohorte')
+      .eq('estado', 'activo'),
   ]);
+
+  const marcados = [
+    ...((dirs.data ?? []) as any[]).filter((r) => r.puede_dirigir_cohorte),
+    ...((profs.data ?? []) as any[]).filter((r) => r.puede_dirigir_cohorte),
+  ].length;
+
+  // Si todavía nadie está marcado, se ofrece la lista completa en vez de un
+  // desplegable vacío: así el módulo sigue usable mientras se asignan los
+  // encargos, y el aviso de abajo explica cómo dejar la lista corta.
+  const filtrar = marcados > 0;
 
   // Los directores van primero: si alguien está en las dos tablas se queda con
   // el origen "Director", que es el que corresponde para firmar el cierre.
   const vistos = new Set<string>();
   for (const [data, origen] of [[dirs.data, 'Director'], [profs.data, 'Profesor']] as const) {
     for (const r of ((data ?? []) as any[])) {
+      if (filtrar && !r.puede_dirigir_cohorte) continue;
       const nombre = (r.nombre_completo ?? '').trim();
       if (!nombre) continue;
       const clave = nombre.toLocaleLowerCase('es');
@@ -609,7 +621,7 @@ router.get('/candidatos-director-mba', ...soloAdmin, async (_req: AuthenticatedR
   }
 
   salida.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-  res.json({ candidatos: salida });
+  res.json({ candidatos: salida, sin_asignar: !filtrar });
 });
 
 // GET /api/actas/lotes/:cohorteId — semáforo de impresión.

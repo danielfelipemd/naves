@@ -221,13 +221,27 @@ export default function ActasPanel() {
     finally { setAccion(''); }
   }
 
-  /** Crea los enlaces de firma y se los manda por correo a cada firmante. */
-  async function enviarEnlaces() {
-    if (!confirm('Se enviará a cada profesor y director un correo con su enlace para firmar. ¿Continuar?')) return;
+  /**
+   * Crea los enlaces de firma y se los manda por correo a cada firmante.
+   * Con `roles` se acota a quién se le escribe: el cierre lo firma el Director
+   * de Cohorte al final, cuando ya firmaron los demás, así que casi nunca se
+   * quiere escribirle a todo el mundo a la vez.
+   */
+  async function enviarEnlaces(roles?: string[]) {
+    const aviso = roles?.length === 1 && roles[0] === 'director_mba'
+      ? `Se enviará UN correo al Director de Cohorte${mbaNombre ? ` (${mbaNombre})` : ''} con su enlace para firmar el cierre. Nadie más lo recibirá. ¿Continuar?`
+      : 'Se enviará a cada profesor y director un correo con su enlace para firmar. ¿Continuar?';
+    if (!confirm(aviso)) return;
     setEnviandoEnlaces(true); setResultadoEnlaces(null);
     try {
-      const r = await api.post(`/actas/enlaces/${cohorte}`, {});
-      setResultadoEnlaces((r.data as any)?.enlaces ?? []);
+      const r = await api.post(`/actas/enlaces/${cohorte}`, roles?.length ? { roles } : {});
+      const enlaces = (r.data as any)?.enlaces ?? [];
+      setResultadoEnlaces(enlaces);
+      if (!enlaces.length) {
+        setErr(roles?.length === 1 && roles[0] === 'director_mba'
+          ? 'No se creó ningún enlace. El cierre solo se puede firmar cuando las actas ya pasaron por las firmas internas (estado "Lista para cierre").'
+          : 'No se creó ningún enlace: no hay firmas pendientes.');
+      }
     } catch (e) {
       setErr(formatBackendError(e));
     } finally { setEnviandoEnlaces(false); }
@@ -347,8 +361,14 @@ export default function ActasPanel() {
                 <button type="button" className="btn-inalde-secondary" onClick={enviar} disabled={!!accion}>
                   {accion === 'enviar' ? 'Enviando…' : 'Enviar a firma'}
                 </button>
-                <button type="button" className="btn-inalde-secondary" onClick={enviarEnlaces} disabled={enviandoEnlaces || !!accion}>
+                <button type="button" className="btn-inalde-secondary" onClick={() => { void enviarEnlaces(); }} disabled={enviandoEnlaces || !!accion}>
                   {enviandoEnlaces ? 'Enviando enlaces…' : '✉️ Enviar enlaces de firma'}
+                </button>
+                {/* El cierre se pide aparte: el Director de Cohorte firma al
+                    final, cuando ya pasaron las firmas internas. Mandarle su
+                    enlace junto con los de todos le llegaría demasiado pronto. */}
+                <button type="button" className="btn-inalde-secondary" onClick={() => { void enviarEnlaces(['director_mba']); }} disabled={enviandoEnlaces || !!accion}>
+                  {enviandoEnlaces ? 'Enviando…' : '✉️ Solo al Director de Cohorte'}
                 </button>
                 <Link to="/admin/actas/lote" className="btn-inalde-secondary">Ir a firma en lote →</Link>
                 <Link to="/admin/actas/impresion" className="btn-inalde-secondary">🖨️ Impresión por lotes →</Link>
