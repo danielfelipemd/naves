@@ -281,7 +281,10 @@ export default function ActasPanel() {
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="card-inalde p-5">
               <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Config Director de Cohorte</h2>
-              <p className="text-xs text-inalde-gray mb-4">Firma el cierre de todas las actas de la cohorte.</p>
+              <p className="text-xs text-inalde-gray mb-4">
+                Firma el cierre de todas las actas de la cohorte. No es el director de un
+                Caso o un Proyecto de Investigación: ese firma solo las actas de su proyecto.
+              </p>
               {candidatos.length > 0 && (
                 <div className="mb-3">
                   <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">

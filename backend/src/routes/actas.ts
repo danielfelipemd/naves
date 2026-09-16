@@ -574,14 +574,40 @@ const ROL_LEGIBLE: Record<string, string> = {
 // García" en la tabla, que son la misma persona con dos textos distintos.
 router.get('/candidatos-director-mba', ...soloAdmin, async (_req: AuthenticatedRequest, res) => {
   const salida: Array<{ nombre: string; email: string | null; origen: string }> = [];
-  for (const [tabla, origen] of [['profesores', 'Profesor'], ['directores', 'Director']] as const) {
-    const { data } = await supabaseAdmin.from(tabla).select('nombre_completo, email_encriptado');
+
+  // OJO: el "director de cohorte" (quien firma el cierre) NO es lo mismo que el
+  // "director de proyecto" de un Caso o un Proyecto de Investigación. Aquí solo
+  // se ofrece a quien puede firmar el cierre de TODA la cohorte.
+  //
+  // Antes esta consulta traía las dos tablas ENTERAS, sin filtrar por activo:
+  // salían 24 opciones, incluidas cuentas inactivas, las de prueba QA y el
+  // staff de área (tipo='area', que no es profesor de trabajo de grado). Y como
+  // una misma persona puede estar en las dos tablas, aparecía repetida — lo que
+  // llevaba justo al problema que el selector quería evitar: el mismo nombre
+  // escrito de dos formas.
+  const [profs, dirs] = await Promise.all([
+    supabaseAdmin.from('profesores')
+      .select('nombre_completo, email_encriptado').eq('activo', true).eq('tipo', 'profesor'),
+    supabaseAdmin.from('directores')
+      .select('nombre_completo, email_encriptado').eq('estado', 'activo'),
+  ]);
+
+  // Los directores van primero: si alguien está en las dos tablas se queda con
+  // el origen "Director", que es el que corresponde para firmar el cierre.
+  const vistos = new Set<string>();
+  for (const [data, origen] of [[dirs.data, 'Director'], [profs.data, 'Profesor']] as const) {
     for (const r of ((data ?? []) as any[])) {
+      const nombre = (r.nombre_completo ?? '').trim();
+      if (!nombre) continue;
+      const clave = nombre.toLocaleLowerCase('es');
+      if (vistos.has(clave)) continue;   // sin repetir a la misma persona
+      vistos.add(clave);
       let email: string | null = null;
       try { email = r.email_encriptado ? decryptPII(r.email_encriptado) : null; } catch { /* ilegible */ }
-      salida.push({ nombre: r.nombre_completo, email, origen });
+      salida.push({ nombre, email, origen });
     }
   }
+
   salida.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   res.json({ candidatos: salida });
 });
