@@ -19,9 +19,17 @@ export default function Solicitudes() {
   const [respuesta, setRespuesta] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  // Sin esto, un fallo de red dejaba items en [] y la pantalla decía "Sin
+  // solicitudes": el admin creía que no había nada pendiente cuando sí lo había.
+  const [errorCarga, setErrorCarga] = useState('');
 
   async function load() {
-    setItems((await api.get('/admin/solicitudes-desarchivado')).data);
+    try {
+      setItems((await api.get('/admin/solicitudes-desarchivado')).data);
+      setErrorCarga('');
+    } catch (e: any) {
+      setErrorCarga(formatBackendError(e));
+    }
   }
   useEffect(() => { load(); }, []);
 
@@ -60,7 +68,14 @@ export default function Solicitudes() {
         </div>
       )}
 
-      {visibles.length === 0 ? <p className="text-inalde-gray text-sm">Sin solicitudes.</p> : (
+      {errorCarga && (
+        <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm mb-6">
+          No pudimos cargar las solicitudes: {errorCarga}
+          <button onClick={() => { void load(); }} className="ml-2 underline">Reintentar</button>
+        </div>
+      )}
+
+      {errorCarga ? null : visibles.length === 0 ? <p className="text-inalde-gray text-sm">Sin solicitudes.</p> : (
         <div className="space-y-3">
           {visibles.map((s) => (
             <div key={s.id} className="border border-inalde-gray-light rounded p-4">

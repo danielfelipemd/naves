@@ -114,7 +114,9 @@ export default function AolExport() {
         lectura_impacto: lecturaImpacto || undefined,
         acciones_siguiente: accionesSiguiente || undefined,
       };
-      const r = await api.post(`/aol/export/${cohorte}/word`, body, { responseType: 'blob' });
+      // timeout: 0 — generar el Word de una cohorte entera pasa de 15 s y el
+      // tope global de axios lo cortaría a media generación.
+      const r = await api.post(`/aol/export/${cohorte}/word`, body, { responseType: 'blob', timeout: 0 });
       const u = URL.createObjectURL(r.data);
       const a = document.createElement('a');
       a.href = u;
@@ -134,7 +136,7 @@ export default function AolExport() {
     if (!cohorte) return;
     setGenerando(true); setErrorWord('');
     try {
-      const r = await api.get(`/aol/export/${cohorte}/excel`, { responseType: 'blob' });
+      const r = await api.get(`/aol/export/${cohorte}/excel`, { responseType: 'blob', timeout: 0 });
       const u = URL.createObjectURL(r.data);
       const a = document.createElement('a');
       a.href = u;
@@ -156,7 +158,12 @@ export default function AolExport() {
     setGenerando(true); setErrorWord(''); setMsgArchivo('');
     try {
       const body = { nota_contexto: notaContexto || undefined, lectura_impacto: lecturaImpacto || undefined, acciones_siguiente: accionesSiguiente || undefined };
-      const r = await api.post(`/aol/export/${cohorte}/archivar`, body);
+      // timeout: 0 — /archivar genera Word + Excel + JSON de trazabilidad y
+      // escribe el cierre PERMANENTE del ciclo. Con el tope de 15 s, axios
+      // abortaba, el admin veía "no se pudo cerrar" y reintentaba: el backend
+      // ya había archivado y quedaba un cierre duplicado. Es la acción menos
+      // reversible del módulo, así que aquí el corte por tiempo sobra.
+      const r = await api.post(`/aol/export/${cohorte}/archivar`, body, { timeout: 0 });
       // Descarga los 3 archivos del paquete (base64 → blob).
       for (const f of r.data.archivos ?? []) {
         const bin = atob(f.base64);

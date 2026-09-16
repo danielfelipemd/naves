@@ -198,6 +198,7 @@ router.post('/lote/:cohorteId/firmar', ...soloAdmin, async (req: AuthenticatedRe
   const ua = (req.header('user-agent') ?? '').slice(0, 300) || null;
   const imagen = typeof req.body?.imagen === 'string' ? req.body.imagen : null;
   let firmadas = 0;
+  const fallidas: string[] = [];
   for (const a of (actas ?? []) as any[]) {
     if (!turno(a.estado)) continue;
     const firmas = (a.firmas ?? []) as any[];
@@ -209,8 +210,21 @@ router.post('/lote/:cohorteId/firmar', ...soloAdmin, async (req: AuthenticatedRe
     );
     firmas[idx] = { ...firmas[idx], ...sellada };
     const nuevoEstado = avanzarEstado(firmas, a.estado);
-    await supabaseAdmin.from('acta').update({ firmas, estado: nuevoEstado, ...(nuevoEstado === 'completa' ? { completa_en: new Date().toISOString() } : {}) }).eq('id', a.id);
+    // Sin mirar el {error} contábamos como firmadas actas que no se guardaron.
+    const { error: upErr } = await supabaseAdmin.from('acta').update({ firmas, estado: nuevoEstado, ...(nuevoEstado === 'completa' ? { completa_en: new Date().toISOString() } : {}) }).eq('id', a.id);
+    if (upErr) {
+      console.error('[actas.firmar-lote] no se pudo guardar la firma del acta', a.id, upErr.message);
+      fallidas.push(a.id);
+      continue;
+    }
     firmadas++;
+  }
+  // El conteo solo refleja lo realmente guardado; si algo falló se dice.
+  if (fallidas.length > 0) {
+    return res.status(500).json({
+      error: 'FIRMA_NO_GUARDADA', firmadas, pendientes: fallidas.length,
+      mensaje: `Se firmaron ${firmadas} actas, pero ${fallidas.length} no se pudieron guardar. Inténtalo de nuevo para las restantes.`,
+    });
   }
   res.json({ firmadas });
 });
@@ -458,6 +472,12 @@ router.post('/firmar/:token', async (req, res) => {
   const ip = ipDe(req);
   const ua = (req.header('user-agent') ?? '').slice(0, 300) || null;
   let firmadas = 0;
+  // Actas cuyo guardado falló. Si queda alguna NO cerramos el enlace: el
+  // firmante debe poder reintentar. Un update de supabase-js no lanza, devuelve
+  // {error}: sin mirarlo contábamos como firmada un acta que nunca se guardó,
+  // marcábamos el enlace como usado y el reintento moría en 409 YA_FIRMADO,
+  // dejando el acta sin firma y la cadena de hash con un hueco.
+  const fallidas: string[] = [];
 
   for (const a of (actas ?? []) as any[]) {
     const firmas = (a.firmas ?? []) as any[];
@@ -471,16 +491,40 @@ router.post('/firmar/:token', async (req, res) => {
     );
     firmas[idx] = { ...firmas[idx], ...sellada };
     const nuevoEstado = avanzarEstado(firmas, a.estado);
-    await supabaseAdmin.from('acta').update({
+    const { error: upErr } = await supabaseAdmin.from('acta').update({
       firmas, estado: nuevoEstado,
       ...(nuevoEstado === 'completa' ? { completa_en: new Date().toISOString() } : {}),
     }).eq('id', a.id);
+    if (upErr) {
+      console.error('[actas.firmar] no se pudo guardar la firma del acta', a.id, upErr.message);
+      fallidas.push(a.id);
+      continue;
+    }
     firmadas++;
   }
 
-  await supabaseAdmin.from('acta_enlace_firma')
+  // El enlace solo se quema si TODAS las actas quedaron guardadas. Las que ya
+  // se firmaron no se repiten: el findIndex de arriba salta las 'firmada'.
+  if (fallidas.length > 0) {
+    await supabaseAdmin.from('acta_enlace_firma')
+      .update({ ultimo_ip: ip, ultimo_user_agent: ua })
+      .eq('id', e.id);
+    return res.status(500).json({
+      error: 'FIRMA_NO_GUARDADA',
+      firmadas,
+      pendientes: fallidas.length,
+      mensaje: firmadas > 0
+        ? `Guardamos ${firmadas} de tus actas, pero ${fallidas.length} no quedaron firmadas. Tu enlace sigue activo: vuelve a intentarlo en unos minutos.`
+        : 'No pudimos registrar tu firma. Tu enlace sigue activo: vuelve a intentarlo en unos minutos.',
+    });
+  }
+
+  const { error: enlaceErr } = await supabaseAdmin.from('acta_enlace_firma')
     .update({ usado_en: new Date().toISOString(), ultimo_ip: ip, ultimo_user_agent: ua })
     .eq('id', e.id);
+  // Las firmas ya están guardadas: esto solo cierra el enlace. Si falla, el
+  // firmante podrá reabrirlo y verá sus actas ya firmadas (no se duplican).
+  if (enlaceErr) console.error('[actas.firmar] no se pudo marcar el enlace como usado', e.id, enlaceErr.message);
 
   res.json({ ok: true, firmadas });
 });

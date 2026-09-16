@@ -18,17 +18,28 @@ export function CiiuPicker({ value, onChange, id, 'aria-describedby': ariaDescri
   const [all, setAll] = useState<Option[]>(cache ?? []);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(!cache);
+  // El try/finally no tenía catch: si /ciiu/listar fallaba, el input quedaba
+  // habilitado diciendo "0 códigos disponibles" y "Sin resultados", sin error
+  // ni forma de reintentar. Y el CIIU es obligatorio para enviar el
+  // anteproyecto, así que el participante se quedaba bloqueado sin saber por qué.
+  const [errorCarga, setErrorCarga] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  async function cargar() {
+    setLoading(true);
+    try {
+      const { data } = await api.get<Option[]>('/ciiu/listar');
+      cache = data;
+      setAll(data);
+      setErrorCarga(false);
+    } catch {
+      setErrorCarga(true);
+    } finally { setLoading(false); }
+  }
 
   useEffect(() => {
     if (cache) return;
-    (async () => {
-      try {
-        const { data } = await api.get<Option[]>('/ciiu/listar');
-        cache = data;
-        setAll(data);
-      } finally { setLoading(false); }
-    })();
+    void cargar();
   }, []);
 
   // Etiqueta del valor seleccionado
@@ -68,11 +79,11 @@ export function CiiuPicker({ value, onChange, id, 'aria-describedby': ariaDescri
         value={open ? query : selectedLabel}
         onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
         onFocus={() => { setOpen(true); setQuery(''); }}
-        placeholder={loading ? 'Cargando códigos…' : 'Haz click y elige de la lista, o busca por código o descripción'}
+        placeholder={loading ? 'Cargando códigos…' : errorCarga ? 'No se pudo cargar la lista de códigos' : 'Haz click y elige de la lista, o busca por código o descripción'}
         className="input-inalde"
         autoComplete="off"
         spellCheck={false}
-        disabled={loading}
+        disabled={loading || errorCarga}
       />
       {open && (
         <ul className="absolute z-20 w-full mt-1 bg-white border border-inalde-gray-light rounded shadow-inalde-card max-h-80 overflow-auto">
@@ -94,7 +105,13 @@ export function CiiuPicker({ value, onChange, id, 'aria-describedby': ariaDescri
           ))}
         </ul>
       )}
-      {!open && (
+      {!open && errorCarga && (
+        <p className="text-xs text-inalde-red mt-1">
+          No pudimos cargar la lista de códigos CIIU.{' '}
+          <button type="button" onClick={() => { void cargar(); }} className="underline font-semibold">Reintentar</button>
+        </p>
+      )}
+      {!open && !errorCarga && (
         <p className="text-xs text-inalde-gray mt-1">
           {value ? 'Haz click para cambiar' : `${all.length} códigos disponibles · haz click para ver la lista`}
         </p>

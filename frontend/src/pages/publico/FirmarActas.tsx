@@ -181,6 +181,9 @@ export default function FirmarActas() {
       setError(
         code === 'VERIFICACION_INCORRECTA' ? 'Los dígitos no coinciden. Revisa e inténtalo de nuevo.'
         : code === 'YA_FIRMADO' ? 'Estas actas ya fueron firmadas.'
+        // El guardado falló: el enlace sigue activo a propósito para que el
+        // firmante pueda reintentar. El backend explica cuántas quedaron.
+        : code === 'FIRMA_NO_GUARDADA' ? (e?.response?.data?.mensaje ?? 'No pudimos registrar tu firma. Tu enlace sigue activo: vuelve a intentarlo en unos minutos.')
         : code === 'FIRMA_DEMASIADO_GRANDE' ? 'La firma pesa demasiado. Usa una imagen más liviana.'
         : e?.response?.data?.mensaje ?? 'No pudimos registrar tu firma. Inténtalo de nuevo.',
       );
