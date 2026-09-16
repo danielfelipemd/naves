@@ -103,6 +103,16 @@ router.post('/cohorte/:cohorteId/director-mba', ...soloAdmin, async (req: Authen
 router.get('/', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const cohorteId = String(req.query.cohorte_id ?? '').trim();
   if (!cohorteId) return res.status(400).json({ error: 'FALTA_COHORTE' });
+
+  // Las actas se abren SOLAS cuando la sustentación ya terminó, según el
+  // cronograma (fecha + hora de fin del slot). Al abrir el panel se regeneran,
+  // así que nadie tiene que acordarse de pulsar "Generar" el día siguiente a
+  // las presentaciones. Es idempotente y respeta lo ya firmado y lo anulado.
+  // Si falla, se muestra igual lo que haya en base de datos: el panel no puede
+  // quedarse en blanco por un fallo al regenerar.
+  try { await generarActasCohorte(cohorteId); }
+  catch (e: any) { console.error('[actas.panel] regeneración automática falló:', e?.message ?? e); }
+
   const { data: coh } = await supabaseAdmin.from('cohortes').select('etiqueta, director_mba_nombre, director_mba_cargo, director_mba_email').eq('id', cohorteId).maybeSingle();
   const { data: actas } = await supabaseAdmin.from('acta').select('*').eq('cohorte_id', cohorteId).order('nombre_participante');
   const rows = (actas ?? []) as any[];
@@ -115,11 +125,13 @@ router.get('/', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
     firmadas_participante: rows.filter((a) => (a.firmas ?? []).find((f: any) => f.rol === 'participante')?.estado === 'firmada').length,
     firmas_internas_completas: rows.filter((a) => a.estado === 'lista_para_cierre' || a.estado === 'completa').length,
     completas: rows.filter((a) => ['completa', 'archivada'].includes(a.estado)).length,
+    anuladas: rows.filter((a) => a.estado === 'anulada').length,
   };
 
   // Avance por firmante (rol+nombre): pendientes vs firmadas de su lote.
   const firmantes = new Map<string, { rol: string; nombre: string; total: number; firmadas: number }>();
   for (const a of rows) for (const f of (a.firmas ?? []) as any[]) {
+    if (a.estado === 'anulada') continue;    // una anulada ya no espera a nadie
     if (f.rol === 'participante') continue; // el participante firma su propia acta, no en lote
     const key = `${f.rol}|${f.nombre ?? '—'}`;
     const g = firmantes.get(key) ?? { rol: f.rol, nombre: f.nombre ?? '—', total: 0, firmadas: 0 };
@@ -286,8 +298,66 @@ router.post('/micro/:token', async (req, res) => {
 router.post('/:cohorteId/archivar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const { data: completas } = await supabaseAdmin.from('acta').select('id').eq('cohorte_id', req.params.cohorteId).eq('estado', 'completa');
   const ids = ((completas ?? []) as any[]).map((a) => a.id);
-  if (ids.length) await supabaseAdmin.from('acta').update({ estado: 'archivada' }).in('id', ids);
+  if (ids.length) {
+    const { error } = await supabaseAdmin.from('acta').update({ estado: 'archivada' }).in('id', ids);
+    if (error) return res.status(500).json({ error: 'ARCHIVAR_FALLO', mensaje: error.message });
+  }
   res.json({ archivadas: ids.length });
+});
+
+// POST /api/actas/:id/anular — el participante no se gradúa.
+// El acta ya salió a firma y no puede seguir su curso, pero tampoco se borra:
+// ya circuló y puede tener firmas selladas. Se marca ANULADA, deja de pedir
+// firmas y su PDF sale con marca de agua para que una copia impresa de antes
+// no se confunda con una válida.
+router.post('/:id(\\d+)/anular', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const motivo = String(req.body?.motivo ?? '').trim();
+  if (!motivo) return res.status(400).json({ error: 'FALTA_MOTIVO', mensaje: 'Escribe por qué se anula. Queda en el acta y en la auditoría.' });
+
+  const { data: a } = await supabaseAdmin.from('acta').select('id, estado, nombre_participante, cohorte_id').eq('id', req.params.id).maybeSingle();
+  if (!a) return res.status(404).json({ error: 'NO_ENCONTRADA' });
+  const acta = a as any;
+  if (acta.estado === 'anulada') return res.status(409).json({ error: 'YA_ANULADA' });
+  // Un acta archivada ya es documento cerrado: si hay que anularla, se hace
+  // fuera del sistema. Aquí se frena para no tocar el archivo histórico.
+  if (acta.estado === 'archivada') return res.status(409).json({ error: 'YA_ARCHIVADA', mensaje: 'Esta acta ya está archivada. Consulta con la coordinación antes de anularla.' });
+
+  const { error } = await supabaseAdmin.from('acta').update({
+    estado: 'anulada',
+    anulada_en: new Date().toISOString(),
+    anulada_motivo: motivo,
+    anulada_por: req.user?.sub ?? null,   // id de auth del super admin que anuló
+  }).eq('id', acta.id);
+  if (error) return res.status(500).json({ error: 'ANULAR_FALLO', mensaje: error.message });
+
+  // Los enlaces de firma que aún no se han usado dejan de servir: nadie debe
+  // poder firmar un acta anulada por un enlace que recibió antes.
+  const { data: enlaces } = await supabaseAdmin.from('acta_enlace_firma')
+    .select('id, acta_ids').eq('cohorte_id', acta.cohorte_id).is('usado_en', null);
+  for (const e of ((enlaces ?? []) as any[])) {
+    if (Array.isArray(e.acta_ids) && e.acta_ids.includes(acta.id) && e.acta_ids.length === 1) {
+      await supabaseAdmin.from('acta_enlace_firma').update({ revocado: true }).eq('id', e.id);
+    }
+  }
+
+  res.json({ ok: true, id: acta.id, participante: acta.nombre_participante });
+});
+
+// POST /api/actas/:id/reactivar — deshacer una anulación hecha por error.
+router.post('/:id(\\d+)/reactivar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const { data: a } = await supabaseAdmin.from('acta').select('id, estado, firmas').eq('id', req.params.id).maybeSingle();
+  if (!a) return res.status(404).json({ error: 'NO_ENCONTRADA' });
+  if ((a as any).estado !== 'anulada') return res.status(409).json({ error: 'NO_ESTA_ANULADA' });
+
+  // Vuelve al estado que le corresponda según las firmas que ya tenga, no a uno
+  // fijo: si ya había firmado el participante, no debe retroceder a 'enviada'.
+  const firmas = ((a as any).firmas ?? []) as any[];
+  const estado = avanzarEstado(firmas, 'enviada');
+  const { error } = await supabaseAdmin.from('acta').update({
+    estado, anulada_en: null, anulada_motivo: null, anulada_por: null,
+  }).eq('id', (a as any).id);
+  if (error) return res.status(500).json({ error: 'REACTIVAR_FALLO', mensaje: error.message });
+  res.json({ ok: true, estado });
 });
 
 
@@ -355,7 +425,7 @@ router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedReques
 
   const grupos = new Map<string, { rol: string; nombre: string; actaIds: number[] }>();
   for (const a of (actas ?? []) as any[]) {
-    if (a.estado === 'faltan_datos') continue;
+    if (a.estado === 'faltan_datos' || a.estado === 'anulada') continue;
     for (const f of (a.firmas ?? []) as any[]) {
       if (f.estado === 'firmada' || f.rol === 'participante') continue;
       if (soloRoles.length && !soloRoles.includes(f.rol)) continue;
@@ -635,7 +705,7 @@ router.get('/lotes/:cohorteId', ...adminOAsistente, async (req: AuthenticatedReq
   const esperandoA = new Map<string, number>();
 
   for (const a of (actas ?? []) as any[]) {
-    if (a.estado === 'faltan_datos') continue;
+    if (a.estado === 'faltan_datos' || a.estado === 'anulada') continue;
     const firmas = (a.firmas ?? []) as any[];
     const faltan = firmas.filter((f) => f.estado !== 'firmada');
     const fila = {

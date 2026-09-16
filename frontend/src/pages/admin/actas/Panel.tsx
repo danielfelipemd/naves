@@ -18,7 +18,8 @@ type Estado =
   | 'en_firmas_internas'
   | 'lista_para_cierre'
   | 'completa'
-  | 'archivada';
+  | 'archivada'
+  | 'anulada';
 
 interface FirmaResumen { rol: string; nombre: string; estado: string; }
 interface Acta {
@@ -43,6 +44,7 @@ interface Tiles {
   firmadas_participante: number;
   firmas_internas_completas: number;
   completas: number;
+  anuladas?: number;
 }
 interface Data {
   cohorte_id: string;
@@ -69,6 +71,7 @@ const ESTADO: Record<Estado, { label: string; chip: string }> = {
   lista_para_cierre: { label: 'Lista para cierre', chip: 'bg-blue-100 text-inalde-blue' },
   completa: { label: 'Completa', chip: 'bg-green-100 text-green-800' },
   archivada: { label: 'Archivada', chip: 'bg-inalde-gray-light text-inalde-gray' },
+  anulada: { label: 'Anulada', chip: 'bg-red-100 text-inalde-red line-through' },
 };
 
 function Tile({ label, valor, sub, acento }: { label: string; valor: number; sub?: string; acento?: boolean }) {
@@ -247,7 +250,37 @@ export default function ActasPanel() {
     } finally { setEnviandoEnlaces(false); }
   }
 
-  const generar = () => correr('generar', () => api.post(`/actas/generar/${cohorte}`).then(() => {}), 'Actas generadas/actualizadas.');
+  /**
+   * Anula un acta: el participante no se gradúa. No se borra (ya circuló y
+   * puede tener firmas selladas): queda marcada y su PDF sale con marca de
+   * agua, para que una copia impresa de antes no pase por válida.
+   */
+  async function anularActa(id: string, participante: string) {
+    const motivo = prompt(`Anular el acta de ${participante}.\n\n¿Por qué se anula? Queda escrito en el acta y en la auditoría.`);
+    if (motivo === null) return;                  // canceló
+    if (!motivo.trim()) { setErr('Hace falta el motivo para anular.'); return; }
+    setErr(''); setOkMsg('');
+    try {
+      await api.post(`/actas/${id}/anular`, { motivo: motivo.trim() });
+      setOkMsg(`Acta de ${participante} anulada.`);
+      await cargar();
+    } catch (e) { setErr(formatBackendError(e)); }
+  }
+
+  /** Deshace una anulación hecha por error. */
+  async function reactivarActa(id: string, participante: string) {
+    if (!confirm(`¿Reactivar el acta de ${participante}? Volverá a pedir firmas.`)) return;
+    setErr(''); setOkMsg('');
+    try {
+      await api.post(`/actas/${id}/reactivar`, {});
+      setOkMsg(`Acta de ${participante} reactivada.`);
+      await cargar();
+    } catch (e) { setErr(formatBackendError(e)); }
+  }
+
+  // Ya no hay botón de "Generar": las actas se abren solas cuando la
+  // sustentación termina, según el cronograma. El backend las regenera al
+  // cargar esta pantalla.
   const enviar = () => correr('enviar', () => api.post(`/actas/${cohorte}/enviar`).then(() => {}), 'Actas enviadas a firma.');
   const archivar = () => correr('archivar', () => api.post(`/actas/${cohorte}/archivar`).then(() => {}), 'Actas completas archivadas.');
 
@@ -354,11 +387,12 @@ export default function ActasPanel() {
 
             <div className="card-inalde p-5">
               <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Acciones de la cohorte</h2>
+              <p className="text-xs text-inalde-gray mb-4">
+                Las actas se abren <strong>solas</strong> cuando termina la sustentación de cada
+                equipo, según el cronograma. No hay que generarlas a mano.
+              </p>
               <div className="flex flex-wrap gap-3">
-                <button type="button" className="btn-inalde-primary" onClick={generar} disabled={!!accion}>
-                  {accion === 'generar' ? 'Generando…' : 'Generar/actualizar actas'}
-                </button>
-                <button type="button" className="btn-inalde-secondary" onClick={enviar} disabled={!!accion}>
+                <button type="button" className="btn-inalde-primary" onClick={enviar} disabled={!!accion}>
                   {accion === 'enviar' ? 'Enviando…' : 'Enviar a firma'}
                 </button>
                 <button type="button" className="btn-inalde-secondary" onClick={() => { void enviarEnlaces(); }} disabled={enviandoEnlaces || !!accion}>
@@ -469,6 +503,17 @@ export default function ActasPanel() {
                           </td>
                           <td className="px-3 py-3 text-sm text-inalde-text tabular-nums">{firmadas}/{a.firmas.length}</td>
                           <td className="px-3 py-3 text-right whitespace-nowrap">
+                            {a.estado === 'anulada' ? (
+                              <button type="button" onClick={() => { void reactivarActa(a.id, a.nombre_participante); }}
+                                className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gray hover:text-inalde-text mr-3">
+                                Reactivar
+                              </button>
+                            ) : a.estado !== 'archivada' && (
+                              <button type="button" onClick={() => { void anularActa(a.id, a.nombre_participante); }}
+                                className="text-[10px] uppercase tracking-wider font-semibold text-inalde-gray hover:text-inalde-red mr-3">
+                                Anular
+                              </button>
+                            )}
                             <Link to={`/admin/actas/${a.id}`} className="text-[10px] uppercase tracking-wider font-semibold text-inalde-red hover:text-inalde-red-hover">Ver acta →</Link>
                           </td>
                         </tr>

@@ -128,6 +128,11 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
       const estado = faltan.length ? 'faltan_datos' : (prev && prev.estado !== 'faltan_datos' ? prev.estado : 'generada');
       if (estado === 'faltan_datos') faltanDatos++; else generadas++;
 
+      // Un acta ANULADA no se regenera: el upsert le devolvería las firmas y la
+      // pondría otra vez en circulación. Anular es una decisión del admin y
+      // manda sobre la generación automática.
+      if (prev?.estado === 'anulada') continue;
+
       filas.push({
         cohorte_id: cohorteId, participante_id: p.id, equipo_id: e.id, proyecto_id: proyId, modalidad, estado,
         nombre_participante: p.nombre_completo, nombre_proyecto: nombreProyecto, fecha_sustentacion: fecha,

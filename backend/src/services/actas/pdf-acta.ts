@@ -63,6 +63,29 @@ export interface ActaPdfData {
   director_mba_nombre: string | null;
   director_mba_cargo: string | null;
   firmas: FirmaActa[];
+  estado?: string | null;
+  anulada_motivo?: string | null;
+  anulada_en?: string | null;
+}
+
+/**
+ * Marca de agua "ANULADA" cruzada sobre el acta. Se pinta AL FINAL, encima de
+ * todo, para que una copia impresa antes de la anulación no pueda pasar por
+ * válida. El motivo va al pie: quien la tenga en la mano sabe por qué.
+ */
+function marcaAgua(doc: PDFKit.PDFDocument, motivo?: string | null) {
+  const { width: W, height: H } = doc.page;
+  doc.save();
+  doc.rotate(-32, { origin: [W / 2, H / 2] });
+  doc.font('Helvetica-Bold').fontSize(94).fillColor('#e30613').opacity(0.16)
+    .text('ANULADA', 0, H / 2 - 62, { width: W, align: 'center', characterSpacing: 5 });
+  doc.restore();
+
+  doc.save().opacity(1);
+  doc.font('Helvetica-Bold').fontSize(8).fillColor('#e30613')
+    .text(`ACTA ANULADA${motivo ? ` · ${motivo}` : ''}`, MARGEN, H - 62,
+      { width: W - MARGEN * 2, align: 'center' });
+  doc.restore();
 }
 
 const MODALIDADES: Array<[string, string]> = [
@@ -292,6 +315,8 @@ export function buildActaPDF(a: ActaPdfData): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
 
     pintarActa(doc, a);
+    // Encima del acta, antes de añadir la página de certificado.
+    if (a.estado === 'anulada') marcaAgua(doc, a.anulada_motivo);
 
     const ancho = doc.page.width - MARGEN * 2;
 
@@ -394,6 +419,7 @@ export function buildLoteActasPDF(actas: ActaPdfData[]): Promise<Buffer> {
     for (const a of actas) {
       doc.addPage();
       pintarActa(doc, a);
+      if (a.estado === 'anulada') marcaAgua(doc, a.anulada_motivo);
     }
 
     // --- Pie con numeración global --------------------------------------
