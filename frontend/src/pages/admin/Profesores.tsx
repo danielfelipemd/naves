@@ -192,10 +192,13 @@ export default function Profesores() {
       <div className="border-b-[3px] border-inalde-red pb-4 mb-6 flex items-end justify-between">
         <div>
           <p className="section-subtitle mb-1">Administración</p>
-          <h1 className="section-title">Profesores</h1>
+          <h1 className="section-title">Usuarios NAVES</h1>
+          <p className="text-sm text-inalde-gray mt-2">
+            Quienes entran al sistema: profesores, asistente de programa y administradores.
+          </p>
         </div>
         {!showNew && (
-          <button onClick={() => setShowNew(true)} className="btn-inalde-primary">+ Nuevo</button>
+          <button onClick={() => setShowNew(true)} className="btn-inalde-primary">+ Nuevo usuario</button>
         )}
       </div>
 

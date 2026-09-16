@@ -20,7 +20,7 @@ interface Group {
 }
 
 // Panel administrativo reorganizado en 3 bloques (QA JMV 20-jul-2026):
-// Admon Cohortes · Admon Profesores · Admon Sistema.
+// Admon Cohortes · Admon Usuarios · Admon Sistema.
 const GROUPS: Group[] = [
   {
     title: 'Admon Cohortes',
@@ -81,12 +81,15 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    title: 'Admon Profesores',
+    title: 'Admon Usuarios',
     items: [
       {
-        to: '/admin/profesores', icon: '👨‍🏫',
-        title: 'Profesores NAVES',
-        desc: 'Crea, edita o desactiva profesores. Configura su URL de booking y áreas de afinidad.',
+        to: '/admin/profesores', icon: '🔑',
+        title: 'Usuarios NAVES',
+        // Aquí no solo viven los profesores: también los usuarios de área
+        // (asistente de programa, marketing, operaciones) y los administradores.
+        // Llamarlo "Profesores" escondía justo eso.
+        desc: 'Crea, edita o desactiva los usuarios que entran al sistema: profesores, asistente de programa y administradores.',
         hint: (d) => `${d.profesores} registrados`,
       },
       {
