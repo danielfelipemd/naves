@@ -68,7 +68,11 @@ router.post('/recovery', async (req, res) => {
     if (p) {
       participanteId = p.id;
       userId = p.auth_user_id;
-      realEmail = decryptPII(p.email_encriptado);
+      // decryptPII lanza si el payload está corrupto o cambió PII_ENCRYPTION_KEY
+      // (AES-GCM falla al verificar el tag). Sin este catch el endpoint devolvía
+      // un 500, y ese 500 delataba que la cédula SÍ existe: justo lo que la
+      // respuesta neutra de abajo intenta evitar.
+      try { realEmail = decryptPII(p.email_encriptado); } catch { realEmail = null; }
       nombre = p.nombre_completo;
     }
   } else if (parsed.data.email) {
@@ -82,7 +86,7 @@ router.post('/recovery', async (req, res) => {
     if (prof) {
       profesorId = prof.id;
       userId = prof.auth_user_id;
-      realEmail = decryptPII(prof.email_encriptado);
+      try { realEmail = decryptPII(prof.email_encriptado); } catch { realEmail = null; }
       nombre = prof.nombre_completo;
     }
   }
@@ -94,12 +98,22 @@ router.post('/recovery', async (req, res) => {
 
   // Generar token y guardar
   const { token, hash } = generateRecoveryToken();
-  await supabaseAdmin.from('recovery_tokens').insert({
+  // Sin mirar el {error} el correo salía igual aunque el token no se hubiera
+  // guardado: el usuario hacía clic y recibía TOKEN_NOT_FOUND. Como la
+  // respuesta de arriba es neutra a propósito, ni él ni soporte podían
+  // distinguir "no estás registrado" de "el sistema perdió tu token".
+  // Si no se guardó no mandamos nada, pero la respuesta sigue siendo neutra
+  // (un 500 aquí delataría que el usuario existe).
+  const { error: tokenErr } = await supabaseAdmin.from('recovery_tokens').insert({
     participante_id: participanteId,
     profesor_id: profesorId,
     token_hash: hash,
     expira_en: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
   });
+  if (tokenErr) {
+    console.error('[auth.recovery] no se pudo guardar el token de recuperación:', tokenErr.message);
+    return res.json({ ok: true, mensaje: 'Si el usuario existe recibirás un email con instrucciones.', smtp: 'no_enviado' });
+  }
 
   const link = `${config.frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
   const html = `

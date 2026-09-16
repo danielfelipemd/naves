@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import { formatBackendError } from '../../../lib/errors';
@@ -164,6 +164,18 @@ export default function AolCalificar() {
     void cargar();
   }, [cargar]);
 
+  // El sondeo del análisis vive dentro de un onClick, no de un efecto, así que
+  // no tenía punto de cancelación: al cambiar de proyecto la ruta reusa esta
+  // misma instancia y el bucle en vuelo seguía con el proyectoId y la `cargar`
+  // VIEJOS por closure. Al terminar pisaba los datos del proyecto nuevo con los
+  // del anterior — el calificador veía el nombre de uno y la rúbrica de otro.
+  // Este ref se invalida en cada cambio de proyecto y corta el bucle.
+  const sondeoVigente = useRef(0);
+  useEffect(() => {
+    sondeoVigente.current += 1;
+    return () => { sondeoVigente.current += 1; };
+  }, [proyectoId]);
+
   const analisis = data?.analisis ?? null;
   const resultado = analisis?.resultado ?? null;
 
@@ -186,20 +198,37 @@ export default function AolCalificar() {
     setAnalizando(true);
     setErr('');
     setOkMsg('');
+    const sondeoAlEmpezar = sondeoVigente.current;
     try {
       // El análisis corre en SEGUNDO PLANO en el backend (Opus + reintento R1 puede
       // tardar 1-2 min, más que el timeout HTTP). Disparamos y sondeamos el estado.
       await api.post(`/aol/analizar/${proyectoId}`, {});
+      // Si al volver el ref ya no coincide, el usuario cambió de proyecto: este
+      // sondeo quedó obsoleto y no debe tocar la pantalla nueva.
+      const miSondeo = sondeoVigente.current;
       // Sondeo cada 3 s, hasta ~4 min (80 vueltas).
+      let fallosSeguidos = 0;
       for (let i = 0; i < 80; i++) {
         await new Promise((r) => setTimeout(r, 3000));
+        if (sondeoVigente.current !== miSondeo) return;
         let estado = 'inactivo';
         let error: string | null = null;
         try {
           const { data } = await api.get(`/aol/analizar/${proyectoId}/estado`);
           estado = data?.estado ?? 'inactivo';
           error = data?.error ?? null;
-        } catch {
+          fallosSeguidos = 0;
+        } catch (e: any) {
+          // Antes este catch era ciego: con la sesión expirada reintentaba las
+          // 80 vueltas y acababa mintiendo ("está tardando más de lo esperado").
+          if (e?.response?.status === 401 || e?.response?.status === 403) {
+            setErr('Tu sesión expiró. Vuelve a entrar para ver el resultado del análisis.');
+            return;
+          }
+          if (++fallosSeguidos >= 5) {
+            setErr('Perdimos la conexión con el servidor. Recarga la página en un momento.');
+            return;
+          }
           continue; // red intermitente: reintentamos en la próxima vuelta
         }
         if (estado === 'error') { setErr(error || 'El análisis falló.'); return; }
@@ -209,9 +238,11 @@ export default function AolCalificar() {
       }
       setErr('El análisis está tardando más de lo esperado. Recarga la página en un momento.');
     } catch (e: any) {
-      setErr(formatBackendError(e));
+      if (sondeoVigente.current === sondeoAlEmpezar) setErr(formatBackendError(e));
     } finally {
-      setAnalizando(false);
+      // Solo si seguimos en el mismo proyecto: si el usuario ya cambió, este
+      // setState pertenece a una pantalla que ya no está a la vista.
+      if (sondeoVigente.current === sondeoAlEmpezar) setAnalizando(false);
     }
   }
 

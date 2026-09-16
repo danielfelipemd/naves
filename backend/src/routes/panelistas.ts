@@ -390,9 +390,17 @@ router.post('/admin/:cohorteId/enviar-pendientes', ...soloAdmin, async (req, res
   const ids = (pend ?? []).map((p: any) => p.id);
   res.json({ ok: true, iniciado: true, total: ids.length });
   // Envío en serie en segundo plano (evita timeout / límites SMTP).
+  // Cada envío va aislado: antes, si fallaba el panelista nº3, el await
+  // desnudo abortaba el bucle y los siguientes NO recibían nada — y la
+  // respuesta ya había salido diciendo `total: ids.length`. El .catch final
+  // evita además que una promesa rechazada tumbe el proceso.
   void (async () => {
-    for (const id of ids) { await enviarInvitacion(id); await sleep(600); }
-  })();
+    for (const id of ids) {
+      try { await enviarInvitacion(id); }
+      catch (e: any) { console.error(`[panelistas] invitación falló para ${id}:`, e?.message ?? e); }
+      await sleep(600);
+    }
+  })().catch((e) => console.error('[panelistas] envío de invitaciones falló:', e?.message ?? e));
 });
 
 // --- RECORDATORIOS a panelistas invitados pero sin confirmar -----------
@@ -444,8 +452,12 @@ router.post('/admin/:cohorteId/recordatorios', ...soloAdmin, async (req, res) =>
   const ids = (pend ?? []).map((p: any) => p.id);
   res.json({ ok: true, iniciado: true, total: ids.length });
   void (async () => {
-    for (const id of ids) { await enviarRecordatorio(id); await sleep(600); }
-  })();
+    for (const id of ids) {
+      try { await enviarRecordatorio(id); }
+      catch (e: any) { console.error(`[panelistas] recordatorio falló para ${id}:`, e?.message ?? e); }
+      await sleep(600);
+    }
+  })().catch((e) => console.error('[panelistas] envío de recordatorios falló:', e?.message ?? e));
 });
 
 // --- RESUMEN POR JORNADA ---------------------------------------------

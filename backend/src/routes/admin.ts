@@ -1736,12 +1736,13 @@ router.post('/sabanas/:cohorteId/comunicar', async (req, res) => {
     }
 
     // 2c. Marcar la sábana como comunicada y cerrar el proceso en background.
-    await supabaseAdmin
+    const { error: sabErr } = await supabaseAdmin
       .from('sabanas_proyectos')
       .update({ estado: 'comunicada', fecha_comunicacion: new Date().toISOString() })
       .eq('cohorte_id', cohorteId);
+    if (sabErr) console.error(`[comunicar] cohorte=${cohorteId}: no se pudo marcar la sábana como comunicada:`, sabErr.message);
     console.log(`[comunicar] cohorte=${cohorteId} completado en segundo plano. fallos=${fallos.length}`);
-  })();
+  })().catch((e) => console.error(`[comunicar] cohorte=${cohorteId} falló en segundo plano:`, e?.message ?? e));
 });
 
 // =====================================================================

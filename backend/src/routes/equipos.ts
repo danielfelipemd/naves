@@ -226,13 +226,8 @@ router.post('/', soloParticipante, async (req: AuthenticatedRequest, res) => {
     if (e2) throw e2;
     if (miembroCreador) await copyPerfilParticipanteAMiembro(pid, miembroCreador.id);
 
-    // Limpiar flag de espera de TODOS los miembros (creador + agregados)
-    const todosIds = [pid, ...miembrosIds];
-    await supabaseAdmin.from('participantes_lista')
-      .update({ esperando_equipo_at: null })
-      .in('id', todosIds);
-
     // Inscribir miembros adicionales (posiciones 2 y 3)
+    const inscritos: string[] = [];
     let pos = 2;
     for (const id of miembrosIds) {
       const { data: m, error: emErr } = await supabaseAdmin
@@ -243,9 +238,22 @@ router.post('/', soloParticipante, async (req: AuthenticatedRequest, res) => {
         console.warn(`[equipos.crear] no se pudo agregar miembro ${id}:`, emErr.message);
         continue;
       }
+      inscritos.push(id);
       if (m) await copyPerfilParticipanteAMiembro(id, m.id);
       pos++;
     }
+
+    // Limpiar el flag de espera SOLO de quienes quedaron realmente inscritos, y
+    // DESPUÉS de insertarlos. Antes se limpiaba antes del bucle y para todos:
+    // si el insert de alguien fallaba, ese participante se quedaba sin equipo y
+    // además sin `esperando_equipo_at`, así que desaparecía de los listados de
+    // gente sin equipo y su panel dejaba de avisarle. Invisible para él y para
+    // el admin.
+    const todosIds = [pid, ...inscritos];
+    const { error: flagErr } = await supabaseAdmin.from('participantes_lista')
+      .update({ esperando_equipo_at: null })
+      .in('id', todosIds);
+    if (flagErr) console.error('[equipos.crear] no se pudo limpiar esperando_equipo_at:', flagErr.message);
 
     // Crear anteproyecto en borrador.
     // OJO: este insert DEBE verificarse. Cuando su error se ignoraba, el equipo

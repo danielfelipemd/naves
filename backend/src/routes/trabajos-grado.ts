@@ -431,11 +431,14 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
   // la ruta de assets). Los archivos no se pueden reemplazar, así que la
   // entrega se completa una única vez y el correo sale una sola vez.
   if (tipo === 'proyecto-final') {
+    // .catch obligatorio: entregaTrabajoGradoCompleta consulta Supabase sin
+    // try/catch propio, así que un blip de red la hace rechazar. Una promesa
+    // rechazada sin catch mata el proceso Node y tumba TODO el backend.
     void (async () => {
       if (await entregaTrabajoGradoCompleta(req.params.id)) {
         await notificarEntregaTrabajoGrado({ equipoId: ant.equipo_id, fechaIso: fechaSubida });
       }
-    })();
+    })().catch((e) => console.error('[trabajos-grado] aviso de entrega completa falló:', e?.message ?? e));
   }
 
   res.status(201).json({ ok: true, path, size, mime });
@@ -640,7 +643,7 @@ router.post('/:id/asset/:tipo', upload.single('file'), async (req: Authenticated
       if (await entregaTrabajoGradoCompleta(req.params.id)) {
         await notificarEntregaTrabajoGrado({ equipoId, fechaIso: new Date().toISOString() });
       }
-    })();
+    })().catch((e) => console.error('[trabajos-grado] aviso de entrega completa falló:', e?.message ?? e));
   }
 
   res.status(201).json({ ok: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)) });
