@@ -183,6 +183,17 @@ function pintarActa(doc: PDFKit.PDFDocument, a: ActaPdfData) {
   const firmaDe = (...roles: string[]) =>
     a.firmas?.find((f) => roles.some((r) => (f.rol ?? '').toLowerCase().includes(r)));
 
+  /**
+   * La firma de UN jurado concreto. No vale buscar solo por rol: en un Caso o un
+   * PI hay varios jurados y todos tienen `rol: 'jurado'`, así que el primero se
+   * llevaba la firma de todos. Y buscar por `jurado 1` no encontraba nada, porque
+   * ese texto no es un rol. Se empareja por rol + nombre, que es lo que distingue
+   * a una persona de otra.
+   */
+  const firmaDeJurado = (nombre: string) =>
+    a.firmas?.find((f) => (f.rol ?? '').toLowerCase().includes('jurado')
+      && (f.nombre ?? '').trim().toLocaleLowerCase('es') === nombre.trim().toLocaleLowerCase('es'));
+
   // --- Encabezado institucional -------------------------------------
   const img = logo();
   if (img) {
@@ -282,7 +293,7 @@ function pintarActa(doc: PDFKit.PDFDocument, a: ActaPdfData) {
     firmasEnActa.push(['director_proyecto', a.director_nombre, 'Director del proyecto', firmaDe('director de proyecto', 'director_proyecto')]);
     (a.jurados ?? []).forEach((j, i) => {
       const n = nombreJurado(j);
-      firmasEnActa.push([`jurado_${i}`, n, `Jurado ${i + 1}`, firmaDe(`jurado ${i + 1}`, n.toLowerCase())]);
+      firmasEnActa.push([`jurado_${i}`, n, `Jurado ${i + 1}`, firmaDeJurado(n)]);
     });
   }
   firmasEnActa.push(['director_mba', a.director_mba_nombre, a.director_mba_cargo || 'Director de Cohorte', firmaDe('director mba', 'director_mba')]);
