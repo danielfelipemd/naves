@@ -745,7 +745,7 @@ router.put('/participantes/:id', async (req, res) => {
       if (dup) return res.status(409).json({ error: 'CEDULA_DUPLICADA' });
       patch.cedula_encriptada = encryptPII(cedulaLimpia);
       patch.cedula_hash = nuevoHash;
-      nuevoSyntheticEmail = await syntheticEmailFromCedula(cedulaLimpia);
+      nuevoSyntheticEmail = syntheticEmailFromCedula(cedulaLimpia);   // es síncrona
     }
   }
 

@@ -293,13 +293,12 @@ router.get('/excel', async (_req, res) => {
       r.getCell(1).alignment = { horizontal: 'center' };
       r.getCell(1).font = { color: { argb: 'FF6B6B6B' }, italic: true };
     }
-    const t = wl.addRow([]);
+    wl.addRow([]);   // fila en blanco de separación
     const tot = wl.addRow([
       `Totales — asisten ${j.resumen.asisten} · sin confirmar ${j.resumen.sin_confirmar} · transporte ${j.resumen.transporte} · desayunos ${j.resumen.desayunos} · almuerzos ${j.resumen.almuerzos}`,
     ]);
     wl.mergeCells(`A${tot.number}:H${tot.number}`);
     tot.getCell(1).font = { bold: true };
-    void t;
   }
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

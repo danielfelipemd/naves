@@ -223,7 +223,6 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
     for (const p of [...data.proyectos].sort((a, b) => a.posicion - b.posicion)) {
       if (doc.y > doc.page.height - 200) nuevaPagina(doc);
       doc.moveDown(0.3);
-      const yStart = doc.y;
       doc.x = SANGRIA;
       doc.fontSize(13).fillColor(INALDE_TEXT).font('Helvetica-Bold').text(`Proyecto ${p.posicion}: ${p.nombre}`);
       const tag = p.estado_seleccion === 'definitivo' ? 'DEFINITIVO'
@@ -299,7 +298,6 @@ export function buildAnteproyectoPDF(data: AnteproyectoPdfData): Promise<Buffer>
         cerrarRecuadro(doc, rCron);
       }
       doc.moveDown(0.6);
-      void yStart;
     }
 
     footer(doc);

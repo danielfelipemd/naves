@@ -45,17 +45,22 @@ const CANVAS_FIELDS: Array<{ key: keyof Proyecto; label: string; placeholder: st
 ];
 
 // Hitos pre-definidos del plan de trabajo NAVES (cronograma del programa)
-const PRESET_HITOS: Array<{ descripcion: string; fecha_fin: string }> = [
-  { descripcion: 'Entrega Anteproyecto',                  fecha_fin: '2026-01-20' },
-  { descripcion: 'Primera Reunión Obligatoria',           fecha_fin: '2026-02-13' },
-  { descripcion: 'Diseño de Modelo Financiero',           fecha_fin: '2026-02-21' },
-  { descripcion: 'Recolección de Información de Mercado', fecha_fin: '2026-03-14' },
-  { descripcion: 'Cuantificación de la Oportunidad',      fecha_fin: '2026-03-21' },
-  { descripcion: 'Definición de Modelo de Negocio',       fecha_fin: '2026-03-28' },
-  { descripcion: 'Diseño de Plan de Marketing',           fecha_fin: '2026-04-11' },
-  { descripcion: 'Segunda Reunión Obligatoria',           fecha_fin: '2026-04-17' },
-  { descripcion: 'Cierre de Modelo Financiero',           fecha_fin: '2026-05-01' },
-  { descripcion: 'Consolidación Documento Final',         fecha_fin: '2026-05-15' },
+// Solo los NOMBRES de los hitos sugeridos. Llevaban además una fecha_fin con
+// fechas fijas de 2026 que el código nunca leía (ver el selector más abajo: usa
+// preset.descripcion y nada más). Eran de una cohorte concreta y engañaban a
+// quien leyera esto creyendo que el sistema propone fechas: no lo hace, las
+// pone el participante, salvo las de entrega que vienen de la cohorte.
+const PRESET_HITOS: Array<{ descripcion: string }> = [
+  { descripcion: 'Entrega Anteproyecto' },
+  { descripcion: 'Primera Reunión Obligatoria' },
+  { descripcion: 'Diseño de Modelo Financiero' },
+  { descripcion: 'Recolección de Información de Mercado' },
+  { descripcion: 'Cuantificación de la Oportunidad' },
+  { descripcion: 'Definición de Modelo de Negocio' },
+  { descripcion: 'Diseño de Plan de Marketing' },
+  { descripcion: 'Segunda Reunión Obligatoria' },
+  { descripcion: 'Cierre de Modelo Financiero' },
+  { descripcion: 'Consolidación Documento Final' },
 ];
 const PRESET_HITO_NAMES = new Set(PRESET_HITOS.map((h) => h.descripcion));
 const MIN_HITOS = 5;

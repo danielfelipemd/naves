@@ -170,7 +170,6 @@ export default function AdminEquipos() {
       {seleccionado && (
         <DetalleEquipo
           equipo={seleccionado}
-          cohortes={cohortes}
           onClose={() => setSeleccionado(null)}
           onQuitar={(pid, nombre) => quitar(seleccionado, pid, nombre)}
           onAgregado={() => refetchEquipo(seleccionado.id)}
@@ -342,7 +341,6 @@ function DetalleEquipo({
   equipo, onClose, onQuitar, onAgregado,
 }: {
   equipo: Equipo;
-  cohortes: Cohorte[];
   onClose: () => void;
   onQuitar: (participanteId: string, nombre: string) => Promise<boolean>;
   onAgregado: () => void;

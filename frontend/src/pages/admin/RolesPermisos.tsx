@@ -274,8 +274,11 @@ function UsersTable({ users, selected, onToggleSel, onEdit }: {
   const someSelected = users.some((u) => selected.has(u.auth_user_id));
 
   function toggleAll() {
-    if (allSelected) users.forEach((u) => selected.has(u.auth_user_id) && onToggleSel(u.auth_user_id));
-    else users.forEach((u) => !selected.has(u.auth_user_id) && onToggleSel(u.auth_user_id));
+    // Los guards que había aquí (`selected.has(...) && ...`) no filtraban nada:
+    // dentro de la rama `allSelected` la condición es verdadera por definición,
+    // y en la otra es falsa por definición. Se quedan los recorridos sin más.
+    if (allSelected) users.forEach((u) => onToggleSel(u.auth_user_id));
+    else users.forEach((u) => { if (!selected.has(u.auth_user_id)) onToggleSel(u.auth_user_id); });
   }
 
   return (

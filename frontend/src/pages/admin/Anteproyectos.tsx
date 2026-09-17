@@ -758,7 +758,7 @@ export default function Anteproyectos() {
                       <tbody>
                         {filtrados.length === 0 ? (
                           <tr>
-                            <td colSpan={11} className="px-3 py-12 text-center text-inalde-gray italic">
+                            <td colSpan={5} className="px-3 py-12 text-center text-inalde-gray italic">
                               No hay equipos que coincidan con el filtro.
                             </td>
                           </tr>
@@ -1033,7 +1033,7 @@ export default function Anteproyectos() {
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex-1">
                     <h3 className="font-primary font-bold text-inalde-text">
-                      {eq.miembros.sort((a, b) => a.posicion - b.posicion).map((m) => m.nombre).join(' · ') || '(sin participantes)'}
+                      {eq.miembros.slice().sort((a, b) => a.posicion - b.posicion).map((m) => m.nombre).join(' · ') || '(sin participantes)'}
                     </h3>
                     <div className="mt-3 space-y-2">
                       {eq.proyectos.map((p) => (

@@ -323,6 +323,7 @@ export default function MiEquipo() {
 
               <div className="space-y-3 mb-8">
                 {equipo.miembros_equipo
+                  .slice()   // .sort muta: sin la copia ordenaría el estado en el render
                   .sort((a, b) => a.posicion - b.posicion)
                   .map((m) => (
                     <div key={m.id} className="flex items-center justify-between p-4 border border-inalde-gray-light rounded">

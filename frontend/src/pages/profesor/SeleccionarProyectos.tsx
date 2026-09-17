@@ -169,7 +169,7 @@ export default function SeleccionarProyectos() {
                   return (
                     <div key={eq.equipo_id} className="border border-inalde-gray-light rounded p-4 flex items-center justify-between">
                       <div>
-                        <p className="font-primary font-bold text-sm">{eq.nombre_equipo || (eq.proyectos.find(p => p.id === eq.proyecto_definitivo_id)?.nombre) || eq.miembros.join(' · ') || '(equipo)'} · {eq.cohorte_id}</p>
+                        <p className="font-primary font-bold text-sm">{eq.nombre_equipo || def?.nombre || eq.miembros.join(' · ') || '(equipo)'} · {eq.cohorte_id}</p>
                         <p className="text-xs text-inalde-gray mt-1">
                           {eq.proyecto_definitivo_id
                             ? `Definitivo: ${def?.nombre ?? '—'}`
