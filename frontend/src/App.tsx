@@ -16,6 +16,7 @@ import SeleccionDefinitivo from './pages/participante/SeleccionDefinitivo';
 import MiProfesor from './pages/participante/MiProfesor';
 import SabanaSocios from './pages/participante/SabanaSocios';
 import MiPresentacion from './pages/participante/MiPresentacion';
+import MiActa from './pages/participante/MiActa';
 import ConsultaCronograma from './pages/participante/ConsultaCronograma';
 import DescargarDocumentos from './pages/participante/DescargarDocumentos';
 import ConfirmarAsistencia from './pages/panelista/ConfirmarAsistencia';
@@ -137,6 +138,7 @@ export default function App() {
         <Route path="/mi-profesor" element={<ProtectedRoute><MiProfesor /></ProtectedRoute>} />
         <Route path="/sabana-proyectos" element={<ProtectedRoute><SabanaSocios /></ProtectedRoute>} />
         <Route path="/mi-presentacion" element={<ProtectedRoute><MiPresentacion /></ProtectedRoute>} />
+        <Route path="/mi-acta" element={<ProtectedRoute><MiActa /></ProtectedRoute>} />
         <Route path="/consulta-cronograma" element={<ProtectedRoute><ConsultaCronograma /></ProtectedRoute>} />
         <Route path="/descargar-documentos" element={<ProtectedRoute><DescargarDocumentos /></ProtectedRoute>} />
         <Route path="/programacion-interna" element={<ProgramacionInternaRoute />} />

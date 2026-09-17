@@ -659,6 +659,110 @@ const ROL_LEGIBLE: Record<string, string> = {
   director_mba: 'el Director de Cohorte',
 };
 
+// =====================================================================
+// MI ACTA — el participante firma la suya desde su propia sesión.
+//
+// No se le manda enlace por correo (a diferencia de profesores y jurados):
+// ya tiene login, así que firma dentro del sistema. Su firma es la PRIMERA de
+// la cadena; mientras no la ponga, el acta no avanza a firmas internas.
+//
+// La opción NO está siempre abierta: aparece cuando su sustentación ya terminó
+// según el cronograma. Eso no se decide aquí —lo decide la generación del acta,
+// que es la que sabe la hora de fin del slot—: si aún no ha pasado, el acta
+// sigue en 'faltan_datos' y aquí se responde que todavía no es el momento.
+// =====================================================================
+const soloParticipante = [requireAuth(), requireRole('participante')];
+
+/** El acta del participante de la sesión, o null. */
+async function miActa(req: AuthenticatedRequest) {
+  const pid = req.user?.participanteId;
+  if (!pid) return null;
+  const { data } = await supabaseAdmin.from('acta')
+    .select('*').eq('participante_id', pid).maybeSingle();
+  return (data as any) ?? null;
+}
+
+// GET /api/actas/mi-acta — estado de mi acta y si ya puedo firmarla.
+router.get('/mi-acta', ...soloParticipante, async (req: AuthenticatedRequest, res) => {
+  const a = await miActa(req);
+  if (!a) return res.json({ existe: false, puede_firmar: false, motivo: 'SIN_ACTA' });
+
+  const firmas = (a.firmas ?? []) as any[];
+  const mia = firmas.find((f) => f.rol === 'participante');
+  const yaFirme = mia?.estado === 'firmada';
+
+  // 'faltan_datos' = la sustentación aún no ha terminado (o falta algún dato
+  // de la programación). 'anulada' = el admin la anuló.
+  const disponible = !['faltan_datos', 'anulada'].includes(a.estado);
+
+  res.json({
+    existe: true,
+    acta_id: a.id,
+    estado: a.estado,
+    modalidad: a.modalidad,
+    nombre_proyecto: a.nombre_proyecto,
+    fecha_sustentacion: a.fecha_sustentacion,
+    nota: a.nota,
+    ya_firme: yaFirme,
+    firmada_en: mia?.firmada_en ?? null,
+    puede_firmar: disponible && !yaFirme,
+    motivo: a.estado === 'anulada' ? 'ANULADA'
+      : a.estado === 'faltan_datos' ? 'AUN_NO'
+      : yaFirme ? 'YA_FIRMADA' : null,
+    // Avance del resto de la cadena, para que vea en qué va sin preguntar.
+    cadena: firmas.map((f) => ({ rol: f.rol, nombre: f.nombre, estado: f.estado })),
+  });
+});
+
+// GET /api/actas/mi-acta/pdf — el PDF de MI acta. Nadie firma a ciegas.
+router.get('/mi-acta/pdf', ...soloParticipante, async (req: AuthenticatedRequest, res) => {
+  const a = await miActa(req);
+  if (!a) return res.status(404).json({ error: 'SIN_ACTA' });
+  if (a.estado === 'faltan_datos') return res.status(409).json({ error: 'AUN_NO' });
+  const pdf = await buildActaPDF(a);
+  const nombre = String(a.nombre_participante ?? 'acta').replace(/[^a-zA-Z0-9]/g, '_');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="acta-${nombre}.pdf"`);
+  res.send(pdf);
+});
+
+// POST /api/actas/mi-acta/firmar — firmo mi acta.
+router.post('/mi-acta/firmar', ...soloParticipante, async (req: AuthenticatedRequest, res) => {
+  const imagen = typeof req.body?.imagen === 'string' ? req.body.imagen : null;
+  if (!imagen) return res.status(400).json({ error: 'FALTA_FIRMA', mensaje: 'Dibuja, escribe o adjunta tu firma.' });
+  if (imagen.length > 500_000) return res.status(413).json({ error: 'FIRMA_DEMASIADO_GRANDE', mensaje: 'La firma pesa demasiado. Usa una imagen más liviana.' });
+
+  const a = await miActa(req);
+  if (!a) return res.status(404).json({ error: 'SIN_ACTA' });
+  if (a.estado === 'anulada') return res.status(409).json({ error: 'ANULADA', mensaje: 'Esta acta fue anulada. Habla con la coordinación del programa.' });
+  if (a.estado === 'faltan_datos') return res.status(409).json({ error: 'AUN_NO', mensaje: 'Tu acta se habilita cuando termine tu sustentación.' });
+
+  const firmas = (a.firmas ?? []) as any[];
+  const idx = firmas.findIndex((f) => f.rol === 'participante');
+  if (idx < 0) return res.status(409).json({ error: 'SIN_CASILLA' });
+  if (firmas[idx].estado === 'firmada') return res.status(409).json({ error: 'YA_FIRMADA', mensaje: 'Ya firmaste tu acta.' });
+
+  const ip = ipDe(req);
+  const ua = (req.header('user-agent') ?? '').slice(0, 300) || null;
+  const sellada = firmar(
+    { actaId: a.id, rol: 'participante', nombre: a.nombre_participante ?? '', imagen, ip, userAgent: ua },
+    ultimoHash(firmas),
+  );
+  firmas[idx] = { ...firmas[idx], ...sellada, nombre: a.nombre_participante ?? firmas[idx].nombre };
+  const nuevoEstado = avanzarEstado(firmas, a.estado === 'generada' ? 'enviada' : a.estado);
+
+  // Igual que en la firma pública: si el update falla NO se puede responder ok,
+  // o el participante creería que firmó y su acta se quedaría sin firma.
+  const { error } = await supabaseAdmin.from('acta')
+    .update({ firmas, estado: nuevoEstado }).eq('id', a.id);
+  if (error) {
+    console.error('[actas.mi-acta] no se pudo guardar la firma del participante', a.id, error.message);
+    return res.status(500).json({ error: 'FIRMA_NO_GUARDADA', mensaje: 'No pudimos registrar tu firma. Inténtalo de nuevo en unos minutos.' });
+  }
+
+  res.json({ ok: true, estado: nuevoEstado });
+});
+
 // GET /api/actas/candidatos-director-mba — quiénes pueden firmar el cierre.
 // Se ofrece elegir en vez de teclear el nombre: escribirlo a mano es como se
 // llegó a tener "Álvaro Moreno García" en la cohorte y "Álvaro José Moreno
