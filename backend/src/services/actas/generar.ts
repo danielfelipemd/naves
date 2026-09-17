@@ -26,6 +26,37 @@ function cadenaFirmas(modalidad: string, director: { nombre: string | null; emai
 
 const dec = (v: any) => { try { return v ? decryptPII(v) : null; } catch { return null; } };
 
+/**
+ * Traslada a la cadena recién construida las firmas que YA estaban puestas.
+ *
+ * Regenerar es idempotente para los datos, pero la cadena se arma de cero en
+ * cada pasada: sin esto, el upsert devolvía todas las casillas a 'pendiente' y
+ * BORRABA firmas selladas. Con la regeneración automática al abrir el panel
+ * pasaba en cada visita: alguien firmaba y su firma desaparecía sola.
+ *
+ * Se empareja por rol + nombre. Si un jurado cambió de nombre, su casilla es
+ * otra y queda pendiente, que es lo correcto: esa persona no ha firmado.
+ */
+function conservarFirmas(nuevas: Firma[], previas: any): Firma[] {
+  const prev = Array.isArray(previas) ? previas : [];
+  if (!prev.length) return nuevas;
+  const usadas = new Set<number>();
+  return nuevas.map((f) => {
+    const i = prev.findIndex((p: any, idx: number) => {
+      if (usadas.has(idx) || p?.estado !== 'firmada' || p?.rol !== f.rol) return false;
+      // El participante es uno solo por acta: no hace falta comparar nombre, y
+      // además no cuadraría (la casilla se crea con nombre null y la firma
+      // guarda el nombre real).
+      if (f.rol === 'participante') return true;
+      return (p?.nombre ?? null) === (f.nombre ?? null);
+    });
+    if (i < 0) return f;
+    usadas.add(i);
+    // La firma sellada manda: lleva hash, HMAC, fecha, IP y el trazo.
+    return { ...f, ...prev[i] };
+  });
+}
+
 // Genera/actualiza las actas de una cohorte. Idempotente (upsert por participante).
 export async function generarActasCohorte(cohorteId: string): Promise<{ generadas: number; faltan_datos: number }> {
   const { data: coh } = await supabaseAdmin.from('cohortes').select('director_mba_nombre, director_mba_cargo').eq('id', cohorteId).maybeSingle();
@@ -84,7 +115,7 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
   const microPorProy = new Map(((micros ?? []) as any[]).map((m) => [m.proyecto_id, m.datos ?? {}]));
 
   // Actas existentes (para conservar nota/observaciones ya capturadas).
-  const { data: existentes } = await supabaseAdmin.from('acta').select('participante_id, nota, observaciones, estado').eq('cohorte_id', cohorteId);
+  const { data: existentes } = await supabaseAdmin.from('acta').select('participante_id, nota, observaciones, estado, firmas').eq('cohorte_id', cohorteId);
   const actaPrev = new Map(((existentes ?? []) as any[]).map((a) => [a.participante_id, a]));
 
   let generadas = 0, faltanDatos = 0;
@@ -139,7 +170,7 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
         lugar: 'INALDE Business School', director_nombre: director.nombre, director_id: e.director_id ?? null,
         jurados, nota, observaciones: prev?.observaciones ?? null,
         director_mba_nombre: dirMba, director_mba_cargo: dirMbaCargo,
-        firmas: cadenaFirmas(modalidad, director, jurados, dirMba), faltan,
+        firmas: conservarFirmas(cadenaFirmas(modalidad, director, jurados, dirMba), prev?.firmas), faltan,
       });
     }
   }
