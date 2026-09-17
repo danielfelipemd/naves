@@ -17,6 +17,9 @@ interface Director {
   email: string;
   estado: 'activo' | 'inactivo';
   areas_afinidad: string[];
+  /** Puede firmar el CIERRE de las actas de una cohorte (no es lo mismo que
+   *  dirigir un Caso o un Proyecto de Investigación). */
+  puede_dirigir_cohorte?: boolean;
   created_at: string;
 }
 
@@ -132,12 +135,32 @@ export default function Directores() {
         nombre_completo: editDraft.nombre_completo,
         estado: editDraft.estado,
         areas_afinidad: editDraft.areas_afinidad,
+        puede_dirigir_cohorte: !!editDraft.puede_dirigir_cohorte,
       };
       // El email se manda solo si el admin lo cambió (campo controlado abajo)
       if (editDraft.email !== undefined && editDraft.email !== '') payload.email = editDraft.email;
       await api.put(`/directores/${editing}`, payload);
       setMsg({ kind: 'ok', text: 'Director actualizado.' });
       setEditing(null);
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setBusy(false); }
+  }
+
+  /**
+   * Marca o desmarca quién puede ser Director de Cohorte (firma el cierre de
+   * TODAS las actas). No confundir con dirigir un Caso o un Proyecto de
+   * Investigación, que es lo que hace un director de proyecto.
+   */
+  async function toggleDirCohorte(d: Director) {
+    const nuevo = !d.puede_dirigir_cohorte;
+    setBusy(true); setMsg(null);
+    try {
+      await api.put(`/directores/${d.id}`, { puede_dirigir_cohorte: nuevo });
+      setMsg({ kind: 'ok', text: nuevo
+        ? `${d.nombre_completo} ya aparece para elegir como Director de Cohorte.`
+        : `${d.nombre_completo} ya no aparece como Director de Cohorte.` });
       await load();
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
@@ -295,6 +318,9 @@ export default function Directores() {
               <ThOrden orden={orden} campo="email">Email</ThOrden>
               <ThOrden orden={orden} campo="areas">Áreas</ThOrden>
               <ThOrden orden={orden} campo="estado">Estado</ThOrden>
+              <th className="px-3 py-2 text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray" title="Puede firmar el cierre de las actas de una cohorte">
+                Dir. de cohorte
+              </th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -330,6 +356,13 @@ export default function Directores() {
                       activo
                     </label>
                   </td>
+                  <td className="px-3 py-2">
+                    <label className="flex items-center gap-1 text-xs">
+                      <input type="checkbox" checked={!!editDraft.puede_dirigir_cohorte}
+                        onChange={(e) => setEditDraft({ ...editDraft, puede_dirigir_cohorte: e.target.checked })} />
+                      sí
+                    </label>
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <button onClick={saveEdit} disabled={busy} className="text-xs font-semibold text-inalde-red mr-2">Guardar</button>
                     <button onClick={() => setEditing(null)} className="text-xs text-inalde-gray">×</button>
@@ -349,6 +382,14 @@ export default function Directores() {
                     <span className={`text-xs uppercase tracking-wider font-semibold ${d.estado === 'activo' ? 'text-inalde-blue' : 'text-inalde-gray'}`}>
                       {d.estado}
                     </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    {/* Se marca aquí mismo: entrar a editar solo para una casilla
+                        es un paso de más en algo que se cambia de vez en cuando. */}
+                    <input type="checkbox" checked={!!d.puede_dirigir_cohorte} disabled={busy}
+                      onChange={() => { void toggleDirCohorte(d); }}
+                      className="accent-inalde-red"
+                      title="Puede firmar el cierre de las actas de una cohorte" />
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <button onClick={() => { setEditing(d.id); setEditDraft({ ...d, areas_afinidad: sanitizeAreas(d.areas_afinidad) }); }}

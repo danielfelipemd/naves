@@ -63,7 +63,7 @@ router.get('/disponibles', async (_req: AuthenticatedRequest, res) => {
 router.get('/', requireRole('super_admin'), async (_req: AuthenticatedRequest, res) => {
   const { data, error } = await supabaseAdmin
     .from('directores')
-    .select('id, nombre_completo, email_encriptado, estado, areas_afinidad, created_at')
+    .select('id, nombre_completo, email_encriptado, estado, areas_afinidad, puede_dirigir_cohorte, created_at')
     .order('nombre_completo');
   if (error) return res.status(500).json({ error: error.message });
   const items = (data ?? []).map((d: any) => {
@@ -75,6 +75,7 @@ router.get('/', requireRole('super_admin'), async (_req: AuthenticatedRequest, r
       email,
       estado: d.estado,
       areas_afinidad: d.areas_afinidad ?? [],
+      puede_dirigir_cohorte: !!d.puede_dirigir_cohorte,
       created_at: d.created_at,
     };
   });
@@ -110,6 +111,8 @@ const updateSchema = z.object({
   email: z.string().trim().email().max(150).optional(),
   estado: z.enum(['activo', 'inactivo']).optional(),
   areas_afinidad: z.array(z.string().trim()).optional(),
+  // Puede firmar el CIERRE de las actas de una cohorte (migración 46).
+  puede_dirigir_cohorte: z.boolean().optional(),
 });
 router.put('/:id', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
   const parsed = updateSchema.safeParse(req.body);
@@ -120,6 +123,8 @@ router.put('/:id', requireRole('super_admin'), async (req: AuthenticatedRequest,
   if (parsed.data.email) upd.email_encriptado = encryptPII(parsed.data.email.toLowerCase());
   if (parsed.data.estado) upd.estado = parsed.data.estado;
   if (parsed.data.areas_afinidad) upd.areas_afinidad = parsed.data.areas_afinidad;
+  // !== undefined y no truthy: desmarcarlo (false) tiene que poder guardarse.
+  if (parsed.data.puede_dirigir_cohorte !== undefined) upd.puede_dirigir_cohorte = parsed.data.puede_dirigir_cohorte;
 
   const { error } = await supabaseAdmin.from('directores').update(upd).eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });

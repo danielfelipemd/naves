@@ -879,7 +879,7 @@ router.delete('/cohortes/:id', async (req, res) => {
 router.get('/profesores', async (_req, res) => {
   const { data, error } = await supabaseAdmin
     .from('profesores')
-    .select('id, auth_user_id, nombre_completo, email_encriptado, es_super_admin, activo, tipo, booking_url, areas_afinidad, ultimo_login, fecha_creacion')
+    .select('id, auth_user_id, nombre_completo, email_encriptado, es_super_admin, activo, tipo, booking_url, areas_afinidad, puede_dirigir_cohorte, ultimo_login, fecha_creacion')
     .order('nombre_completo');
   if (error) return res.status(500).json({ error: error.message });
   const out = (data ?? []).map((p: any) => {
@@ -1195,6 +1195,9 @@ const updateProfSchema = z.object({
   activo: z.boolean().optional(),
   booking_url: z.string().url().nullable().optional(),
   areas_afinidad: z.array(areaEnum).optional(),
+  // Quién puede firmar el CIERRE de las actas de una cohorte. Es un encargo que
+  // se asigna, no algo deducible de estar en la tabla (ver migración 46).
+  puede_dirigir_cohorte: z.boolean().optional(),
 });
 router.put('/profesores/:id', async (req, res) => {
   const parsed = updateProfSchema.safeParse(req.body);
@@ -1237,7 +1240,7 @@ router.put('/profesores/:id', async (req, res) => {
   }
 
   const { data: out } = await supabaseAdmin
-    .from('profesores').select('id, nombre_completo, es_super_admin, activo, booking_url, areas_afinidad').eq('id', req.params.id).maybeSingle();
+    .from('profesores').select('id, nombre_completo, es_super_admin, activo, booking_url, areas_afinidad, puede_dirigir_cohorte').eq('id', req.params.id).maybeSingle();
   res.json({ profesor: out });
 });
 

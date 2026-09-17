@@ -869,6 +869,65 @@ router.get('/lotes/:cohorteId', ...adminOAsistente, async (req: AuthenticatedReq
 
 // GET /api/actas/lotes/:cohorteId/pdf — un solo PDF con todas las actas
 // completas, una por página, listo para mandar a la impresora.
+// POST /api/actas/lotes/:cohorteId/enviar — manda el lote de actas completas por
+// correo, normalmente a la asistente del programa, que es quien imprime y
+// archiva en papel. Antes solo podía descargarlas entrando al sistema.
+router.post('/lotes/:cohorteId/enviar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const destino = String(req.body?.email ?? '').trim();
+  if (!destino || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destino)) {
+    return res.status(400).json({ error: 'EMAIL_INVALIDO', mensaje: 'Escribe un correo válido.' });
+  }
+  const modalidad = String(req.body?.modalidad ?? '').trim();
+
+  let q = supabaseAdmin.from('acta').select('*').eq('cohorte_id', req.params.cohorteId);
+  if (modalidad) q = q.eq('modalidad', modalidad);
+  const { data: actas } = await q;
+
+  // Mismo criterio que la descarga: solo las que tienen TODAS las firmas. Una
+  // anulada no se manda a archivar.
+  const completas = ((actas ?? []) as any[])
+    .filter((a) => !['faltan_datos', 'anulada'].includes(a.estado)
+      && ((a.firmas ?? []) as any[]).length > 0
+      && ((a.firmas ?? []) as any[]).every((f) => f.estado === 'firmada'))
+    .sort((a, b) => String(a.nombre_participante ?? '').localeCompare(String(b.nombre_participante ?? ''), 'es'));
+
+  if (!completas.length) {
+    return res.status(409).json({
+      error: 'SIN_ACTAS_COMPLETAS',
+      mensaje: 'Todavía no hay actas con todas las firmas. Cuando las haya, podrás enviarlas.',
+    });
+  }
+
+  const { data: coh } = await supabaseAdmin.from('cohortes').select('etiqueta').eq('id', req.params.cohorteId).maybeSingle();
+  const etiqueta = (coh as any)?.etiqueta ?? req.params.cohorteId;
+  const pdf = await buildLoteActasPDF(completas as any);
+
+  const html = `
+  <div style="font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;max-width:560px;margin:0 auto">
+    <div style="border-bottom:3px solid #e30613;padding-bottom:12px;margin-bottom:24px">
+      <div style="font-weight:700;letter-spacing:1.5px;font-size:13px">INALDE BUSINESS SCHOOL</div>
+      <div style="color:#6b6b6b;font-size:11px;text-transform:uppercase;letter-spacing:1px">Trabajo de grado · MBA</div>
+    </div>
+    <p style="font-size:15px">Actas de grado — <strong>${etiqueta}</strong></p>
+    <p style="font-size:14px;line-height:1.6">
+      Se adjuntan <strong>${completas.length} acta${completas.length === 1 ? '' : 's'}</strong>
+      ${modalidad ? `de la modalidad indicada ` : ''}con todas sus firmas completas, en un solo PDF
+      listo para imprimir y archivar.
+    </p>
+    <p style="font-size:12px;color:#6b6b6b;border-top:1px solid #e8e8e8;padding-top:12px;margin-top:24px">
+      Firma electrónica conforme a la Ley 527 de 1999 y el Decreto 2364 de 2012.
+    </p>
+  </div>`;
+
+  const nombre = `actas-${req.params.cohorteId}${modalidad ? `-${modalidad}` : ''}.pdf`;
+  const r = await sendEmail(destino, `Actas de grado — ${etiqueta} (${completas.length})`, html, [
+    { filename: nombre, content: pdf, contentType: 'application/pdf' },
+  ]);
+  if (!r.ok) return res.status(502).json({ error: 'ENVIO_FALLIDO', mensaje: `No se pudo enviar: ${r.reason ?? 'error de correo'}.` });
+
+  res.json({ ok: true, enviadas: completas.length, destino });
+});
+
 router.get('/lotes/:cohorteId/pdf', ...adminOAsistente, async (req: AuthenticatedRequest, res) => {
   const modalidad = String(req.query.modalidad ?? '').trim();
   let q = supabaseAdmin.from('acta').select('*').eq('cohorte_id', req.params.cohorteId);

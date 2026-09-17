@@ -20,6 +20,8 @@ interface Profesor {
   tipo?: 'profesor' | 'area';
   booking_url: string | null;
   areas_afinidad: string[];
+  /** Puede firmar el CIERRE de las actas de una cohorte. */
+  puede_dirigir_cohorte?: boolean;
   ultimo_login: string | null;
 }
 
@@ -162,12 +164,28 @@ export default function Profesores() {
         activo: editDraft.activo,
         booking_url: editDraft.booking_url || null,
         areas_afinidad: editDraft.areas_afinidad,
+        puede_dirigir_cohorte: !!editDraft.puede_dirigir_cohorte,
       };
       if (editDraft.email && editDraft.email.trim()) payload.email = editDraft.email.trim();
       if (editDraft.password && editDraft.password.length > 0) payload.password = editDraft.password;
       await api.put(`/admin/profesores/${editing}`, payload);
       setMsg({ kind: 'ok', text: 'Profesor actualizado.' });
       setEditing(null);
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    } finally { setBusy(false); }
+  }
+
+  /** Marca o desmarca quién puede ser Director de Cohorte (firma el cierre). */
+  async function toggleDirCohorte(p: Profesor) {
+    const nuevo = !p.puede_dirigir_cohorte;
+    setBusy(true); setMsg(null);
+    try {
+      await api.put(`/admin/profesores/${p.id}`, { puede_dirigir_cohorte: nuevo });
+      setMsg({ kind: 'ok', text: nuevo
+        ? `${p.nombre_completo} ya aparece para elegir como Director de Cohorte.`
+        : `${p.nombre_completo} ya no aparece como Director de Cohorte.` });
       await load();
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
@@ -357,6 +375,9 @@ export default function Profesores() {
             <ThOrden orden={orden} campo="areas">Áreas</ThOrden>
             <ThOrden orden={orden} campo="estado">Estado</ThOrden>
             <ThOrden orden={orden} campo="acceso">Último acceso</ThOrden>
+            <th className="px-3 py-2 text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray" title="Puede firmar el cierre de las actas de una cohorte">
+              Dir. de cohorte
+            </th>
             <th className="px-3 py-2"></th>
           </tr>
         </thead>
@@ -381,6 +402,14 @@ export default function Profesores() {
                     <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!editDraft.activo} onChange={(e) => setEditDraft({ ...editDraft, activo: e.target.checked })} /> activo</label>
                   </td>
                   <td className="px-3 py-2 text-xs text-inalde-gray">{formatUltimoAcceso(p.ultimo_login)}</td>
+                  <td className="px-3 py-2">
+                    {p.tipo !== 'area' && !editDraft.es_super_admin ? (
+                      <label className="flex items-center gap-1 text-xs">
+                        <input type="checkbox" checked={!!editDraft.puede_dirigir_cohorte}
+                          onChange={(e) => setEditDraft({ ...editDraft, puede_dirigir_cohorte: e.target.checked })} /> sí
+                      </label>
+                    ) : <span className="text-xs text-inalde-gray">—</span>}
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <button onClick={saveEdit} disabled={busy} className="text-xs font-semibold text-inalde-red mr-2">Guardar</button>
                     <button onClick={() => setEditing(null)} className="text-xs text-inalde-gray">×</button>
@@ -388,7 +417,7 @@ export default function Profesores() {
                 </tr>
                 <tr key={`${p.id}-extra`} className="bg-inalde-red/5 border-b-2 border-inalde-red/30">
                   <td></td>
-                  <td colSpan={6} className="px-3 pb-4 pt-2">
+                  <td colSpan={7} className="px-3 pb-4 pt-2">
                     <div className="grid sm:grid-cols-3 gap-3">
                       <div>
                         <label className="block font-primary font-semibold text-[10px] tracking-wider uppercase text-inalde-gray mb-1">Email institucional</label>
@@ -443,6 +472,16 @@ export default function Profesores() {
                 </td>
                 <td className="px-3 py-2 text-xs text-inalde-gray whitespace-nowrap">
                   {formatUltimoAcceso(p.ultimo_login)}
+                </td>
+                <td className="px-3 py-2">
+                  {/* Solo para profesores: el staff de área y los administradores
+                      no firman actas. */}
+                  {p.tipo !== 'area' && !p.es_super_admin ? (
+                    <input type="checkbox" checked={!!p.puede_dirigir_cohorte} disabled={busy}
+                      onChange={() => { void toggleDirCohorte(p); }}
+                      className="accent-inalde-red"
+                      title="Puede firmar el cierre de las actas de una cohorte" />
+                  ) : <span className="text-xs text-inalde-gray">—</span>}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   <button onClick={() => { setEditing(p.id); setEditDraft({ ...p, areas_afinidad: sanitizeAreas(p.areas_afinidad) }); }} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover mr-3">Editar</button>

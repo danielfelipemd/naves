@@ -35,6 +35,8 @@ export default function Lotes() {
   const [cargando, setCargando] = useState(false);
   const [err, setErr] = useState('');
   const [bajando, setBajando] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [ok, setOk] = useState('');
 
   useEffect(() => { (async () => {
     try {
@@ -53,6 +55,25 @@ export default function Lotes() {
     finally { setCargando(false); }
   }, [cohorte]);
   useEffect(() => { cargar(); }, [cargar]);
+
+  /**
+   * Manda el lote de actas completas por correo, normalmente a la asistente del
+   * programa, que es quien imprime y archiva en papel. El correo no se guarda:
+   * se pide cada vez, porque puede cambiar de persona entre cohortes.
+   */
+  async function enviarPorCorreo() {
+    const email = prompt('¿A qué correo se envían las actas completas?\n\nSuele ser la asistente del programa, que es quien imprime y archiva.');
+    if (email === null) return;                 // canceló
+    if (!email.trim()) { setErr('Escribe un correo.'); return; }
+    setEnviando(true); setErr(''); setOk('');
+    try {
+      // timeout: 0 — genera el PDF del lote y lo manda; pasa de 15 s.
+      const r = await api.post(`/actas/lotes/${cohorte}/enviar`, { email: email.trim() }, { timeout: 0 });
+      setOk(`Se enviaron ${(r.data as any)?.enviadas ?? ''} actas a ${email.trim()}.`);
+    } catch (e) {
+      setErr(formatBackendError(e));
+    } finally { setEnviando(false); }
+  }
 
   async function descargar(modalidad?: string) {
     setBajando(modalidad ?? 'todas'); setErr('');
@@ -91,6 +112,7 @@ export default function Lotes() {
       </div>
 
       {err && <div className="mb-6 rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm">{err}</div>}
+      {ok && <div className="mb-6 rounded border-l-4 border-green-600 bg-green-50 px-4 py-3 text-sm">{ok}</div>}
       {cargando && <p className="text-inalde-gray text-sm">Cargando…</p>}
 
       {data && (
@@ -122,6 +144,12 @@ export default function Lotes() {
                         {bajando === m.modalidad ? 'Preparando…' : `↓ ${MODALIDAD[m.modalidad] ?? m.modalidad} (${m.total})`}
                       </button>
                     ))}
+                    {/* Enviar por correo: quien imprime y archiva en papel es la
+                        asistente del programa, y no siempre entra al sistema. */}
+                    <button type="button" className="btn-inalde-secondary !py-2 !px-4 !text-xs"
+                      onClick={() => { void enviarPorCorreo(); }} disabled={!!bajando || enviando}>
+                      {enviando ? 'Enviando…' : '✉️ Enviar por correo'}
+                    </button>
                   </div>
                   <div className="max-h-[220px] overflow-auto divide-y divide-inalde-gray-light">
                     {data.listas.actas.map((a) => (
