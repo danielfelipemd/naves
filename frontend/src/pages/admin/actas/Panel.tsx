@@ -45,6 +45,7 @@ interface Tiles {
   firmas_internas_completas: number;
   completas: number;
   anuladas?: number;
+  por_rol?: Record<string, { firmadas: number; total: number }>;
 }
 interface Data {
   cohorte_id: string;
@@ -315,14 +316,47 @@ export default function ActasPanel() {
       {data && (
         <div className="flex flex-col gap-8">
 
-          {/* Tiles */}
+          {/* Tiles — avance general de la cohorte */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             <Tile label="Total de actas" valor={data.tiles.total} sub={`BP ${data.tiles.business_plan} · Caso ${data.tiles.caso} · PI ${data.tiles.proyecto_investigacion}`} acento />
             <Tile label="Faltan datos" valor={data.tiles.faltan_datos} />
-            <Tile label="Firmadas por participante" valor={data.tiles.firmadas_participante} />
             <Tile label="Firmas internas completas" valor={data.tiles.firmas_internas_completas} />
             <Tile label="Completas" valor={data.tiles.completas} />
+            <Tile label="Anuladas" valor={data.tiles.anuladas ?? 0} />
           </div>
+
+          {/* Firmas por rol: quién ya firmó y a quién falta esperar.
+              El denominador NO es el total de actas: cada rol solo firma las de
+              su modalidad (el profesor NAVES los BP, el director de proyecto los
+              Caso/PI), y en un acta de Caso/PI hay varios jurados. */}
+          {data.tiles.por_rol && (
+            <section>
+              <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-1">Firmas por rol</h2>
+              <p className="text-xs text-inalde-gray mb-4">
+                Firmas puestas sobre las que se esperan. No cuenta las actas anuladas ni las que aún no tienen datos.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {([
+                  ['participante', 'Participante'],
+                  ['profesor', 'Profesor NAVES'],
+                  ['director_proyecto', 'Director de proyecto'],
+                  ['jurado', 'Jurados'],
+                  ['director_mba', 'Director de Cohorte'],
+                ] as const).map(([rol, etiqueta]) => {
+                  const r = data.tiles.por_rol?.[rol] ?? { firmadas: 0, total: 0 };
+                  return (
+                    <Tile
+                      key={rol}
+                      label={etiqueta}
+                      valor={r.firmadas}
+                      sub={r.total ? `de ${r.total}${r.firmadas >= r.total ? ' · al día' : ` · faltan ${r.total - r.firmadas}`}` : 'no aplica'}
+                      acento={r.total > 0 && r.firmadas >= r.total}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* Acciones + Config Director de Cohorte */}
           <div className="grid lg:grid-cols-2 gap-6">

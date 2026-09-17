@@ -126,6 +126,27 @@ router.get('/', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
     firmas_internas_completas: rows.filter((a) => a.estado === 'lista_para_cierre' || a.estado === 'completa').length,
     completas: rows.filter((a) => ['completa', 'archivada'].includes(a.estado)).length,
     anuladas: rows.filter((a) => a.estado === 'anulada').length,
+    // Avance POR ROL: cuántas firmas de cada rol están puestas y cuántas se
+    // esperan. El total no es el número de actas: en un acta de Caso/PI hay
+    // varios jurados, y el rol solo aplica a las actas de su modalidad (el
+    // profesor NAVES firma los Business Plan; el director de proyecto, los
+    // Caso/PI). Por eso se cuenta sobre las casillas de firma reales.
+    // Las anuladas no suman: ya no esperan a nadie.
+    por_rol: (() => {
+      const ROLES = ['participante', 'profesor', 'director_proyecto', 'jurado', 'director_mba'] as const;
+      const acc: Record<string, { firmadas: number; total: number }> =
+        Object.fromEntries(ROLES.map((r) => [r, { firmadas: 0, total: 0 }]));
+      for (const a of rows) {
+        if (a.estado === 'anulada' || a.estado === 'faltan_datos') continue;
+        for (const f of (a.firmas ?? []) as any[]) {
+          const g = acc[f.rol];
+          if (!g) continue;                       // un rol nuevo no rompe el panel
+          g.total++;
+          if (f.estado === 'firmada') g.firmadas++;
+        }
+      }
+      return acc;
+    })(),
   };
 
   // Avance por firmante (rol+nombre): pendientes vs firmadas de su lote.
