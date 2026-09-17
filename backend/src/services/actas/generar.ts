@@ -126,14 +126,33 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
     const proyId = e.proyecto_definitivo_id;
     const nombreProyecto = proyId ? (nombreProy.get(proyId) ?? null) : null;
     const sust = proyId ? sustentacionPorProy.get(proyId) : null;
-    const fecha = sust?.fecha ?? null;
-    // ¿Ya terminó la presentación? El cronograma es la única fuente: nadie marca
-    // "ya ocurrió". Mientras no haya pasado la hora de fin, el acta no se abre.
-    const yaSustentó = !!(sust?.fin && new Date() >= sust.fin);
+    const micro = proyId ? microPorProy.get(proyId) : null;
+
+    // De dónde sale la fecha de sustentación, según la modalidad:
+    //
+    //  - Business Plan: del CRONOGRAMA. Presentan en el evento NAVES, así que el
+    //    slot manda y el acta se abre sola al terminar su hora.
+    //  - Caso / Proyecto de Investigación: del MICROFORMULARIO. Estos NO presentan
+    //    en el evento (`proyectosFase2` los excluye a propósito), así que nunca
+    //    tienen slot: su director sustenta aparte y registra la fecha ahí.
+    //
+    // Antes la fecha solo se leía del cronograma, así que un Caso o un PI se
+    // quedaba en 'faltan_datos' para siempre pidiendo una "fecha de sustentación
+    // (programación)" que por diseño nunca iba a existir. Su acta no se podía
+    // completar nunca.
+    const fechaMicro = micro?.fecha_sustentacion ?? null;
+    const fecha = sust?.fecha ?? fechaMicro ?? null;
+
+    // ¿Ya terminó la presentación? Para BP lo dice el cronograma (hora de fin);
+    // para Caso/PI, que el director ya haya diligenciado el microformulario: solo
+    // lo hace después de la sustentación, y registra ahí el resultado.
+    const yaSustentó = modalidad === 'business_plan'
+      ? !!(sust?.fin && new Date() >= sust.fin)
+      : !!fechaMicro;
+
     const director = modalidad === 'business_plan'
       ? { nombre: profPorEquipo.get(e.id) ?? null, email: null }
       : (e.director_id ? dirById.get(e.director_id) ?? { nombre: null, email: null } : { nombre: null, email: null });
-    const micro = proyId ? microPorProy.get(proyId) : null;
     const jurados = modalidad === 'business_plan' ? [] : (micro?.jurados ?? []);
 
     for (const m of (e.miembros_equipo ?? []) as any[]) {
@@ -149,7 +168,10 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
 
       const faltan: string[] = [];
       if (!nombreProyecto) faltan.push('nombre del proyecto');
-      if (!fecha) faltan.push('fecha de sustentación (programación)');
+      // El mensaje dice DÓNDE se pone la fecha, que es distinto en cada modalidad.
+      if (!fecha) faltan.push(modalidad === 'business_plan'
+        ? 'fecha de sustentación (programación)'
+        : 'fecha de sustentación (microformulario)');
       if (!yaSustentó && fecha) faltan.push('la presentación aún no ha ocurrido');
       if (!director.nombre) faltan.push(modalidad === 'business_plan' ? 'profesor asignado' : 'director de proyecto');
       if (modalidad !== 'business_plan' && !jurados.length) faltan.push('jurados (microformulario)');
