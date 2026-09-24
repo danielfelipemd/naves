@@ -107,6 +107,20 @@ export default function Acta() {
     return acta.firmas.find((f) => roles.some((r) => f.rol.toLowerCase().includes(r)));
   }
 
+  /**
+   * La firma de UN jurado concreto. No vale buscar por rol: en un Caso o un PI
+   * todos los jurados tienen `rol: 'jurado'`, así que el primero se llevaría la
+   * firma de todos. Y "jurado 1" no es un rol de nada, así que antes ninguno
+   * mostraba su firma aunque hubiera firmado. Se empareja por rol + nombre, que
+   * es lo que distingue a una persona de otra (mismo arreglo que en el PDF).
+   */
+  function firmaDeJurado(nombre: string): Firma | undefined {
+    if (!acta) return undefined;
+    const n = nombre.trim().toLocaleLowerCase('es');
+    return acta.firmas.find((f) => f.rol.toLowerCase().includes('jurado')
+      && (f.nombre ?? '').trim().toLocaleLowerCase('es') === n);
+  }
+
   async function guardarObs() {
     if (!id) return;
     setGuardandoObs(true); setErr(''); setOkMsg('');
@@ -241,7 +255,7 @@ export default function Acta() {
                   return (
                     <div key={i} className="flex items-baseline justify-between gap-3 border-b border-inalde-gray-light py-1">
                       <p className="text-sm text-inalde-text">Jurado {i + 1}: {nombre}</p>
-                      <FirmaEstado firma={firmaDe(`jurado ${i + 1}`, nombre.toLowerCase())} />
+                      <FirmaEstado firma={firmaDeJurado(nombre)} />
                     </div>
                   );
                 })}
