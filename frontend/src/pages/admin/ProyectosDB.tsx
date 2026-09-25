@@ -147,7 +147,7 @@ export default function ProyectosDB() {
         )}
       </div>
 
-      {iaOn === false && <div className="rounded border-l-4 border-inalde-gold bg-inalde-gold/10 px-4 py-3 text-sm mb-4">La generación con IA está deshabilitada: falta configurar <code>ANTHROPIC_API_KEY</code> en el servidor. El resto de la página funciona normalmente.</div>}
+      {iaOn === false && <div className="rounded border-l-4 border-inalde-gold bg-inalde-gold/10 px-4 py-3 text-sm mb-4">La generación automática de contenido no está disponible ahora mismo. Avisa a la asistente del programa. El resto de la página funciona normalmente.</div>}
       {bulk && <div className="rounded border-l-4 border-inalde-blue bg-blue-50 px-4 py-3 text-sm mb-4">{bulk}</div>}
       {err && <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm mb-4">{err}</div>}
 
@@ -272,6 +272,7 @@ export default function ProyectosDB() {
 function errorLegible(e: any): string {
   const code = e?.response?.data?.error;
   if (code === 'SIN_FUENTE') return 'El proyecto no tiene información suficiente (canvas) para generar contenido sin inventar.';
-  if (code === 'IA_NO_CONFIGURADA') return 'La IA no está configurada en el servidor (falta ANTHROPIC_API_KEY).';
+  // IA_NO_CONFIGURADA lo traduce errors.ts: el nombre de la variable de
+  // entorno es jerga para quien administra, no para quien usa la pantalla.
   return formatBackendError(e);
 }
