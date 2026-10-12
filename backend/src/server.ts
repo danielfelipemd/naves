@@ -54,6 +54,9 @@ app.use(helmet());
 app.use(cors({
   origin: config.cors.origins.length ? config.cors.origins : true,
   credentials: true,
+  // Los listados paginados (p. ej. /admin/auditoria) mandan el total en una
+  // cabecera; sin exponerla, un frontend en otro origen no podría leerla.
+  exposedHeaders: ['X-Total-Count', 'X-Pagina'],
 }));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('combined'));

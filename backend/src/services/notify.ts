@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../db/supabase.js';
+import { enTandas } from '../lib/traerTodasLasFilas.js';
 
 // Notificaciones dentro de la plataforma (Módulo E). El destinatario se
 // identifica por su auth_user_id (el `sub` del JWT). Inserción best-effort:
@@ -37,9 +38,15 @@ export async function notificar(items: NuevaNotificacion[]): Promise<number> {
 // (para no duplicar al re-notificar, p.ej. si se re-publica la programación).
 export async function limpiarNotificaciones(tipo: string, destinatarios: string[]): Promise<void> {
   if (!destinatarios.length) return;
-  try {
-    await supabaseAdmin.from('notificaciones').delete().eq('tipo', tipo).in('destinatario_auth_id', destinatarios);
-  } catch (e) {
-    console.warn('[notify] limpiar falló:', (e as Error).message);
+  // En tandas de 150: con ~206 UUID la URL del .in() pasa de 8,2 KB y Kong
+  // responde 414. supabase-js DEVUELVE ese error (no lo lanza), así que el
+  // try/catch no lo veía y las notificaciones se duplicaban al re-publicar.
+  for (const tanda of enTandas(destinatarios, 150)) {
+    try {
+      const { error } = await supabaseAdmin.from('notificaciones').delete().eq('tipo', tipo).in('destinatario_auth_id', tanda);
+      if (error) console.warn('[notify] limpiar falló:', error.message);
+    } catch (e) {
+      console.warn('[notify] limpiar falló:', (e as Error).message);
+    }
   }
 }

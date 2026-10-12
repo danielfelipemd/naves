@@ -10,6 +10,7 @@ import { buildAnteproyectoPDF } from '../services/pdf.js';
 import { sendEmail } from '../services/email.js';
 import { AREAS_AFINIDAD } from '../lib/areas.js';
 import { normalizeHeaderKey, findCol, cellStr, cellBool, buildTemplateXlsx } from '../lib/excel.js';
+import { traerTodasLasFilas } from '../lib/traerTodasLasFilas.js';
 import { copyPerfilParticipanteAMiembro } from './equipos.js';
 import {
   uploadTrabajoGradoFile,
@@ -131,6 +132,29 @@ function leerAreas(
   return vals;
 }
 
+/**
+ * Todas las cuentas de GoTrue como email → id. La API de administración
+ * pagina (`page`, `per_page`) y por defecto devuelve solo 50; se recorre hasta
+ * juntar las `x-total-count` (si un GoTrue futuro limitara `per_page` por
+ * debajo de lo pedido, se sigue pidiendo páginas en vez de parar a medias).
+ */
+async function cargarCuentasAuth(supabaseUrl: string, svcKey: string): Promise<Map<string, string>> {
+  const porEmail = new Map<string, string>();
+  const POR_PAGINA = 1000;
+  for (let page = 1; page <= 100; page++) {
+    const resp = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=${POR_PAGINA}`, {
+      headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` },
+    });
+    if (!resp.ok) throw new Error(`No se pudo leer la lista de cuentas (HTTP ${resp.status})`);
+    const users = (((await resp.json()) as any).users ?? []) as Array<{ id: string; email: string | null }>;
+    for (const u of users) if (u.email) porEmail.set(u.email.toLowerCase(), u.id);
+    const total = Number(resp.headers.get('x-total-count') ?? NaN);
+    if (users.length === 0) break;
+    if (Number.isFinite(total) ? porEmail.size >= total : users.length < POR_PAGINA) break;
+  }
+  return porEmail;
+}
+
 router.post('/participantes/cargar-excel', upload.single('file'), async (req: AuthenticatedRequest, res) => {
   const cohorteId = String(req.body?.cohorte_id ?? '').trim();
   if (!cohorteId) return res.status(400).json({ error: 'MISSING_COHORTE' });
@@ -181,6 +205,19 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
   let inserted = 0;
   const errors: Array<{ row: number; error: string }> = [];
 
+  // Cuentas ya existentes (email → id), cargadas una sola vez y solo si hace
+  // falta. Antes se pedía `?per_page=200` (la primera página) en cada fila
+  // repetida, y GoTrue lista de la cuenta más NUEVA a la más vieja: al pasar
+  // de 200 cuentas, las viejas dejaban de aparecer, userId quedaba en null y el
+  // upsert de abajo borraba el auth_user_id del participante (sin error). Pasa
+  // al recargar el Excel de una cohorte antigua o al inscribir a alguien que ya
+  // estuvo en otra cohorte (misma cédula → mismo email sintético).
+  const cuentas: { porEmail: Map<string, string> | null } = { porEmail: null };
+  async function idDeCuentaExistente(email: string): Promise<string | null> {
+    if (!cuentas.porEmail) cuentas.porEmail = await cargarCuentasAuth(supabaseUrl, svcKey);
+    return cuentas.porEmail.get(email) ?? null;
+  }
+
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
     try {
@@ -213,13 +250,23 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
       });
       if (createResp.ok) {
         userId = ((await createResp.json()) as any).id;
+        // Por si la misma cédula se repite más abajo en el mismo Excel.
+        if (userId) cuentas.porEmail?.set(synth, userId);
       } else {
-        // ya existe → fetch list & find
-        const listResp = await fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=200`, {
-          headers: { apikey: svcKey, Authorization: `Bearer ${svcKey}` },
-        });
-        const users = (((await listResp.json()) as any).users ?? []) as Array<{ id: string; email: string }>;
-        userId = users.find((u) => u.email === synth)?.id ?? null;
+        // Ya existe: se busca entre TODAS las cuentas (paginando), y si aun así
+        // no aparece, en el vínculo que ya tiene esa cédula en otra cohorte.
+        userId = await idDeCuentaExistente(synth);
+        if (!userId) {
+          const { data: previo } = await supabaseAdmin
+            .from('participantes_lista')
+            .select('auth_user_id')
+            .eq('cedula_hash', sha256Hex(cedula))
+            .not('auth_user_id', 'is', null)
+            .order('fecha_creacion', { ascending: false }).order('id')
+            .limit(1)
+            .maybeSingle();
+          userId = (previo?.auth_user_id as string | null) ?? null;
+        }
       }
 
       // 2) upsert participantes_lista.
@@ -228,11 +275,14 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
       // el alumno no aparece en la lista de la cohorte y, aun así, abajo se
       // contaba como insertado. Reportamos la fila como error y seguimos con
       // las demás.
+      // auth_user_id solo se manda si se conoce: mandar null sobre una fila que
+      // ya existía la desconectaba de su cuenta y el participante no podía
+      // entrar, sin que nadie se enterara.
       const { data: pRow, error: errRow } = await supabaseAdmin
         .from('participantes_lista')
         .upsert({
           cohorte_id: cohorteId,
-          auth_user_id: userId,
+          ...(userId ? { auth_user_id: userId } : {}),
           nombre_completo: nombre,
           cedula_encriptada: encryptPII(cedula),
           cedula_hash: sha256Hex(cedula),
@@ -255,6 +305,13 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
         });
       }
 
+      if (!userId) {
+        // La fila quedó guardada, pero sin cuenta con la que entrar: se avisa
+        // en vez de contarla como cargada.
+        errors.push({ row: r, error: 'CUENTA_NO_ENCONTRADA: la cédula ya tiene cuenta pero no se pudo vincular' });
+        continue;
+      }
+
       inserted++;
     } catch (e) {
       errors.push({ row: r, error: (e as Error).message });
@@ -272,10 +329,15 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
 router.post('/participantes/reset-pendientes-a-cedula', async (_req, res) => {
   const supabaseUrl = process.env.SUPABASE_URL!;
   const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const { data } = await supabaseAdmin
+  // Paginado: con más de 1000 pendientes, el reseteo dejaba fuera al resto y
+  // aun así decía que había terminado.
+  const { data, error } = await traerTodasLasFilas((desde, hasta) => supabaseAdmin
     .from('participantes_lista')
     .select('id, auth_user_id, cedula_encriptada')
-    .eq('estado', 'pendiente_activacion');
+    .eq('estado', 'pendiente_activacion')
+    .order('id')
+    .range(desde, hasta));
+  if (error) return res.status(500).json({ error: error.message });
   let actualizados = 0; const fallos: any[] = [];
   for (const p of data ?? []) {
     if (!p.auth_user_id) continue;
@@ -641,20 +703,26 @@ router.post('/cohortes/:id/cargar-excel', cohorteExcelUpload.single('file'), asy
 
 // GET /api/admin/participantes — TODOS los participantes con su cohorte
 router.get('/participantes', async (_req, res) => {
-  const { data, error } = await supabaseAdmin
+  // Todas las cohortes juntas: crece ~90 por cohorte. Paginado para que, al
+  // pasar de 1000, no desaparezcan en silencio los últimos del alfabeto.
+  const { data, error } = await traerTodasLasFilas((desde, hasta) => supabaseAdmin
     .from('participantes_lista')
     .select(`
       id, auth_user_id, cohorte_id, nombre_completo, cedula_encriptada, email_encriptado,
       estado, fecha_creacion, tipo_trabajo_grado, ultimo_login,
       miembros_equipo ( equipo_id )
     `)
-    .order('nombre_completo');
+    .order('nombre_completo').order('id')
+    .range(desde, hasta));
   if (error) return res.status(500).json({ error: error.message });
   const out = (data ?? []).map((p: any) => {
     let cedula = '', email = '';
     try { cedula = decryptPII(p.cedula_encriptada); } catch { /* ignore */ }
     try { email = decryptPII(p.email_encriptado); } catch { /* ignore */ }
-    const en_equipo = Array.isArray(p.miembros_equipo) && p.miembros_equipo.length > 0;
+    // miembros_equipo tiene UNIQUE(participante_id): PostgREST lo embebe como
+    // OBJETO (o null), no como lista. Con Array.isArray esto daba siempre false
+    // y la pantalla nunca marcaba «en equipo» (medido el 12/10/2026).
+    const en_equipo = Array.isArray(p.miembros_equipo) ? p.miembros_equipo.length > 0 : !!p.miembros_equipo;
     return {
       id: p.id,
       auth_user_id: p.auth_user_id,
@@ -688,7 +756,10 @@ router.get('/cohortes/:id/participantes', async (req, res) => {
     let cedula = '', email = '';
     try { cedula = decryptPII(p.cedula_encriptada); } catch { /* ignore */ }
     try { email = decryptPII(p.email_encriptado); } catch { /* ignore */ }
-    const en_equipo = Array.isArray(p.miembros_equipo) && p.miembros_equipo.length > 0;
+    // miembros_equipo tiene UNIQUE(participante_id): PostgREST lo embebe como
+    // OBJETO (o null), no como lista. Con Array.isArray esto daba siempre false
+    // y la pantalla nunca marcaba «en equipo» (medido el 12/10/2026).
+    const en_equipo = Array.isArray(p.miembros_equipo) ? p.miembros_equipo.length > 0 : !!p.miembros_equipo;
     return {
       id: p.id,
       auth_user_id: p.auth_user_id,
@@ -1251,23 +1322,25 @@ router.get('/anteproyectos', async (req, res) => {
   const cohorte = String(req.query.cohorte ?? '').trim();
   const estado = String(req.query.estado ?? '').trim();
 
-  let q = supabaseAdmin
-    .from('anteproyectos')
-    .select(`
-      id, estado, fecha_envio, fecha_actualizacion,
-      archivo_anteproyecto_path, archivo_avance_path, archivo_proyecto_final_path,
-      anteproyecto_aprobado_at,
-      equipos!inner ( id, nombre_equipo, cohorte_id, tipo_trabajo_grado,
-        director:directores ( id, nombre_completo ),
-        miembros_equipo ( posicion, participantes_lista ( nombre_completo ) ) ),
-      proyectos ( id, nombre, sector, estado_seleccion )
-    `)
-    .order('fecha_actualizacion', { ascending: false });
-
-  if (cohorte) q = q.eq('equipos.cohorte_id', cohorte);
-  if (estado) q = q.eq('estado', estado);
-
-  const { data, error } = await q;
+  // Sin cohorte recorre todas: paginado para no quedarse en 1000.
+  const { data, error } = await traerTodasLasFilas((desde, hasta) => {
+    let q = supabaseAdmin
+      .from('anteproyectos')
+      .select(`
+        id, estado, fecha_envio, fecha_actualizacion,
+        archivo_anteproyecto_path, archivo_avance_path, archivo_proyecto_final_path,
+        anteproyecto_aprobado_at,
+        equipos!inner ( id, nombre_equipo, cohorte_id, tipo_trabajo_grado,
+          director:directores ( id, nombre_completo ),
+          miembros_equipo ( posicion, participantes_lista ( nombre_completo ) ) ),
+        proyectos ( id, nombre, sector, estado_seleccion )
+      `);
+    if (cohorte) q = q.eq('equipos.cohorte_id', cohorte);
+    if (estado) q = q.eq('estado', estado);
+    return q
+      .order('fecha_actualizacion', { ascending: false }).order('id')
+      .range(desde, hasta);
+  });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data ?? []);
 });
@@ -1341,18 +1414,36 @@ router.get('/solicitudes-desarchivado', async (_req, res) => {
 // AUDITORÍA (lectura)
 // =====================================================================
 router.get('/auditoria', async (req, res) => {
-  const limit = Math.min(Number(req.query.limit ?? 100), 500);
+  // Paginación de servidor de verdad: la tabla tiene ~20.000 filas (12/10/2026)
+  // y no se descargan enteras. Antes solo devolvía las últimas 100–500 acciones
+  // sin forma de ver las anteriores. La respuesta sigue siendo la lista (como
+  // antes) y el total va en la cabecera X-Total-Count para pintar el paginador.
+  //   ?limit=100 (máx. 500) &pagina=1 &accion= &actor_id= &desde=AAAA-MM-DD &hasta=AAAA-MM-DD
+  const limit = Math.min(Math.max(Number(req.query.limit ?? 100) || 100, 1), 500);
+  const pagina = Math.max(Math.floor(Number(req.query.pagina ?? 1)) || 1, 1);
   const accion = String(req.query.accion ?? '').trim();
+  const actorId = String(req.query.actor_id ?? '').trim();
+  const desde = String(req.query.desde ?? '').trim();
+  const hasta = String(req.query.hasta ?? '').trim();
 
+  const inicio = (pagina - 1) * limit;
   let q = supabaseAdmin
     .from('auditoria')
-    .select('id, actor_tipo, actor_id, accion, entidad_tipo, entidad_id, ip, timestamp')
+    .select('id, actor_tipo, actor_id, accion, entidad_tipo, entidad_id, ip, timestamp', { count: 'exact' })
+    // El id desempata: varias acciones pueden compartir el mismo instante y
+    // sin él una fila podría salir en dos páginas o en ninguna.
     .order('timestamp', { ascending: false })
-    .limit(limit);
+    .order('id', { ascending: false })
+    .range(inicio, inicio + limit - 1);
   if (accion) q = q.ilike('accion', `%${accion}%`);
+  if (/^[0-9a-f-]{36}$/i.test(actorId)) q = q.eq('actor_id', actorId);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(desde)) q = q.gte('timestamp', `${desde}T00:00:00-05:00`);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(hasta)) q = q.lte('timestamp', `${hasta}T23:59:59.999-05:00`);
 
-  const { data, error } = await q;
+  const { data, error, count } = await q;
   if (error) return res.status(500).json({ error: error.message });
+  res.setHeader('X-Total-Count', String(count ?? 0));
+  res.setHeader('X-Pagina', String(pagina));
   res.json(data ?? []);
 });
 

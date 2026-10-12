@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../db/supabase.js';
+import { traerTodasLasFilas } from '../../lib/traerTodasLasFilas.js';
 
 // =====================================================================
 // AoL §11/§12 — Exportación por cohorte.
@@ -133,7 +134,13 @@ export async function generarReporteWord(cohorteId: string, campos: CamposEditab
     const { data: ests } = await supabaseAdmin.from('estudiante').select('id').eq('cohorte_id', aolCohorteId);
     const estIds = ((ests ?? []) as any[]).map((e) => e.id);
     if (estIds.length) {
-      const { data: meds } = await supabaseAdmin.from('medicion').select('estudiante_id').in('estudiante_id', estIds);
+      // Paginado: hay ~6 mediciones por estudiante, así que con más de ~166
+      // estudiantes medidos en una cohorte las 1000 filas se quedaban cortas y
+      // el N evaluado del informe salía por debajo del real.
+      const { data: meds } = await traerTodasLasFilas((desde, hasta) => supabaseAdmin.from('medicion')
+        .select('id, estudiante_id').in('estudiante_id', estIds)
+        .order('estudiante_id').order('id')
+        .range(desde, hasta));
       const distintos = new Set(((meds ?? []) as any[]).map((m) => m.estudiante_id));
       if (distintos.size) nEval = distintos.size;
     }
@@ -394,7 +401,14 @@ export async function generarReporteExcel(cohorteId: string): Promise<{ buffer: 
     const proyIds = [...new Set(estudiantes.map((e) => e.proyecto_id).filter((x) => x != null))];
     const [{ data: proys }, { data: meds }] = await Promise.all([
       proyIds.length ? supabaseAdmin.from('proyecto').select('id, titulo').in('id', proyIds) : Promise.resolve({ data: [] as any[] }),
-      estIds.length ? supabaseAdmin.from('medicion').select('estudiante_id, criterio_id, puntaje').in('estudiante_id', estIds) : Promise.resolve({ data: [] as any[] }),
+      // Paginado: con más de ~166 estudiantes medidos, el Excel salía con
+      // puntajes vacíos para los últimos, sin avisar.
+      estIds.length
+        ? traerTodasLasFilas((desde, hasta) => supabaseAdmin.from('medicion')
+          .select('id, estudiante_id, criterio_id, puntaje').in('estudiante_id', estIds)
+          .order('estudiante_id').order('criterio_id').order('id')
+          .range(desde, hasta))
+        : Promise.resolve({ data: [] as any[] }),
     ]);
     for (const p of (proys ?? []) as any[]) proyectoById.set(p.id, p.titulo);
     mediciones = (meds ?? []) as any[];

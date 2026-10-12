@@ -208,6 +208,7 @@ export function formatBackendError(e: any): string {
     ROLES_ASIGNAR_FAILED: 'No pudimos asignar los roles. Inténtalo de nuevo.',
     PERMISO_GRANT_FAILED: 'No pudimos otorgar el permiso. Inténtalo de nuevo.',
     PERMISO_REVOKE_FAILED: 'No pudimos quitar el permiso. Inténtalo de nuevo.',
+    USUARIOS_ROLES_FAILED: 'No pudimos cargar los usuarios con sus roles. Recarga la página; los roles asignados no se han perdido.',
 
     // ── Datos y formularios ──────────────────────────────────────────────
     FALTAN_DATOS: 'Faltan datos por completar. Revisa el formulario.',

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
+import { traerTodasLasFilas } from '../lib/traerTodasLasFilas.js';
 
 const router = Router();
 router.use(requireAuth());
@@ -222,28 +223,32 @@ router.get('/buscar', async (req: AuthenticatedRequest, res) => {
     modalidadCaller = (yo?.tipo_trabajo_grado as string | null) ?? null;
   }
 
-  // Subquery: participantes que YA están en un equipo
-  const { data: enEquipos } = await supabaseAdmin.from('miembros_equipo').select('participante_id');
-  const idsOcupados = new Set((enEquipos ?? []).map((m) => m.participante_id));
+  // Quién ya está en un equipo se pregunta en la MISMA consulta (embed de
+  // miembros_equipo), solo para la cohorte. Antes se leía miembros_equipo
+  // entera, sin filtro: al pasar de 1000 miembros (todas las cohortes) el
+  // buscador habría ofrecido como libres a personas que ya tienen equipo.
+  const consulta = () => {
+    let q = supabaseAdmin
+      .from('participantes_lista')
+      .select('id, nombre_completo, cohorte_id, estado, tipo_trabajo_grado, perfil_completo_at, miembros_equipo ( equipo_id )')
+      .eq('cohorte_id', parsed.data.cohorte)
+      .eq('estado', 'activo');
+    if (modalidadCaller) q = q.eq('tipo_trabajo_grado', modalidadCaller);
+    if (parsed.data.query) q = q.ilike('nombre_completo', `%${parsed.data.query}%`);
+    return q.order('nombre_completo').order('id');
+  };
 
-  let q = supabaseAdmin
-    .from('participantes_lista')
-    .select('id, nombre_completo, cohorte_id, estado, tipo_trabajo_grado, perfil_completo_at')
-    .eq('cohorte_id', parsed.data.cohorte)
-    .eq('estado', 'activo');
-
-  if (modalidadCaller) {
-    q = q.eq('tipo_trabajo_grado', modalidadCaller);
-  }
-
-  if (parsed.data.query) {
-    q = q.ilike('nombre_completo', `%${parsed.data.query}%`);
-  }
-
-  const { data, error } = await q.order('nombre_completo').limit(200);
+  // Sin texto es la lista completa de compañeros posibles: se trae entera
+  // (antes un .limit(200) aplicado ANTES de quitar a los ocupados podía dejar
+  // fuera a libres del final del alfabeto). Con texto basta un tope de
+  // sugerencias.
+  const { data, error } = parsed.data.query
+    ? await consulta().limit(200)
+    : await traerTodasLasFilas((desde, hasta) => consulta().range(desde, hasta));
   if (error) return res.status(500).json({ error: error.message });
 
-  const disponibles = (data ?? []).filter((p) => !idsOcupados.has(p.id) && p.id !== callerId);
+  const tieneEquipo = (p: any) => Array.isArray(p.miembros_equipo) ? p.miembros_equipo.length > 0 : !!p.miembros_equipo;
+  const disponibles = ((data ?? []) as any[]).filter((p) => !tieneEquipo(p) && p.id !== callerId);
   res.json(disponibles.map((p) => ({
     id: p.id,
     nombre_completo: p.nombre_completo,

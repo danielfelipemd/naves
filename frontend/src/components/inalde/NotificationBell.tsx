@@ -11,13 +11,36 @@ export function NotificationBell() {
   const [abierto, setAbierto] = useState(false);
   const [items, setItems] = useState<Notif[]>([]);
   const [noLeidas, setNoLeidas] = useState(0);
+  // La lista llega de 50 en 50; «Ver anteriores» pide la página siguiente.
+  const [pagina, setPagina] = useState(1);
+  const [hayMas, setHayMas] = useState(false);
+  const [cargandoMas, setCargandoMas] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   async function cargarContador() {
     try { setNoLeidas((await api.get('/notificaciones/contador')).data.no_leidas ?? 0); } catch { /* noop */ }
   }
   async function cargarLista() {
-    try { const { data } = await api.get('/notificaciones'); setItems(data.items ?? []); setNoLeidas(data.no_leidas ?? 0); } catch { /* noop */ }
+    try {
+      const { data } = await api.get('/notificaciones');
+      setItems(data.items ?? []); setNoLeidas(data.no_leidas ?? 0);
+      setPagina(1); setHayMas(!!data.hay_mas);
+    } catch { /* noop */ }
+  }
+  async function cargarAnteriores() {
+    setCargandoMas(true);
+    try {
+      const siguiente = pagina + 1;
+      const { data } = await api.get('/notificaciones', { params: { pagina: siguiente } });
+      // Si entró un aviso nuevo mientras tanto, la página se corre un puesto y
+      // el último ya visto reaparece: se descartan los repetidos por id.
+      setItems((prev) => {
+        const vistos = new Set(prev.map((n) => n.id));
+        return [...prev, ...((data.items ?? []) as Notif[]).filter((n) => !vistos.has(n.id))];
+      });
+      setNoLeidas(data.no_leidas ?? 0);
+      setPagina(siguiente); setHayMas(!!data.hay_mas);
+    } catch { /* noop */ } finally { setCargandoMas(false); }
   }
 
   useEffect(() => {
@@ -83,6 +106,15 @@ export function NotificationBell() {
                 </div>
               </button>
             ))}
+            {hayMas && (
+              <button
+                onClick={cargarAnteriores}
+                disabled={cargandoMas}
+                className="w-full px-4 py-2.5 text-center text-xs font-semibold text-inalde-red hover:bg-inalde-gray-bg/50 disabled:opacity-60"
+              >
+                {cargandoMas ? 'Cargando…' : 'Ver anteriores'}
+              </button>
+            )}
           </div>
         </div>
       )}

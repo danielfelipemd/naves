@@ -129,7 +129,9 @@ export default function Resumen() {
       const [c, p, a] = await Promise.all([
         api.get('/admin/cohortes'),
         api.get('/admin/profesores'),
-        api.get('/admin/anteproyectos'),
+        // Solo los enviados: antes se descargaban TODOS los anteproyectos de
+        // todas las cohortes para contar en el navegador.
+        api.get('/admin/anteproyectos', { params: { estado: 'enviado' } }),
       ]);
       setData({
         cohortes: c.data,

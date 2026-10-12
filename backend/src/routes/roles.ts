@@ -3,8 +3,20 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth } from '../auth/middleware.js';
 import { requirePermission, invalidateUserPermisos } from '../auth/permissions.js';
+import { traerTodasLasFilas } from '../lib/traerTodasLasFilas.js';
 
 const router = Router();
+
+/** Todas las cuentas con un rol, sin el tope de 1000 filas de PostgREST. */
+function usuariosDelRol(rolId: string) {
+  return traerTodasLasFilas((desde, hasta) => supabaseAdmin.from('usuario_roles')
+    .select('auth_user_id')
+    .eq('rol_id', rolId)
+    .order('auth_user_id')
+    .range(desde, hasta),
+  // Con un rol fijo, auth_user_id ya es único.
+  (f: any) => f.auth_user_id);
+}
 router.use(requireAuth(), requirePermission('roles.gestionar'));
 
 // ===== Permisos disponibles (catálogo) ===========================
@@ -95,8 +107,9 @@ router.put('/:id', async (req, res) => {
       );
       if (errIns) return res.status(500).json({ error: 'ROL_PERMISOS_FAILED', paso: 'insertar', detail: errIns.message });
     }
-    // Invalidar cache de TODOS los usuarios con este rol
-    const { data: users } = await supabaseAdmin.from('usuario_roles').select('auth_user_id').eq('rol_id', req.params.id);
+    // Invalidar cache de TODOS los usuarios con este rol (paginado: un rol
+    // como «participante» crece con cada cohorte).
+    const { data: users } = await usuariosDelRol(req.params.id);
     for (const u of users ?? []) invalidateUserPermisos(u.auth_user_id);
   }
 
@@ -109,7 +122,7 @@ router.delete('/:id', async (req, res) => {
   if (rol.es_sistema) return res.status(403).json({ error: 'CANNOT_DELETE_SYSTEM_ROLE' });
 
   // Invalidar cache de usuarios afectados
-  const { data: users } = await supabaseAdmin.from('usuario_roles').select('auth_user_id').eq('rol_id', req.params.id);
+  const { data: users } = await usuariosDelRol(req.params.id);
   for (const u of users ?? []) invalidateUserPermisos(u.auth_user_id);
 
   const { error } = await supabaseAdmin.from('roles').delete().eq('id', req.params.id);
@@ -123,22 +136,37 @@ router.delete('/:id', async (req, res) => {
  * Devuelve profesores y participantes con sus roles asignados.
  */
 router.get('/usuarios', async (_req, res) => {
-  const [profs, parts] = await Promise.all([
-    supabaseAdmin.from('profesores').select('id, auth_user_id, nombre_completo, activo'),
-    supabaseAdmin.from('participantes_lista').select('id, auth_user_id, nombre_completo, cohorte_id, estado'),
+  // Antes se pedían los roles con .in('auth_user_id', <todas las cuentas>).
+  // Con ~206 UUID la URL pasa de 8,2 KB y Kong/Cloudflare responde 414; como
+  // nadie miraba `error`, la pantalla mostraba a TODOS sin ningún rol (hoy hay
+  // 141 cuentas: con la próxima cohorte se llegaba). usuario_roles es una tabla
+  // pequeña (10 filas el 12/10/2026): se lee entera, paginada, y se cruza en
+  // memoria. Profesores y participantes también van paginados: recorren todas
+  // las cohortes y crecen con cada una.
+  const [profs, parts, ur] = await Promise.all([
+    traerTodasLasFilas((desde, hasta) => supabaseAdmin.from('profesores')
+      .select('id, auth_user_id, nombre_completo, activo')
+      .order('nombre_completo').order('id')
+      .range(desde, hasta)),
+    traerTodasLasFilas((desde, hasta) => supabaseAdmin.from('participantes_lista')
+      .select('id, auth_user_id, nombre_completo, cohorte_id, estado')
+      .order('nombre_completo').order('id')
+      .range(desde, hasta)),
+    traerTodasLasFilas((desde, hasta) => supabaseAdmin.from('usuario_roles')
+      .select('auth_user_id, rol_id, roles(id, nombre)')
+      .order('auth_user_id').order('rol_id')
+      .range(desde, hasta),
+    // usuario_roles no tiene `id`: su clave es (auth_user_id, rol_id).
+    (f: any) => `${f.auth_user_id}|${f.rol_id}`),
   ]);
-
-  const allUserIds = [
-    ...((profs.data ?? []).map((p) => p.auth_user_id)),
-    ...((parts.data ?? []).map((p) => p.auth_user_id)),
-  ].filter(Boolean) as string[];
-
-  const { data: ur } = await supabaseAdmin.from('usuario_roles')
-    .select('auth_user_id, roles(id, nombre)')
-    .in('auth_user_id', allUserIds);
+  // Mejor un error claro que una lista de usuarios «sin roles» que invite a
+  // reasignarlos.
+  const fallo = profs.error ?? parts.error ?? ur.error;
+  if (fallo) return res.status(500).json({ error: 'USUARIOS_ROLES_FAILED', detail: fallo.message });
 
   const rolesByUser = new Map<string, Array<{ id: string; nombre: string }>>();
-  for (const row of ur ?? []) {
+  for (const row of (ur.data ?? []) as any[]) {
+    if (!row.roles) continue;
     const list = rolesByUser.get(row.auth_user_id) ?? [];
     list.push(row.roles as any);
     rolesByUser.set(row.auth_user_id, list);

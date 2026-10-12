@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { decryptPII } from '../auth/crypto.js';
 import { sendEmail } from '../services/email.js';
+import { traerTodasLasFilas } from '../lib/traerTodasLasFilas.js';
 
 const router = Router();
 router.use(requireAuth());
@@ -286,21 +287,28 @@ router.post('/admin/solicitudes-desarchivado/:id/rechazar', requireRole('profeso
 router.post('/admin/notificar-seleccion-pendiente', requireRole('super_admin'), async (req: AuthenticatedRequest, res) => {
   const cohorteId = (req.body as any)?.cohorte_id as string | undefined;
 
-  // Traer asignaciones (opcionalmente filtradas por cohorte)
-  let q = supabaseAdmin
-    .from('asignaciones_profesor')
-    .select(`
-      profesor_id, equipo_id,
-      profesores:profesores!inner ( id, nombre_completo, email_encriptado ),
-      equipos:equipos!inner (
-        id, nombre_equipo, cohorte_id, proyecto_definitivo_id,
-        cohortes:cohortes ( fecha_reunion_1, fecha_limite_seleccion_definitivo ),
-        anteproyectos:anteproyectos!inner ( id, estado, proyectos ( id, estado_seleccion ) )
-      )
-    `);
-  if (cohorteId) q = q.eq('cohorte_id', cohorteId);
-
-  const { data: rows, error } = await q;
+  // Traer asignaciones (opcionalmente filtradas por cohorte). Sin cohorte
+  // recorre todas: paginado para que, al pasar de 1000 asignaciones, ningún
+  // profesor se quede sin su recordatorio.
+  // La relación con profesores va NOMBRADA: asignaciones_profesor tiene dos
+  // claves hacia profesores (profesor_id y asignado_por) y PostgREST rechazaba
+  // el embed con «more than one relationship» (PGRST201): este endpoint
+  // fallaba entero en producción (comprobado el 12/10/2026).
+  const { data: rows, error } = await traerTodasLasFilas((desde, hasta) => {
+    let q = supabaseAdmin
+      .from('asignaciones_profesor')
+      .select(`
+        id, profesor_id, equipo_id,
+        profesores:profesores!asignaciones_profesor_profesor_id_fkey!inner ( id, nombre_completo, email_encriptado ),
+        equipos:equipos!inner (
+          id, nombre_equipo, cohorte_id, proyecto_definitivo_id,
+          cohortes:cohortes ( fecha_reunion_1, fecha_limite_seleccion_definitivo ),
+          anteproyectos:anteproyectos!inner ( id, estado, proyectos ( id, estado_seleccion ) )
+        )
+      `);
+    if (cohorteId) q = q.eq('cohorte_id', cohorteId);
+    return q.order('equipo_id').order('profesor_id').order('id').range(desde, hasta);
+  });
   if (error) return res.status(500).json({ error: error.message });
 
   // Agrupar por profesor: equipos pendientes
