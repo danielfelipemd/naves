@@ -1426,21 +1426,37 @@ router.get('/auditoria', async (req, res) => {
   const desde = String(req.query.desde ?? '').trim();
   const hasta = String(req.query.hasta ?? '').trim();
 
+  // Los mismos filtros para la página y, si hace falta, para el conteo.
+  const filtrar = <Q extends { ilike: any; eq: any; gte: any; lte: any }>(q: Q): Q => {
+    let r: any = q;
+    if (accion) r = r.ilike('accion', `%${accion}%`);
+    if (/^[0-9a-f-]{36}$/i.test(actorId)) r = r.eq('actor_id', actorId);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(desde)) r = r.gte('timestamp', `${desde}T00:00:00-05:00`);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(hasta)) r = r.lte('timestamp', `${hasta}T23:59:59.999-05:00`);
+    return r;
+  };
+
   const inicio = (pagina - 1) * limit;
-  let q = supabaseAdmin
+  const { data, error, count } = await filtrar(supabaseAdmin
     .from('auditoria')
-    .select('id, actor_tipo, actor_id, accion, entidad_tipo, entidad_id, ip, timestamp', { count: 'exact' })
+    .select('id, actor_tipo, actor_id, accion, entidad_tipo, entidad_id, ip, timestamp', { count: 'exact' }))
     // El id desempata: varias acciones pueden compartir el mismo instante y
     // sin él una fila podría salir en dos páginas o en ninguna.
     .order('timestamp', { ascending: false })
     .order('id', { ascending: false })
     .range(inicio, inicio + limit - 1);
-  if (accion) q = q.ilike('accion', `%${accion}%`);
-  if (/^[0-9a-f-]{36}$/i.test(actorId)) q = q.eq('actor_id', actorId);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(desde)) q = q.gte('timestamp', `${desde}T00:00:00-05:00`);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(hasta)) q = q.lte('timestamp', `${hasta}T23:59:59.999-05:00`);
 
-  const { data, error, count } = await q;
+  // Una página después de la última no es un fallo: PostgREST responde 416
+  // (PGRST103) cuando se pide el conteo exacto. Se devuelve vacía, con el total
+  // real, para que el paginador pueda volver atrás (antes salía un 500).
+  if (error?.code === 'PGRST103') {
+    const { count: total, error: errTotal } = await filtrar(supabaseAdmin
+      .from('auditoria').select('id', { count: 'exact', head: true }));
+    if (errTotal) return res.status(500).json({ error: errTotal.message });
+    res.setHeader('X-Total-Count', String(total ?? 0));
+    res.setHeader('X-Pagina', String(pagina));
+    return res.json([]);
+  }
   if (error) return res.status(500).json({ error: error.message });
   res.setHeader('X-Total-Count', String(count ?? 0));
   res.setHeader('X-Pagina', String(pagina));
