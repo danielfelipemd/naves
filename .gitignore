@@ -21,3 +21,7 @@ venv/
 .naves-app-secrets.env
 DELETED
 .claude/scheduled_tasks.lock
+
+# Datos de participantes y capturas de revisiones: nunca al repositorio
+/*.csv
+/audit-*.yml

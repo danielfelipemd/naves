@@ -1,37 +1,78 @@
 #!/bin/bash
-# Despliega backend + frontend de forma SECUENCIAL para no saturar la VM.
-# Espera a que cada servicio responda antes de disparar el siguiente.
+# Despliega NAVES en orden: primero el backend y, cuando ya corre, el frontend.
+# Un push a main NO despliega: hay que correr esto (o lanzarlo desde EasyPanel).
 #
-# Uso: ./scripts/deploy-sequential.sh
+# Uso:
+#   ./scripts/deploy-sequential.sh              despliega backend y luego frontend
+#   ./scripts/deploy-sequential.sh --comprobar  solo verifica el acceso a EasyPanel, no despliega
+#
+# El token de EasyPanel NO va en el repo: se lee de $EASYPANEL_TOKEN o del
+# archivo $EASYPANEL_TOKEN_FILE (por defecto ~/.easypanel_token).
+#
+# No se da por desplegado un servicio porque responda: el sitio sigue
+# respondiendo con la versión anterior mientras construye, y EasyPanel a veces
+# acepta la orden y no construye. Se espera a que su contenedor sea NUEVO
+# (otra fecha de creación) y esté sano.
 
-set -e
+set -euo pipefail
 
-BACKEND_DEPLOY="http://147.79.74.179:3000/api/deploy/35b55d6706b432aecb6fe448526c617d8f07c252a9f188bc"
-FRONTEND_DEPLOY="http://147.79.74.179:3000/api/deploy/23d19f1ca4748fa619a40ac777c70892adeda2e4748a16c8"
-BACKEND_HEALTH="https://naves-backend.huem98.easypanel.host/health"
-FRONTEND_URL="https://naves-frontend.huem98.easypanel.host/"
+API="https://netcloudnetworking.cloud/api/mcp"
+PROYECTO="naves"
+TOKEN="${EASYPANEL_TOKEN:-$(cat "${EASYPANEL_TOKEN_FILE:-$HOME/.easypanel_token}" 2>/dev/null || true)}"
+[ -n "$TOKEN" ] || { echo "Falta el token de EasyPanel (EASYPANEL_TOKEN o ~/.easypanel_token)."; exit 1; }
 
-wait_until_200() {
-    local url=$1; local label=$2; local deadline=$((SECONDS + 360))
-    echo "→ Esperando $label…"
-    while [ $SECONDS -lt $deadline ]; do
-        local code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 "$url")
-        echo "  [$(date +%H:%M:%S)] $label = $code"
-        [ "$code" = "200" ] && echo "  ✓ $label live" && return 0
-        sleep 20
-    done
-    echo "  ✗ TIMEOUT esperando $label"
-    return 1
+# llamar <execute_query|execute_destructive> <procedimiento> '<input json>'
+llamar() {
+  curl -s "$API" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"$1\",\"arguments\":{\"procedure\":\"$2\",\"input\":$3}}}"
 }
 
-echo "=== 1/2 Deploy backend ==="
-curl -sX POST "$BACKEND_DEPLOY" && echo
-wait_until_200 "$BACKEND_HEALTH" "backend" || exit 1
+# Fecha de creación y estado del contenedor MÁS NUEVO de un servicio: "<creado> <healthy|arrancando|Up|…>".
+# Durante un despliegue sin caída conviven el viejo y el nuevo: se mira el más reciente.
+contenedor() {
+  llamar execute_query getDockerContainers "{\"service\":\"${PROYECTO}_$1\"}" | python3 -c '
+import re, sys
+t = sys.stdin.read().replace("\\\"", "\"")
+mejor = (0, "?")
+for c in re.split(r"(?=\"Id\":\"[0-9a-f]{64}\")", t):
+    cr = re.search(r"\"Created\":(\d+)", c); st = re.search(r"\"Status\":\"([^\"]+)\"", c)
+    if not cr or not st: continue
+    s = st.group(1)
+    estado = "healthy" if "(healthy)" in s else "arrancando" if "health" in s else "Up" if s.startswith("Up") else s.split()[0]
+    if int(cr.group(1)) > mejor[0]: mejor = (int(cr.group(1)), estado)
+print(mejor[0], mejor[1])'
+}
 
-echo ""
-echo "=== 2/2 Deploy frontend ==="
-curl -sX POST "$FRONTEND_DEPLOY" && echo
-wait_until_200 "$FRONTEND_URL" "frontend" || exit 1
+desplegar() {
+  local servicio=$1 antes creado estado limite
+  read -r antes _ <<<"$(contenedor "$servicio")"
+  echo "=== $servicio: lanzando el despliegue"
+  llamar execute_destructive deployAppService "{\"projectName\":\"$PROYECTO\",\"serviceName\":\"$servicio\"}" >/dev/null
+  limite=$((SECONDS + 600))
+  while [ $SECONDS -lt $limite ]; do
+    sleep 20
+    read -r creado estado <<<"$(contenedor "$servicio")"
+    echo "  [$(date +%H:%M:%S)] contenedor ${creado} (${estado})"
+    if [ "$creado" != "$antes" ] && { [ "$estado" = "healthy" ] || [ "$estado" = "Up" ]; }; then
+      echo "  ✓ $servicio publicado"; return 0
+    fi
+  done
+  echo "  ✗ $servicio no se publicó en 10 min. EasyPanel pudo perder la orden: relanzar."
+  return 1
+}
 
-echo ""
-echo "✅ Ambos servicios live."
+if [ "${1:-}" = "--comprobar" ]; then
+  for s in backend frontend; do
+    read -r creado estado <<<"$(contenedor "$s")"
+    [ "$creado" != "0" ] || { echo "✗ no se encontró el contenedor de $s (¿token o nombre?)"; exit 1; }
+    echo "✓ $s: contenedor creado $(date -r "$creado" '+%d/%m/%Y %H:%M') — $estado"
+  done
+  exit 0
+fi
+
+desplegar backend
+curl -sf -o /dev/null https://naves-inalde.com/api/health || { echo "✗ el backend no responde en /api/health"; exit 1; }
+desplegar frontend
+curl -sf -o /dev/null https://naves-inalde.com/ || { echo "✗ el frontend no responde"; exit 1; }
+echo "✅ NAVES desplegado: backend y frontend."

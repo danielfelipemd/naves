@@ -7,10 +7,9 @@
 // PostgREST corta cada respuesta en 1000 filas (PGRST_DB_MAX_ROWS=1000 en el
 // compose naves/bd) y NO avisa: no hay error, la lista simplemente sale
 // incompleta. También corta las funciones que devuelven filas (.rpc()).
-// En CalzadoPro costó facturas sin cliente el 10/10/2026, el día que una
-// tienda pasó de 1000 clientes. Aquí ninguna lista lo alcanza todavía, pero
-// las que recorren TODAS las cohortes (participantes, asignaciones…) crecen
-// con cada cohorte nueva.
+// Ninguna lista de NAVES lo alcanza todavía, pero las que recorren TODAS las
+// cohortes (participantes, asignaciones…) crecen con cada cohorte nueva, y el
+// día que una pase de 1000 faltarían filas sin ningún error.
 //
 // CÓMO SE USA
 //

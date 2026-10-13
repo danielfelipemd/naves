@@ -1,32 +1,132 @@
-# NAVES — Anteproyecto INALDE Business School
+# NAVES — Trabajo de grado del MBA de INALDE
 
-Sistema para gestionar el anteproyecto del MBA de INALDE Business School (NAVES — New Business Adventures).
+Plataforma de la opción de grado NAVES (New Business Adventures) del MBA de
+INALDE Business School: equipos, anteproyecto, selección del proyecto
+definitivo, avances, proyecto final, actas firmadas y medición AoL.
+
+Producción: **https://naves-inalde.com**
 
 ## Arquitectura
 
+Tres servicios en el proyecto `naves` de EasyPanel, en el VPS del ecosistema
+Netcloud. **NAVES tiene su propia base de datos aislada**: no comparte Supabase
+con ningún otro sistema, y su configuración solo lleva lo que NAVES usa.
+
 ```
-Frontend (React + Vite + Nginx)  ──┐
-                                    │
-                                    ├──>  Supabase (Postgres + Auth + RLS + Storage)
-                                    │
-Backend  (Node + Express + TS)    ──┘
+navegador ──► Cloudflare ──► Traefik (EasyPanel) ──► frontend  (nginx)
+                                                       ├─ /        → la aplicación (React)
+                                                       └─ /api/*   → backend (Express, puerto 3000, red interna)
+                                                                       └──► bd (Supabase propio de NAVES)
+navegador ──► Cloudflare ──► Traefik ──► bd (Kong :8000)   inicio de sesión y renovación del token
 ```
 
-3 contenedores en EasyPanel server `147.79.74.179`, proyecto `naves`. Comunicación interna via red Docker.
+| Servicio | Tipo en EasyPanel | Origen | Qué es |
+|---|---|---|---|
+| `frontend` | app | este repo, carpeta `/frontend`, `Dockerfile` | React 18 + Vite + Tailwind, servido por nginx. nginx también reenvía `/api/*` al backend |
+| `backend` | app | este repo, carpeta `/backend`, `Dockerfile` | Node 20 + Express + TypeScript. Toda la lógica: permisos, correos, PDF de actas, Excel, IA |
+| `bd` | compose | plantilla `easypanel-io/compose`, rama `24-07-2026`, `/supabase/code` | Supabase autoalojado: Postgres 17, Auth (GoTrue), PostgREST, Storage, Kong |
+
+Dominios: `naves-inalde.com` y `www.naves-inalde.com` → frontend;
+`bdnaves.netcloudnetworking.cloud` → Kong de `bd`. Los dos pasan por
+Cloudflare. El correo del dominio (Zoho: MX, SPF, DKIM) va sin proxy: no tocarlo.
+
+### Por qué así
+
+- **El navegador habla con el backend por el mismo dominio** (`/api` en nginx):
+  sin CORS entre dominios y sin exponer el backend con un nombre propio.
+- **El backend es el único que usa la llave `service_role`**, y solo en
+  operaciones de administración. Lo que actúa en nombre de un usuario va con
+  `supabaseForUser(jwt)` y respeta RLS. RLS es la barrera real.
+- **Los permisos viven en la base**: `permisos_del_usuario` (RPC). El backend
+  los consulta y los guarda 60 s por usuario (`auth/permissions.ts`). Tras
+  cambiar roles, `invalidateUserPermisos` o esperar ese minuto.
+
+## Autenticación
+
+- **Participantes:** entran con la cédula. El frontend la convierte en un
+  correo sintético (`<sha256(cédula)>@naves.local`) y con él inicia sesión en
+  Supabase Auth. Clave inicial = la cédula; en el primer ingreso se obliga a
+  cambiarla (`POST /api/auth/cambiar-clave-inicial`). El correo institucional
+  real se guarda cifrado (`PII_ENCRYPTION_KEY`) para recuperación y avisos.
+- **Profesores, panelistas y administración:** correo institucional real.
+- El backend valida el JWT con `jose` contra el JWKS de Supabase
+  (`/auth/v1/.well-known/jwks.json`); si el token es HS256 heredado, con
+  `SUPABASE_JWT_SECRET`.
+- El frontend renueva la sesión cada 10 min (`auth/store.ts`) para que un
+  formulario largo no se pierda por un token vencido.
+
+## Base de datos
+
+- El esquema, RLS, funciones y auditoría están en **`backend/sql/`** (47
+  archivos numerados). No hay ORM ni migraciones automáticas: se aplican a mano,
+  en orden, por `POST https://bdnaves.netcloudnetworking.cloud/pg/query` con la
+  llave `service_role`. Esa ruta **responde 200 aunque el SQL falle**: leer el
+  cuerpo de la respuesta.
+- PostgREST corta toda respuesta en 1000 filas sin avisar. Para listas que
+  pueden crecer, usar `backend/src/lib/traerTodasLasFilas.ts`.
+- Archivos (anteproyectos, trabajos de grado): bucket privado
+  `trabajos-grado`, servido siempre con URL firmada. Hasta 25 MB por archivo
+  (nginx admite 30 MB por el sobrecosto del multipart).
+
+## Variables de entorno
+
+Los valores viven en EasyPanel, nunca en el repo. Los ejemplos con los nombres
+están en `backend/.env.example` y `frontend/.env.example`.
+
+| Servicio | Variables |
+|---|---|
+| `frontend` | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL` (se incrustan al construir: cambiarlas exige redesplegar) |
+| `backend` | ver `backend/.env.example`, con lo que hace cada una |
+| `bd` | solo las de la plantilla de Supabase. Nada de otros sistemas: el 13/10/2026 se quitaron 8 variables copiadas de CommerceAdmin (MATIAS, Mercado Pago, SMTP duplicadas) y el pool dejó de llamarse `commerceadmin` |
+
+## Despliegue
+
+Un push a `main` **no despliega**. Se despliega a mano, y en este orden:
+
+1. **`backend`** primero (el frontend nuevo puede llamar rutas nuevas).
+2. **`frontend`** cuando el backend ya responde.
+
+`scripts/deploy-sequential.sh` hace los dos pasos con la API de EasyPanel y
+espera a que cada uno responda. `--comprobar` solo verifica el acceso, sin
+desplegar.
+
+Ojo: EasyPanel a veces acepta la orden y no construye. Si tras unos minutos se
+sigue viendo la versión anterior, relanzar.
+
+`bd` no se redespliega con el código: es la base de producción. Solo hace falta
+al cambiar su configuración, y antes hay que comprobar que las imágenes de la
+plantilla son las mismas que están corriendo.
+
+## Límites conocidos
+
+- **Límite de intentos del backend** (`server.ts`): 50 por hora en
+  `/api/auth/verificar-cedula` y `/api/auth/recovery`, 600 en el resto de
+  `/api/auth`. **Hoy cuentan a todos los usuarios como uno solo**: con
+  `trust proxy 1` la IP que ve Express es la de Traefik, porque delante hay
+  tres saltos (Cloudflare, Traefik y nginx). Una cohorte entera no puede entrar
+  a la vez hasta que se corrija. El contador vive en memoria: reiniciar el
+  backend lo pone en cero.
+- `SUPABASE_INTERNAL_URL` apunta hoy al dominio **público** de la base: las
+  consultas del backend salen a Cloudflare y vuelven al mismo servidor. Debe ir
+  por la red interna de Docker.
+- `bd` sale de la plantilla genérica de EasyPanel y no de un repo propio
+  (`naves-supabase`), como los demás sistemas del ecosistema.
+- Peticiones del frontend: 15 s de espera máxima (`lib/api.ts`). nginx da 120 s
+  a las subidas.
 
 ## Estructura
 
 ```
-backend/    Node + Express + TS — API completa: auth, CRUD, ingesta Excel, sábana, emails
-frontend/   React + Vite + Tailwind — UI con identidad INALDE (rojo, dorado, Montserrat)
-backend/sql/  Migraciones de schema, RLS y auditoría
+backend/          API Express (routes/ por dominio, services/ con la lógica pesada)
+backend/sql/      esquema, RLS, funciones y auditoría, numerados
+frontend/         aplicación React (pages/ partido por rol: admin, participante, profesor, panelista, publico)
+scripts/          despliegue
+docs/manual/          manual de usuario
+docs/Emails_Sistema_NAVES.docx   textos de los correos que envía el sistema
+docs/plan/            plan de desarrollo
+docs/informe/         informes de avance, auditoría y costos
+docs/aol/             preguntas del módulo AoL
+docs/tecnica/         documentación técnica del panel de evaluación y la programación
+docs/historico/       documentos de diseño anteriores a la implementación (no describen el sistema actual)
+docs/insumos-inalde/  documentos recibidos de INALDE
 ```
-
-## Auth
-
-- **Participantes:** login con cédula. La cédula se convierte a email sintético `<sha256(cedula)>@naves.local` que se usa contra Supabase Auth. El email institucional real se guarda encriptado para recuperación de clave y notificaciones.
-- **Profesores y super admin:** login con email institucional real.
-
-## Variables de entorno
-
-Ver `.env.example` en cada subcarpeta. Los secretos del Supabase compartido se encuentran en el panel de EasyPanel del proyecto `n8n/supabase`.

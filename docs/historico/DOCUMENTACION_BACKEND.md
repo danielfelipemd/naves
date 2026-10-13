@@ -1,3 +1,8 @@
+> **Documento histórico.** Es el encargo de mayo de 2026 para construir el backend,
+> anterior a la implementación. Recomienda Neon, Railway y Vercel, que no se usaron:
+> NAVES corre en EasyPanel con su propio Supabase. La arquitectura vigente está en el
+> [README](../../README.md).
+
 # Documentación Técnica del Frontend - Anteproyecto NAVES INALDE
 
 **Versión:** 3.0
