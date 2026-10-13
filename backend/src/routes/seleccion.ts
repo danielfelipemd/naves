@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { config } from '../config.js';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { decryptPII } from '../auth/crypto.js';
@@ -363,7 +364,7 @@ router.post('/admin/notificar-seleccion-pendiente', requireRole('super_admin'), 
            para los siguientes equipos asignados que presentaron <strong>más de un proyecto</strong>:</p>
         <ul>${filas}</ul>
         <p style="margin-top:18pt">Entra a la plataforma para resolverlo:</p>
-        <p><a href="${process.env.FRONTEND_URL ?? 'https://naves-frontend.huem98.easypanel.host'}/profesor/seleccionar-proyectos"
+        <p><a href="${config.frontendUrl}/profesor/seleccionar-proyectos"
               style="display:inline-block;background:#e30613;color:#fff;text-decoration:none;padding:10px 18px;border-radius:4px;font-weight:600">
            Elegir proyecto definitivo →
         </a></p>

@@ -34,7 +34,11 @@ export const config = {
     from: process.env.SMTP_FROM ?? '',
   },
 
-  frontendUrl: process.env.FRONTEND_URL ?? '',
+  // Base de los enlaces que salen por correo. Sin barra final, porque todos
+  // los usos le pegan '/ruta'. El respaldo es el dominio de producción: un
+  // enlace al servidor viejo o relativo ('/reset-password') no abre nada
+  // desde un buzón.
+  frontendUrl: (process.env.FRONTEND_URL ?? '').trim().replace(/\/$/, '') || 'https://naves-inalde.com',
 
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY ?? '',
