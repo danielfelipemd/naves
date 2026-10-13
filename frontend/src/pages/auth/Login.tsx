@@ -7,6 +7,16 @@ import { formatBackendError } from '../../lib/errors';
 
 type Mode = 'participante' | 'profesor';
 
+/** true solo si el backend confirma que la cédula no está en ninguna lista de cohorte. */
+async function cedulaNoInscrita(cedula: string): Promise<boolean> {
+  try {
+    await api.post('/auth/verificar-cedula', { cedula });
+    return false;
+  } catch (err: any) {
+    return err?.response?.data?.error === 'CEDULA_NO_ENCONTRADA';
+  }
+}
+
 export default function Login() {
   const [mode, setMode] = useState<Mode>('participante');
   const [identifier, setIdentifier] = useState('');
@@ -22,22 +32,13 @@ export default function Login() {
     setLoading(true);
     try {
       let email: string;
+      let cedula: string | null = null;
       if (mode === 'participante') {
-        const clean = identifier.replace(/[\s.\-]/g, '');
-        if (!/^\d{6,20}$/.test(clean)) {
+        cedula = identifier.replace(/[\s.\-]/g, '');
+        if (!/^\d{6,20}$/.test(cedula)) {
           throw new Error('La cédula debe tener entre 6 y 20 dígitos.');
         }
-        // Verifica que la cédula esté en la lista pre-cargada
-        try {
-          await api.post('/auth/verificar-cedula', { cedula: clean });
-        } catch (err: any) {
-          const code = err?.response?.data?.error;
-          if (code === 'CEDULA_NO_ENCONTRADA') {
-            throw new Error('Tu cédula no está registrada. Pídele a tu profesor que te incluya en la lista de la cohorte.');
-          }
-          throw err;
-        }
-        email = await syntheticEmailFromCedula(clean);
+        email = await syntheticEmailFromCedula(cedula);
       } else {
         email = identifier.trim().toLowerCase();
       }
@@ -50,6 +51,13 @@ export default function Login() {
           throw new Error('Demasiados intentos de inicio de sesión. Espera unos segundos y vuelve a intentar.');
         }
         if (msg.includes('invalid')) {
+          // Solo si la clave falla se pregunta si la cédula está inscrita, para
+          // decir cuál de las dos cosas está mal. Antes se preguntaba en CADA
+          // ingreso, y esa ruta tiene un límite de intentos por hora: con una
+          // cohorte entera entrando a la vez, el límite se agotaba.
+          if (cedula && (await cedulaNoInscrita(cedula))) {
+            throw new Error('Tu cédula no está registrada. Pídele a tu profesor que te incluya en la lista de la cohorte.');
+          }
           throw new Error('La cédula o la clave no coinciden. Si es tu primer ingreso, recuerda que tu clave inicial es tu cédula.');
         }
         if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {

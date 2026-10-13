@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { config } from '../../config.js';
 
 // =====================================================================
 // Firma electrónica propia de las actas.
@@ -22,7 +23,7 @@ import crypto from 'node:crypto';
  * de sesión para no dejar el sistema sin sello, pero conviene configurarla.
  */
 function claveSello(): string {
-  const k = process.env.ACTAS_FIRMA_SECRET || process.env.SUPABASE_JWT_SECRET || '';
+  const k = config.actas.firmaSecret;
   if (!k) throw new Error('ACTAS_FIRMA_SECRET no configurada');
   return k;
 }

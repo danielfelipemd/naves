@@ -6,8 +6,10 @@ import { generarActasCohorte } from '../services/actas/generar.js';
 import { buildActaPDF, buildLoteActasPDF } from '../services/actas/pdf-acta.js';
 import { firmar, ultimoHash, verificarCadena } from '../services/actas/firma.js';
 import { sha256Hex } from '../auth/crypto.js';
+import { ipCliente } from '../lib/ip-cliente.js';
 import { sendEmail } from '../services/email.js';
 import { decryptPII } from '../auth/crypto.js';
+import { config } from '../config.js';
 
 // =====================================================================
 // Actas de Entrega de Trabajo de Grado.
@@ -28,7 +30,7 @@ const adminOAsistente = [requireAuth(), requireRole('super_admin', 'asistente_pr
 
 const ROLES_INTERNOS = ['profesor', 'director_proyecto', 'jurado'];
 
-const PUBLIC_URL = (process.env.PUBLIC_URL ?? '').trim().replace(/\/$/, '') || 'https://naves-inalde.com';
+const PUBLIC_URL = config.frontendUrl; // dominio público (FRONTEND_URL)
 
 /**
  * Correo con el enlace de firma. Quien lo recibe firma dos veces al año y no
@@ -227,7 +229,7 @@ router.post('/lote/:cohorteId/firmar', ...soloAdmin, async (req: AuthenticatedRe
   // Firma REAL, con el mismo sellado que la del enlace público: hash encadenado
   // + HMAC. Antes esto marcaba la casilla como firmada sin sello ni trazo, así
   // que dejaba firmas que no se podían verificar.
-  const ip = (req.header('x-forwarded-for')?.split(',')[0] ?? req.socket?.remoteAddress ?? '').replace(/^::ffff:/, '') || null;
+  const ip = ipCliente(req);
   const ua = (req.header('user-agent') ?? '').slice(0, 300) || null;
   const imagen = typeof req.body?.imagen === 'string' ? req.body.imagen : null;
   let firmadas = 0;
@@ -435,7 +437,6 @@ async function abrirEnlace(token: string, res: any) {
   return en;
 }
 
-const ipDe = (req: any) => (req.header('x-forwarded-for')?.split(',')[0] ?? req.socket?.remoteAddress ?? '').replace(/^::ffff:/, '') || null;
 
 // POST /api/actas/enlaces/:cohorteId — el admin crea los enlaces de firma.
 // Agrupa por firmante: un enlace por persona con TODAS sus actas pendientes.
@@ -545,7 +546,7 @@ router.post('/firmar/:token', async (req, res) => {
     const dado = String(req.body?.verificacion ?? '').trim();
     if (!dado || sha256Hex(dado) !== e.verificacion_hash) {
       await supabaseAdmin.from('acta_enlace_firma')
-        .update({ intentos_fallidos: (e.intentos_fallidos ?? 0) + 1, ultimo_ip: ipDe(req) })
+        .update({ intentos_fallidos: (e.intentos_fallidos ?? 0) + 1, ultimo_ip: ipCliente(req) })
         .eq('id', e.id);
       return res.status(403).json({ error: 'VERIFICACION_INCORRECTA' });
     }
@@ -560,7 +561,7 @@ router.post('/firmar/:token', async (req, res) => {
   const { data: actas } = await supabaseAdmin.from('acta')
     .select('id, estado, firmas').in('id', e.acta_ids);
 
-  const ip = ipDe(req);
+  const ip = ipCliente(req);
   const ua = (req.header('user-agent') ?? '').slice(0, 300) || null;
   let firmadas = 0;
   // Actas cuyo guardado falló. Si queda alguna NO cerramos el enlace: el
@@ -742,7 +743,7 @@ router.post('/mi-acta/firmar', ...soloParticipante, async (req: AuthenticatedReq
   if (idx < 0) return res.status(409).json({ error: 'SIN_CASILLA' });
   if (firmas[idx].estado === 'firmada') return res.status(409).json({ error: 'YA_FIRMADA', mensaje: 'Ya firmaste tu acta.' });
 
-  const ip = ipDe(req);
+  const ip = ipCliente(req);
   const ua = (req.header('user-agent') ?? '').slice(0, 300) || null;
   const sellada = firmar(
     { actaId: a.id, rol: 'participante', nombre: a.nombre_participante ?? '', imagen, ip, userAgent: ua },

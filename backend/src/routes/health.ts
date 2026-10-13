@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../db/supabase.js';
+import { config } from '../config.js';
 
 const router = Router();
 
 router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'naves-backend', ts: new Date().toISOString() });
+  // `supabase` dice por dónde habla el backend con la base: 'interna' (red de
+  // Docker, lo correcto) o 'publica' (respaldo si la interna no respondió).
+  res.json({ status: 'ok', service: 'naves-backend', supabase: config.supabase.via, ts: new Date().toISOString() });
 });
 
 router.get('/health/deep', async (_req, res) => {

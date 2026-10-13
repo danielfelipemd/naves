@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import { ipCliente } from './lib/ip-cliente.js';
+import { elegirConexionSupabase } from './db/supabase.js';
 import multer from 'multer';
 import { config } from './config.js';
 import healthRouter from './routes/health.js';
@@ -45,9 +47,8 @@ process.on('uncaughtException', (err) => {
 
 const app = express();
 
-// Detrás del proxy de EasyPanel/Traefik. Sin esto req.ip es la IP del proxy:
-// el registro de accesos guardaría siempre la misma IP y los rate limiters por
-// IP tratarían a todos los usuarios como uno solo.
+// Detrás hay tres saltos (Cloudflare → Traefik → nginx). La IP real NO sale de
+// req.ip sino de lib/ip-cliente.ts, que lee CF-Connecting-IP.
 app.set('trust proxy', 1);
 
 app.use(helmet());
@@ -61,15 +62,20 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('combined'));
 
-// Rate limiters
-// - sensitiveAuthLimiter: solo endpoints que NO requieren auth (anti fuerza bruta).
-//   /verificar-cedula y /recovery son los unicos publicos -> 30/h por IP es razonable.
-// - authLimiter: aplica a TODO el router de auth pero relajado (incluye /me que
-//   se llama en cada navegacion). 600/h cubre uso intensivo de una cohorte
-//   institucional desde el mismo WiFi (varios participantes compartiendo IP).
-const sensitiveAuthLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50 });
-const authLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 600 });
-const ciiuLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 1000 });
+// Límites de intentos, POR PERSONA (IP real, ver lib/ip-cliente.ts) y solo en
+// las rutas públicas: las que exigen sesión ya están protegidas por el token.
+// Los topes asumen una cohorte entera entrando desde la MISMA red del campus
+// (una sola IP pública para ~90 personas): un tope menor que la cohorte la deja
+// fuera a mitad de clase.
+// - verificar-cedula: el login solo la llama cuando la clave falla, para decir
+//   si la cédula no está inscrita. Es la que deja averiguar nombres por cédula.
+// - recovery y recovery/confirm: envían correos y cambian claves.
+// - ciiu/listar: catálogo público, se pide una vez por pantalla.
+const HORA = 60 * 60 * 1000;
+const porPersona = { windowMs: HORA, keyGenerator: (req: express.Request) => ipCliente(req) ?? 'sin-ip' };
+const cedulaLimiter = rateLimit({ ...porPersona, max: 200 });
+const recoveryLimiter = rateLimit({ ...porPersona, max: 100 });
+const ciiuLimiter = rateLimit({ ...porPersona, max: 5000 });
 
 // Health: montado en '/' y tambien bajo '/api'. El '/api' importa porque el
 // proxy solo enruta /api/* al backend (en '/' contesta el frontend con su HTML),
@@ -90,9 +96,9 @@ app.use('/api/trabajos-sector', trabajosSectorRouter);
 // por eso el router va antes del catch-all '/api' de seleccionRouter (que aplica
 // requireAuth global). Sus rutas de administración llevan su propio auth.
 app.use('/api/actas', actasRouter);
-app.use('/api/auth/verificar-cedula', sensitiveAuthLimiter);
-app.use('/api/auth/recovery', sensitiveAuthLimiter);
-app.use('/api/auth', authLimiter, authRouter);
+app.use('/api/auth/verificar-cedula', cedulaLimiter);
+app.use('/api/auth/recovery', recoveryLimiter); // incluye /recovery/confirm
+app.use('/api/auth', authRouter);
 app.use('/api/ciiu', ciiuLimiter, ciiuRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/sabana', sabanaRouter);
@@ -134,6 +140,10 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: 'INTERNAL', message: err.message });
 });
 
-app.listen(config.port, () => {
-  console.log(`naves-backend listening on :${config.port} (${config.nodeEnv})`);
+// Antes de abrir el puerto se decide por dónde hablar con Supabase (red interna
+// o dominio público): así ninguna petición sale con una conexión sin probar.
+elegirConexionSupabase().finally(() => {
+  app.listen(config.port, () => {
+    console.log(`naves-backend listening on :${config.port} (${config.nodeEnv}) — Supabase por la red ${config.supabase.via}`);
+  });
 });

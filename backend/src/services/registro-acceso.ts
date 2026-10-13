@@ -1,5 +1,6 @@
 import type { Request } from 'express';
 import { supabaseAdmin } from '../db/supabase.js';
+import { ipCliente } from '../lib/ip-cliente.js';
 import type { AppRole } from '../auth/middleware.js';
 
 /**
@@ -43,16 +44,6 @@ function yaRegistradoReciente(sub: string): boolean {
   }
   ultimoRegistro.set(sub, ahora);
   return false;
-}
-
-/** IP del cliente respetando el proxy de EasyPanel/Traefik. */
-function ipDe(req: Request): string | null {
-  const fwd = req.header('x-forwarded-for');
-  const ip = fwd ? fwd.split(',')[0]!.trim() : (req.socket?.remoteAddress ?? '');
-  if (!ip) return null;
-  // Postgres INET no acepta el prefijo IPv4-mapped de Node ni el puerto.
-  const limpia = ip.replace(/^::ffff:/, '');
-  return limpia === '::1' ? '127.0.0.1' : limpia;
 }
 
 export interface ActorAcceso {
@@ -99,7 +90,7 @@ export async function registrarAcceso(user: ActorAcceso, req: Request): Promise<
       entidad_tipo: user.participanteId ? 'participantes_lista' : user.profesorId ? 'profesores' : null,
       entidad_id: user.participanteId ?? user.profesorId ?? null,
       detalles: { auth_user_id: user.sub, role: user.role },
-      ip: ipDe(req),
+      ip: ipCliente(req),
       user_agent: (req.header('user-agent') ?? '').slice(0, 500) || null,
       timestamp: ahora,
     });

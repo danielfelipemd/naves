@@ -12,6 +12,7 @@ import { AREAS_AFINIDAD } from '../lib/areas.js';
 import { normalizeHeaderKey, findCol, cellStr, cellBool, buildTemplateXlsx } from '../lib/excel.js';
 import { traerTodasLasFilas } from '../lib/traerTodasLasFilas.js';
 import { copyPerfilParticipanteAMiembro } from './equipos.js';
+import { config } from '../config.js';
 import {
   uploadTrabajoGradoFile,
   extForMime,
@@ -199,8 +200,8 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
     });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = config.supabase.internalUrl;
+  const svcKey = config.supabase.serviceRoleKey;
 
   let inserted = 0;
   const errors: Array<{ row: number; error: string }> = [];
@@ -327,8 +328,8 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
  * y se asegura del estado pendiente. Útil para corregir cuentas legacy con clave distinta.
  */
 router.post('/participantes/reset-pendientes-a-cedula', async (_req, res) => {
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = config.supabase.internalUrl;
+  const svcKey = config.supabase.serviceRoleKey;
   // Paginado: con más de 1000 pendientes, el reseteo dejaba fuera al resto y
   // aun así decía que había terminado.
   const { data, error } = await traerTodasLasFilas((desde, hasta) => supabaseAdmin
@@ -828,8 +829,8 @@ router.put('/participantes/:id', async (req, res) => {
 
   // Si cambió la cédula, actualizar el email sintético en auth.users (es por lo que el participante loguea)
   if (nuevoSyntheticEmail && cur.auth_user_id) {
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseUrl = config.supabase.internalUrl;
+    const svcKey = config.supabase.serviceRoleKey;
     try {
       await fetch(`${supabaseUrl}/auth/v1/admin/users/${cur.auth_user_id}`, {
         method: 'PUT',
@@ -845,8 +846,8 @@ router.put('/participantes/:id', async (req, res) => {
 router.post('/participantes/bulk-delete', async (req, res) => {
   const idsParsed = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) }).safeParse(req.body);
   if (!idsParsed.success) return res.status(400).json({ error: 'INVALID', details: idsParsed.error.issues });
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = config.supabase.internalUrl;
+  const svcKey = config.supabase.serviceRoleKey;
   let borrados = 0; const fallos: any[] = [];
   for (const id of idsParsed.data.ids) {
     const [{ count: enEq }, { count: esCre }] = await Promise.all([
@@ -909,8 +910,8 @@ router.delete('/participantes/:id', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   // Borrar auth user (best effort)
   if (p?.auth_user_id) {
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseUrl = config.supabase.internalUrl;
+    const svcKey = config.supabase.serviceRoleKey;
     try {
       await fetch(`${supabaseUrl}/auth/v1/admin/users/${p.auth_user_id}`, {
         method: 'DELETE',
@@ -984,8 +985,8 @@ router.post('/profesores', async (req, res) => {
   const parsed = createProfSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
   const { nombre_completo, email, password, es_super_admin, rol_area, booking_url, areas_afinidad } = parsed.data;
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = config.supabase.internalUrl;
+  const svcKey = config.supabase.serviceRoleKey;
 
   const appRole = rol_area ?? 'profesor';
   const tipo = rol_area ? 'area' : 'profesor';
@@ -1134,8 +1135,8 @@ router.post('/profesores/cargar-excel', upload.single('file'), async (req: Authe
     });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = config.supabase.internalUrl;
+  const svcKey = config.supabase.serviceRoleKey;
 
   let inserted = 0;
   const errors: Array<{ row: number; error: string }> = [];
@@ -1215,8 +1216,8 @@ router.post('/profesores/cargar-excel', upload.single('file'), async (req: Authe
 
 // === DELETE /api/admin/profesores/:id ====================================
 router.delete('/profesores/:id', async (req, res) => {
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = config.supabase.internalUrl;
+  const svcKey = config.supabase.serviceRoleKey;
   const { data: prof } = await supabaseAdmin.from('profesores').select('auth_user_id').eq('id', req.params.id).maybeSingle();
   if (!prof) return res.status(404).json({ error: 'NOT_FOUND' });
   // Borrar asignaciones primero (FK)
@@ -1237,8 +1238,8 @@ router.delete('/profesores/:id', async (req, res) => {
 router.post('/profesores/bulk-delete', async (req, res) => {
   const parsed = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = config.supabase.internalUrl;
+  const svcKey = config.supabase.serviceRoleKey;
   let borrados = 0; const fallos: any[] = [];
   for (const id of parsed.data.ids) {
     const { data: prof } = await supabaseAdmin.from('profesores').select('auth_user_id, nombre_completo').eq('id', id).maybeSingle();
@@ -1294,8 +1295,8 @@ router.put('/profesores/:id', async (req, res) => {
 
   // Sincronizar con Supabase Auth si cambio email, password o es_super_admin
   if (cur.auth_user_id && (email !== undefined || password !== undefined || parsed.data.es_super_admin !== undefined)) {
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseUrl = config.supabase.internalUrl;
+    const svcKey = config.supabase.serviceRoleKey;
     const body: Record<string, unknown> = {};
     if (email !== undefined) { body.email = email.toLowerCase().trim(); body.email_confirm = true; }
     if (password !== undefined) body.password = password;
@@ -1524,7 +1525,7 @@ router.post('/sabanas/:cohorteId/asignar', async (req: AuthenticatedRequest, res
 
 function sleep(ms: number): Promise<void> { return new Promise((r) => setTimeout(r, ms)); }
 // Pausa entre correos (ms) para no gatillar los límites de rate/timeout de Zoho.
-const EMAIL_DELAY_MS = Number(process.env.EMAIL_DELAY_MS ?? 600);
+const EMAIL_DELAY_MS = config.email.delayMs;
 // Envía en SERIE, una tarea a la vez, con una pausa entre cada una.
 async function enviarEnSerie<T>(tareas: Array<() => Promise<T>>, delayMs = EMAIL_DELAY_MS): Promise<T[]> {
   const out: T[] = [];
@@ -1535,9 +1536,8 @@ async function enviarEnSerie<T>(tareas: Array<() => Promise<T>>, delayMs = EMAIL
   return out;
 }
 
-// Botón CTA de acceso al sistema para los correos. Usa el dominio PÚBLICO
-// (no el interno de EasyPanel). Configurable con PUBLIC_URL.
-const PUBLIC_URL = (process.env.PUBLIC_URL ?? '').trim().replace(/\/$/, '') || 'https://naves-inalde.com';
+// Botón CTA de acceso al sistema para los correos: el dominio PÚBLICO de NAVES.
+const PUBLIC_URL = config.frontendUrl; // dominio público (FRONTEND_URL)
 function botonAccesoSistema(): string {
   return `
           <div style="text-align:center; margin:24pt 0 8pt;">

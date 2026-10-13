@@ -80,11 +80,17 @@ export const useAuth = create<AuthState>((set, get) => ({
       requierePerfil: me.requierePerfil,
       loading: false,
     });
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
       const r = roleFromUser(u);
       setCachedToken(session?.access_token ?? null);
       set({ session, user: u, role: r });
+      // El perfil (nombre, clave temporal, perfil incompleto) no cambia al
+      // renovar el token. Antes se pedía en cada renovación (cada 10 min por
+      // pestaña abierta). INITIAL_SESSION sí se atiende: si getSession() tardó
+      // más de 5 s en init(), es la única ocasión de saber si debe cambiar la
+      // clave temporal.
+      if (event === 'TOKEN_REFRESHED') return;
       if (session) {
         const fl = await fetchMe();
         set({ requiereCambioClave: fl.requiereCambio, requierePerfil: fl.requierePerfil, nombre: fl.nombre });

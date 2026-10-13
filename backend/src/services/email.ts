@@ -36,7 +36,7 @@ export async function sendEmail(
   // redirigen a esa única bandeja (con el destinatario real en el asunto) para
   // poder probar flujos como "Comunicar" sin que lleguen a los participantes
   // reales. Quitar la variable para envío normal.
-  const redirect = (process.env.EMAIL_REDIRECT_TO ?? '').trim();
+  const redirect = config.email.redirectTo;
   const finalTo = redirect || to;
   const finalSubject = redirect ? `[PRUEBA→${to}] ${subject}` : subject;
   // IMPORTANTE: nunca lanzar. Antes un fallo de SMTP (rechazo de un correo,

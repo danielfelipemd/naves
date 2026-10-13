@@ -102,12 +102,6 @@ export async function uploadTrabajoGradoFile(
   return { path, size: buffer.length };
 }
 
-export async function getSignedUrlTrabajoGrado(path: string, expiresIn = 300): Promise<string> {
-  const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, expiresIn);
-  if (error || !data?.signedUrl) throw error ?? new Error('NO_SIGNED_URL');
-  return data.signedUrl;
-}
-
 export async function deleteTrabajoGradoFile(path: string): Promise<void> {
   const { error } = await supabaseAdmin.storage.from(BUCKET).remove([path]);
   if (error) throw error;

@@ -99,16 +99,20 @@ plantilla son las mismas que están corriendo.
 
 ## Límites conocidos
 
-- **Límite de intentos del backend** (`server.ts`): 50 por hora en
-  `/api/auth/verificar-cedula` y `/api/auth/recovery`, 600 en el resto de
-  `/api/auth`. **Hoy cuentan a todos los usuarios como uno solo**: con
-  `trust proxy 1` la IP que ve Express es la de Traefik, porque delante hay
-  tres saltos (Cloudflare, Traefik y nginx). Una cohorte entera no puede entrar
-  a la vez hasta que se corrija. El contador vive en memoria: reiniciar el
-  backend lo pone en cero.
-- `SUPABASE_INTERNAL_URL` apunta hoy al dominio **público** de la base: las
-  consultas del backend salen a Cloudflare y vuelven al mismo servidor. Debe ir
-  por la red interna de Docker.
+- **Límite de intentos** (`server.ts`), por persona y por hora, solo en rutas
+  públicas: 200 en `/api/auth/verificar-cedula`, 100 en `/api/auth/recovery`
+  (y `/confirm`), 5000 en `/api/ciiu`. Las rutas con sesión no tienen límite:
+  las protege el token. La IP real sale de `CF-Connecting-IP`
+  (`lib/ip-cliente.ts`), no de `req.ip`: delante hay tres saltos (Cloudflare,
+  Traefik, nginx) y `req.ip` es la de Traefik, igual para todos. Los topes
+  asumen una cohorte entera entrando desde la misma red del campus. El contador
+  vive en memoria: reiniciar el backend lo pone en cero.
+- El login de participantes solo consulta `verificar-cedula` cuando la clave
+  falla (para decir si la cédula no está inscrita), y el perfil (`/auth/me`)
+  no se vuelve a pedir en cada renovación del token.
+- El backend habla con la base por la red interna (`SUPABASE_INTERNAL_URL`).
+  Si al arrancar no responde en 3 s, usa el dominio público y lo dice en
+  `GET /api/health` → `supabase: "publica"`.
 - `bd` sale de la plantilla genérica de EasyPanel y no de un repo propio
   (`naves-supabase`), como los demás sistemas del ecosistema.
 - Peticiones del frontend: 15 s de espera máxima (`lib/api.ts`). nginx da 120 s

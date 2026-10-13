@@ -5,13 +5,14 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { encryptPII, decryptPII, sha256Hex } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { sendEmail } from '../services/email.js';
+import { ipCliente } from '../lib/ip-cliente.js';
 import { sincronizarJornadasDesdeHitos, recalcularFinesDeJornadas } from '../services/escaleta.js';
 
 // Módulo A (Fase 2) — Panelistas / Evaluadores.
 // Portal público por token (confirmar asistencia + logística) + panel admin.
 
 const router = Router();
-const PUBLIC_URL = (process.env.PUBLIC_URL ?? '').trim().replace(/\/$/, '') || 'https://naves-inalde.com';
+const PUBLIC_URL = config.frontendUrl; // dominio público (FRONTEND_URL)
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
@@ -142,7 +143,7 @@ router.post('/portal/:token/confirmar', async (req, res) => {
   // (la logística de arriba SÍ se verifica), el panelista ve "confirmado", pero
   // en la base sigue sin confirmar: no cuenta en el tablero del coordinador y
   // los recordatorios le siguen llegando a un evaluador externo.
-  const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '').split(',')[0].trim() || null;
+  const ip = ipCliente(req);
   const { error: errConf } = await supabaseAdmin.from('panelistas').update({
     confirmado: true,
     fecha_confirmacion: new Date().toISOString(),
