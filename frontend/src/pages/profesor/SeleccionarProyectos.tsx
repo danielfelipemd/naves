@@ -107,8 +107,8 @@ export default function SeleccionarProyectos() {
                 definitivo. Los demás se archivan automáticamente.
               </p>
             </div>
-            <button onClick={() => navigate('/')} className="text-sm text-inalde-gray hover:text-inalde-text whitespace-nowrap">
-              ← Dashboard
+            <button onClick={() => navigate(esSuperAdmin ? '/admin' : '/')} className="text-sm text-inalde-gray hover:text-inalde-text whitespace-nowrap">
+              {esSuperAdmin ? '← Panel administrativo' : '← Dashboard'}
             </button>
           </div>
 

@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; participantes_count: number; equipos_count: number; }
 
-interface HintData { cohortes: Cohorte[]; profesores: number; antesEnviados: number; }
+interface HintData { cohortes: Cohorte[]; profesores: number; antesEnviados: number; definitivosPorElegir: number | null; }
 
 interface Section {
   to: string;
@@ -47,6 +47,15 @@ const GROUPS: Group[] = [
         title: 'Anteproyectos',
         desc: 'Vista consolidada por cohorte: todos los equipos con su estado, el consolidado para la reunión de asignación (sugiere, asigna y comunica) y el detalle de cada anteproyecto.',
         hint: (d) => `${d.antesEnviados} enviados`,
+      },
+      {
+        // La pantalla es la misma del profesor: al super admin le muestra los
+        // pendientes de TODOS los profesores y, pasada la fecha límite, solo él
+        // puede marcar el definitivo (como excepción, queda en auditoría).
+        to: '/profesor/seleccionar-proyectos', icon: '🎯',
+        title: 'Elegir proyecto definitivo',
+        desc: 'Equipos que cargaron más de un proyecto y siguen sin definitivo, de todos los profesores. Pasada la fecha límite, solo el super admin puede marcarlo.',
+        hint: (d) => (d.definitivosPorElegir === null ? '' : `${d.definitivosPorElegir} por decidir`),
       },
       {
         to: '/admin/proyectos-db', icon: '🗂️',
@@ -121,22 +130,26 @@ export default function Resumen() {
     cohortes: [] as Cohorte[],
     profesores: 0,
     antesEnviados: 0,
+    definitivosPorElegir: null as number | null,
     loading: true,
   });
 
   useEffect(() => { (async () => {
     try {
-      const [c, p, a] = await Promise.all([
+      const [c, p, a, sel] = await Promise.all([
         api.get('/admin/cohortes'),
         api.get('/admin/profesores'),
         // Solo los enviados: antes se descargaban TODOS los anteproyectos de
         // todas las cohortes para contar en el navegador.
         api.get('/admin/anteproyectos', { params: { estado: 'enviado' } }),
+        // Si este conteo falla, el resto del panel no debe quedarse sin datos.
+        api.get('/profesor/mis-equipos-pendientes').catch(() => null),
       ]);
       setData({
         cohortes: c.data,
         profesores: p.data.length,
         antesEnviados: a.data.filter((x: any) => x.estado === 'enviado').length,
+        definitivosPorElegir: sel ? (sel.data?.equipos ?? []).filter((e: any) => e.requiere_seleccion).length : null,
         loading: false,
       });
     } catch {
