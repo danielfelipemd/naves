@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { useAuth } from '../../auth/store';
 
 interface Proyecto {
   id: string;
@@ -29,13 +30,30 @@ interface EquipoAsignado {
   anteproyecto_estado: string | null;
   proyecto_definitivo_id: string | null;
   fecha_seleccion_definitivo: string | null;
+  fecha_limite_seleccion: string | null;
   miembros: string[];
   proyectos: Proyecto[];
+  es_mio: boolean;
+  profesor_asignado: string | null;
   requiere_seleccion: boolean;
+}
+
+function fechaLegible(iso: string): string {
+  return new Date(iso).toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
+    day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+}
+
+function plazoVencido(eq: EquipoAsignado): boolean {
+  return !!eq.fecha_limite_seleccion && new Date() > new Date(eq.fecha_limite_seleccion);
 }
 
 export default function SeleccionarProyectos() {
   const navigate = useNavigate();
+  // Vencida la fecha límite, solo el super admin puede elegir (como excepción).
+  const esSuperAdmin = useAuth((s) => s.role === 'super_admin' || (s.user?.app_metadata as any)?.es_super_admin === true);
   const [equipos, setEquipos] = useState<EquipoAsignado[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -53,11 +71,14 @@ export default function SeleccionarProyectos() {
 
   useEffect(() => { cargar(); }, []);
 
-  async function elegirDefinitivo(equipoId: string, proyectoId: string, nombreProyecto: string) {
-    if (!confirm(`¿Marcar "${nombreProyecto}" como proyecto definitivo del equipo? Los demás proyectos se archivarán.`)) return;
-    setBusy(equipoId); setMsg(null);
+  async function elegirDefinitivo(eq: EquipoAsignado, proyectoId: string, nombreProyecto: string) {
+    const aviso = plazoVencido(eq)
+      ? `\n\nLa fecha límite de selección venció el ${fechaLegible(eq.fecha_limite_seleccion!)}. Lo marcarás como excepción y quedará registrado.`
+      : '';
+    if (!confirm(`¿Marcar "${nombreProyecto}" como proyecto definitivo del equipo? Los demás proyectos se archivarán.${aviso}`)) return;
+    setBusy(eq.equipo_id); setMsg(null);
     try {
-      await api.post(`/equipos/${equipoId}/seleccionar-proyecto-definitivo`, { proyecto_id: proyectoId });
+      await api.post(`/equipos/${eq.equipo_id}/seleccionar-proyecto-definitivo`, { proyecto_id: proyectoId });
       setMsg({ kind: 'ok', text: `Proyecto "${nombreProyecto}" marcado como definitivo.` });
       await cargar();
     } catch (e: any) {
@@ -79,7 +100,7 @@ export default function SeleccionarProyectos() {
         <div className="max-w-[1100px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-6 flex items-start justify-between gap-4">
             <div>
-              <p className="section-subtitle mb-2">Mis equipos asignados</p>
+              <p className="section-subtitle mb-2">{esSuperAdmin ? 'Equipos' : 'Mis equipos asignados'}</p>
               <h1 className="section-title">Seleccionar proyecto definitivo</h1>
               <p className="text-inalde-gray text-sm mt-2">
                 Tras la Reunión 1 con cada equipo, elige cuál de los proyectos del equipo queda como
@@ -98,7 +119,9 @@ export default function SeleccionarProyectos() {
           )}
 
           {equipos.length === 0 && (
-            <p className="text-inalde-gray italic">No tienes equipos asignados todavía.</p>
+            <p className="text-inalde-gray italic">
+              {esSuperAdmin ? 'No hay equipos pendientes de elegir proyecto definitivo.' : 'No tienes equipos asignados todavía.'}
+            </p>
           )}
 
           {pendientes.length > 0 && (
@@ -107,7 +130,10 @@ export default function SeleccionarProyectos() {
                 Pendientes de tu decisión ({pendientes.length})
               </h2>
               <div className="space-y-6">
-                {pendientes.map(eq => (
+                {pendientes.map(eq => {
+                  const vencido = plazoVencido(eq);
+                  const puedeElegir = !vencido || esSuperAdmin;
+                  return (
                   <div key={eq.equipo_id} className="border border-inalde-gray-light rounded p-5">
                     <div className="flex items-start justify-between gap-4 mb-4 pb-3 border-b border-inalde-gray-light">
                       <div>
@@ -117,11 +143,25 @@ export default function SeleccionarProyectos() {
                         <p className="text-xs text-inalde-gray mt-1">
                           Cohorte {eq.cohorte_id} · {eq.miembros.length} miembro(s): {eq.miembros.join(', ')}
                         </p>
+                        {!eq.es_mio && (
+                          <p className="text-xs text-inalde-gray mt-1">
+                            Profesor asignado: {eq.profesor_asignado ?? 'sin asignar'}
+                          </p>
+                        )}
                       </div>
                       <span className="text-[11px] uppercase tracking-wider font-bold text-inalde-red bg-red-50 px-3 py-1 rounded">
                         {eq.proyectos.length} proyectos · elegir 1
                       </span>
                     </div>
+
+                    {vencido && (
+                      <div className="rounded border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm mb-4">
+                        La fecha límite de selección venció el {fechaLegible(eq.fecha_limite_seleccion!)}.{' '}
+                        {esSuperAdmin
+                          ? 'Como super admin puedes marcar el definitivo de forma excepcional; quedará registrado.'
+                          : 'Fuera de plazo solo el super admin puede marcar el definitivo.'}
+                      </div>
+                    )}
 
                     <div className="grid md:grid-cols-2 gap-4">
                       {eq.proyectos.map(p => (
@@ -142,18 +182,21 @@ export default function SeleccionarProyectos() {
                           {p.estado && (
                             <p className="text-[11px] text-inalde-gray italic">Estado del proyecto: {p.estado}</p>
                           )}
-                          <button
-                            onClick={() => elegirDefinitivo(eq.equipo_id, p.id, p.nombre)}
-                            disabled={busy === eq.equipo_id}
-                            className="btn-inalde-primary !py-2 !text-xs mt-2 disabled:opacity-50"
-                          >
-                            {busy === eq.equipo_id ? 'Guardando…' : 'Marcar como definitivo'}
-                          </button>
+                          {puedeElegir && (
+                            <button
+                              onClick={() => elegirDefinitivo(eq, p.id, p.nombre)}
+                              disabled={busy === eq.equipo_id}
+                              className="btn-inalde-primary !py-2 !text-xs mt-2 disabled:opacity-50"
+                            >
+                              {busy === eq.equipo_id ? 'Guardando…' : 'Marcar como definitivo'}
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           )}

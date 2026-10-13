@@ -68,8 +68,9 @@ router.post('/equipos/:id/marcar-reunion-1', requireRole('participante'), async 
 });
 
 // === POST /api/equipos/:id/seleccionar-proyecto-definitivo =============
-// Lo ejecuta el CREADOR del equipo (después de la Reunión 1). Tambien permitido
-// para super_admin como red de seguridad.
+// Lo ejecuta el profesor asignado o el creador del equipo (después de la
+// Reunión 1 y antes de la fecha límite). El super_admin puede además hacerlo
+// fuera de plazo, como excepción.
 const seleccionarSchema = z.object({ proyecto_id: z.string().uuid() });
 router.post('/equipos/:id/seleccionar-proyecto-definitivo', async (req: AuthenticatedRequest, res) => {
   const parsed = seleccionarSchema.safeParse(req.body);
@@ -120,8 +121,18 @@ router.post('/equipos/:id/seleccionar-proyecto-definitivo', async (req: Authenti
       mensaje: 'Aún no puedes elegir el proyecto definitivo. Espera a que pase la Reunión 1.',
     });
   }
-  if (fechas?.fecha_limite_seleccion_definitivo && ahoraD > new Date(fechas.fecha_limite_seleccion_definitivo)) {
-    return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA' });
+  // Vencida la fecha límite, el profesor y el participante ya no pueden elegir.
+  // El super admin sí, como excepción: un equipo que se quedó sin decidir no
+  // puede quedar bloqueado para siempre, porque sin definitivo no carga su
+  // proyecto final ni entra a la Fase 2. La excepción queda en auditoria.
+  const fueraDePlazo = !!fechas?.fecha_limite_seleccion_definitivo
+    && ahoraD > new Date(fechas.fecha_limite_seleccion_definitivo);
+  if (fueraDePlazo && !isSuperAdmin) {
+    return res.status(403).json({
+      error: 'FECHA_LIMITE_SELECCION_EXPIRADA',
+      fecha_limite: fechas.fecha_limite_seleccion_definitivo,
+      mensaje: 'La fecha límite para elegir el proyecto definitivo ya pasó. Fuera de plazo solo el super admin puede marcarlo.',
+    });
   }
 
   // El anteproyecto debe haber sido enviado (no se puede elegir definitivo sobre un borrador)
@@ -156,48 +167,107 @@ router.post('/equipos/:id/seleccionar-proyecto-definitivo', async (req: Authenti
     .eq('id', req.params.id);
   if (rEq.error) return res.status(500).json({ error: 'SELECCION_FALLIDA', paso: 'equipo', detail: rEq.error.message });
 
-  res.json({ ok: true, proyecto_definitivo_id: parsed.data.proyecto_id, archivados_count: ids.length - 1 });
+  // Rastro de la excepción: quién eligió fuera de plazo, en qué equipo y cuál.
+  if (fueraDePlazo) {
+    const { error: errAud } = await supabaseAdmin.from('auditoria').insert({
+      actor_tipo: 'super_admin',
+      actor_id: req.user!.profesorId ?? null,
+      accion: 'ADMIN_SELECCION_DEFINITIVO',
+      entidad_tipo: 'equipos',
+      entidad_id: req.params.id,
+      detalles: {
+        proyecto_id: parsed.data.proyecto_id,
+        cohorte_id: equipo.cohorte_id,
+        fecha_limite: fechas.fecha_limite_seleccion_definitivo,
+        fuera_de_plazo: true,
+      },
+      timestamp: ahora,
+    });
+    // El rastro no debe deshacer una selección que ya quedó bien escrita.
+    if (errAud) console.error('[seleccion] no se pudo registrar la excepción:', errAud.message);
+  }
+
+  res.json({
+    ok: true,
+    proyecto_definitivo_id: parsed.data.proyecto_id,
+    archivados_count: ids.length - 1,
+    fuera_de_plazo: fueraDePlazo,
+  });
 });
 
 // === GET /api/profesor/mis-equipos-pendientes =============
 // Lista los equipos asignados al profesor con anteproyecto enviado y proyecto definitivo
-// aún sin elegir (es decir, equipos con >1 proyecto).
+// aún sin elegir (es decir, equipos con >1 proyecto). Al super_admin le suma los
+// pendientes de TODOS los profesores: es quien decide cuando ya venció el plazo.
+const SELECT_EQUIPO_SELECCION = `
+  id, nombre_equipo, cohorte_id, proyecto_definitivo_id, fecha_seleccion_definitivo,
+  cohortes ( fecha_limite_seleccion_definitivo ),
+  miembros_equipo ( participantes_lista ( nombre_completo ) ),
+  anteproyectos:anteproyectos!inner (
+    id, estado,
+    proyectos ( id, nombre, tipo, sector, ciiu, estado_seleccion, canvas_cliente, canvas_problema, canvas_solucion, canvas_ingresos, canvas_recursos, canvas_actividades, fuentes_primarias, fuentes_secundarias, estado )
+  )
+`;
+
+function unoDe(raw: any) { return Array.isArray(raw) ? raw[0] : raw; }
+
+function equipoParaSeleccion(e: any, esMio: boolean, profesorAsignado: string | null) {
+  const ant = unoDe(e.anteproyectos);
+  const proyectos = (ant?.proyectos ?? []).filter((p: any) => p.estado_seleccion !== 'archivado');
+  return {
+    equipo_id: e.id,
+    nombre_equipo: e.nombre_equipo,
+    cohorte_id: e.cohorte_id,
+    anteproyecto_estado: ant?.estado,
+    proyecto_definitivo_id: e.proyecto_definitivo_id,
+    fecha_seleccion_definitivo: e.fecha_seleccion_definitivo,
+    fecha_limite_seleccion: unoDe(e.cohortes)?.fecha_limite_seleccion_definitivo ?? null,
+    miembros: (e.miembros_equipo ?? []).map((m: any) => m.participantes_lista?.nombre_completo).filter(Boolean),
+    proyectos,
+    es_mio: esMio,
+    profesor_asignado: profesorAsignado,
+    requiere_seleccion: !e.proyecto_definitivo_id && ant?.estado === 'enviado' && proyectos.length > 1,
+  };
+}
+
 router.get('/profesor/mis-equipos-pendientes', requireRole('profesor', 'super_admin'), async (req: AuthenticatedRequest, res) => {
   const profesorId = req.user!.profesorId;
-  if (!profesorId) return res.status(403).json({ error: 'NO_PROFESOR_ID' });
+  const isSuperAdmin = !!req.user!.isSuperAdmin;
+  if (!profesorId && !isSuperAdmin) return res.status(403).json({ error: 'NO_PROFESOR_ID' });
 
-  const { data: asignaciones, error } = await supabaseAdmin
-    .from('asignaciones_profesor')
-    .select(`
-      equipo_id,
-      equipos:equipos!inner (
-        id, nombre_equipo, cohorte_id, proyecto_definitivo_id, fecha_seleccion_definitivo,
-        miembros_equipo ( participantes_lista ( nombre_completo ) ),
-        anteproyectos:anteproyectos!inner (
-          id, estado,
-          proyectos ( id, nombre, tipo, sector, ciiu, estado_seleccion, canvas_cliente, canvas_problema, canvas_solucion, canvas_ingresos, canvas_recursos, canvas_actividades, fuentes_primarias, fuentes_secundarias, estado )
-        )
-      )
-    `)
-    .eq('profesor_id', profesorId);
-  if (error) return res.status(500).json({ error: error.message });
+  const equipos: ReturnType<typeof equipoParaSeleccion>[] = [];
 
-  const equipos = (asignaciones ?? []).map((a: any) => {
-    const e = a.equipos;
-    const ant = e.anteproyectos;
-    const proyectos = (ant?.proyectos ?? []).filter((p: any) => p.estado_seleccion !== 'archivado');
-    return {
-      equipo_id: e.id,
-      nombre_equipo: e.nombre_equipo,
-      cohorte_id: e.cohorte_id,
-      anteproyecto_estado: ant?.estado,
-      proyecto_definitivo_id: e.proyecto_definitivo_id,
-      fecha_seleccion_definitivo: e.fecha_seleccion_definitivo,
-      miembros: (e.miembros_equipo ?? []).map((m: any) => m.participantes_lista?.nombre_completo).filter(Boolean),
-      proyectos,
-      requiere_seleccion: !e.proyecto_definitivo_id && ant?.estado === 'enviado' && proyectos.length > 1,
-    };
-  });
+  if (profesorId) {
+    const { data: asignaciones, error } = await supabaseAdmin
+      .from('asignaciones_profesor')
+      .select(`equipo_id, equipos:equipos!inner ( ${SELECT_EQUIPO_SELECCION} )`)
+      .eq('profesor_id', profesorId);
+    if (error) return res.status(500).json({ error: error.message });
+    for (const a of (asignaciones ?? []) as any[]) equipos.push(equipoParaSeleccion(a.equipos, true, null));
+  }
+
+  if (isSuperAdmin) {
+    // Equipos de cualquier profesor (o sin profesor) que siguen sin definitivo.
+    // La relación con profesores va nombrada: asignaciones_profesor tiene dos
+    // claves hacia profesores (profesor_id y asignado_por).
+    const { data: sinDefinitivo, error } = await traerTodasLasFilas((desde, hasta) => supabaseAdmin
+      .from('equipos')
+      .select(`${SELECT_EQUIPO_SELECCION},
+        asignaciones_profesor ( profesores:profesores!asignaciones_profesor_profesor_id_fkey ( nombre_completo ) )`)
+      .is('proyecto_definitivo_id', null)
+      .order('id')
+      .range(desde, hasta));
+    if (error) return res.status(500).json({ error: error.message });
+
+    const yaListados = new Set(equipos.map((e) => e.equipo_id));
+    for (const e of (sinDefinitivo ?? []) as any[]) {
+      if (yaListados.has(e.id)) continue;
+      const profesor = unoDe(unoDe(e.asignaciones_profesor)?.profesores)?.nombre_completo ?? null;
+      const item = equipoParaSeleccion(e, false, profesor);
+      // De los equipos ajenos solo interesan los que esperan una decisión.
+      if (item.requiere_seleccion) equipos.push(item);
+    }
+  }
 
   res.json({ equipos });
 });
