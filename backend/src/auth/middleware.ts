@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { config } from '../config.js';
+import { comprobarSesion } from '../services/actividad-sesion.js';
 
 // Roles de área (Programación Interna). Se guardan como app_role propio, y NO
 // como 'profesor', a propósito: admin.ts deja pasar cualquier GET de un profesor
@@ -82,10 +83,22 @@ export function requireAuth() {
         sessionId: typeof decoded.session_id === 'string' ? decoded.session_id : undefined,
         rawJwt: token,
       };
-      next();
     } catch {
       return res.status(401).json({ error: 'INVALID_TOKEN' });
     }
+
+    // Firma y expiración válidas no bastan: la sesión tiene que seguir viva y
+    // con actividad en la última hora (ver services/actividad-sesion.ts). Va
+    // fuera del try de arriba para que una sesión cerrada no se reporte como
+    // token inválido: el frontend distingue los dos casos para explicárselo
+    // a la persona.
+    if (req.user.sessionId) {
+      const segundoPlano = req.header('x-naves-segundo-plano') === '1';
+      const estado = await comprobarSesion(req.user.sessionId, !segundoPlano);
+      if (estado === 'expirada') return res.status(401).json({ error: 'SESION_EXPIRADA' });
+      if (estado === 'inexistente') return res.status(401).json({ error: 'SESION_CERRADA' });
+    }
+    next();
   };
 }
 

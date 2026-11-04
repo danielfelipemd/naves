@@ -244,7 +244,7 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="mt-8 pt-4 border-t border-inalde-gray-light">
-              <button onClick={signOut} className="text-sm text-inalde-gray hover:text-inalde-text">
+              <button onClick={() => signOut()} className="text-sm text-inalde-gray hover:text-inalde-text">
                 Cerrar sesión
               </button>
             </div>
@@ -276,7 +276,7 @@ export default function Dashboard() {
                 )}
               </p>
             </div>
-            <button onClick={signOut} className="text-sm text-inalde-gray hover:text-inalde-red whitespace-nowrap">
+            <button onClick={() => signOut()} className="text-sm text-inalde-gray hover:text-inalde-red whitespace-nowrap">
               Salir
             </button>
           </div>

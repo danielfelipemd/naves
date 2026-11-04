@@ -1,8 +1,16 @@
 import { create } from 'zustand';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { api } from '../lib/api';
+import { api, registrarAlCerrarSesion } from '../lib/api';
 import { setCachedToken } from './token';
+import { borrarActividad } from './actividad';
+
+/**
+ * Por qué se sale al login. Se muestra en la pantalla de ingreso para que la
+ * persona sepa qué pasó, en vez de encontrarse el login sin explicación.
+ */
+export type MotivoSalida = 'inactividad' | 'cerrada' | 'clave-creada';
+const MOTIVOS: readonly string[] = ['inactividad', 'cerrada', 'clave-creada'];
 
 // Roles de área: staff interno (marketing, operaciones, asistente de programa)
 // que solo consulta la Programación Interna. Tienen app_role propio para que no
@@ -24,7 +32,7 @@ interface AuthState {
   init: () => Promise<void>;
   refreshEstado: () => Promise<void>;
   marcarActivado: () => void;
-  signOut: () => Promise<void>;
+  signOut: (motivo?: MotivoSalida) => Promise<void>;
 }
 
 function roleFromUser(user: User | null): AppRole {
@@ -63,6 +71,15 @@ export const useAuth = create<AuthState>((set, get) => ({
   requierePerfil: false,
 
   init: async () => {
+    // Si el backend dice que la sesión expiró o ya no existe, se sale una sola
+    // vez aunque lleguen varias respuestas 401 a la par.
+    let saliendo = false;
+    registrarAlCerrarSesion((motivo) => {
+      if (saliendo) return;
+      saliendo = true;
+      void get().signOut(motivo);
+    });
+
     // Timeout defensivo para getSession(): si Supabase Auth tiene latencia
     // momentanea, no queremos que toda la app se quede en "cargando" mas de
     // 5 s. Tras el timeout asumimos "sin sesion" y dejamos al usuario en el
@@ -151,7 +168,7 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   marcarActivado: () => set({ requiereCambioClave: false }),
 
-  signOut: async () => {
+  signOut: async (motivo?: MotivoSalida) => {
     // 'local' evita el roundtrip de red para revocar el token en el servidor.
     // Es mucho mas confiable: solo limpia el storage local. Si la red esta
     // mal, antes el signOut fallaba y el estado quedaba pegado.
@@ -160,8 +177,13 @@ export const useAuth = create<AuthState>((set, get) => ({
     perfilCargadoDe = null;
     // Limpiar estado SIEMPRE, ocurra lo que ocurra arriba.
     set({ session: null, user: null, role: null, nombre: null, requiereCambioClave: false, requierePerfil: false });
+    borrarActividad();
     // Hard redirect: garantiza que se llega a /login independientemente del
     // arbol de rutas/estado actual (incluida la pantalla 'esperando').
-    window.location.href = '/login';
+    //
+    // El motivo se comprueba contra la lista porque varios botones hacen
+    // `onClick={signOut}` y entonces llega el evento del clic, no un motivo.
+    const m = typeof motivo === 'string' && MOTIVOS.includes(motivo) ? motivo : null;
+    window.location.href = m ? `/login?motivo=${m}` : '/login';
   },
 }));

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../../lib/api';
+import { api, enSegundoPlano } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 
 interface Notif { id: string; tipo: string; titulo: string; cuerpo: string | null; enlace: string | null; leida: boolean; creada_at: string; }
@@ -17,8 +17,10 @@ export function NotificationBell() {
   const [cargandoMas, setCargandoMas] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Se llama sola cada 60 s: va en segundo plano para no mantener viva la
+  // sesión de una pestaña que nadie está usando.
   async function cargarContador() {
-    try { setNoLeidas((await api.get('/notificaciones/contador')).data.no_leidas ?? 0); } catch { /* noop */ }
+    try { setNoLeidas((await api.get('/notificaciones/contador', enSegundoPlano)).data.no_leidas ?? 0); } catch { /* noop */ }
   }
   async function cargarLista() {
     try {

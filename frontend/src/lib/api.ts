@@ -19,6 +19,41 @@ api.interceptors.request.use((cfg) => {
   return cfg;
 });
 
+/**
+ * Para las consultas que la aplicación hace sola, sin que la persona haga nada:
+ * la campana de avisos, el autoguardado, los sondeos de progreso. El backend
+ * comprueba igual que la sesión siga viva, pero estas peticiones NO cuentan
+ * como actividad. Si contaran, una pestaña abierta nunca expiraría.
+ *
+ *   api.get('/notificaciones/contador', enSegundoPlano)
+ *   api.put(url, datos, { timeout: 60000, ...enSegundoPlano })
+ */
+export const enSegundoPlano = { headers: { 'X-Naves-Segundo-Plano': '1' } } as const;
+
+export type MotivoCierre = 'inactividad' | 'cerrada';
+
+let alCerrarSesion: ((motivo: MotivoCierre) => void) | null = null;
+
+/** Lo registra el store de sesión: aquí no se importa para no crear un ciclo. */
+export function registrarAlCerrarSesion(fn: (motivo: MotivoCierre) => void): void {
+  alCerrarSesion = fn;
+}
+
+// El backend responde 401 SESION_EXPIRADA (1 hora sin actividad) o
+// SESION_CERRADA (la sesión ya no existe: se cerró en otro lado, se cambió la
+// clave). En los dos casos se sale al login explicando por qué, en vez de
+// dejar la pantalla fallando petición tras petición.
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    const codigo = err?.response?.data?.error;
+    if (err?.response?.status === 401 && (codigo === 'SESION_EXPIRADA' || codigo === 'SESION_CERRADA')) {
+      alCerrarSesion?.(codigo === 'SESION_EXPIRADA' ? 'inactividad' : 'cerrada');
+    }
+    return Promise.reject(err);
+  },
+);
+
 /** Descarga un blob desde una ruta autenticada y dispara el guardado en el navegador. */
 export async function downloadFile(path: string, filename: string) {
   const resp = await api.get(path, { responseType: 'blob' });

@@ -207,6 +207,7 @@ router.get('/', (_req, res) => res.json({ module: 'auth', status: 'ok' }));
 import { requireAuth } from './../auth/middleware.js';
 import { getUserPermisos } from './../auth/permissions.js';
 import { registrarAcceso } from './../services/registro-acceso.js';
+import { comprobarSesion, olvidarSesion } from './../services/actividad-sesion.js';
 
 router.get('/me', requireAuth(), async (req: any, res) => {
   // El login ocurre contra Supabase Auth sin pasar por aquí; esta es la primera
@@ -274,6 +275,27 @@ const cambiarClaveInicialSchema = z.object({
   password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/\d/),
 });
 
+/**
+ * POST /api/auth/actividad — "la persona sigue aquí".
+ *
+ * Cualquier petición normal ya cuenta como actividad. Esto cubre lo que no
+ * pasa por la API: escribir un texto largo, leer, desplazarse. El frontend lo
+ * manda como mucho una vez por minuto, y solo si hubo interacción de verdad
+ * (teclas, clics, desplazamiento). También es lo que llama "Seguir conectado".
+ *
+ * Fuerza la comprobación en la base para que la actividad quede anotada ya, no
+ * en el siguiente minuto. Sin limitador por IP: exige sesión, y un aula entera
+ * entra desde la misma red.
+ */
+router.post('/actividad', requireAuth(), async (req: any, res) => {
+  if (req.user?.sessionId) {
+    const estado = await comprobarSesion(req.user.sessionId, true, true);
+    if (estado === 'expirada') return res.status(401).json({ error: 'SESION_EXPIRADA' });
+    if (estado === 'inexistente') return res.status(401).json({ error: 'SESION_CERRADA' });
+  }
+  res.status(204).end();
+});
+
 router.post('/cambiar-clave-inicial', requireAuth(), async (req: any, res) => {
   const parsed = cambiarClaveInicialSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
@@ -295,6 +317,7 @@ router.post('/cambiar-clave-inicial', requireAuth(), async (req: any, res) => {
     body: JSON.stringify({ password: parsed.data.password }),
   });
   if (!r.ok) return res.status(500).json({ error: 'AUTH_UPDATE_FAILED', detail: await r.text() });
+  const usuario = (await r.json().catch(() => null)) as { email?: string } | null;
 
   // Activar al participante. Si esto falla en silencio, la clave YA cambió pero
   // el participante sigue 'pendiente_activacion': queda atrapado en el cambio
@@ -304,7 +327,34 @@ router.post('/cambiar-clave-inicial', requireAuth(), async (req: any, res) => {
     .eq('id', participanteId);
   if (errAct) return res.status(500).json({ error: 'ACTIVACION_FALLIDA', detail: errAct.message });
 
-  res.json({ ok: true });
+  // GoTrue BORRA TODAS las sesiones del usuario al cambiarle la clave. Medido
+  // el 3-nov-2026 con un usuario desechable: 1 sesión → 0, y renovar con el
+  // token de antes da 400. Sin esto el participante que acaba de crear su
+  // clave se quedaba con una sesión que ya no existía: seguía unos minutos con
+  // el access token huérfano y en la siguiente renovación el sistema lo sacaba
+  // al login sin explicarle nada. Con el control de sesión del middleware lo
+  // sacaría al instante.
+  //
+  // Así que se abre una sesión nueva con la clave nueva y se devuelve. Con
+  // fetch y la llave anónima, NO con supabaseAdmin: iniciar sesión en el
+  // cliente con service_role lo convierte en ese usuario para todo el backend.
+  olvidarSesion(req.user?.sessionId);
+  if (usuario?.email) {
+    try {
+      const login = await fetch(`${config.supabase.internalUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { apikey: config.supabase.anonKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: usuario.email, password: parsed.data.password }),
+      });
+      if (login.ok) {
+        const s = (await login.json()) as { access_token?: string; refresh_token?: string };
+        if (s.access_token && s.refresh_token) {
+          return res.json({ ok: true, session: { access_token: s.access_token, refresh_token: s.refresh_token } });
+        }
+      }
+    } catch { /* la clave ya quedó cambiada: sin sesión nueva, el frontend manda al login */ }
+  }
+  res.json({ ok: true, session: null });
 });
 
 export default router;

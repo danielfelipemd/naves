@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { supabase, syntheticEmailFromCedula } from '../../lib/supabase';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { marcarActividad } from '../../auth/actividad';
 
 type Mode = 'participante' | 'profesor';
 
@@ -17,6 +18,13 @@ async function cedulaNoInscrita(cedula: string): Promise<boolean> {
   }
 }
 
+/** Por qué se llegó al login, cuando no fue la persona quien entró aquí. */
+const AVISOS_SALIDA: Record<string, string> = {
+  inactividad: 'Tu sesión se cerró por seguridad tras 1 hora sin actividad. Vuelve a ingresar para continuar.',
+  cerrada: 'Tu sesión se cerró. Vuelve a ingresar para continuar.',
+  'clave-creada': 'Tu clave quedó creada. Ingresa con tu cédula y tu clave nueva.',
+};
+
 export default function Login() {
   const [mode, setMode] = useState<Mode>('participante');
   const [identifier, setIdentifier] = useState('');
@@ -25,6 +33,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const avisoSalida = AVISOS_SALIDA[params.get('motivo') ?? ''] ?? null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +78,8 @@ export default function Login() {
         }
         throw new Error('No pudimos iniciar tu sesión. Verifica tu cédula y clave e inténtalo de nuevo.');
       }
+      // Un ingreso nuevo arranca la cuenta de inactividad desde cero.
+      marcarActividad();
       navigate('/', { replace: true });
     } catch (err: any) {
       setError(formatBackendError(err));
@@ -180,6 +192,11 @@ export default function Login() {
                 )}
               </div>
 
+              {avisoSalida && !error && (
+                <div role="status" className="rounded border-l-4 border-inalde-gray bg-gray-50 px-4 py-3 text-sm text-inalde-text">
+                  {avisoSalida}
+                </div>
+              )}
               {error && (
                 <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm text-inalde-text">
                   {error}

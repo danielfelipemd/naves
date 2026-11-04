@@ -5,6 +5,8 @@ import { PasswordInput } from '../../components/inalde/PasswordInput';
 import { api } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
+import { supabase } from '../../lib/supabase';
+import { marcarActividad } from '../../auth/actividad';
 
 export default function CambiarClaveInicial() {
   const navigate = useNavigate();
@@ -31,9 +33,22 @@ export default function CambiarClaveInicial() {
     }
     setLoading(true);
     try {
-      await api.post('/auth/cambiar-clave-inicial', { password: clave1 });
-      marcarActivado();
-      navigate('/', { replace: true });
+      const { data } = await api.post('/auth/cambiar-clave-inicial', { password: clave1 });
+      // Cambiar la clave borra la sesión en el servidor; el backend abre una
+      // nueva con la clave nueva y la devuelve. Se instala ANTES de seguir:
+      // con la sesión vieja, la siguiente petición respondería 401.
+      const nueva = data?.session;
+      if (nueva?.access_token && nueva?.refresh_token) {
+        const { error: errSesion } = await supabase.auth.setSession(nueva);
+        if (!errSesion) {
+          marcarActividad();
+          marcarActivado();
+          navigate('/', { replace: true });
+          return;
+        }
+      }
+      // La clave quedó creada, pero no hubo sesión nueva: se entra con ella.
+      await signOut('clave-creada');
     } catch (e: any) {
       setError(formatBackendError(e));
     } finally { setLoading(false); }

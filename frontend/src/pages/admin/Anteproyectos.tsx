@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, downloadFile } from '../../lib/api';
+import { api, downloadFile, enSegundoPlano } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
 import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
@@ -444,7 +444,7 @@ export default function Anteproyectos() {
     pollRef.current = window.setInterval(async () => {
       ticks++;
       try {
-        const { data } = await api.get(`/sabana/${cohorte}/resumen`);
+        const { data } = await api.get(`/sabana/${cohorte}/resumen`, enSegundoPlano);
         const filas = (data?.filas ?? []) as FilaResumen[];
         setResumen(filas);
         const pendientes = filas.some((f) => f.profesor_asignado_id && !f.comunicado);

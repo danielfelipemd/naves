@@ -12,7 +12,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { CiiuPicker } from '../../components/inalde/CiiuPicker';
 import { RangoFechas } from '../../components/inalde/RangoFechas';
-import { api } from '../../lib/api';
+import { api, enSegundoPlano } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { SECTORES } from '../../lib/sectores';
 
@@ -529,7 +529,10 @@ export default function Anteproyecto() {
       savingRef.current = true;
       setSaveState({ kind: 'saving' });
       try {
-        await api.put(`/anteproyectos/${anteId}`, buildPayloadRef.current(), { timeout: 60000 });
+        // Se dispara cada 30 s aunque nadie escriba: en segundo plano, o
+        // dejaría viva para siempre la sesión de un anteproyecto abierto. Lo
+        // que la persona escribe ya cuenta por el guardado al teclear.
+        await api.put(`/anteproyectos/${anteId}`, buildPayloadRef.current(), { timeout: 60000, ...enSegundoPlano });
         if (equipoId) {
           try { window.localStorage.removeItem(localKey(equipoId)); } catch { /* ignore */ }
         }

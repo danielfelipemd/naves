@@ -51,6 +51,7 @@ import AdminEquipos from './pages/admin/Equipos';
 import AdminAnteproyectoDetail from './pages/admin/AnteproyectoDetail';
 import AdminSolicitudes from './pages/admin/Solicitudes';
 import AdminRolesPermisos from './pages/admin/RolesPermisos';
+import { AvisoInactividad } from './components/inalde/AvisoInactividad';
 
 function ProtectedRoute({ children, requierePerfilOk = false }: { children: React.ReactNode; requierePerfilOk?: boolean }) {
   const { session, loading, role, requiereCambioClave, requierePerfil } = useAuth();
@@ -118,6 +119,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <AvisoInactividad />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/recovery" element={<Recovery />} />
