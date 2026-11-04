@@ -6,7 +6,6 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../auth/store';
 import { formatBackendError } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
-import { marcarActividad } from '../../auth/actividad';
 
 export default function CambiarClaveInicial() {
   const navigate = useNavigate();
@@ -41,7 +40,6 @@ export default function CambiarClaveInicial() {
       if (nueva?.access_token && nueva?.refresh_token) {
         const { error: errSesion } = await supabase.auth.setSession(nueva);
         if (!errSesion) {
-          marcarActividad();
           marcarActivado();
           navigate('/', { replace: true });
           return;

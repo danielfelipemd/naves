@@ -7,6 +7,7 @@ import {
   INACTIVIDAD_MAX_MS,
   leerUltimaActividad,
   marcarActividad,
+  sessionIdDeToken,
 } from '../../auth/actividad';
 import { Modal } from './Modal';
 
@@ -36,6 +37,9 @@ const EVENTOS = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'] as c
 export function AvisoInactividad() {
   const session = useAuth((s) => s.session);
   const signOut = useAuth((s) => s.signOut);
+  // La marca de actividad va atada a la sesión: al entrar con una sesión
+  // nueva, la cuenta empieza de cero aunque quede una marca vieja.
+  const sid = sessionIdDeToken(session?.access_token);
   const [minutosRestantes, setMinutosRestantes] = useState<number | null>(null);
   const ultimoLatido = useRef(0);
   const ultimoGuardado = useRef(0);
@@ -51,8 +55,8 @@ export function AvisoInactividad() {
 
   const revisar = useCallback(() => {
     if (cerrando.current) return;
-    const ultima = leerUltimaActividad();
-    if (ultima === null) { marcarActividad(); return; }
+    const ultima = leerUltimaActividad(sid);
+    if (ultima === null) { marcarActividad(sid); return; }
     const inactivo = Date.now() - ultima;
     if (inactivo >= INACTIVIDAD_MAX_MS) {
       cerrando.current = true;
@@ -64,22 +68,22 @@ export function AvisoInactividad() {
     } else {
       setMinutosRestantes(null);
     }
-  }, [signOut]);
+  }, [signOut, sid]);
 
   useEffect(() => {
     if (!session) { setMinutosRestantes(null); return; }
     cerrando.current = false;
 
-    // Primera vez con sesión en este navegador (p. ej. justo tras desplegar
-    // esto): se arranca a contar desde ahora en vez de echar a nadie.
-    if (leerUltimaActividad() === null) marcarActividad();
+    // Sesión nueva (o primera vez tras desplegar esto): se arranca a contar
+    // desde ahora en vez de echar a nadie.
+    if (leerUltimaActividad(sid) === null) marcarActividad(sid);
     revisar();
 
     const alInteractuar = () => {
       const ahora = Date.now();
       if (ahora - ultimoGuardado.current >= GUARDAR_CADA_MS) {
         ultimoGuardado.current = ahora;
-        marcarActividad(ahora);
+        marcarActividad(sid, ahora);
       }
       latido();
     };
@@ -100,10 +104,10 @@ export function AvisoInactividad() {
       window.removeEventListener('storage', alCambiarOtraPestana);
       window.clearInterval(t);
     };
-  }, [session, revisar, latido]);
+  }, [session, sid, revisar, latido]);
 
   function seguirConectado() {
-    marcarActividad();
+    marcarActividad(sid);
     ultimoGuardado.current = Date.now();
     latido(true);
     setMinutosRestantes(null);

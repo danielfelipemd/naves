@@ -4,7 +4,6 @@ import { Header } from '../../components/inalde/Header';
 import { supabase, syntheticEmailFromCedula } from '../../lib/supabase';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
-import { marcarActividad } from '../../auth/actividad';
 
 type Mode = 'participante' | 'profesor';
 
@@ -78,8 +77,6 @@ export default function Login() {
         }
         throw new Error('No pudimos iniciar tu sesión. Verifica tu cédula y clave e inténtalo de nuevo.');
       }
-      // Un ingreso nuevo arranca la cuenta de inactividad desde cero.
-      marcarActividad();
       navigate('/', { replace: true });
     } catch (err: any) {
       setError(formatBackendError(err));
