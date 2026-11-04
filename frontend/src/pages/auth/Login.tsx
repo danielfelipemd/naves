@@ -101,6 +101,14 @@ export default function Login() {
               </h1>
             </div>
 
+            {/* Por qué se llegó aquí, si no fue la persona quien salió: va antes
+                que nada, porque es lo primero que tiene que leer. */}
+            {avisoSalida && (
+              <div role="status" className="mb-8 rounded border-l-4 border-inalde-gray bg-gray-50 px-4 py-3 text-sm text-inalde-text">
+                {avisoSalida}
+              </div>
+            )}
+
             {/* Toggle rol */}
             <div className="grid grid-cols-2 gap-2 mb-8 p-1 bg-inalde-gray-bg rounded">
               <button
@@ -192,11 +200,6 @@ export default function Login() {
                 )}
               </div>
 
-              {avisoSalida && !error && (
-                <div role="status" className="rounded border-l-4 border-inalde-gray bg-gray-50 px-4 py-3 text-sm text-inalde-text">
-                  {avisoSalida}
-                </div>
-              )}
               {error && (
                 <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm text-inalde-text">
                   {error}

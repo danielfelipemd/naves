@@ -119,7 +119,6 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AvisoInactividad />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/recovery" element={<Recovery />} />
@@ -181,6 +180,10 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {/* Después de las rutas a propósito: el modal y la cabecera comparten
+          z-50, y con empate se pinta encima lo que va después. Montado antes,
+          la cabecera tapaba el título del aviso. */}
+      <AvisoInactividad />
     </BrowserRouter>
   );
 }
