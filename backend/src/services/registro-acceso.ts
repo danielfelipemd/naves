@@ -19,30 +19,56 @@ import type { AppRole } from '../auth/middleware.js';
  *
  * Se llama sin await y nunca lanza: un fallo registrando no puede tumbar la
  * sesión de nadie.
+ *
+ * Un acceso = una SESIÓN, no una llamada. /auth/me no se pide solo al entrar:
+ * supabase-js emite `SIGNED_IN` cada vez que la pestaña vuelve a estar visible
+ * (`_recoverAndRefresh`), y el frontend lo atiende pidiendo el perfil. Contando
+ * por usuario y ventana de tiempo, una pestaña abierta toda la tarde producía
+ * una fila cada 30 minutos exactos — medido en producción: 229 de 363
+ * intervalos del super admin eran de 1800 s al segundo, que es el ancho de la
+ * ventana y no el ritmo de una persona.
+ *
+ * La clave correcta es `session_id`, que viene en el JWT de GoTrue: se mantiene
+ * mientras el token se renueva y solo cambia cuando alguien se autentica de
+ * nuevo. Así una sesión deja exactamente una fila, sobrevivan los F5 y los
+ * cambios de pestaña que sean.
  */
 
-/** Ventana para no reescribir en cada F5. Un acceso por usuario cada 30 min. */
+/**
+ * Respaldo para tokens sin `session_id` (firmas antiguas): se vuelve a contar
+ * por usuario con ventana de tiempo, que es tosco pero no deja el acceso sin
+ * registrar.
+ */
 const VENTANA_MS = 30 * 60 * 1000;
 
-/** Última escritura por usuario, en memoria del proceso. */
+/** Última escritura por clave (sesión, o usuario en el respaldo). */
 const ultimoRegistro = new Map<string, number>();
 
-/** Evita que el Map crezca sin límite si pasan muchos usuarios distintos. */
+/** Evita que el Map crezca sin límite si pasan muchas sesiones distintas. */
 const MAX_ENTRADAS = 5000;
 
-function yaRegistradoReciente(sub: string): boolean {
-  const previo = ultimoRegistro.get(sub);
+/**
+ * Las sesiones de GoTrue duran mucho más que 30 min, así que una entrada por
+ * `session_id` tiene que vivir lo suficiente para cubrir la sesión completa;
+ * si no, la misma sesión volvería a registrarse al caducar su entrada.
+ */
+const VIDA_ENTRADA_SESION_MS = 24 * 60 * 60 * 1000;
+
+function yaRegistrado(clave: string, porSesion: boolean): boolean {
+  const previo = ultimoRegistro.get(clave);
   const ahora = Date.now();
-  if (previo && ahora - previo < VENTANA_MS) return true;
+  const vida = porSesion ? VIDA_ENTRADA_SESION_MS : VENTANA_MS;
+  if (previo && ahora - previo < vida) return true;
 
   if (ultimoRegistro.size >= MAX_ENTRADAS) {
-    // Purga las entradas ya vencidas; si aún está lleno, arranca de cero.
+    // Purga lo ya vencido con el criterio más laxo; si aún está lleno,
+    // arranca de cero (perder el rastro en memoria solo duplica una fila).
     for (const [k, t] of ultimoRegistro) {
-      if (ahora - t >= VENTANA_MS) ultimoRegistro.delete(k);
+      if (ahora - t >= VIDA_ENTRADA_SESION_MS) ultimoRegistro.delete(k);
     }
     if (ultimoRegistro.size >= MAX_ENTRADAS) ultimoRegistro.clear();
   }
-  ultimoRegistro.set(sub, ahora);
+  ultimoRegistro.set(clave, ahora);
   return false;
 }
 
@@ -52,12 +78,15 @@ export interface ActorAcceso {
   participanteId?: string;
   profesorId?: string;
   isSuperAdmin?: boolean;
+  /** `session_id` del JWT. Sin él se cae al respaldo por usuario y ventana. */
+  sessionId?: string;
 }
 
 export async function registrarAcceso(user: ActorAcceso, req: Request): Promise<void> {
   try {
     if (!user?.sub) return;
-    if (yaRegistradoReciente(user.sub)) return;
+    const porSesion = !!user.sessionId;
+    if (yaRegistrado(porSesion ? `s:${user.sessionId}` : `u:${user.sub}`, porSesion)) return;
 
     const ahora = new Date().toISOString();
 
@@ -89,7 +118,7 @@ export async function registrarAcceso(user: ActorAcceso, req: Request): Promise<
       accion: 'LOGIN',
       entidad_tipo: user.participanteId ? 'participantes_lista' : user.profesorId ? 'profesores' : null,
       entidad_id: user.participanteId ?? user.profesorId ?? null,
-      detalles: { auth_user_id: user.sub, role: user.role },
+      detalles: { auth_user_id: user.sub, role: user.role, session_id: user.sessionId ?? null },
       ip: ipCliente(req),
       user_agent: (req.header('user-agent') ?? '').slice(0, 500) || null,
       timestamp: ahora,

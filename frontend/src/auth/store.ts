@@ -34,6 +34,14 @@ function roleFromUser(user: User | null): AppRole {
   return null;
 }
 
+/**
+ * Usuario cuyo perfil ya se cargó en esta pestaña. Sirve para no volver a
+ * pedir /auth/me cuando supabase-js reemite `SIGNED_IN` por recuperar la
+ * sesión del almacenamiento (vuelta a la pestaña, evento de otra pestaña):
+ * ahí no hay un ingreso nuevo y el perfil no ha cambiado.
+ */
+let perfilCargadoDe: string | null = null;
+
 async function fetchMe(): Promise<{ requiereCambio: boolean; requierePerfil: boolean; nombre: string | null }> {
   try {
     const { data } = await api.get('/auth/me');
@@ -70,6 +78,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     let me = { requiereCambio: false, requierePerfil: false, nombre: null as string | null };
     if (sessionResult) {
       me = await fetchMe();
+      perfilCargadoDe = user?.id ?? null;
     }
     set({
       session: sessionResult,
@@ -92,9 +101,26 @@ export const useAuth = create<AuthState>((set, get) => ({
       // clave temporal.
       if (event === 'TOKEN_REFRESHED') return;
       if (session) {
+        // `SIGNED_IN` no siempre es un ingreso: supabase-js lo reemite cada vez
+        // que recupera la sesión del almacenamiento, y eso pasa al volver a la
+        // pestaña (`visibilitychange` → `_recoverAndRefresh`). Si es el mismo
+        // usuario cuyo perfil ya tenemos, no hay nada que volver a pedir — y
+        // así el backend deja de ver una entrada nueva en cada cambio de
+        // pestaña. Un ingreso de verdad trae un usuario distinto del cargado
+        // (tras un SIGNED_OUT el marcador queda en null).
+        //
+        // Solo se saltan estos dos eventos, a propósito. `INITIAL_SESSION` llega
+        // justo después de que init() ya pidió el perfil, así que pedirlo otra
+        // vez era un viaje de más en cada carga de página. Los demás eventos
+        // —`USER_UPDATED`, `PASSWORD_RECOVERY`— sí pueden traer un perfil
+        // distinto y se siguen atendiendo como antes.
+        const esRecuperacionDeSesion = event === 'SIGNED_IN' || event === 'INITIAL_SESSION';
+        if (esRecuperacionDeSesion && u && perfilCargadoDe === u.id) return;
         const fl = await fetchMe();
+        perfilCargadoDe = u?.id ?? null;
         set({ requiereCambioClave: fl.requiereCambio, requierePerfil: fl.requierePerfil, nombre: fl.nombre });
       } else {
+        perfilCargadoDe = null;
         set({ requiereCambioClave: false, requierePerfil: false, nombre: null });
       }
     });
@@ -117,6 +143,8 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   refreshEstado: async () => {
     if (!get().session) return;
+    // Petición explícita (tras cambiar la clave o completar el perfil): aquí sí
+    // hay que volver a leer, por eso no mira `perfilCargadoDe`.
     const fl = await fetchMe();
     set({ requiereCambioClave: fl.requiereCambio, requierePerfil: fl.requierePerfil, nombre: fl.nombre });
   },
@@ -129,6 +157,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     // mal, antes el signOut fallaba y el estado quedaba pegado.
     try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* ignore */ }
     setCachedToken(null);
+    perfilCargadoDe = null;
     // Limpiar estado SIEMPRE, ocurra lo que ocurra arriba.
     set({ session: null, user: null, role: null, nombre: null, requiereCambioClave: false, requierePerfil: false });
     // Hard redirect: garantiza que se llega a /login independientemente del

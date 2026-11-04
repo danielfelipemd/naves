@@ -20,6 +20,13 @@ export interface AuthenticatedRequest extends Request {
     cohorteId?: string;
     equipoId?: string;
     isSuperAdmin?: boolean;
+    /**
+     * `session_id` del JWT de GoTrue: identifica la SESIÓN, no al usuario.
+     * Se mantiene estable mientras el token se renueva y solo cambia cuando
+     * la persona vuelve a autenticarse. Es la clave con la que el registro de
+     * accesos distingue un ingreso real de una renovación.
+     */
+    sessionId?: string;
     rawJwt: string;
   };
 }
@@ -72,6 +79,7 @@ export function requireAuth() {
         cohorteId: meta.cohorte_id,
         equipoId: meta.equipo_id,
         isSuperAdmin: !!meta.es_super_admin,
+        sessionId: typeof decoded.session_id === 'string' ? decoded.session_id : undefined,
         rawJwt: token,
       };
       next();
