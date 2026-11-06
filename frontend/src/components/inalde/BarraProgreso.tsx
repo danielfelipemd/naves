@@ -19,22 +19,55 @@ interface Props {
   nombre?: string;
   /** Tamaño en bytes; con él se avisa que no cierre la ventana en los grandes. */
   bytes?: number;
+  /** Segundos que faltan para terminar de enviar, según la velocidad medida
+   *  (axios lo calcula en cada evento de progreso). null mientras no se sabe. */
+  segundosRestantes?: number | null;
 }
 
 /** A partir de aquí la subida dura lo suficiente como para que valga el aviso. */
 const BYTES_AVISO = 5 * 1024 * 1024;
 
+/** Antes de este porcentaje la velocidad medida todavía no es fiable. */
+const PCT_MIN_ESTIMACION = 3;
+
+/**
+ * Una subida que dura más de ~60 s la corta el proxy (medido el 04/11/2026:
+ * 24 MB a 250 KB/s fallaron a los 64,5 s). Si todavía faltan más de 45 s de
+ * envío, más el guardado posterior, es probable que no termine: se avisa
+ * mientras hay tiempo de reaccionar.
+ */
+const SEGUNDOS_SUBIDA_EN_RIESGO = 45;
+
 function formatoTamano(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024 * 1024) {
+    const mb = (bytes / (1024 * 1024)).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return `${mb} MB`;
+  }
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-export function BarraProgreso({ porcentaje, nombre, bytes }: Props) {
+/** Redondea a escalones amplios para que el texto no salte a cada evento. */
+function textoTiempoRestante(segundos: number): string {
+  if (segundos < 10) return 'Faltan unos segundos.';
+  if (segundos < 50) return `Faltan unos ${Math.ceil(segundos / 10) * 10} segundos.`;
+  if (segundos < 90) return 'Falta alrededor de un minuto.';
+  return `Faltan unos ${Math.round(segundos / 60)} minutos.`;
+}
+
+export function BarraProgreso({ porcentaje, nombre, bytes, segundosRestantes }: Props) {
   const pct = Math.max(0, Math.min(100, Math.round(porcentaje)));
   // En 100 % el navegador terminó de enviar, pero el backend todavía guarda el
   // archivo. Sin este cambio de texto, la barra parece trabada al final.
   const procesando = pct >= 100;
   const grande = (bytes ?? 0) >= BYTES_AVISO;
+  const restante =
+    !procesando && pct >= PCT_MIN_ESTIMACION && segundosRestantes != null && Number.isFinite(segundosRestantes)
+      ? Math.max(0, segundosRestantes)
+      : null;
+  const enRiesgo = restante !== null && restante > SEGUNDOS_SUBIDA_EN_RIESGO;
+  const aviso = grande
+    ? `Archivo de ${formatoTamano(bytes!)}. No cierres esta ventana mientras sube.`
+    : 'No cierres esta ventana mientras sube.';
 
   return (
     <div className="w-full" role="status" aria-live="polite">
@@ -71,10 +104,16 @@ export function BarraProgreso({ porcentaje, nombre, bytes }: Props) {
       <p className="mt-1 text-[11px] text-inalde-gray">
         {procesando
           ? 'Ya se envió; lo estamos guardando. No cierres esta ventana.'
-          : grande
-            ? `Archivo de ${formatoTamano(bytes!)}. No cierres esta ventana mientras sube.`
-            : 'No cierres esta ventana mientras sube.'}
+          : <>
+              {restante !== null && <strong className="font-semibold text-inalde-text">{textoTiempoRestante(restante)} </strong>}
+              {aviso}
+            </>}
       </p>
+      {enRiesgo && (
+        <p className="mt-1 text-[11px] text-inalde-red">
+          La conexión va lenta y la subida podría no completarse. Si falla, reduce el peso del archivo e inténtalo de nuevo.
+        </p>
+      )}
     </div>
   );
 }

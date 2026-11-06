@@ -46,8 +46,8 @@ interface Anteproyecto {
 }
 
 // Material de apoyo del Business Plan que alimenta la programación de
-// presentaciones. A diferencia de los entregables (PDF definitivo), estos SÍ se
-// pueden reemplazar volviéndolos a subir.
+// presentaciones. Igual que el PDF, se carga UNA sola vez: el backend rechaza la
+// segunda subida (ASSET_YA_SUBIDO) y solo el super admin puede reemplazarlo.
 const ASSET_CFG: Record<TipoAsset, { label: string; hint: string; regla: ReglaFormato }> = {
   one_pager: { label: 'One pager', hint: 'PDF o imagen (PNG, JPG, WebP)', regla: FORMATOS.onePager },
   logo: { label: 'Logo', hint: 'PNG, JPG o WebP', regla: FORMATOS.logo },
@@ -57,11 +57,24 @@ const ASSET_CFG: Record<TipoAsset, { label: string; hint: string; regla: ReglaFo
 // Copy de la entrega final (mensajes-entrega-trabajo-de-grado-NAVES.md). Cada uno
 // de los cuatro documentos tiene su texto de botón (estado pendiente) y su
 // confirmación al quedar subido. Numeración 1..4 para reforzar "cuatro archivos".
-const ASSET_UI: Record<TipoAsset, { num: number; cta: string; recibido: string }> = {
-  one_pager:         { num: 2, cta: 'Sube tu Resumen · One Pager (PDF)', recibido: 'One Pager recibido ✓' },
-  logo:              { num: 3, cta: 'Sube tu Logo (JPG)',                recibido: 'Logo recibido ✓' },
-  modelo_financiero: { num: 4, cta: 'Sube tu Modelo Financiero (Excel)', recibido: 'Modelo Financiero recibido ✓' },
+const ASSET_UI: Record<TipoAsset, { num: number; cta: string; recibido: string; titulo: string; etiqueta: string }> = {
+  one_pager:         { num: 2, cta: 'Sube tu Resumen · One Pager (PDF o imagen)', recibido: 'One Pager recibido ✓',         titulo: 'Cargar el One Pager',         etiqueta: 'tu Resumen · One Pager' },
+  logo:              { num: 3, cta: 'Sube tu Logo (PNG, JPG o WebP)',            recibido: 'Logo recibido ✓',              titulo: 'Cargar el logo',              etiqueta: 'tu logo' },
+  modelo_financiero: { num: 4, cta: 'Sube tu Modelo Financiero (Excel)',         recibido: 'Modelo Financiero recibido ✓', titulo: 'Cargar el modelo financiero', etiqueta: 'tu modelo financiero' },
 };
+
+/** Los cuatro documentos de la entrega son definitivos: se pide confirmar
+ *  cualquiera de ellos con el nombre del archivo a la vista. */
+function confirmarCargaDefinitiva(titulo: string, nombreArchivo: string, etiqueta: string): Promise<boolean> {
+  return confirmar({
+    titulo,
+    mensaje: `Vas a cargar "${nombreArchivo}" como ${etiqueta}.\n\n`
+      + 'Es DEFINITIVO: una vez cargado no podrás modificarlo ni reemplazarlo.\n\n'
+      + '¿Confirmas que es la versión correcta?',
+    aceptar: 'Sí, cargar',
+    tono: 'peligro',
+  });
+}
 
 // Los entregables van en PDF, y solo PDF (el backend rechaza el resto).
 const ACCEPT_PDF = acceptDe(FORMATOS.documentoPdf);
@@ -98,6 +111,8 @@ function DropZone(props: {
   progreso?: number | null;
   /** Nombre y peso del archivo en curso, para mostrarlos en la barra. */
   archivoEnCurso?: { nombre: string; bytes: number } | null;
+  /** Segundos que faltan de envío, según la velocidad medida. */
+  segundosRestantes?: number | null;
   /** Formato que acepta esta zona: se revisa antes de subir. */
   regla: ReglaFormato;
   onFile: (f: File) => void;
@@ -106,7 +121,7 @@ function DropZone(props: {
   // instrucción genérica de arrastrar/soltar.
   cta?: string;
 }) {
-  const { accept, hint, disabled, subiendoEste, progreso, archivoEnCurso, regla, onFile, inputRef, cta } = props;
+  const { accept, hint, disabled, subiendoEste, progreso, archivoEnCurso, segundosRestantes, regla, onFile, inputRef, cta } = props;
   const [drag, setDrag] = useState(false);
   const [errFormato, setErrFormato] = useState<string | null>(null);
 
@@ -138,7 +153,9 @@ function DropZone(props: {
       aria-disabled={disabled}
       className={[
         'rounded border-2 border-dashed px-4 py-6 text-center transition select-none',
-        disabled ? 'opacity-50 cursor-not-allowed bg-inalde-gray-bg/30 border-inalde-gray-light' : 'cursor-pointer hover:bg-inalde-gray-bg/40',
+        // La zona que está subiendo muestra la barra: no se atenúa, aunque esté desactivada.
+        subiendoEste ? 'border-inalde-gray-light'
+          : disabled ? 'opacity-50 cursor-not-allowed bg-inalde-gray-bg/30 border-inalde-gray-light' : 'cursor-pointer hover:bg-inalde-gray-bg/40',
         drag ? 'border-inalde-red bg-red-50' : 'border-inalde-gray-light',
       ].join(' ')}
     >
@@ -158,6 +175,7 @@ function DropZone(props: {
             porcentaje={progreso ?? 0}
             nombre={archivoEnCurso?.nombre}
             bytes={archivoEnCurso?.bytes}
+            segundosRestantes={segundosRestantes}
           />
         </div>
       ) : (
@@ -186,6 +204,7 @@ function AssetUploader(props: {
   subiendo: boolean;
   progreso?: number | null;
   archivoEnCurso?: { nombre: string; bytes: number } | null;
+  segundosRestantes?: number | null;
   disabled: boolean;
   onFile: (f: File) => void;
   onOpen: () => void;
@@ -209,18 +228,24 @@ function AssetUploader(props: {
           <p className="text-xs text-inalde-gray italic mt-2">Este archivo no se puede reemplazar.</p>
         </div>
       ) : (
-        <DropZone
-          accept={acceptDe(cfg.regla)}
-          hint={cfg.hint}
-          cta={ui.cta}
-          regla={cfg.regla}
-          disabled={props.disabled}
-          subiendoEste={props.subiendo}
-          progreso={props.progreso}
-          archivoEnCurso={props.archivoEnCurso}
-          onFile={props.onFile}
-          inputRef={props.inputRef}
-        />
+        <>
+          <div className="rounded border-l-4 border-inalde-red bg-white px-4 py-3 text-xs text-inalde-text mb-3">
+            <strong>Atención:</strong> es <strong>definitivo</strong>. Una vez cargado <strong>no se puede modificar ni reemplazar</strong>.
+          </div>
+          <DropZone
+            accept={acceptDe(cfg.regla)}
+            hint={cfg.hint}
+            cta={ui.cta}
+            regla={cfg.regla}
+            disabled={props.disabled}
+            subiendoEste={props.subiendo}
+            progreso={props.progreso}
+            archivoEnCurso={props.archivoEnCurso}
+            segundosRestantes={props.segundosRestantes}
+            onFile={props.onFile}
+            inputRef={props.inputRef}
+          />
+        </>
       )}
     </div>
   );
@@ -244,6 +269,8 @@ export default function TrabajoGrado() {
   // barra: un archivo grande tarda medio minuto y antes solo se veía "Cargando…".
   const [progreso, setProgreso] = useState<number | null>(null);
   const [archivoEnCurso, setArchivoEnCurso] = useState<{ nombre: string; bytes: number } | null>(null);
+  // Segundos que faltan de envío (axios los estima con la velocidad medida).
+  const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
   // Ficha activa (null = sigue el valor por defecto según el estado). Fichas:
   // 'anteproyecto', 'avance' (solo caso/PI) y 'proyecto'.
   const [ficha, setFicha] = useState<'anteproyecto' | 'avance' | 'proyecto' | null>(null);
@@ -321,14 +348,9 @@ export default function TrabajoGrado() {
     if (tipo === 'proyecto-final' || tipo === 'avance') {
       const etiqueta = tipo === 'avance' ? 'tu avance (entrega intermedia)' : 'tu proyecto final';
       const inputRef = tipo === 'avance' ? inputAvanceRef : inputFinalRef;
-      const ok = await confirmar({
-        titulo: tipo === 'avance' ? 'Cargar el avance' : 'Cargar el proyecto final',
-        mensaje: `Vas a cargar "${file.name}" como ${etiqueta}.\n\n`
-          + 'Es DEFINITIVO: una vez cargado no podrás modificarlo ni reemplazarlo.\n\n'
-          + '¿Confirmas que es la versión correcta?',
-        aceptar: 'Sí, cargar',
-        tono: 'peligro',
-      });
+      const ok = await confirmarCargaDefinitiva(
+        tipo === 'avance' ? 'Cargar el avance' : 'Cargar el proyecto final', file.name, etiqueta,
+      );
       if (!ok) {
         if (inputRef.current) inputRef.current.value = '';
         return;
@@ -353,6 +375,7 @@ export default function TrabajoGrado() {
           // File para no dejar la barra clavada en 0 durante toda la subida.
           const total = ev.total ?? file.size;
           setProgreso(total ? Math.round((ev.loaded * 100) / total) : 100);
+          setSegundosRestantes(typeof ev.estimated === 'number' ? ev.estimated : null);
         },
       });
       await cargar();
@@ -369,17 +392,24 @@ export default function TrabajoGrado() {
       setSubiendo(null);
       setProgreso(null);
       setArchivoEnCurso(null);
+      setSegundosRestantes(null);
       if (tipo === 'anteproyecto' && inputAntRef.current) inputAntRef.current.value = '';
       if (tipo === 'avance' && inputAvanceRef.current) inputAvanceRef.current.value = '';
       if (tipo === 'proyecto-final' && inputFinalRef.current) inputFinalRef.current.value = '';
     }
   }
 
-  // Assets del proyecto (one pager, logo, modelo financiero). Se pueden
-  // reemplazar: volver a subir sobrescribe. Van a un endpoint distinto que los
+  // Assets del proyecto (one pager, logo, modelo financiero). Son definitivos,
+  // como el PDF: se confirma antes de subir. Van a un endpoint distinto que los
   // cuelga del proyecto definitivo.
   async function subirAsset(tipo: TipoAsset, file: File) {
     if (!ant) return;
+    const ui = ASSET_UI[tipo];
+    if (!(await confirmarCargaDefinitiva(ui.titulo, file.name, ui.etiqueta))) {
+      const ref = inputAssetRefs[tipo].current;
+      if (ref) ref.value = '';
+      return;
+    }
     setSubiendoAsset(tipo); setError(null);
     try {
       const fd = new FormData();
@@ -392,6 +422,7 @@ export default function TrabajoGrado() {
         onUploadProgress: (ev) => {
           const total = ev.total ?? file.size;
           setProgreso(total ? Math.round((ev.loaded * 100) / total) : 100);
+          setSegundosRestantes(typeof ev.estimated === 'number' ? ev.estimated : null);
         },
       });
       await cargar();
@@ -401,6 +432,7 @@ export default function TrabajoGrado() {
       setSubiendoAsset(null);
       setProgreso(null);
       setArchivoEnCurso(null);
+      setSegundosRestantes(null);
       const ref = inputAssetRefs[tipo].current;
       if (ref) ref.value = '';
     }
@@ -771,6 +803,7 @@ export default function TrabajoGrado() {
                           subiendoEste={subiendo === 'anteproyecto'}
                           progreso={subiendo === 'anteproyecto' ? progreso : null}
                           archivoEnCurso={subiendo === 'anteproyecto' ? archivoEnCurso : null}
+                          segundosRestantes={subiendo === 'anteproyecto' ? segundosRestantes : null}
                           onFile={(f) => subir('anteproyecto', f)} inputRef={inputAntRef}
                         />
                       </>
@@ -813,7 +846,7 @@ export default function TrabajoGrado() {
                   <div className={`rounded border-l-4 px-4 py-3 text-sm text-inalde-text mb-5 ${avanceVencido && !avanceSubido ? 'border-inalde-red bg-red-50' : 'border-inalde-gold bg-inalde-gold/10'}`}>
                     {avanceVencido
                       ? <><strong>El plazo del avance cerró</strong> con la ventana de la Reunión 2 ({fechaLimiteAvanceTexto}).{!avanceSubido && <> Ya no es posible cargarlo, pero <strong>sí puedes entregar tu proyecto de grado</strong>.</>}</>
-                      : <>Fecha límite del avance (cierre de la ventana de la Reunión 2): <strong>{fechaLimiteAvanceTexto}</strong>.</>}
+                      : <>Fecha límite del avance (cierre de la ventana de la Reunión 2): <strong>{fechaLimiteAvanceTexto}</strong>{fechaLimiteAvanceTexto.endsWith('.') ? '' : '.'}</>}
                   </div>
                 )}
 
@@ -850,6 +883,7 @@ export default function TrabajoGrado() {
                           subiendoEste={subiendo === 'avance'}
                           progreso={subiendo === 'avance' ? progreso : null}
                           archivoEnCurso={subiendo === 'avance' ? archivoEnCurso : null}
+                          segundosRestantes={subiendo === 'avance' ? segundosRestantes : null}
                           onFile={(f) => subir('avance', f)} inputRef={inputAvanceRef}
                         />
                       </>
@@ -876,7 +910,7 @@ export default function TrabajoGrado() {
                   </div>
                 ) : fechaLimiteTexto && (
                   <div className="rounded border-l-4 border-inalde-gold bg-inalde-gold/10 px-4 py-3 text-sm text-inalde-text mb-5">
-                    Fecha límite de entrega: <strong>{fechaLimiteTexto}</strong>. Después de esa fecha no podrás cargar el proyecto de grado.
+                    Fecha límite de entrega: <strong>{fechaLimiteTexto}</strong>{fechaLimiteTexto.endsWith('.') ? '' : '.'} Después de esa fecha no podrás cargar el proyecto de grado.
                   </div>
                 )}
 
@@ -956,6 +990,7 @@ export default function TrabajoGrado() {
                             subiendoEste={subiendo === 'proyecto-final'}
                           progreso={subiendo === 'proyecto-final' ? progreso : null}
                           archivoEnCurso={subiendo === 'proyecto-final' ? archivoEnCurso : null}
+                          segundosRestantes={subiendo === 'proyecto-final' ? segundosRestantes : null}
                             onFile={(f) => subir('proyecto-final', f)} inputRef={inputFinalRef}
                           />
                         </>
@@ -974,6 +1009,7 @@ export default function TrabajoGrado() {
                             subiendo={subiendoAsset === t}
                             progreso={subiendoAsset === t ? progreso : null}
                             archivoEnCurso={subiendoAsset === t ? archivoEnCurso : null}
+                            segundosRestantes={subiendoAsset === t ? segundosRestantes : null}
                             disabled={!!subiendoAsset || vencido}
                             onFile={(f) => subirAsset(t, f)}
                             onOpen={() => abrirAsset(t)}

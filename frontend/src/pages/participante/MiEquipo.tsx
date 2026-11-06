@@ -366,7 +366,7 @@ export default function MiEquipo() {
                 >
                   {equipo.tipo_trabajo_grado === 'business_plan'
                     ? 'Continuar al anteproyecto →'
-                    : 'Continuar a cargar el anteproyecto →'}
+                    : 'Continuar a mi trabajo de grado →'}
                 </button>
               </div>
             </>
