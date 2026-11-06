@@ -15,7 +15,7 @@ interface Director {
   areas_afinidad?: string[];
 }
 
-interface AssetState { cargado: boolean; url: string; nombre: string; }
+interface AssetState { cargado: boolean; url: string; nombre: string; reemplazado?: boolean; }
 type TipoAsset = 'one_pager' | 'logo' | 'modelo_financiero';
 
 interface Anteproyecto {
@@ -31,6 +31,8 @@ interface Anteproyecto {
   archivo_proyecto_final_path: string | null;
   archivo_proyecto_final_mime: string | null;
   archivo_proyecto_final_uploaded_at: string | null;
+  /** Business Plan: cuándo usó su único reemplazo del PDF (null = disponible). */
+  archivo_proyecto_final_reemplazado_at?: string | null;
   anteproyecto_aprobado_at: string | null;
   fecha_limite_proyecto?: string | null;
   fecha_limite_proyecto_final?: string | null;
@@ -46,8 +48,9 @@ interface Anteproyecto {
 }
 
 // Material de apoyo del Business Plan que alimenta la programación de
-// presentaciones. Igual que el PDF, se carga UNA sola vez: el backend rechaza la
-// segunda subida (ASSET_YA_SUBIDO) y solo el super admin puede reemplazarlo.
+// presentaciones. Igual que el PDF: se carga una vez y el participante tiene UN
+// reemplazo por documento (?reemplazar=1), hasta la fecha límite. Después, solo
+// el super admin puede cambiarlo.
 const ASSET_CFG: Record<TipoAsset, { label: string; hint: string; regla: ReglaFormato }> = {
   one_pager: { label: 'One pager', hint: 'PDF o imagen (PNG, JPG, WebP)', regla: FORMATOS.onePager },
   logo: { label: 'Logo', hint: 'PNG, JPG o WebP', regla: FORMATOS.logo },
@@ -63,17 +66,85 @@ const ASSET_UI: Record<TipoAsset, { num: number; cta: string; recibido: string; 
   modelo_financiero: { num: 4, cta: 'Sube tu Modelo Financiero (Excel)',         recibido: 'Modelo Financiero recibido ✓', titulo: 'Cargar el modelo financiero', etiqueta: 'tu modelo financiero' },
 };
 
-/** Los cuatro documentos de la entrega son definitivos: se pide confirmar
- *  cualquiera de ellos con el nombre del archivo a la vista. */
-function confirmarCargaDefinitiva(titulo: string, nombreArchivo: string, etiqueta: string): Promise<boolean> {
+/** Se pide confirmar cualquier documento de la entrega con el nombre del
+ *  archivo a la vista. En Business Plan hay un reemplazo por documento; en
+ *  Caso/PI la carga es definitiva. */
+function confirmarCargaDefinitiva(titulo: string, nombreArchivo: string, etiqueta: string, conReemplazo = false): Promise<boolean> {
   return confirmar({
     titulo,
     mensaje: `Vas a cargar "${nombreArchivo}" como ${etiqueta}.\n\n`
-      + 'Es DEFINITIVO: una vez cargado no podrás modificarlo ni reemplazarlo.\n\n'
+      + (conReemplazo
+        ? 'Revisa que sea la versión correcta. Si te equivocas, podrás reemplazarlo UNA sola vez desde esta pantalla.\n\n'
+        : 'Es DEFINITIVO: una vez cargado no podrás modificarlo ni reemplazarlo.\n\n')
       + '¿Confirmas que es la versión correcta?',
     aceptar: 'Sí, cargar',
     tono: 'peligro',
   });
+}
+
+/** El único reemplazo: se avisa que después ya no habrá otro. */
+function confirmarReemplazo(titulo: string, actual: string, nuevo: string): Promise<boolean> {
+  return confirmar({
+    titulo,
+    mensaje: `Vas a reemplazar "${actual}" por "${nuevo}".\n\n`
+      + 'Solo puedes reemplazar este archivo UNA vez: después quedará definitivo.\n\n'
+      + '¿Confirmas que es la versión correcta?',
+    aceptar: 'Sí, reemplazar',
+    tono: 'peligro',
+  });
+}
+
+/** «Reemplazar archivo» bajo un documento ya recibido (Business Plan): una sola
+ *  vez por documento, en esta misma pantalla y en cualquier sesión, hasta la
+ *  fecha límite. El servidor es quien garantiza el «una vez». */
+function ReemplazoUnico(props: {
+  disponible: boolean;
+  usado: boolean;
+  subiendo: boolean;
+  bloqueado: boolean;
+  progreso?: number | null;
+  archivoEnCurso?: { nombre: string; bytes: number } | null;
+  segundosRestantes?: number | null;
+  regla: ReglaFormato;
+  onFile: (f: File) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [errFormato, setErrFormato] = useState<string | null>(null);
+
+  async function elegir(files: FileList | null) {
+    const f = files?.[0];
+    if (!f) return;
+    const problema = await revisarFormato(f, props.regla);
+    if (inputRef.current) inputRef.current.value = '';
+    setErrFormato(problema);
+    if (!problema) props.onFile(f);
+  }
+
+  if (props.subiendo) {
+    return (
+      <div className="mt-3">
+        <BarraProgreso porcentaje={props.progreso ?? 0} nombre={props.archivoEnCurso?.nombre}
+          bytes={props.archivoEnCurso?.bytes} segundosRestantes={props.segundosRestantes} />
+      </div>
+    );
+  }
+  if (props.usado) {
+    return <p className="text-xs text-inalde-gray italic mt-3">Ya usaste tu único reemplazo: este archivo ya no se puede cambiar.</p>;
+  }
+  if (!props.disponible) {
+    return <p className="text-xs text-inalde-gray italic mt-3">Este archivo no se puede reemplazar.</p>;
+  }
+  return (
+    <div className="mt-3 rounded border border-inalde-gray-light bg-inalde-gray-bg/50 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+      <span className="text-xs text-inalde-text">¿Te equivocaste de archivo? Puedes reemplazarlo <strong>una sola vez</strong>.</span>
+      <input ref={inputRef} type="file" accept={acceptDe(props.regla)} className="hidden" onChange={(e) => elegir(e.target.files)} />
+      <button type="button" disabled={props.bloqueado} onClick={() => inputRef.current?.click()}
+        className="text-xs font-semibold text-inalde-red border border-inalde-red rounded px-3 py-1.5 hover:bg-inalde-red hover:text-white transition disabled:opacity-40 disabled:cursor-not-allowed">
+        Reemplazar archivo
+      </button>
+      {errFormato && <p role="alert" className="w-full text-xs text-inalde-red">{errFormato}</p>}
+    </div>
+  );
 }
 
 // Los entregables van en PDF, y solo PDF (el backend rechaza el resto).
@@ -206,7 +277,10 @@ function AssetUploader(props: {
   archivoEnCurso?: { nombre: string; bytes: number } | null;
   segundosRestantes?: number | null;
   disabled: boolean;
+  /** Se puede usar el reemplazo único (no vencido y nada más subiendo). */
+  reemplazoDisponible: boolean;
   onFile: (f: File) => void;
+  onReemplazar: (f: File) => void;
   onOpen: () => void;
   inputRef: React.RefObject<HTMLInputElement>;
 }) {
@@ -225,12 +299,22 @@ function AssetUploader(props: {
         <div className="text-sm text-inalde-gray">
           <p className="mb-1 break-all"><span aria-hidden="true">✅ </span><span className="text-inalde-text">{props.asset.nombre}</span></p>
           <button onClick={props.onOpen} className="text-inalde-red font-semibold hover:underline text-sm">Descargar →</button>
-          <p className="text-xs text-inalde-gray italic mt-2">Este archivo no se puede reemplazar.</p>
+          <ReemplazoUnico
+            disponible={props.reemplazoDisponible}
+            usado={!!props.asset.reemplazado}
+            subiendo={props.subiendo}
+            bloqueado={props.disabled}
+            progreso={props.progreso}
+            archivoEnCurso={props.archivoEnCurso}
+            segundosRestantes={props.segundosRestantes}
+            regla={cfg.regla}
+            onFile={props.onReemplazar}
+          />
         </div>
       ) : (
         <>
           <div className="rounded border-l-4 border-inalde-red bg-white px-4 py-3 text-xs text-inalde-text mb-3">
-            <strong>Atención:</strong> es <strong>definitivo</strong>. Una vez cargado <strong>no se puede modificar ni reemplazar</strong>.
+            <strong>Atención:</strong> revisa bien antes de subir. Si te equivocas, podrás <strong>reemplazarlo una sola vez</strong>.
           </div>
           <DropZone
             accept={acceptDe(cfg.regla)}
@@ -342,14 +426,19 @@ export default function TrabajoGrado() {
     } finally { setGuardandoDirector(false); }
   }
 
-  async function subir(tipo: 'anteproyecto' | 'avance' | 'proyecto-final', file: File) {
+  async function subir(tipo: 'anteproyecto' | 'avance' | 'proyecto-final', file: File, reemplazar = false) {
     if (!ant) return;
+    if (reemplazar) {
+      const actual = nombreArchivoDePath(ant.archivo_proyecto_final_path);
+      if (!(await confirmarReemplazo('Reemplazar el Business Plan', actual, file.name))) return;
+    }
     // Avance y proyecto final son DEFINITIVOS (una sola carga): se confirma antes.
-    if (tipo === 'proyecto-final' || tipo === 'avance') {
+    if (!reemplazar && (tipo === 'proyecto-final' || tipo === 'avance')) {
       const etiqueta = tipo === 'avance' ? 'tu avance (entrega intermedia)' : 'tu proyecto final';
       const inputRef = tipo === 'avance' ? inputAvanceRef : inputFinalRef;
       const ok = await confirmarCargaDefinitiva(
         tipo === 'avance' ? 'Cargar el avance' : 'Cargar el proyecto final', file.name, etiqueta,
+        tipo === 'proyecto-final' && ant.equipos?.tipo_trabajo_grado === 'business_plan',
       );
       if (!ok) {
         if (inputRef.current) inputRef.current.value = '';
@@ -366,7 +455,7 @@ export default function TrabajoGrado() {
       setArchivoEnCurso({ nombre: file.name, bytes: file.size });
       // timeout: 0 desactiva el limite por defecto de 15s; un anteproyecto
       // grande en conexion lenta tarda mas. signal permite cancelar.
-      await api.post(`/anteproyectos/${ant.id}/archivo/${tipo}`, fd, {
+      await api.post(`/anteproyectos/${ant.id}/archivo/${tipo}${reemplazar ? '?reemplazar=1' : ''}`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 0,
         signal: controller.signal,
@@ -402,10 +491,13 @@ export default function TrabajoGrado() {
   // Assets del proyecto (one pager, logo, modelo financiero). Son definitivos,
   // como el PDF: se confirma antes de subir. Van a un endpoint distinto que los
   // cuelga del proyecto definitivo.
-  async function subirAsset(tipo: TipoAsset, file: File) {
+  async function subirAsset(tipo: TipoAsset, file: File, reemplazar = false) {
     if (!ant) return;
     const ui = ASSET_UI[tipo];
-    if (!(await confirmarCargaDefinitiva(ui.titulo, file.name, ui.etiqueta))) {
+    const confirmado = reemplazar
+      ? await confirmarReemplazo(ui.titulo.replace('Cargar', 'Reemplazar'), ant.assets?.[tipo]?.nombre ?? '', file.name)
+      : await confirmarCargaDefinitiva(ui.titulo, file.name, ui.etiqueta, true);
+    if (!confirmado) {
       const ref = inputAssetRefs[tipo].current;
       if (ref) ref.value = '';
       return;
@@ -416,7 +508,7 @@ export default function TrabajoGrado() {
       fd.append('file', file);
       setProgreso(0);
       setArchivoEnCurso({ nombre: file.name, bytes: file.size });
-      await api.post(`/anteproyectos/${ant.id}/asset/${tipo}`, fd, {
+      await api.post(`/anteproyectos/${ant.id}/asset/${tipo}${reemplazar ? '?reemplazar=1' : ''}`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 0,
         onUploadProgress: (ev) => {
@@ -896,12 +988,14 @@ export default function TrabajoGrado() {
               <>
                 <div className="flex items-start gap-3 mb-2">
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-inalde-red font-semibold mb-1">Entrega final · una sola vez</p>
+                    <p className="text-[10px] uppercase tracking-widest text-inalde-red font-semibold mb-1">{esCasoOPI ? 'Entrega final · una sola vez' : 'Entrega final'}</p>
                     <h2 className="font-primary font-extrabold text-xl text-inalde-text">Proyecto de grado</h2>
                   </div>
                 </div>
                 <p className="text-sm text-inalde-gray mb-5">
-                  Este es el entregable definitivo. El documento y su material se cargan <strong>una sola vez</strong> y no se pueden reemplazar. Revisa bien antes de subir.
+                  {esCasoOPI
+                    ? <>Este es el entregable definitivo. El documento se carga <strong>una sola vez</strong> y no se puede reemplazar. Revisa bien antes de subir.</>
+                    : <>Este es el entregable definitivo. Revisa bien antes de subir: si te equivocas, puedes <strong>reemplazar cada archivo una sola vez</strong>, hasta la fecha límite.</>}
                 </p>
 
                 {vencido ? (
@@ -973,14 +1067,30 @@ export default function TrabajoGrado() {
                           <p className="text-sm font-semibold text-green-700 mb-1">{esCasoOPI ? 'Proyecto final recibido ✓' : 'Business Plan recibido ✓'}</p>
                           <p>✅ Cargado el {formatoFecha(ant!.archivo_proyecto_final_uploaded_at)} — <span className="text-inalde-text">{nombreArchivoDePath(ant!.archivo_proyecto_final_path)}</span></p>
                           <button onClick={() => abrirArchivo('proyecto-final')} className="text-inalde-red font-semibold hover:underline text-sm mt-1">Descargar →</button>
-                          <p className="text-xs text-inalde-gray italic mt-3">Este archivo no se puede reemplazar.</p>
+                          {esCasoOPI ? (
+                            <p className="text-xs text-inalde-gray italic mt-3">Este archivo no se puede reemplazar.</p>
+                          ) : (
+                            <ReemplazoUnico
+                              disponible={!vencido}
+                              usado={!!ant!.archivo_proyecto_final_reemplazado_at}
+                              subiendo={subiendo === 'proyecto-final'}
+                              bloqueado={!!subiendo || !!subiendoAsset}
+                              progreso={subiendo === 'proyecto-final' ? progreso : null}
+                              archivoEnCurso={subiendo === 'proyecto-final' ? archivoEnCurso : null}
+                              segundosRestantes={subiendo === 'proyecto-final' ? segundosRestantes : null}
+                              regla={FORMATOS.documentoPdf}
+                              onFile={(f) => subir('proyecto-final', f, true)}
+                            />
+                          )}
                         </div>
                       ) : vencido ? (
                         <p className="text-sm text-inalde-gray italic">La fecha de entrega ya pasó.</p>
                       ) : (
                         <>
                           <div className="rounded border-l-4 border-inalde-red bg-white px-4 py-3 text-xs text-inalde-text mb-3">
-                            <strong>Atención:</strong> es <strong>definitivo</strong>. Una vez cargado <strong>no se puede modificar ni reemplazar</strong>.
+                            {esCasoOPI
+                              ? <><strong>Atención:</strong> es <strong>definitivo</strong>. Una vez cargado <strong>no se puede modificar ni reemplazar</strong>.</>
+                              : <><strong>Atención:</strong> revisa bien antes de subir. Si te equivocas, podrás <strong>reemplazarlo una sola vez</strong>.</>}
                           </div>
                           <DropZone
                             accept={ACCEPT_PDF} hint="PDF"
@@ -1010,8 +1120,10 @@ export default function TrabajoGrado() {
                             progreso={subiendoAsset === t ? progreso : null}
                             archivoEnCurso={subiendoAsset === t ? archivoEnCurso : null}
                             segundosRestantes={subiendoAsset === t ? segundosRestantes : null}
-                            disabled={!!subiendoAsset || vencido}
+                            disabled={!!subiendoAsset || !!subiendo || vencido}
+                            reemplazoDisponible={!vencido}
                             onFile={(f) => subirAsset(t, f)}
+                            onReemplazar={(f) => subirAsset(t, f, true)}
                             onOpen={() => abrirAsset(t)}
                             inputRef={inputAssetRefs[t]}
                           />

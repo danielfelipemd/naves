@@ -133,17 +133,19 @@ router.get('/mi-anteproyecto', async (req: AuthenticatedRequest, res) => {
   if (ant.equipos?.proyecto_definitivo_id) {
     const { data: cont } = await supabaseAdmin
       .from('proyecto_contenido')
-      .select('one_pager_path, logo_path, modelo_financiero_path')
+      .select('one_pager_path, logo_path, modelo_financiero_path, one_pager_reemplazado_at, logo_reemplazado_at, modelo_financiero_reemplazado_at')
       .eq('proyecto_id', ant.equipos.proyecto_definitivo_id)
       .maybeSingle();
-    const asset = (path: string | null) => path
-      ? { cargado: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)), nombre: path.split('/').pop() ?? '' }
+    // `reemplazado`: ya usó su único reemplazo de ese documento (Business Plan).
+    const asset = (path: string | null, reemplazadoAt: string | null) => path
+      ? { cargado: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)), nombre: path.split('/').pop() ?? '', reemplazado: !!reemplazadoAt }
       : null;
     if (cont) {
+      const c = cont as any;
       ant.assets = {
-        one_pager: asset((cont as any).one_pager_path ?? null),
-        logo: asset((cont as any).logo_path ?? null),
-        modelo_financiero: asset((cont as any).modelo_financiero_path ?? null),
+        one_pager: asset(c.one_pager_path ?? null, c.one_pager_reemplazado_at ?? null),
+        logo: asset(c.logo_path ?? null, c.logo_reemplazado_at ?? null),
+        modelo_financiero: asset(c.modelo_financiero_path ?? null, c.modelo_financiero_reemplazado_at ?? null),
       };
     }
   }

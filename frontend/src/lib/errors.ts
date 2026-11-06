@@ -67,7 +67,7 @@ export function formatBackendError(e: any): string {
     NO_FILE: 'No adjuntaste ningún archivo.',
     TIPO_INVALIDO: 'El tipo de archivo solicitado no es válido.',
     ANTEPROYECTO_YA_SUBIDO: 'El anteproyecto ya fue cargado y no se puede reemplazar.',
-    PROYECTO_FINAL_YA_SUBIDO: 'El proyecto final ya fue cargado y no se puede reemplazar.',
+    PROYECTO_FINAL_YA_SUBIDO: 'El proyecto final ya fue cargado.',
     ESPERA_APROBACION_ANTEPROYECTO: 'El proyecto final estará disponible cuando se cumpla la fecha establecida en el cronograma.',
     DIRECTOR_NO_SELECCIONADO: 'Selecciona a la dirección antes de cargar el anteproyecto.',
     ARCHIVO_NO_SUBIDO: 'Aún no se ha cargado ese archivo.',
@@ -150,7 +150,7 @@ export function formatBackendError(e: any): string {
     // ── Archivos ─────────────────────────────────────────────────────────
     MIME_INVALIDO: 'Ese tipo de archivo no se admite aquí. Revisa el formato pedido.',
     ARCHIVO_NO_DISPONIBLE: 'El archivo no está disponible. Puede que se haya movido o borrado.',
-    ASSET_YA_SUBIDO: 'Ese documento ya fue subido y no se puede reemplazar.',
+    ASSET_YA_SUBIDO: 'Ese documento ya fue subido.',
     AVANCE_YA_SUBIDO: 'El avance ya fue subido y no se puede reemplazar.',
     UPLOAD_FAILED: 'No pudimos subir el archivo. Revisa tu conexión e inténtalo de nuevo.',
     INVALID_XLSX: 'El archivo no es un Excel válido. Usa la plantilla que se descarga desde esta pantalla.',

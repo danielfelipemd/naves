@@ -19,6 +19,10 @@ import { programacionPublicadaAt } from '../services/escaleta.js';
 import { decryptPII } from '../auth/crypto.js';
 import { buildAnteproyectoPDF } from '../services/pdf.js';
 import { REGLAS, validarFormato, errorFormato, type ReglaFormato } from '../lib/formato-archivo.js';
+import {
+  reservarReemplazoProyectoFinal, liberarReemplazoProyectoFinal, reservarReemplazoAsset, liberarReemplazoAsset,
+  archivarCopia, quitarOriginal,
+} from '../services/reemplazo-entrega.js';
 
 // (Antes este archivo enviaba un correo al Comité del MBA por cada carga.
 // Eso fue retirado: el Comité recibe un solo correo consolidado cuando el
@@ -284,6 +288,10 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
   const esCasoPI = modalidad === 'caso' || modalidad === 'proyecto_investigacion';
   const directorId = ant.equipos?.director_id as string | null;
   const yaSubido = ant[COL_PATH[tipo]] as string | null;
+  // ?reemplazar=1: el participante de Business Plan usa su ÚNICO reemplazo del PDF
+  // final (services/reemplazo-entrega.ts). Sin el parámetro, la regla sigue
+  // siendo «una sola carga».
+  const reemplazar = req.query.reemplazar === '1' && tipo === 'proyecto-final';
 
   // Reglas por tipo
   if (tipo === 'anteproyecto') {
@@ -350,11 +358,19 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
         mensaje: 'Podrás cargar tu proyecto final cuando se elija tu proyecto definitivo.',
       });
     }
-    if (yaSubido) {
+    if (yaSubido && !reemplazar) {
       return res.status(409).json({
         error: 'PROYECTO_FINAL_YA_SUBIDO',
-        mensaje: 'El proyecto final ya fue cargado y no se puede reemplazar.',
+        mensaje: esCasoPI
+          ? 'El proyecto final ya fue cargado y no se puede reemplazar.'
+          : 'El Business Plan ya fue cargado. Si te equivocaste, usa «Reemplazar archivo»: se puede una sola vez.',
       });
+    }
+    if (reemplazar && esCasoPI) {
+      return res.status(400).json({ error: 'REEMPLAZO_NO_DISPONIBLE', mensaje: 'El reemplazo de archivos solo está disponible en Business Plan.' });
+    }
+    if (reemplazar && !yaSubido) {
+      return res.status(409).json({ error: 'NADA_QUE_REEMPLAZAR', mensaje: 'Todavía no has cargado este documento: súbelo normalmente.' });
     }
     // Corte por fecha de la cohorte (hito 10 "Entrega Final"): pasada esa
     // fecha ya no se puede cargar el proyecto de grado.
@@ -380,6 +396,23 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     return res.status(403).json({ error: 'FECHA_LIMITE_EXPIRADA', fecha_limite: limite });
   }
 
+  // Reemplazo: se reserva ANTES de subir (UPDATE condicional) y se archiva una
+  // copia del archivo actual. Si algo falla después, la reserva se libera.
+  let reemplazado: string | null = null;
+  let pathAnterior: string | null = null;
+  if (reemplazar) {
+    reemplazado = await reservarReemplazoProyectoFinal(req.params.id);
+    if (!reemplazado) {
+      return res.status(409).json({ error: 'REEMPLAZO_YA_USADO', mensaje: 'Ya usaste tu único reemplazo de este archivo: ya no se puede cambiar.' });
+    }
+    try {
+      pathAnterior = await archivarCopia(reemplazado);
+    } catch (e: any) {
+      await liberarReemplazoProyectoFinal(req.params.id);
+      return res.status(500).json({ error: 'REEMPLAZO_FALLIDO', mensaje: 'No pudimos reemplazar el archivo. Inténtalo de nuevo: tu reemplazo sigue disponible.' });
+    }
+  }
+
   let path: string;
   let size: number;
   try {
@@ -393,6 +426,7 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     path = result.path;
     size = result.size;
   } catch (e: any) {
+    if (reemplazar) await liberarReemplazoProyectoFinal(req.params.id);
     return res.status(500).json({ error: e?.message ?? 'UPLOAD_FAILED' });
   }
 
@@ -405,11 +439,16 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     ultimo_editor_id: pid,
     fecha_actualizacion: fechaSubida,
   };
+  if (reemplazar) update.archivo_proyecto_final_path_anterior = pathAnterior;
   const { error: upErr } = await supabaseAdmin
     .from('anteproyectos')
     .update(update)
     .eq('id', req.params.id);
-  if (upErr) return res.status(500).json({ error: upErr.message });
+  if (upErr) {
+    if (reemplazar) await liberarReemplazoProyectoFinal(req.params.id);
+    return res.status(500).json({ error: upErr.message });
+  }
+  if (reemplazado) await quitarOriginal(reemplazado, path);
 
   // Notificaciones para el anteproyecto (caso/PI): director + comité + participante
   if (tipo === 'anteproyecto' && directorId) {
@@ -428,7 +467,8 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
   // completa (en BP faltan los tres documentos de material, que se suben por
   // la ruta de assets). Los archivos no se pueden reemplazar, así que la
   // entrega se completa una única vez y el correo sale una sola vez.
-  if (tipo === 'proyecto-final') {
+  // Un reemplazo no vuelve a mandar el correo: la entrega ya estaba completa o no.
+  if (tipo === 'proyecto-final' && !reemplazar) {
     // .catch obligatorio: entregaTrabajoGradoCompleta consulta Supabase sin
     // try/catch propio, así que un blip de red la hace rechazar. Una promesa
     // rechazada sin catch mata el proceso Node y tumba TODO el backend.
@@ -439,7 +479,7 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     })().catch((e) => console.error('[trabajos-grado] aviso de entrega completa falló:', e?.message ?? e));
   }
 
-  res.status(201).json({ ok: true, path, size, mime });
+  res.status(201).json({ ok: true, path, size, mime, reemplazado: !!reemplazar });
 });
 
 // === POST /api/anteproyectos/:id/aprobar (admin/profesor) ===================
@@ -606,31 +646,58 @@ router.post('/:id/asset/:tipo', upload.single('file'), async (req: Authenticated
   if (!formato.ok) return res.status(400).json(errorFormato(formato.mensaje, ASSET_REGLA[tipo]));
   const mime = formato.mime;
 
-  // Cargar una sola vez: una vez subido, el PARTICIPANTE no lo cambia. Solo el
-  // super_admin puede reemplazarlo (ruta aparte del Módulo C). Por eso aquí se
-  // rechaza la resubida — es la misma regla que el proyecto final.
+  // Se carga una vez. Después, el participante de Business Plan tiene UN
+  // reemplazo por documento (?reemplazar=1, services/reemplazo-entrega.ts); el
+  // super_admin sigue pudiendo reemplazarlo por su ruta aparte (Módulo C).
+  const reemplazar = req.query.reemplazar === '1';
   const { data: prevRow } = await supabaseAdmin
     .from('proyecto_contenido').select(ASSET_COL[tipo]).eq('proyecto_id', r.proyectoId).maybeSingle();
-  if ((prevRow as any)?.[ASSET_COL[tipo]]) {
-    return res.status(409).json({ error: 'ASSET_YA_SUBIDO' });
+  const previo = (prevRow as any)?.[ASSET_COL[tipo]] as string | undefined;
+  if (previo && !reemplazar) {
+    return res.status(409).json({ error: 'ASSET_YA_SUBIDO', mensaje: 'Este documento ya fue cargado. Si te equivocaste, usa «Reemplazar archivo»: se puede una sola vez.' });
+  }
+  let pathAnterior: string | null = null;
+  if (reemplazar) {
+    if (ant?.equipos?.tipo_trabajo_grado !== 'business_plan') {
+      return res.status(400).json({ error: 'REEMPLAZO_NO_DISPONIBLE', mensaje: 'El reemplazo de archivos solo está disponible en Business Plan.' });
+    }
+    if (!previo) {
+      return res.status(409).json({ error: 'NADA_QUE_REEMPLAZAR', mensaje: 'Todavía no has cargado este documento: súbelo normalmente.' });
+    }
+    const reservado = await reservarReemplazoAsset(r.proyectoId, tipo);
+    if (!reservado) {
+      return res.status(409).json({ error: 'REEMPLAZO_YA_USADO', mensaje: 'Ya usaste tu único reemplazo de este archivo: ya no se puede cambiar.' });
+    }
+    try {
+      pathAnterior = await archivarCopia(reservado);
+    } catch (e: any) {
+      await liberarReemplazoAsset(r.proyectoId, tipo);
+      return res.status(500).json({ error: 'REEMPLAZO_FALLIDO', mensaje: 'No pudimos reemplazar el archivo. Inténtalo de nuevo: tu reemplazo sigue disponible.' });
+    }
   }
 
   let path: string;
   try {
     ({ path } = await uploadAssetNaves(r.proyectoId, tipo, req.file.buffer, mime));
   } catch (e: any) {
+    if (reemplazar) await liberarReemplazoAsset(r.proyectoId, tipo);
     return res.status(500).json({ error: e?.message ?? 'UPLOAD_FAILED' });
   }
 
   // El upsert de supabase-js no lanza: si no verificamos su error, el archivo
   // queda en Storage pero sin enlace en la fila, y al recargar "no está".
-  const { error: errDb } = await supabaseAdmin.from('proyecto_contenido')
-    .upsert({ proyecto_id: r.proyectoId, [ASSET_COL[tipo]]: path, updated_at: new Date().toISOString() }, { onConflict: 'proyecto_id' });
-  if (errDb) return res.status(500).json({ error: 'ASSET_DB_FAILED', detail: errDb.message });
+  const fila: Record<string, unknown> = { proyecto_id: r.proyectoId, [ASSET_COL[tipo]]: path, updated_at: new Date().toISOString() };
+  if (reemplazar) fila[`${tipo}_path_anterior`] = pathAnterior;
+  const { error: errDb } = await supabaseAdmin.from('proyecto_contenido').upsert(fila, { onConflict: 'proyecto_id' });
+  if (errDb) {
+    if (reemplazar) await liberarReemplazoAsset(r.proyectoId, tipo);
+    return res.status(500).json({ error: 'ASSET_DB_FAILED', detail: errDb.message });
+  }
+  if (reemplazar && previo) await quitarOriginal(previo, path);
 
   // Si este asset era el que faltaba, la entrega quedó completa: confirmación
-  // por correo a TODO el equipo.
-  if (ant?.equipo_id) {
+  // por correo a TODO el equipo. Un reemplazo no vuelve a mandarlo.
+  if (ant?.equipo_id && !reemplazar) {
     const equipoId = ant.equipo_id as string;
     void (async () => {
       if (await entregaTrabajoGradoCompleta(req.params.id)) {
@@ -639,7 +706,7 @@ router.post('/:id/asset/:tipo', upload.single('file'), async (req: Authenticated
     })().catch((e) => console.error('[trabajos-grado] aviso de entrega completa falló:', e?.message ?? e));
   }
 
-  res.status(201).json({ ok: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)) });
+  res.status(201).json({ ok: true, url: crearUrlProxyArchivo(path, mimeFromPath(path)), reemplazado: reemplazar });
 });
 
 
