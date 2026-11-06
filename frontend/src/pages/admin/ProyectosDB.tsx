@@ -3,6 +3,7 @@ import { confirmar } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
+import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Dia { fecha: string; legible: string; }
@@ -95,6 +96,8 @@ export default function ProyectosDB() {
 
   async function subirAsset(p: Proyecto, tipo: 'logo' | 'one_pager', file: File) {
     if (!p.proyecto_id) return;
+    const problema = await revisarFormato(file, tipo === 'logo' ? FORMATOS.logo : FORMATOS.onePager);
+    if (problema) { setErr(problema); return; }
     setBusy(p.proyecto_id + tipo); setErr('');
     try {
       const fd = new FormData(); fd.append('archivo', file); fd.append('tipo', tipo);
@@ -229,13 +232,13 @@ export default function ProyectosDB() {
                     ) : <span className="text-[11px] text-inalde-gray/70">Sin logo</span>}
                     <label className="text-[11px] font-semibold text-inalde-red cursor-pointer hover:underline">
                       {busy === p.proyecto_id + 'logo' ? 'Subiendo…' : (p.tiene_logo ? 'Cambiar logo' : 'Subir logo')}
-                      <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) subirAsset(p, 'logo', f); e.target.value = ''; }} />
+                      <input type="file" accept={acceptDe(FORMATOS.logo)} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) subirAsset(p, 'logo', f); e.target.value = ''; }} />
                     </label>
                     {p.tiene_logo && <button onClick={() => quitarAsset(p, 'logo')} className="text-[11px] text-inalde-gray hover:text-inalde-red">quitar</button>}
                     <span className="text-inalde-gray-light">·</span>
                     <label className="text-[11px] font-semibold text-inalde-red cursor-pointer hover:underline">
                       {busy === p.proyecto_id + 'one_pager' ? 'Subiendo…' : (p.tiene_one_pager ? 'Cambiar One Pager' : 'Subir One Pager')}
-                      <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) subirAsset(p, 'one_pager', f); e.target.value = ''; }} />
+                      <input type="file" accept={acceptDe(FORMATOS.onePager)} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) subirAsset(p, 'one_pager', f); e.target.value = ''; }} />
                     </label>
                     {p.tiene_one_pager && <button onClick={() => quitarAsset(p, 'one_pager')} className="text-[11px] text-inalde-gray hover:text-inalde-red">quitar</button>}
                     {progreso !== null && (busy === p.proyecto_id + 'logo' || busy === p.proyecto_id + 'one_pager') && (

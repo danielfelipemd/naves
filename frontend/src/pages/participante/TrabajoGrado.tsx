@@ -5,6 +5,7 @@ import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
+import { FORMATOS, acceptDe, revisarFormato, type ReglaFormato } from '../../lib/formatos';
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
 
@@ -47,35 +48,11 @@ interface Anteproyecto {
 // Material de apoyo del Business Plan que alimenta la programación de
 // presentaciones. A diferencia de los entregables (PDF definitivo), estos SÍ se
 // pueden reemplazar volviéndolos a subir.
-const ASSET_CFG: Record<TipoAsset, { label: string; accept: string; hint: string; exts: string[]; mimes: Set<string> }> = {
-  one_pager: {
-    label: 'One pager',
-    accept: '.pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp',
-    hint: 'PDF o imagen (PNG, JPG, WebP)',
-    exts: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
-    mimes: new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']),
-  },
-  logo: {
-    label: 'Logo',
-    accept: '.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp',
-    hint: 'PNG, JPG o WebP',
-    exts: ['png', 'jpg', 'jpeg', 'webp'],
-    mimes: new Set(['image/png', 'image/jpeg', 'image/webp']),
-  },
-  modelo_financiero: {
-    label: 'Modelo financiero',
-    accept: '.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel',
-    hint: 'Excel (.xlsx o .xls)',
-    exts: ['xlsx', 'xls'],
-    mimes: new Set(['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']),
-  },
+const ASSET_CFG: Record<TipoAsset, { label: string; hint: string; regla: ReglaFormato }> = {
+  one_pager: { label: 'One pager', hint: 'PDF o imagen (PNG, JPG, WebP)', regla: FORMATOS.onePager },
+  logo: { label: 'Logo', hint: 'PNG, JPG o WebP', regla: FORMATOS.logo },
+  modelo_financiero: { label: 'Modelo financiero', hint: 'Excel (.xlsx o .xls)', regla: FORMATOS.modeloFinanciero },
 };
-
-function aceptaAsset(tipo: TipoAsset, file: File): boolean {
-  const cfg = ASSET_CFG[tipo];
-  if (file.type) return cfg.mimes.has(file.type);
-  return cfg.exts.includes(file.name.toLowerCase().split('.').pop() ?? '');
-}
 
 // Copy de la entrega final (mensajes-entrega-trabajo-de-grado-NAVES.md). Cada uno
 // de los cuatro documentos tiene su texto de botón (estado pendiente) y su
@@ -86,17 +63,8 @@ const ASSET_UI: Record<TipoAsset, { num: number; cta: string; recibido: string }
   modelo_financiero: { num: 4, cta: 'Sube tu Modelo Financiero (Excel)', recibido: 'Modelo Financiero recibido ✓' },
 };
 
-// Los dos entregables van en PDF, y solo PDF (el backend rechaza el resto).
-const MIME_ANTEPROYECTO_ACCEPT = '.pdf,application/pdf';
-const MIME_PROYECTO_FINAL_ACCEPT = '.pdf,application/pdf';
-
-const MIME_PDF_SET = new Set(['application/pdf']);
-
-function aceptaMime(_tipo: 'anteproyecto' | 'proyecto-final', file: File): boolean {
-  if (file.type) return MIME_PDF_SET.has(file.type);
-  // Fallback por extension si el SO no manda mime
-  return file.name.toLowerCase().split('.').pop() === 'pdf';
-}
+// Los entregables van en PDF, y solo PDF (el backend rechaza el resto).
+const ACCEPT_PDF = acceptDe(FORMATOS.documentoPdf);
 
 const TITULO_MODALIDAD: Record<Modalidad, string> = {
   business_plan: 'Business Plan NAVES',
@@ -130,23 +98,27 @@ function DropZone(props: {
   progreso?: number | null;
   /** Nombre y peso del archivo en curso, para mostrarlos en la barra. */
   archivoEnCurso?: { nombre: string; bytes: number } | null;
-  validate: (f: File) => boolean;
-  errMsg: string;
+  /** Formato que acepta esta zona: se revisa antes de subir. */
+  regla: ReglaFormato;
   onFile: (f: File) => void;
   inputRef: React.RefObject<HTMLInputElement>;
   // Texto principal del botón (estado pendiente). Si no se pasa, se usa la
   // instrucción genérica de arrastrar/soltar.
   cta?: string;
 }) {
-  const { accept, hint, disabled, subiendoEste, progreso, archivoEnCurso, validate, errMsg, onFile, inputRef, cta } = props;
+  const { accept, hint, disabled, subiendoEste, progreso, archivoEnCurso, regla, onFile, inputRef, cta } = props;
   const [drag, setDrag] = useState(false);
-  const [errMime, setErrMime] = useState(false);
+  const [errFormato, setErrFormato] = useState<string | null>(null);
 
-  function handleFiles(files: FileList | null) {
+  async function handleFiles(files: FileList | null) {
     const f = files?.[0];
     if (!f) return;
-    if (!validate(f)) { setErrMime(true); return; }
-    setErrMime(false);
+    const problema = await revisarFormato(f, regla);
+    // Se vacía el input para que, tras corregirlo, pueda volver a elegir el
+    // mismo archivo y el cambio se note.
+    if (inputRef.current) inputRef.current.value = '';
+    setErrFormato(problema);
+    if (problema) return;
     onFile(f);
   }
 
@@ -199,8 +171,8 @@ function DropZone(props: {
           <p className="text-xs text-inalde-gray mt-1">{hint} · máximo 25 MB</p>
         </>
       )}
-      {errMime && (
-        <p className="text-xs text-inalde-red mt-2">El tipo de archivo no es válido. {errMsg}</p>
+      {errFormato && (
+        <p role="alert" className="text-xs text-inalde-red mt-2">{errFormato}</p>
       )}
     </div>
   );
@@ -238,11 +210,10 @@ function AssetUploader(props: {
         </div>
       ) : (
         <DropZone
-          accept={cfg.accept}
+          accept={acceptDe(cfg.regla)}
           hint={cfg.hint}
           cta={ui.cta}
-          validate={(f) => aceptaAsset(props.tipo, f)}
-          errMsg={`Formato permitido: ${cfg.hint}.`}
+          regla={cfg.regla}
           disabled={props.disabled}
           subiendoEste={props.subiendo}
           progreso={props.progreso}
@@ -794,8 +765,8 @@ export default function TrabajoGrado() {
                           {!directorAsignado ? 'Selecciona primero a tu director.' : 'Aún no has cargado el anteproyecto.'}
                         </p>
                         <DropZone
-                          accept={MIME_ANTEPROYECTO_ACCEPT} hint="PDF"
-                          validate={(f) => aceptaMime('anteproyecto', f)} errMsg="Solo PDF."
+                          accept={ACCEPT_PDF} hint="PDF"
+                          regla={FORMATOS.documentoPdf}
                           disabled={!!subiendo || !directorAsignado}
                           subiendoEste={subiendo === 'anteproyecto'}
                           progreso={subiendo === 'anteproyecto' ? progreso : null}
@@ -872,9 +843,9 @@ export default function TrabajoGrado() {
                           <strong>Atención:</strong> es <strong>definitivo</strong>. Una vez cargado <strong>no se puede modificar ni reemplazar</strong>.
                         </div>
                         <DropZone
-                          accept={MIME_ANTEPROYECTO_ACCEPT} hint="PDF"
+                          accept={ACCEPT_PDF} hint="PDF"
                           cta="Sube tu avance (PDF)"
-                          validate={(f) => aceptaMime('anteproyecto', f)} errMsg="Solo PDF."
+                          regla={FORMATOS.documentoPdf}
                           disabled={!!subiendo}
                           subiendoEste={subiendo === 'avance'}
                           progreso={subiendo === 'avance' ? progreso : null}
@@ -978,9 +949,9 @@ export default function TrabajoGrado() {
                             <strong>Atención:</strong> es <strong>definitivo</strong>. Una vez cargado <strong>no se puede modificar ni reemplazar</strong>.
                           </div>
                           <DropZone
-                            accept={MIME_PROYECTO_FINAL_ACCEPT} hint="PDF"
+                            accept={ACCEPT_PDF} hint="PDF"
                             cta={esCasoOPI ? 'Sube tu proyecto final (PDF)' : 'Sube tu Business Plan (PDF)'}
-                            validate={(f) => aceptaMime('proyecto-final', f)} errMsg="Solo PDF."
+                            regla={FORMATOS.documentoPdf}
                             disabled={!!subiendo}
                             subiendoEste={subiendo === 'proyecto-final'}
                           progreso={subiendo === 'proyecto-final' ? progreso : null}

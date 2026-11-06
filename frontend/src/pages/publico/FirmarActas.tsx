@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { confirmar } from '../../components/inalde/Dialogos';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
 
 // Firma de actas PÚBLICA (sin sesión). El enlace solo sirve para firmar las
 // actas que trae asignadas: no da acceso a ninguna otra parte del sistema.
@@ -137,10 +138,16 @@ export default function FirmarActas() {
     return c.toDataURL('image/png');
   }
 
-  function archivoAImagen(f: File) {
-    if (f.size > 400_000) { setError('La imagen pesa demasiado. Usa uno más liviano (máximo 400 KB).'); return; }
+  async function archivoAImagen(f: File) {
+    setError('');
+    // El acta se imprime con PDFKit, que solo pinta PNG y JPG.
+    const problema = await revisarFormato(f, FORMATOS.firma);
+    if (problema) { setImagen(null); setError(problema); return; }
+    if (f.size > 400_000) { setError('La imagen pesa demasiado. Usa una más liviana (máximo 400 KB).'); return; }
     const fr = new FileReader();
     fr.onload = () => setImagen(String(fr.result));
+    // Sin onerror, un fallo de lectura dejaba la firma vacía sin decir nada.
+    fr.onerror = () => setError('No pudimos leer la imagen. Inténtalo con otro archivo.');
     fr.readAsDataURL(f);
   }
 
@@ -326,8 +333,8 @@ export default function FirmarActas() {
 
       {modo === 'imagen' && (
         <div className="mb-4">
-          <input type="file" accept="image/png,image/jpeg" className="text-sm"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) archivoAImagen(f); }} />
+          <input type="file" accept={acceptDe(FORMATOS.firma)} className="text-sm"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) archivoAImagen(f); e.target.value = ''; }} />
           {imagen && <img src={imagen} alt="Firma" className="mt-2 max-h-[110px] border border-inalde-gray-light rounded bg-white p-2" />}
         </div>
       )}

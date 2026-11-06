@@ -6,7 +6,8 @@ import ExcelJS from 'exceljs';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { iaConfigurada } from '../services/ai.js';
-import { uploadAssetNaves, deleteAssetNaves, extForAsset, crearUrlProxyArchivo, mimeFromPath, downloadTrabajoGradoFile, type TipoAssetNaves } from '../services/storage.js';
+import { REGLAS, validarFormato, errorFormato } from '../lib/formato-archivo.js';
+import { uploadAssetNaves, deleteAssetNaves, crearUrlProxyArchivo, mimeFromPath, downloadTrabajoGradoFile, type TipoAssetNaves } from '../services/storage.js';
 import { generarContenidoOnePager, type OnePagerDoc } from '../services/ai-onepager.js';
 import { proyectosFase2, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 
@@ -477,25 +478,25 @@ router.put('/admin/proyecto/:proyectoId/contenido', ...soloAdmin, async (req, re
 // =====================================================================
 // Módulo F — Migración de archivos: subir logo / one pager a Storage
 // =====================================================================
-const LOGO_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
-const ONEPAGER_MIMES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']);
 
 // POST /admin/proyecto/:proyectoId/asset  (multipart: campo "archivo", body/query "tipo")
 router.post('/admin/proyecto/:proyectoId/asset', ...soloAdmin, upload.single('archivo'), async (req, res) => {
   const proyectoId = req.params.proyectoId;
   const tipo = ((req.body?.tipo ?? req.query.tipo) as string) as TipoAssetNaves;
   if (tipo !== 'logo' && tipo !== 'one_pager') return res.status(400).json({ error: 'TIPO_INVALIDO' });
-  const file = (req as any).file as { buffer: Buffer; mimetype: string } | undefined;
+  const file = (req as any).file as { buffer: Buffer; mimetype: string; originalname?: string } | undefined;
   if (!file) return res.status(400).json({ error: 'NO_FILE' });
-  const permitido = tipo === 'logo' ? LOGO_MIMES : ONEPAGER_MIMES;
-  if (!permitido.has(file.mimetype) || !extForAsset(file.mimetype)) return res.status(400).json({ error: 'MIME_INVALIDO', mime: file.mimetype });
+  // Se decide por el contenido, y se guarda con el tipo real del archivo.
+  const regla = tipo === 'logo' ? REGLAS.logo : REGLAS.onePager;
+  const formato = validarFormato(file, regla);
+  if (!formato.ok) return res.status(400).json(errorFormato(formato.mensaje, regla));
 
   // Verifica que el proyecto exista
   const { data: p } = await supabaseAdmin.from('proyectos').select('id').eq('id', proyectoId).maybeSingle();
   if (!p) return res.status(404).json({ error: 'PROYECTO_NO_ENCONTRADO' });
 
   try {
-    const { path } = await uploadAssetNaves(proyectoId, tipo, file.buffer, file.mimetype);
+    const { path } = await uploadAssetNaves(proyectoId, tipo, file.buffer, formato.mime);
     const col = tipo === 'logo' ? 'logo_path' : 'one_pager_path';
     // OJO: este upsert NO lanza; sin verificar su error el archivo quedaba
     // subido a Storage (y hasta devolvíamos una URL que se veía bien) pero sin

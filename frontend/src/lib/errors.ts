@@ -50,7 +50,7 @@ export function formatBackendError(e: any): string {
     ALREADY_IN_TEAM: 'Ese participante ya está en un equipo.',
     ALREADY_SET: 'Tu modalidad ya está fijada; no se puede cambiar.',
     INVALID_CIIU: 'Uno o varios códigos CIIU no son válidos.',
-    INVALID_MIME: 'El tipo de archivo no es válido. El anteproyecto y el proyecto final se cargan en PDF.',
+    INVALID_MIME: 'Este no es el formato correcto. Revisa qué tipo de archivo se pide en esta carga.',
     FILE_TOO_LARGE: 'El archivo pesa más de lo permitido para esta carga. Comprímelo e inténtalo de nuevo.',
     POSITION_TAKEN: 'Esa posición ya está ocupada por otro miembro.',
     COHORTE_MISMATCH: 'El participante pertenece a otra cohorte.',

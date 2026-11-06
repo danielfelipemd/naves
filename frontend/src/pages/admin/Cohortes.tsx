@@ -3,6 +3,7 @@ import { confirmar } from '../../components/inalde/Dialogos';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
+import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
 
 interface Hito {
   posicion: number;
@@ -161,6 +162,8 @@ export default function Cohortes() {
 
   async function cargarExcel(cohorteId: string, file: File) {
     setMsg(null);
+    const problema = await revisarFormato(file, FORMATOS.cargaExcel);
+    if (problema) { setMsg({ kind: 'err', text: problema }); return; }
     try {
       const fd = new FormData();
       fd.append('file', file);
@@ -307,7 +310,7 @@ export default function Cohortes() {
                       </button>
                       <label className="text-xs font-semibold px-4 py-2 rounded bg-inalde-gold text-white hover:opacity-90 transition cursor-pointer inline-block">
                         Cargar Excel
-                        <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        <input type="file" accept={acceptDe(FORMATOS.cargaExcel)}
                           className="hidden"
                           onChange={(e) => {
                             const f = e.target.files?.[0];

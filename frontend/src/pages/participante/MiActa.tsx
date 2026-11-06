@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { confirmar } from '../../components/inalde/Dialogos';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
+import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
 
 // Mi acta — el participante firma la suya desde su sesión.
 //
@@ -144,7 +145,12 @@ export default function MiActa() {
     return c.toDataURL('image/png');
   }
 
-  function archivoAImagen(f: File) {
+  async function archivoAImagen(f: File) {
+    setError('');
+    // El acta se imprime con PDFKit, que solo pinta PNG y JPG: con otra imagen
+    // el acta quedaba firmada pero sin el trazo.
+    const problema = await revisarFormato(f, FORMATOS.firma);
+    if (problema) { setImagen(null); setError(problema); return; }
     if (f.size > 400_000) { setError('La imagen pesa demasiado. Usa una más liviana (máximo 400 KB).'); return; }
     const fr = new FileReader();
     fr.onload = () => setImagen(String(fr.result));
@@ -347,8 +353,8 @@ export default function MiActa() {
 
           {modo === 'archivo' && (
             <div>
-              <input type="file" accept="image/*" className="text-sm"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) archivoAImagen(f); }} />
+              <input type="file" accept={acceptDe(FORMATOS.firma)} className="text-sm"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) archivoAImagen(f); e.target.value = ''; }} />
               {imagen && <img src={imagen} alt="Tu firma" className="mt-3 max-h-32 border border-inalde-gray-light rounded" />}
             </div>
           )}

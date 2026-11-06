@@ -9,13 +9,13 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/mid
 import { buildAnteproyectoPDF } from '../services/pdf.js';
 import { sendEmail } from '../services/email.js';
 import { AREAS_AFINIDAD } from '../lib/areas.js';
-import { normalizeHeaderKey, findCol, cellStr, cellBool, buildTemplateXlsx } from '../lib/excel.js';
+import { normalizeHeaderKey, findCol, cellStr, cellBool, buildTemplateXlsx, leerLibroExcel } from '../lib/excel.js';
 import { traerTodasLasFilas } from '../lib/traerTodasLasFilas.js';
+import { REGLAS, validarFormato, errorFormato } from '../lib/formato-archivo.js';
 import { copyPerfilParticipanteAMiembro } from './equipos.js';
 import { config } from '../config.js';
 import {
   uploadTrabajoGradoFile,
-  extForMime,
   type TipoArchivoTrabajo,
 } from '../services/storage.js';
 
@@ -161,11 +161,14 @@ router.post('/participantes/cargar-excel', upload.single('file'), async (req: Au
   if (!cohorteId) return res.status(400).json({ error: 'MISSING_COHORTE' });
   if (!req.file) return res.status(400).json({ error: 'MISSING_FILE' });
 
+  const formato = validarFormato(req.file, REGLAS.cargaExcel);
+  if (!formato.ok) return res.status(400).json(errorFormato(formato.mensaje, REGLAS.cargaExcel));
+
   const { data: coh } = await supabaseAdmin.from('cohortes').select('id').eq('id', cohorteId).maybeSingle();
   if (!coh) return res.status(404).json({ error: 'COHORTE_NOT_FOUND' });
 
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(new Uint8Array(req.file.buffer).buffer as ArrayBuffer);
+  const wb = await leerLibroExcel(req.file.buffer);
+  if (!wb) return res.status(400).json({ error: 'INVALID_XLSX' });
   const ws = wb.worksheets[0];
   if (!ws) return res.status(400).json({ error: 'EMPTY_WORKBOOK' });
 
@@ -597,6 +600,8 @@ const cohorteExcelUpload = multer({ storage: multer.memoryStorage(), limits: { f
 
 router.post('/cohortes/:id/cargar-excel', cohorteExcelUpload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'MISSING_FILE' });
+  const formato = validarFormato(req.file, REGLAS.cargaExcel);
+  if (!formato.ok) return res.status(400).json(errorFormato(formato.mensaje, REGLAS.cargaExcel));
   const cohorteId = req.params.id;
   const { data: coh } = await supabaseAdmin.from('cohortes').select('id').eq('id', cohorteId).maybeSingle();
   if (!coh) return res.status(404).json({ error: 'COHORTE_NOT_FOUND' });
@@ -1099,9 +1104,11 @@ router.get('/profesores/plantilla', async (_req, res) => {
 // =====================================================================
 router.post('/profesores/cargar-excel', upload.single('file'), async (req: AuthenticatedRequest, res) => {
   if (!req.file) return res.status(400).json({ error: 'MISSING_FILE' });
+  const formato = validarFormato(req.file, REGLAS.cargaExcel);
+  if (!formato.ok) return res.status(400).json(errorFormato(formato.mensaje, REGLAS.cargaExcel));
 
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(new Uint8Array(req.file.buffer).buffer as ArrayBuffer);
+  const wb = await leerLibroExcel(req.file.buffer);
+  if (!wb) return res.status(400).json({ error: 'INVALID_XLSX' });
   const ws = wb.worksheets[0];
   if (!ws) return res.status(400).json({ error: 'EMPTY_WORKBOOK' });
 
@@ -2253,9 +2260,8 @@ router.post('/equipos/:equipoId/archivo/:tipo', uploadTrabajo.single('file'), as
   const tipo = req.params.tipo;
   if (!TIPOS_ARCHIVO_ADMIN.has(tipo)) return res.status(400).json({ error: 'TIPO_INVALIDO' });
   if (!req.file) return res.status(400).json({ error: 'NO_FILE' });
-  if (req.file.mimetype !== 'application/pdf') {
-    return res.status(400).json({ error: 'INVALID_MIME', mime: req.file.mimetype });
-  }
+  const formato = validarFormato(req.file, REGLAS.documentoPdf);
+  if (!formato.ok) return res.status(400).json(errorFormato(formato.mensaje, REGLAS.documentoPdf));
 
   const { data: ant } = await supabaseAdmin
     .from('anteproyectos')
@@ -2287,8 +2293,8 @@ router.post('/equipos/:equipoId/archivo/:tipo', uploadTrabajo.single('file'), as
   try {
     subida = await uploadTrabajoGradoFile(
       ant.equipo_id, tipo as TipoArchivoTrabajo,
-      req.file.buffer, req.file.mimetype,
-      req.file.originalname || `documento.${extForMime(req.file.mimetype) ?? 'pdf'}`,
+      req.file.buffer, formato.mime,
+      req.file.originalname || 'documento.pdf',
     );
   } catch (e: any) {
     return res.status(500).json({ error: 'UPLOAD_FAILED', detail: e?.message });
@@ -2299,7 +2305,7 @@ router.post('/equipos/:equipoId/archivo/:tipo', uploadTrabajo.single('file'), as
     .from('anteproyectos')
     .update({
       [cols.path]: subida.path,
-      [cols.mime]: req.file.mimetype,
+      [cols.mime]: formato.mime,
       [cols.size]: subida.size,
       [cols.uploaded]: ahora,
     })

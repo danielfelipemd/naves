@@ -5,7 +5,8 @@ import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { encryptPII, decryptPII } from '../auth/crypto.js';
 import { AREAS_AFINIDAD } from '../lib/areas.js';
-import { normalizeHeaderKey, findCol, cellStr, buildTemplateXlsx, ExcelJS } from '../lib/excel.js';
+import { normalizeHeaderKey, findCol, cellStr, buildTemplateXlsx, leerLibroExcel, ExcelJS } from '../lib/excel.js';
+import { REGLAS, validarFormato, errorFormato } from '../lib/formato-archivo.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -214,9 +215,11 @@ router.get('/plantilla', requireRole('super_admin'), async (_req: AuthenticatedR
 // === POST /api/directores/cargar-excel (admin) ==============================
 router.post('/cargar-excel', requireRole('super_admin'), upload.single('file'), async (req: AuthenticatedRequest, res) => {
   if (!req.file) return res.status(400).json({ error: 'MISSING_FILE' });
+  const formato = validarFormato(req.file, REGLAS.cargaExcel);
+  if (!formato.ok) return res.status(400).json(errorFormato(formato.mensaje, REGLAS.cargaExcel));
 
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(new Uint8Array(req.file.buffer).buffer as ArrayBuffer);
+  const wb = await leerLibroExcel(req.file.buffer);
+  if (!wb) return res.status(400).json({ error: 'INVALID_XLSX' });
   const ws = wb.worksheets[0];
   if (!ws) return res.status(400).json({ error: 'EMPTY_WORKBOOK' });
 

@@ -7,6 +7,7 @@ import { buildActaPDF, buildLoteActasPDF } from '../services/actas/pdf-acta.js';
 import { firmar, ultimoHash, verificarCadena } from '../services/actas/firma.js';
 import { sha256Hex } from '../auth/crypto.js';
 import { ipCliente } from '../lib/ip-cliente.js';
+import { validarFirmaImagen } from '../lib/formato-archivo.js';
 import { sendEmail } from '../services/email.js';
 import { decryptPII } from '../auth/crypto.js';
 import { config } from '../config.js';
@@ -232,6 +233,8 @@ router.post('/lote/:cohorteId/firmar', ...soloAdmin, async (req: AuthenticatedRe
   const ip = ipCliente(req);
   const ua = (req.header('user-agent') ?? '').slice(0, 300) || null;
   const imagen = typeof req.body?.imagen === 'string' ? req.body.imagen : null;
+  const errImagen = imagen ? validarFirmaImagen(imagen) : null;
+  if (errImagen) return res.status(400).json({ error: 'FORMATO_NO_VALIDO', mensaje: errImagen });
   let firmadas = 0;
   const fallidas: string[] = [];
   for (const a of (actas ?? []) as any[]) {
@@ -557,6 +560,8 @@ router.post('/firmar/:token', async (req, res) => {
   // Una firma es una imagen pequeña; el tope evita que alguien empuje un
   // archivo enorme por este endpoint público.
   if (imagen.length > 500_000) return res.status(413).json({ error: 'FIRMA_DEMASIADO_GRANDE' });
+  const errImagen = validarFirmaImagen(imagen);
+  if (errImagen) return res.status(400).json({ error: 'FORMATO_NO_VALIDO', mensaje: errImagen });
 
   const { data: actas } = await supabaseAdmin.from('acta')
     .select('id, estado, firmas').in('id', e.acta_ids);
@@ -732,6 +737,8 @@ router.post('/mi-acta/firmar', ...soloParticipante, async (req: AuthenticatedReq
   const imagen = typeof req.body?.imagen === 'string' ? req.body.imagen : null;
   if (!imagen) return res.status(400).json({ error: 'FALTA_FIRMA', mensaje: 'Dibuja, escribe o adjunta tu firma.' });
   if (imagen.length > 500_000) return res.status(413).json({ error: 'FIRMA_DEMASIADO_GRANDE', mensaje: 'La firma pesa demasiado. Usa una imagen más liviana.' });
+  const errImagen = validarFirmaImagen(imagen);
+  if (errImagen) return res.status(400).json({ error: 'FORMATO_NO_VALIDO', mensaje: errImagen });
 
   const a = await miActa(req);
   if (!a) return res.status(404).json({ error: 'SIN_ACTA' });

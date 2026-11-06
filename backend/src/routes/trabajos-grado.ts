@@ -8,7 +8,6 @@ import {
   downloadTrabajoGradoFile,
   extForMime,
   uploadAssetNaves,
-  extForAsset,
   mimeFromPath,
   type TipoArchivoTrabajo,
   type TipoAssetNaves,
@@ -19,6 +18,7 @@ import { entregaTrabajoGradoCompleta, notificarEntregaTrabajoGrado } from '../se
 import { programacionPublicadaAt } from '../services/escaleta.js';
 import { decryptPII } from '../auth/crypto.js';
 import { buildAnteproyectoPDF } from '../services/pdf.js';
+import { REGLAS, validarFormato, errorFormato, type ReglaFormato } from '../lib/formato-archivo.js';
 
 // (Antes este archivo enviaba un correo al Comité del MBA por cada carga.
 // Eso fue retirado: el Comité recibe un solo correo consolidado cuando el
@@ -33,11 +33,7 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
-// Ambos entregables van en PDF, y solo PDF: un Word se ve distinto en cada
-// equipo que lo abre, así que no sirve como versión de entrega.
-const MIME_ANTEPROYECTO = new Set(['application/pdf']);
-const MIME_AVANCE = new Set(['application/pdf']);
-const MIME_PROYECTO_FINAL = new Set(['application/pdf']);
+// Los tres entregables van en PDF, y solo PDF (ver REGLAS.documentoPdf).
 
 const COL_PATH: Record<TipoArchivoTrabajo, string> = {
   'anteproyecto': 'archivo_anteproyecto_path',
@@ -371,9 +367,11 @@ router.post('/:id/archivo/:tipo', upload.single('file'), async (req: Authenticat
     }
   }
 
-  const mime = req.file.mimetype;
-  const setPermitido = tipo === 'anteproyecto' ? MIME_ANTEPROYECTO : tipo === 'avance' ? MIME_AVANCE : MIME_PROYECTO_FINAL;
-  if (!setPermitido.has(mime)) return res.status(400).json({ error: 'INVALID_MIME', mime });
+  // Se comprueba el contenido, no el tipo que declara el navegador; y se
+  // guarda el tipo real.
+  const formato = validarFormato(req.file, REGLAS.documentoPdf);
+  if (!formato.ok) return res.status(400).json(errorFormato(formato.mensaje, REGLAS.documentoPdf));
+  const mime = formato.mime;
 
   // La fecha límite es la de ENTREGA DEL ANTEPROYECTO: no puede cerrar el
   // proyecto final, que se entrega mucho después (hito 10).
@@ -524,14 +522,10 @@ router.get('/:id/archivo/:tipo', async (req: AuthenticatedRequest, res) => {
 // proyecto_contenido, colgados del PROYECTO DEFINITIVO del equipo, y SÍ se pueden
 // reemplazar (volver a subir sobrescribe) mientras la programación no se publique
 // — un logo malo congelado es peor que dejarlo editable.
-const ASSET_MIMES: Record<TipoAssetNaves, Set<string>> = {
-  logo: new Set(['image/png', 'image/jpeg', 'image/webp']),
-  one_pager: new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']),
-  // Solo Excel: el modelo editable, no una foto ni un PDF de él.
-  modelo_financiero: new Set([
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel',
-  ]),
+const ASSET_REGLA: Record<TipoAssetNaves, ReglaFormato> = {
+  logo: REGLAS.logo,
+  one_pager: REGLAS.onePager,
+  modelo_financiero: REGLAS.modeloFinanciero,
 };
 const ASSET_COL: Record<TipoAssetNaves, string> = {
   logo: 'logo_path',
@@ -608,10 +602,9 @@ router.post('/:id/asset/:tipo', upload.single('file'), async (req: Authenticated
     });
   }
 
-  const mime = req.file.mimetype;
-  if (!ASSET_MIMES[tipo].has(mime) || !extForAsset(mime)) {
-    return res.status(400).json({ error: 'INVALID_MIME', mime });
-  }
+  const formato = validarFormato(req.file, ASSET_REGLA[tipo]);
+  if (!formato.ok) return res.status(400).json(errorFormato(formato.mensaje, ASSET_REGLA[tipo]));
+  const mime = formato.mime;
 
   // Cargar una sola vez: una vez subido, el PARTICIPANTE no lo cambia. Solo el
   // super_admin puede reemplazarlo (ruta aparte del Módulo C). Por eso aquí se

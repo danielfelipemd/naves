@@ -6,6 +6,7 @@ import { AreasPicker } from '../../components/inalde/AreasPicker';
 import { AREAS_AFINIDAD } from '../../lib/areas';
 import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
+import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
 
 const AREAS_SET = new Set<string>(AREAS_AFINIDAD);
 function sanitizeAreas(input: string[] | undefined | null): string[] {
@@ -104,6 +105,8 @@ export default function Profesores() {
   async function cargarExcel() {
     const f = fileRef.current?.files?.[0];
     if (!f) { setMsg({ kind: 'err', text: 'Selecciona un archivo Excel (.xlsx).' }); return; }
+    const problema = await revisarFormato(f, FORMATOS.cargaExcel);
+    if (problema) { setMsg({ kind: 'err', text: problema }); if (fileRef.current) fileRef.current.value = ''; return; }
     setBusy(true); setMsg(null); setBulkResult(null);
     try {
       const fd = new FormData();
@@ -256,7 +259,16 @@ export default function Profesores() {
               <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-2">
                 Archivo Excel (.xlsx)
               </label>
-              <input ref={fileRef} type="file" accept=".xlsx,.xls" className="text-sm" />
+              <input ref={fileRef} type="file" accept={acceptDe(FORMATOS.cargaExcel)} className="text-sm"
+                onChange={async (e) => {
+                  // Se avisa al elegirlo, sin esperar a que pulse «Cargar».
+                  const input = e.currentTarget;
+                  const f = input.files?.[0];
+                  if (!f) return;
+                  const problema = await revisarFormato(f, FORMATOS.cargaExcel);
+                  setMsg(problema ? { kind: 'err', text: problema } : null);
+                  if (problema) input.value = '';
+                }} />
             </div>
             <button onClick={cargarExcel} disabled={busy}
               className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-40">

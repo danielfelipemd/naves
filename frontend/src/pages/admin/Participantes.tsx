@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
+import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
 
 interface Cohorte { id: string; etiqueta: string; participantes_count: number; activa: boolean; }
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
@@ -144,6 +145,8 @@ export default function Participantes() {
     if (!cohorteUpload) { setErr('Selecciona una cohorte'); return; }
     const file = fileRef.current?.files?.[0];
     if (!file) { setErr('Selecciona un archivo Excel (.xlsx)'); return; }
+    const problema = await revisarFormato(file, FORMATOS.cargaExcel);
+    if (problema) { setErr(problema); if (fileRef.current) fileRef.current.value = ''; return; }
     const fd = new FormData();
     fd.append('cohorte_id', cohorteUpload);
     fd.append('file', file);
@@ -269,7 +272,16 @@ export default function Participantes() {
             </div>
             <div>
               <label className="block font-primary font-semibold text-[11px] tracking-wider uppercase text-inalde-gray mb-2">Archivo Excel (.xlsx)</label>
-              <input ref={fileRef} type="file" accept=".xlsx,.xls"
+              <input ref={fileRef} type="file" accept={acceptDe(FORMATOS.cargaExcel)}
+                onChange={async (e) => {
+                  // Se avisa al elegirlo, sin esperar a que pulse «Cargar».
+                  const input = e.currentTarget;
+                  const f = input.files?.[0];
+                  if (!f) return;
+                  const problema = await revisarFormato(f, FORMATOS.cargaExcel);
+                  setErr(problema);
+                  if (problema) input.value = '';
+                }}
                 className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-inalde-red file:text-white file:font-semibold hover:file:bg-inalde-red-hover" />
             </div>
           </div>

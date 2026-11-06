@@ -247,4 +247,20 @@ function colNumberToLetter(n: number): string {
   return s;
 }
 
+/**
+ * Abre un .xlsx subido. Devuelve null si no se puede leer, en vez de lanzar:
+ * en una ruta async de Express 4 una excepción sin capturar no llega al
+ * manejador de errores, y la petición se quedaba sin respuesta (la pantalla en
+ * «Procesando…» para siempre).
+ */
+export async function leerLibroExcel(buffer: Buffer): Promise<ExcelJS.Workbook | null> {
+  try {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(new Uint8Array(buffer).buffer as ArrayBuffer);
+    return wb;
+  } catch {
+    return null;
+  }
+}
+
 export { ExcelJS };

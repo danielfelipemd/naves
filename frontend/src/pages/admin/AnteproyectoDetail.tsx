@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
+import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
 
@@ -55,6 +56,10 @@ export default function AnteproyectoDetail() {
   async function subirPorElEquipo(tipo: 'anteproyecto' | 'avance' | 'proyecto-final', file: File) {
     const equipoId = data?.equipos?.id ?? data?.equipo_id;
     if (!equipoId) { setMsg({ kind: 'err', text: 'No pudimos identificar el equipo de este anteproyecto.' }); return; }
+    // El formato se revisa antes de preguntar nada: no tiene sentido confirmar
+    // el reemplazo de un documento con un archivo que se va a rechazar.
+    const problema = await revisarFormato(file, FORMATOS.documentoPdf);
+    if (problema) { setMsg({ kind: 'err', text: problema }); return; }
     const yaHay = tipo === 'anteproyecto' ? data.archivo_anteproyecto_path
                 : tipo === 'avance' ? data.archivo_avance_path
                 : data.archivo_proyecto_final_path;
@@ -172,7 +177,7 @@ function CargaAdmin(props: {
             {yaExiste ? '↻ Reemplazar por el equipo' : '↑ Cargar por el equipo'}
             <input
               type="file"
-              accept="application/pdf"
+              accept={acceptDe(FORMATOS.documentoPdf)}
               className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ''; }}
             />
