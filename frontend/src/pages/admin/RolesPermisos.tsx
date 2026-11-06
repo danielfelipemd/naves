@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { Modal } from '../../components/inalde/Modal';
@@ -57,7 +58,11 @@ export default function RolesPermisos() {
   async function asignarBulk() {
     if (!bulkRolId || selected.size === 0) return;
     const rol = roles.find((r) => r.id === bulkRolId);
-    if (!confirm(`Asignar el rol "${rol?.nombre}" a ${selected.size} usuario(s)? No se quitan los roles que ya tengan.`)) return;
+    if (!(await confirmar({
+      titulo: 'Asignar rol',
+      mensaje: `¿Asignar el rol "${rol?.nombre}" a ${selected.size} usuario(s)? No se quitan los roles que ya tengan.`,
+      aceptar: 'Asignar',
+    }))) return;
     setBusy(true);
     try {
       await api.post('/admin/roles/usuarios/asignar-bulk', {
@@ -99,7 +104,12 @@ export default function RolesPermisos() {
 
   async function eliminarRol(r: Rol) {
     if (r.es_sistema) return;
-    if (!confirm(`¿Eliminar el rol "${r.nombre}"? Los usuarios que lo tengan lo perderán.`)) return;
+    if (!(await confirmar({
+      titulo: 'Eliminar rol',
+      mensaje: `¿Eliminar el rol "${r.nombre}"? Los usuarios que lo tengan lo perderán.`,
+      aceptar: 'Eliminar',
+      tono: 'peligro',
+    }))) return;
     setBusy(true);
     try {
       await api.delete(`/admin/roles/${r.id}`);

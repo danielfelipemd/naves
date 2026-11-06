@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { Modal } from '../../components/inalde/Modal';
@@ -124,7 +125,7 @@ export default function MiEquipo() {
 
   async function remover(participante_id: string) {
     if (!equipo) return;
-    if (!confirm('¿Remover este miembro del equipo?')) return;
+    if (!(await confirmar({ titulo: 'Remover del equipo', mensaje: '¿Remover este miembro del equipo?', aceptar: 'Remover', tono: 'peligro' }))) return;
     setBusy(true); setError(null);
     try {
       await api.post(`/equipos/${equipo.id}/remover-miembro`, { participante_id });

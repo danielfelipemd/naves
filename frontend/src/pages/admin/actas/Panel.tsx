@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { confirmar, pedirTexto } from '../../../components/inalde/Dialogos';
 import { Link } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import { formatBackendError } from '../../../lib/errors';
@@ -235,7 +236,7 @@ export default function ActasPanel() {
     const aviso = roles?.length === 1 && roles[0] === 'director_mba'
       ? `Se enviará UN correo al Director de Cohorte${mbaNombre ? ` (${mbaNombre})` : ''} con su enlace para firmar el cierre. Nadie más lo recibirá. ¿Continuar?`
       : 'Se enviará a cada profesor y director un correo con su enlace para firmar. ¿Continuar?';
-    if (!confirm(aviso)) return;
+    if (!(await confirmar({ titulo: 'Enviar enlaces de firma', mensaje: aviso, aceptar: 'Enviar' }))) return;
     setEnviandoEnlaces(true); setResultadoEnlaces(null);
     try {
       const r = await api.post(`/actas/enlaces/${cohorte}`, roles?.length ? { roles } : {});
@@ -257,7 +258,14 @@ export default function ActasPanel() {
    * agua, para que una copia impresa de antes no pase por válida.
    */
   async function anularActa(id: string, participante: string) {
-    const motivo = prompt(`Anular el acta de ${participante}.\n\n¿Por qué se anula? Queda escrito en el acta y en la auditoría.`);
+    const motivo = await pedirTexto({
+      titulo: 'Anular acta',
+      mensaje: `Vas a anular el acta de ${participante}.`,
+      etiqueta: '¿Por qué se anula? Queda escrito en el acta y en la auditoría.',
+      multilinea: true,
+      aceptar: 'Anular acta',
+      tono: 'peligro',
+    });
     if (motivo === null) return;                  // canceló
     if (!motivo.trim()) { setErr('Hace falta el motivo para anular.'); return; }
     setErr(''); setOkMsg('');
@@ -270,7 +278,11 @@ export default function ActasPanel() {
 
   /** Deshace una anulación hecha por error. */
   async function reactivarActa(id: string, participante: string) {
-    if (!confirm(`¿Reactivar el acta de ${participante}? Volverá a pedir firmas.`)) return;
+    if (!(await confirmar({
+      titulo: 'Reactivar acta',
+      mensaje: `¿Reactivar el acta de ${participante}? Volverá a pedir firmas.`,
+      aceptar: 'Reactivar',
+    }))) return;
     setErr(''); setOkMsg('');
     try {
       await api.post(`/actas/${id}/reactivar`, {});

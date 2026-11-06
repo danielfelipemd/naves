@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
@@ -30,7 +31,11 @@ export default function AnteproyectoDetail() {
 
   async function aprobar() {
     if (!data) return;
-    if (!confirm('¿Aprobar este anteproyecto? El participante podrá cargar el proyecto final cuando se cumpla el cronograma.')) return;
+    if (!(await confirmar({
+      titulo: 'Aprobar anteproyecto',
+      mensaje: '¿Aprobar este anteproyecto? El participante podrá cargar el proyecto final cuando se cumpla el cronograma.',
+      aceptar: 'Aprobar',
+    }))) return;
     setBusy(true); setMsg(null);
     try {
       await api.post(`/anteproyectos/${data.id}/aprobar`);
@@ -57,7 +62,12 @@ export default function AnteproyectoDetail() {
     const aviso = yaHay
       ? `Ya hay un archivo cargado para ${etiqueta}. Si continúas lo reemplazarás y el anterior se perderá. ¿Seguir?`
       : `Vas a cargar ${etiqueta} en nombre del equipo, sin las restricciones de fecha del cronograma. ¿Seguir?`;
-    if (!confirm(aviso)) return;
+    if (!(await confirmar({
+      titulo: yaHay ? 'Reemplazar documento' : 'Cargar en nombre del equipo',
+      mensaje: aviso,
+      aceptar: yaHay ? 'Reemplazar' : 'Cargar',
+      tono: yaHay ? 'peligro' : 'normal',
+    }))) return;
 
     setSubiendo(tipo); setProgreso(0); setMsg(null);
     try {

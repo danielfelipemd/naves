@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { AreasPicker } from '../../components/inalde/AreasPicker';
@@ -74,7 +75,12 @@ export default function Profesores() {
   async function eliminarMasivo() {
     if (seleccion.size === 0) return;
     const ids = Array.from(seleccion);
-    if (!confirm(`¿Eliminar ${ids.length} profesor(es)? Esta acción es irreversible y también borra sus cuentas de acceso.`)) return;
+    if (!(await confirmar({
+      titulo: 'Eliminar profesores',
+      mensaje: `¿Eliminar ${ids.length} profesor(es)? Esta acción es irreversible y también borra sus cuentas de acceso.`,
+      aceptar: 'Eliminar',
+      tono: 'peligro',
+    }))) return;
     setBusy(true); setMsg(null);
     try {
       const { data } = await api.post('/admin/profesores/bulk-delete', { ids });
@@ -194,7 +200,12 @@ export default function Profesores() {
 
   async function toggleActivo(p: Profesor) {
     const accion = p.activo ? 'desactivar' : 'reactivar';
-    if (!confirm(`¿${accion[0].toUpperCase() + accion.slice(1)} a ${p.nombre_completo}?`)) return;
+    const rotulo = accion[0].toUpperCase() + accion.slice(1);
+    if (!(await confirmar({
+      titulo: `${rotulo} profesor`,
+      mensaje: `¿${rotulo} a ${p.nombre_completo}?`,
+      aceptar: rotulo,
+    }))) return;
     setBusy(true); setMsg(null);
     try {
       await api.put(`/admin/profesores/${p.id}`, { activo: !p.activo });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { pedirTexto } from '../../../components/inalde/Dialogos';
 import { Link } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import { formatBackendError } from '../../../lib/errors';
@@ -62,7 +63,13 @@ export default function Lotes() {
    * se pide cada vez, porque puede cambiar de persona entre cohortes.
    */
   async function enviarPorCorreo() {
-    const email = prompt('¿A qué correo se envían las actas completas?\n\nSuele ser la asistente del programa, que es quien imprime y archiva.');
+    const email = await pedirTexto({
+      titulo: 'Enviar actas por correo',
+      mensaje: 'Suele ser la asistente del programa, que es quien imprime y archiva.',
+      etiqueta: '¿A qué correo se envían las actas completas?',
+      tipo: 'email',
+      aceptar: 'Enviar',
+    });
     if (email === null) return;                 // canceló
     if (!email.trim()) { setErr('Escribe un correo.'); return; }
     setEnviando(true); setErr(''); setOk('');

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { useNavigate } from 'react-router-dom';
 import { api, downloadFile, enSegundoPlano } from '../../lib/api';
 import { useAuth } from '../../auth/store';
@@ -420,7 +421,12 @@ export default function Anteproyectos() {
   }
 
   async function comunicar() {
-    if (!confirm('Se enviarán correos reales a los participantes de los proyectos con profesor asignado pendiente de notificar. Los correos salen en serie en segundo plano y cada fila se marca como "Comunicado" a medida que termina. ¿Continuar?')) return;
+    if (!(await confirmar({
+      titulo: 'Comunicar a los participantes',
+      mensaje: 'Se enviarán correos reales a los participantes de los proyectos con profesor asignado pendiente de notificar. '
+        + 'Los correos salen en serie en segundo plano y cada fila se marca como "Comunicado" a medida que termina. ¿Continuar?',
+      aceptar: 'Enviar correos',
+    }))) return;
     setBusy(true); setMsg(null);
     try {
       const { data } = await api.post(`/admin/sabanas/${cohorte}/comunicar`, undefined, { timeout: 30000 });

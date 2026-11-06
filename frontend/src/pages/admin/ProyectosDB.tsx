@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
@@ -112,7 +113,13 @@ export default function ProyectosDB() {
     finally { setBusy(''); }
   }
   async function quitarAsset(p: Proyecto, tipo: 'logo' | 'one_pager') {
-    if (!p.proyecto_id || !confirm('¿Quitar este archivo?')) return;
+    if (!p.proyecto_id) return;
+    if (!(await confirmar({
+      titulo: 'Quitar archivo',
+      mensaje: `¿Quitar el ${tipo === 'logo' ? 'logo' : 'one pager'} de este proyecto?`,
+      aceptar: 'Quitar',
+      tono: 'peligro',
+    }))) return;
     setBusy(p.proyecto_id + tipo); setErr('');
     try { await api.delete(`/proyectos-db/admin/proyecto/${p.proyecto_id}/asset?tipo=${tipo}`); await load(); }
     catch (e: any) { setErr(errorLegible(e)); }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 
@@ -166,7 +167,12 @@ export default function MiActa() {
       img = imagen;
     }
 
-    if (!confirm('Vas a firmar tu acta de entrega de trabajo de grado. Esta firma tiene validez legal y no se puede deshacer. ¿Continuar?')) return;
+    if (!(await confirmar({
+      titulo: 'Firmar acta',
+      mensaje: 'Vas a firmar tu acta de entrega de trabajo de grado. Esta firma tiene validez legal y no se puede deshacer. ¿Continuar?',
+      aceptar: 'Firmar',
+      tono: 'peligro',
+    }))) return;
 
     setEnviando(true);
     try {

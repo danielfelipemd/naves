@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 
@@ -164,10 +165,12 @@ export default function FirmarActas() {
     // contenido no tiene por qué abrir veintidós documentos para firmarlos.
     // Se avisa una vez y decide el firmante.
     const sinLeer = (data?.actas.length ?? 0) - leidas.size;
-    if (sinLeer > 0 && !confirm(
-      `Vas a firmar ${data?.actas.length} actas y has abierto ${leidas.size}. `
-      + `Tu firma vale para todas. ¿Continuar?`,
-    )) return;
+    if (sinLeer > 0 && !(await confirmar({
+      titulo: 'Firmar todas las actas',
+      mensaje: `Vas a firmar ${data?.actas.length} actas y has abierto ${leidas.size}. `
+        + 'Tu firma vale para todas. ¿Continuar?',
+      aceptar: 'Firmar todas',
+    }))) return;
 
     setEnviando(true);
     try {

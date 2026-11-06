@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { confirmar, pedirTexto } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { VisorArchivo } from '../../components/inalde/VisorArchivo';
@@ -91,10 +92,12 @@ export default function Programacion() {
   async function repartir() {
     const total = proyectos.length;
     const dias = jornadas.length;
-    if (!confirm(
-      `Se repartirán los ${total} proyecto(s) programable(s) entre las ${dias} jornada(s), en partes iguales.\n\n`
-      + 'Se respeta el orden actual, pero algunos proyectos cambiarán de día.\n\n¿Continuar?',
-    )) return;
+    if (!(await confirmar({
+      titulo: 'Repartir proyectos',
+      mensaje: `Se repartirán los ${total} proyecto(s) programable(s) entre las ${dias} jornada(s), en partes iguales.\n\n`
+        + 'Se respeta el orden actual, pero algunos proyectos cambiarán de día.\n\n¿Continuar?',
+      aceptar: 'Repartir',
+    }))) return;
     setRepartiendo(true); setMsg(null);
     try {
       const { data } = await api.post(`/programacion/admin/${cohorte}/repartir`, {});
@@ -119,10 +122,16 @@ export default function Programacion() {
       '· Se notificará a los participantes.',
       '',
       'No hay forma de deshacerlo desde el sistema.',
-      '',
-      'Escribe PUBLICAR para confirmar:',
     ].join('\n');
-    if (prompt(aviso) !== 'PUBLICAR') return;
+    const escrito = await pedirTexto({
+      titulo: 'Publicar la programación',
+      mensaje: aviso,
+      etiqueta: 'Escribe PUBLICAR para confirmar',
+      exacto: 'PUBLICAR',
+      aceptar: 'Publicar',
+      tono: 'peligro',
+    });
+    if (escrito !== 'PUBLICAR') return;
 
     setPublicando(true); setMsg(null);
     try {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
@@ -189,7 +190,12 @@ export default function Cohortes() {
       setMsg({ kind: 'err', text: `No se puede borrar "${c.etiqueta}": tiene ${c.participantes_count} participante(s) y ${c.equipos_count} equipo(s). Bórralos primero.` });
       return;
     }
-    if (!confirm(`¿Borrar la cohorte "${c.etiqueta}" (${c.id})? Esta acción es irreversible.`)) return;
+    if (!(await confirmar({
+      titulo: 'Borrar cohorte',
+      mensaje: `¿Borrar la cohorte "${c.etiqueta}" (${c.id})? Esta acción es irreversible.`,
+      aceptar: 'Borrar',
+      tono: 'peligro',
+    }))) return;
     setMsg(null);
     try {
       await api.delete(`/admin/cohortes/${c.id}`);

@@ -23,8 +23,8 @@ export default function ResetPassword() {
     setBusy(true);
     try {
       await api.post('/auth/recovery/confirm', { token, password: pw });
-      alert('Clave actualizada. Inicia sesión con tu nueva clave.');
-      navigate('/login', { replace: true });
+      // El aviso lo pinta el propio login (AVISOS_SALIDA), no el navegador.
+      navigate('/login?motivo=clave-actualizada', { replace: true });
     } catch (e: any) {
       const code = e?.response?.data?.error;
       const map: Record<string, string> = {

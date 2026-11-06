@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 
@@ -81,7 +82,12 @@ export default function AdminEquipos() {
   // de confirmación se pintaba AQUÍ, en la página de detrás, y el propio modal lo
   // tapaba — el admin quitaba a alguien y no veía nada que se lo confirmara.
   async function quitar(eq: Equipo, participanteId: string, nombre: string): Promise<boolean> {
-    if (!confirm(`¿Quitar a ${nombre} del equipo? El participante quedará libre para unirse a otro equipo.`)) return false;
+    if (!(await confirmar({
+      titulo: 'Quitar del equipo',
+      mensaje: `¿Quitar a ${nombre} del equipo? El participante quedará libre para unirse a otro equipo.`,
+      aceptar: 'Quitar',
+      tono: 'peligro',
+    }))) return false;
     setMsg(null);
     try {
       await api.post(`/admin/equipos/${eq.id}/remover-miembro`, { participante_id: participanteId });

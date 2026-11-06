@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
@@ -75,7 +76,11 @@ export default function SeleccionarProyectos() {
     const aviso = plazoVencido(eq)
       ? `\n\nLa fecha límite de selección venció el ${fechaLegible(eq.fecha_limite_seleccion!)}. Lo marcarás como excepción y quedará registrado.`
       : '';
-    if (!confirm(`¿Marcar "${nombreProyecto}" como proyecto definitivo del equipo? Los demás proyectos se archivarán.${aviso}`)) return;
+    if (!(await confirmar({
+      titulo: 'Proyecto definitivo',
+      mensaje: `¿Marcar "${nombreProyecto}" como proyecto definitivo del equipo? Los demás proyectos se archivarán.${aviso}`,
+      aceptar: 'Marcar definitivo',
+    }))) return;
     setBusy(eq.equipo_id); setMsg(null);
     try {
       await api.post(`/equipos/${eq.equipo_id}/seleccionar-proyecto-definitivo`, { proyecto_id: proyectoId });

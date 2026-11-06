@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { ThOrden, useOrdenTabla } from '../../lib/useOrdenTabla';
@@ -204,7 +205,12 @@ export default function Participantes() {
 
   async function borrarParticipante(p: Participante) {
     if (p.en_equipo) { setErr(`No se puede borrar a ${p.nombre_completo}: está en un equipo.`); return; }
-    if (!confirm(`¿Borrar a "${p.nombre_completo}" (${cohorteEtiquetas.get(p.cohorte_id) ?? p.cohorte_id})? También se eliminará su acceso al sistema.`)) return;
+    if (!(await confirmar({
+      titulo: 'Borrar participante',
+      mensaje: `¿Borrar a "${p.nombre_completo}" (${cohorteEtiquetas.get(p.cohorte_id) ?? p.cohorte_id})? También se eliminará su acceso al sistema.`,
+      aceptar: 'Borrar',
+      tono: 'peligro',
+    }))) return;
     setErr(null);
     try {
       await api.delete(`/admin/participantes/${p.id}`);

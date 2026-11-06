@@ -52,6 +52,7 @@ import AdminAnteproyectoDetail from './pages/admin/AnteproyectoDetail';
 import AdminSolicitudes from './pages/admin/Solicitudes';
 import AdminRolesPermisos from './pages/admin/RolesPermisos';
 import { AvisoInactividad } from './components/inalde/AvisoInactividad';
+import { Dialogos } from './components/inalde/Dialogos';
 
 function ProtectedRoute({ children, requierePerfilOk = false }: { children: React.ReactNode; requierePerfilOk?: boolean }) {
   const { session, loading, role, requiereCambioClave, requierePerfil } = useAuth();
@@ -184,6 +185,9 @@ export default function App() {
           z-50, y con empate se pinta encima lo que va después. Montado antes,
           la cabecera tapaba el título del aviso. */}
       <AvisoInactividad />
+      {/* Avisos y confirmaciones del sistema (sustituyen a alert/confirm/prompt).
+          Van al final por lo mismo: tienen que quedar por encima de todo. */}
+      <Dialogos />
     </BrowserRouter>
   );
 }

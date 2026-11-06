@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { api } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 
@@ -179,7 +180,11 @@ function PanelistasTab({ cohorte, jornadas, panelistas, onChange, setMsg, busy, 
     finally { setBusy(false); }
   }
   async function enviarPendientes() {
-    if (!confirm('Se enviará el correo de invitación a todos los panelistas pendientes. ¿Continuar?')) return;
+    if (!(await confirmar({
+      titulo: 'Enviar invitaciones',
+      mensaje: 'Se enviará el correo de invitación a todos los panelistas pendientes. ¿Continuar?',
+      aceptar: 'Enviar',
+    }))) return;
     setBusy(true);
     try {
       const { data } = await api.post(`/panelistas/admin/${cohorte}/enviar-pendientes`);
@@ -189,7 +194,11 @@ function PanelistasTab({ cohorte, jornadas, panelistas, onChange, setMsg, busy, 
     finally { setBusy(false); }
   }
   async function recordatorios() {
-    if (!confirm('Se enviará un recordatorio a los panelistas ya invitados que aún no han confirmado. ¿Continuar?')) return;
+    if (!(await confirmar({
+      titulo: 'Enviar recordatorios',
+      mensaje: 'Se enviará un recordatorio a los panelistas ya invitados que aún no han confirmado. ¿Continuar?',
+      aceptar: 'Enviar',
+    }))) return;
     setBusy(true);
     try {
       const { data } = await api.post(`/panelistas/admin/${cohorte}/recordatorios`);
@@ -198,7 +207,7 @@ function PanelistasTab({ cohorte, jornadas, panelistas, onChange, setMsg, busy, 
     finally { setBusy(false); }
   }
   async function borrar(id: string) {
-    if (!confirm('¿Borrar este panelista?')) return;
+    if (!(await confirmar({ titulo: 'Borrar panelista', mensaje: '¿Borrar este panelista?', aceptar: 'Borrar', tono: 'peligro' }))) return;
     try { await api.delete(`/panelistas/admin/panelista/${id}`); onChange(); }
     catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }

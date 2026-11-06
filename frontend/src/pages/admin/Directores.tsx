@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { AreasPicker } from '../../components/inalde/AreasPicker';
@@ -57,7 +58,12 @@ export default function Directores() {
   async function eliminarMasivo() {
     if (seleccion.size === 0) return;
     const ids = Array.from(seleccion);
-    if (!confirm(`¿Eliminar ${ids.length} director(es)? Esta acción es irreversible.`)) return;
+    if (!(await confirmar({
+      titulo: 'Eliminar directores',
+      mensaje: `¿Eliminar ${ids.length} director(es)? Esta acción es irreversible.`,
+      aceptar: 'Eliminar',
+      tono: 'peligro',
+    }))) return;
     setBusy(true); setMsg(null);
     try {
       const { data } = await api.post('/directores/bulk-delete', { ids });
@@ -169,7 +175,12 @@ export default function Directores() {
 
   async function toggleEstado(d: Director) {
     const accion = d.estado === 'activo' ? 'desactivar' : 'reactivar';
-    if (!confirm(`¿${accion[0].toUpperCase() + accion.slice(1)} a ${d.nombre_completo}?`)) return;
+    const rotulo = accion[0].toUpperCase() + accion.slice(1);
+    if (!(await confirmar({
+      titulo: `${rotulo} director`,
+      mensaje: `¿${rotulo} a ${d.nombre_completo}?`,
+      aceptar: rotulo,
+    }))) return;
     setBusy(true); setMsg(null);
     try {
       await api.put(`/directores/${d.id}`, { estado: d.estado === 'activo' ? 'inactivo' : 'activo' });
@@ -181,7 +192,12 @@ export default function Directores() {
   }
 
   async function eliminar(d: Director) {
-    if (!confirm(`¿Borrar a ${d.nombre_completo}? Esta acción es irreversible.`)) return;
+    if (!(await confirmar({
+      titulo: 'Borrar director',
+      mensaje: `¿Borrar a ${d.nombre_completo}? Esta acción es irreversible.`,
+      aceptar: 'Borrar',
+      tono: 'peligro',
+    }))) return;
     setBusy(true); setMsg(null);
     try {
       await api.delete(`/directores/${d.id}`);

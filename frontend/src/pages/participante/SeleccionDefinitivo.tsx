@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { avisar, confirmar, pedirTexto } from '../../components/inalde/Dialogos';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
@@ -57,12 +58,35 @@ export default function SeleccionDefinitivo() {
 
   useEffect(() => { load(); }, []);
 
+  // Pide el motivo y manda la solicitud al profesor. El resultado sale en un
+  // aviso y no en el mensaje de arriba: el botón está al final de la lista de
+  // archivados, lejos de donde se pinta ese mensaje.
+  async function solicitarDesarchivar(proyectoId: string) {
+    const motivo = await pedirTexto({
+      titulo: 'Solicitar desarchivar',
+      mensaje: 'Explica por qué quieres recuperar este proyecto. La solicitud le llega a tu profesor.',
+      etiqueta: 'Motivo',
+      multilinea: true,
+      minimo: 20,
+      aceptar: 'Enviar solicitud',
+    });
+    if (motivo === null) return;
+    try {
+      await api.post(`/proyectos/${proyectoId}/solicitar-desarchivar`, { motivo });
+      await avisar({ titulo: 'Solicitud enviada', mensaje: 'La solicitud para desarchivar el proyecto quedó enviada a tu profesor.' });
+    } catch (e: any) {
+      await avisar({ titulo: 'No se pudo enviar la solicitud', mensaje: formatBackendError(e) });
+    }
+  }
+
   async function marcarDefinitivo(proyectoId: string, proyectoNombre: string) {
     if (!equipo) return;
-    const ok = window.confirm(
-      `Vas a marcar "${proyectoNombre}" como el proyecto definitivo del equipo. ` +
-      'Los demás proyectos quedarán archivados. Esta decisión queda registrada en el sistema. ¿Confirmas?',
-    );
+    const ok = await confirmar({
+      titulo: 'Proyecto definitivo',
+      mensaje: `Vas a marcar "${proyectoNombre}" como el proyecto definitivo del equipo. `
+        + 'Los demás proyectos quedarán archivados. Esta decisión queda registrada en el sistema. ¿Confirmas?',
+      aceptar: 'Marcar definitivo',
+    });
     if (!ok) return;
     setBusy(proyectoId); setMsg(null);
     try {
@@ -194,13 +218,7 @@ export default function SeleccionDefinitivo() {
                     {archivados.map((p) => (
                       <li key={p.id} className="border border-inalde-gray-light rounded p-3 flex justify-between items-center">
                         <span className="text-inalde-gray line-through">{p.nombre}</span>
-                        <button onClick={() => {
-                          const motivo = prompt('Motivo para solicitar desarchivar este proyecto (mínimo 20 caracteres):');
-                          if (!motivo || motivo.length < 20) return alert('Motivo demasiado corto');
-                          api.post(`/proyectos/${p.id}/solicitar-desarchivar`, { motivo })
-                            .then(() => alert('Solicitud enviada al profesor.'))
-                            .catch((e) => alert(formatBackendError(e)));
-                        }} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover">
+                        <button onClick={() => { void solicitarDesarchivar(p.id); }} className="text-xs font-semibold text-inalde-red hover:text-inalde-red-hover">
                           Solicitar desarchivar
                         </button>
                       </li>

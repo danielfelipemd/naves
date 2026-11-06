@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { confirmar } from '../../components/inalde/Dialogos';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../../components/inalde/Header';
 import { api } from '../../lib/api';
@@ -349,11 +350,14 @@ export default function TrabajoGrado() {
     if (tipo === 'proyecto-final' || tipo === 'avance') {
       const etiqueta = tipo === 'avance' ? 'tu avance (entrega intermedia)' : 'tu proyecto final';
       const inputRef = tipo === 'avance' ? inputAvanceRef : inputFinalRef;
-      const ok = window.confirm(
-        `Vas a cargar "${file.name}" como ${etiqueta}.\n\n` +
-        'Es DEFINITIVO: una vez cargado no podrás modificarlo ni reemplazarlo.\n\n' +
-        '¿Confirmas que es la versión correcta?',
-      );
+      const ok = await confirmar({
+        titulo: tipo === 'avance' ? 'Cargar el avance' : 'Cargar el proyecto final',
+        mensaje: `Vas a cargar "${file.name}" como ${etiqueta}.\n\n`
+          + 'Es DEFINITIVO: una vez cargado no podrás modificarlo ni reemplazarlo.\n\n'
+          + '¿Confirmas que es la versión correcta?',
+        aceptar: 'Sí, cargar',
+        tono: 'peligro',
+      });
       if (!ok) {
         if (inputRef.current) inputRef.current.value = '';
         return;

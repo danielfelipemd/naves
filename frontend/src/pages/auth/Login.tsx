@@ -22,6 +22,7 @@ const AVISOS_SALIDA: Record<string, string> = {
   inactividad: 'Tu sesión se cerró por seguridad tras 1 hora sin actividad. Vuelve a ingresar para continuar.',
   cerrada: 'Tu sesión se cerró. Vuelve a ingresar para continuar.',
   'clave-creada': 'Tu clave quedó creada. Ingresa con tu cédula y tu clave nueva.',
+  'clave-actualizada': 'Tu clave quedó actualizada. Inicia sesión con tu clave nueva.',
 };
 
 export default function Login() {

@@ -1,10 +1,12 @@
 import { cloneElement, isValidElement, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { avisar, confirmar } from '../../components/inalde/Dialogos';
 
 // Bloquea pegar y arrastrar texto en cualquier input. Por integridad académica.
+const AVISO_PEGAR = { titulo: 'No se permite pegar texto', mensaje: 'Por integridad académica, no se permite pegar texto. Escribe tu propia respuesta.' };
 const noPasteProps = {
   onPaste: (e: React.ClipboardEvent) => {
     e.preventDefault();
-    alert('Por integridad académica, no se permite pegar texto. Escribe tu propia respuesta.');
+    void avisar(AVISO_PEGAR);
   },
   onDrop: (e: React.DragEvent) => e.preventDefault(),
 };
@@ -612,7 +614,12 @@ export default function Anteproyecto() {
         }
       }
     }
-    if (!confirm('Una vez enviado el anteproyecto NO podrá modificarse. ¿Continuar?')) return;
+    if (!(await confirmar({
+      titulo: 'Enviar anteproyecto',
+      mensaje: 'Una vez enviado el anteproyecto NO podrá modificarse. ¿Continuar?',
+      aceptar: 'Enviar',
+      tono: 'peligro',
+    }))) return;
     // Envio AUTOSUFICIENTE: mandamos el payload completo del formulario
     // directamente al POST /enviar. El backend lo persiste y marca como
     // enviado en una sola llamada. Antes haciamos PUT + POST y si el PUT
@@ -1063,7 +1070,7 @@ function TextareaWithCounter({ value, onChange, max, rows = 3, placeholder, id, 
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         // Bloqueo de pegar: decisión deliberada de integridad académica de INALDE.
-        onPaste={(e) => { e.preventDefault(); alert('Por integridad académica, no se permite pegar texto. Escribe tu propia respuesta.'); }}
+        onPaste={(e) => { e.preventDefault(); void avisar(AVISO_PEGAR); }}
         onDrop={(e) => e.preventDefault()}
         autoComplete="off"
         className="input-inalde resize-none" />
