@@ -77,7 +77,7 @@ export function EntregaFinalAdmin(props: {
 
   async function revisar(f: File, tipo: TipoEntrega | ''): Promise<string | null> {
     if (!tipo) return null;
-    if (tipo !== 'proyecto-final' && !tieneDefinitivo) return 'El equipo aún no tiene proyecto definitivo: este documento se puede cargar cuando lo tenga.';
+    if (tipo !== 'proyecto-final' && !tieneDefinitivo) return 'El equipo tiene varios proyectos y aún no se eligió el definitivo: este documento se puede cargar cuando se elija.';
     return revisarFormato(f, REGLA[tipo]);
   }
 

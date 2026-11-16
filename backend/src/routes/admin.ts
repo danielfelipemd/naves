@@ -1393,6 +1393,8 @@ router.get('/anteproyectos/:id', async (req, res) => {
       : { data: null };
     entregaFinal = {
       proyecto_definitivo_id: proyectoId,
+      // Sin definitivo pero con un solo proyecto: la carga del admin lo marca.
+      unico_proyecto_id: proyectoId ? null : await unicoProyectoVigente((data as any).id),
       one_pager: !!(pc as any)?.one_pager_path,
       logo: !!(pc as any)?.logo_path,
       modelo_financiero: !!(pc as any)?.modelo_financiero_path,
@@ -2399,6 +2401,13 @@ const COL_ASSET: Record<TipoAssetNaves, string> = {
   logo: 'logo_path', one_pager: 'one_pager_path', modelo_financiero: 'modelo_financiero_path',
 };
 
+/** El id del único proyecto no archivado del anteproyecto; null si hay ninguno o varios. */
+async function unicoProyectoVigente(anteproyectoId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin.from('proyectos').select('id, estado_seleccion').eq('anteproyecto_id', anteproyectoId);
+  const vigentes = ((data ?? []) as any[]).filter((p) => p.estado_seleccion !== 'archivado');
+  return vigentes.length === 1 ? vigentes[0].id : null;
+}
+
 router.post('/equipos/:equipoId/entrega-final', uploadTrabajo.array('files', 4), async (req: AuthenticatedRequest, res) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   if (!files.length) return res.status(400).json({ error: 'NO_FILE', mensaje: 'No llegó ningún archivo.' });
@@ -2436,9 +2445,34 @@ router.post('/equipos/:equipoId/entrega-final', uploadTrabajo.array('files', 4),
   if (eq.tipo_trabajo_grado !== 'business_plan') {
     return res.status(400).json({ error: 'SOLO_BUSINESS_PLAN', mensaje: 'La entrega de cuatro documentos es solo de Business Plan. En caso y proyecto de investigación se carga únicamente el PDF.' });
   }
-  const proyectoId = eq.proyecto_definitivo_id as string | null;
+  let proyectoId = eq.proyecto_definitivo_id as string | null;
   if (!proyectoId && lista.some((t) => t !== 'proyecto-final')) {
-    return res.status(409).json({ error: 'ESPERA_PROYECTO_DEFINITIVO', mensaje: 'El equipo aún no tiene proyecto definitivo: el One Pager, el logo y el modelo financiero se cuelgan de él. Elige primero el proyecto definitivo.' });
+    // Un equipo con UN solo proyecto lo tiene como definitivo al enviar el
+    // anteproyecto (anteproyectos.ts). Si el anteproyecto nunca se envió (caso
+    // Habitta, 16/11/2026: quedó en borrador), no hay definitivo y el material
+    // no tenía dónde colgarse. En la carga del admin se aplica la misma regla:
+    // el único proyecto queda como definitivo, y se deja rastro.
+    const unico = await unicoProyectoVigente(ant.id);
+    if (!unico) {
+      return res.status(409).json({ error: 'ESPERA_PROYECTO_DEFINITIVO', mensaje: 'El equipo tiene varios proyectos y aún no se ha elegido el definitivo: el One Pager, el logo y el modelo financiero se cuelgan de él. Elige primero el proyecto definitivo.' });
+    }
+    const ahoraSel = new Date().toISOString();
+    const rp = await supabaseAdmin.from('proyectos').update({ estado_seleccion: 'definitivo' }).eq('id', unico);
+    const re = rp.error ? null : await supabaseAdmin.from('equipos')
+      .update({ proyecto_definitivo_id: unico, fecha_seleccion_definitivo: ahoraSel }).eq('id', ant.equipo_id);
+    if (rp.error || re?.error) {
+      return res.status(500).json({ error: 'SELECCION_FALLIDA', mensaje: 'No se pudo marcar el proyecto del equipo como definitivo. Inténtalo de nuevo.', detail: (rp.error ?? re?.error)?.message });
+    }
+    await supabaseAdmin.from('auditoria').insert({
+      actor_tipo: 'super_admin',
+      actor_id: req.user?.profesorId ?? null,
+      accion: 'ADMIN_SELECCION_DEFINITIVO',
+      entidad_tipo: 'equipos',
+      entidad_id: ant.equipo_id,
+      detalles: { proyecto_id: unico, cohorte_id: eq.cohorte_id, motivo: 'unico_proyecto_en_carga_entrega_final' },
+      timestamp: ahoraSel,
+    }).then(() => { /* el rastro no debe tumbar la carga */ }, () => { /* idem */ });
+    proyectoId = unico;
   }
   const publicada = eq.cohorte_id ? await programacionPublicadaAt(eq.cohorte_id) : null;
   const completaAntes = await entregaTrabajoGradoCompleta(ant.id);
