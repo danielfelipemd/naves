@@ -5,6 +5,7 @@ import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
 import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
+import { EntregaFinalAdmin, DOCUMENTOS, type TipoEntrega } from './EntregaFinalAdmin';
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
 
@@ -145,7 +146,7 @@ export default function AnteproyectoDetail() {
           subiendo={subiendo} progreso={progreso} onSubir={subirPorElEquipo} />
       ) : (
         <BusinessPlanView data={data} onAbrirArchivo={abrirArchivo}
-          subiendo={subiendo} progreso={progreso} onSubir={subirPorElEquipo} />
+          onCargaMultiple={(m) => { setMsg(m); void load(); }} />
       )}
     </>
   );
@@ -316,15 +317,23 @@ function CasoPIView({
 // Vista para Business Plan (la original, intacta)
 // =============================================================================
 function BusinessPlanView({
-  data, onAbrirArchivo, subiendo, progreso, onSubir,
+  data, onAbrirArchivo, onCargaMultiple,
 }: {
   data: any;
   onAbrirArchivo: (tipo: 'anteproyecto' | 'avance' | 'proyecto-final') => void;
-  subiendo: string | null;
-  progreso: number | null;
-  onSubir: (tipo: 'anteproyecto' | 'avance' | 'proyecto-final', f: File) => void;
+  onCargaMultiple: (m: { kind: 'ok' | 'err'; text: string }) => void;
 }) {
   const proyectoFinalPath = data.archivo_proyecto_final_path as string | null;
+  const entrega = data.entrega_final as null | {
+    proyecto_definitivo_id: string | null; one_pager: boolean; logo: boolean; modelo_financiero: boolean;
+    programacion_publicada_at: string | null;
+  };
+  const estadoEntrega: Record<TipoEntrega, boolean> = {
+    'proyecto-final': !!proyectoFinalPath,
+    one_pager: !!entrega?.one_pager,
+    logo: !!entrega?.logo,
+    modelo_financiero: !!entrega?.modelo_financiero,
+  };
   return (
     <>
       <h2 className="section-subtitle mb-3">Miembros</h2>
@@ -370,26 +379,45 @@ function BusinessPlanView({
         ))}
       </div>
 
-      {/* === Proyecto final ================================================
+      {/* === Entrega final =================================================
           En Business Plan el anteproyecto es el formulario de arriba, no un
-          archivo; el único documento que se carga es el proyecto final. */}
-      <h2 className="section-subtitle mt-8 mb-3">Proyecto final</h2>
+          archivo. La entrega final son CUATRO documentos: el Business Plan
+          (PDF) y el material (One Pager, Logo, Modelo Financiero). El admin los
+          puede cargar todos de una vez y decir qué es cada uno (16/11/2026). */}
+      <h2 className="section-subtitle mt-8 mb-3">Entrega final</h2>
       <div className="border border-inalde-gray-light rounded p-5">
-        {proyectoFinalPath ? (
-          <>
-            <p className="text-sm text-inalde-gray mb-2">
-              Cargado el {new Date(data.archivo_proyecto_final_uploaded_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
-            </p>
-            <button onClick={() => onAbrirArchivo('proyecto-final')}
-              className="text-inalde-red font-semibold hover:underline text-sm">
-              Ver / descargar →
-            </button>
-          </>
-        ) : (
-          <p className="text-sm text-inalde-gray italic">El equipo aún no ha cargado el proyecto final.</p>
+        <p className="text-xs text-inalde-gray mb-3">
+          {DOCUMENTOS.filter((d) => estadoEntrega[d.tipo]).length} de 4 documentos cargados
+        </p>
+        <ul className="space-y-1.5 text-sm">
+          {DOCUMENTOS.map((d) => (
+            <li key={d.tipo} className="flex items-baseline gap-2">
+              <span className={estadoEntrega[d.tipo] ? 'text-inalde-blue' : 'text-inalde-gray'}>{estadoEntrega[d.tipo] ? '✓' : '○'}</span>
+              <span className={estadoEntrega[d.tipo] ? '' : 'text-inalde-gray'}>{d.nombre}</span>
+              {d.tipo === 'proyecto-final' && proyectoFinalPath && (
+                <>
+                  <span className="text-[11px] text-inalde-gray">
+                    · {new Date(data.archivo_proyecto_final_uploaded_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </span>
+                  <button onClick={() => onAbrirArchivo('proyecto-final')}
+                    className="text-inalde-red font-semibold hover:underline text-xs">Ver / descargar →</button>
+                </>
+              )}
+              {!estadoEntrega[d.tipo] && <span className="text-[11px] text-inalde-gray italic">pendiente</span>}
+            </li>
+          ))}
+        </ul>
+        {!entrega?.proyecto_definitivo_id && (
+          <p className="text-[11px] text-inalde-gray italic mt-3">
+            El equipo aún no tiene proyecto definitivo: por ahora solo se puede cargar el Business Plan.
+          </p>
         )}
-        <CargaAdmin yaExiste={!!proyectoFinalPath} subiendo={subiendo === 'proyecto-final'} progreso={progreso}
-          onFile={(f) => onSubir('proyecto-final', f)} />
+        <EntregaFinalAdmin
+          equipoId={data.equipos?.id ?? data.equipo_id ?? null}
+          estado={estadoEntrega}
+          tieneDefinitivo={!!entrega?.proyecto_definitivo_id}
+          programacionPublicada={!!entrega?.programacion_publicada_at}
+          onListo={onCargaMultiple} />
       </div>
     </>
   );

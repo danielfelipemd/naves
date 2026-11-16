@@ -11,12 +11,17 @@ import { sendEmail } from '../services/email.js';
 import { AREAS_AFINIDAD } from '../lib/areas.js';
 import { normalizeHeaderKey, findCol, cellStr, cellBool, buildTemplateXlsx, leerLibroExcel } from '../lib/excel.js';
 import { traerTodasLasFilas } from '../lib/traerTodasLasFilas.js';
-import { REGLAS, validarFormato, errorFormato } from '../lib/formato-archivo.js';
+import { REGLAS, validarFormato, errorFormato, type ReglaFormato } from '../lib/formato-archivo.js';
+import { entregaTrabajoGradoCompleta, notificarEntregaTrabajoGrado } from '../services/notificaciones-entrega.js';
+import { programacionPublicadaAt } from '../services/escaleta.js';
 import { copyPerfilParticipanteAMiembro } from './equipos.js';
 import { config } from '../config.js';
 import {
   uploadTrabajoGradoFile,
+  uploadAssetNaves,
+  deleteAssetNaves,
   type TipoArchivoTrabajo,
+  type TipoAssetNaves,
 } from '../services/storage.js';
 
 const AREAS_LOWER = new Map<string, string>(AREAS_AFINIDAD.map((a) => [a.toLowerCase(), a]));
@@ -1375,7 +1380,26 @@ router.get('/anteproyectos/:id', async (req, res) => {
     .maybeSingle();
   if (error) return res.status(500).json({ error: error.message });
   if (!data) return res.status(404).json({ error: 'NOT_FOUND' });
-  res.json(data);
+  // Estado de la entrega final de Business Plan (los 3 documentos de material
+  // viven en proyecto_contenido, colgados del proyecto definitivo), para que la
+  // pantalla del admin muestre los cuatro y su carga múltiple.
+  const eqd = (data as any).equipos ?? {};
+  let entregaFinal: Record<string, unknown> | null = null;
+  if (eqd.tipo_trabajo_grado === 'business_plan') {
+    const { data: eqx } = await supabaseAdmin.from('equipos').select('proyecto_definitivo_id').eq('id', eqd.id).maybeSingle();
+    const proyectoId = (eqx as any)?.proyecto_definitivo_id ?? null;
+    const { data: pc } = proyectoId
+      ? await supabaseAdmin.from('proyecto_contenido').select('logo_path, one_pager_path, modelo_financiero_path').eq('proyecto_id', proyectoId).maybeSingle()
+      : { data: null };
+    entregaFinal = {
+      proyecto_definitivo_id: proyectoId,
+      one_pager: !!(pc as any)?.one_pager_path,
+      logo: !!(pc as any)?.logo_path,
+      modelo_financiero: !!(pc as any)?.modelo_financiero_path,
+      programacion_publicada_at: eqd.cohorte_id ? await programacionPublicadaAt(eqd.cohorte_id) : null,
+    };
+  }
+  res.json({ ...data, entrega_final: entregaFinal });
 });
 
 // PDF del anteproyecto
@@ -2335,6 +2359,165 @@ router.post('/equipos/:equipoId/archivo/:tipo', uploadTrabajo.single('file'), as
   res.status(201).json({
     ok: true, tipo, equipo: eq.nombre_equipo,
     path: subida.path, size: subida.size, reemplazo: reemplaza,
+  });
+});
+
+/**
+ * POST /api/admin/equipos/:equipoId/entrega-final
+ *
+ * La entrega final de Business Plan (los CUATRO documentos) en UNA sola
+ * petición, en nombre del equipo. El súper admin escoge varios archivos a la
+ * vez y en una ventana dice qué es cada uno; llegan aquí como `files` (en
+ * orden) y `tipos` (JSON, mismo orden): 'proyecto-final' | 'one_pager' |
+ * 'logo' | 'modelo_financiero'.
+ *
+ * Mismas excepciones que la carga de un documento (arriba): sin fechas límite
+ * y reemplazando lo que haya. Además (decisión de Daniel, 16/11/2026):
+ *  - Puede cambiar el material aunque la programación ya esté publicada (al
+ *    equipo eso le está congelado); queda marcado en la auditoría.
+ *  - Si con esta carga la entrega queda COMPLETA y antes no lo estaba, sale el
+ *    mismo correo de «entrega completa» que cuando la sube el equipo.
+ *
+ * Todo o nada en la validación: si un archivo no es del formato de lo que se
+ * dijo que es, no se sube ninguno.
+ */
+const TIPOS_ENTREGA_FINAL = ['proyecto-final', 'one_pager', 'logo', 'modelo_financiero'] as const;
+type TipoEntregaFinal = typeof TIPOS_ENTREGA_FINAL[number];
+const REGLA_ENTREGA_FINAL: Record<TipoEntregaFinal, ReglaFormato> = {
+  'proyecto-final': REGLAS.documentoPdf,
+  one_pager: REGLAS.onePager,
+  logo: REGLAS.logo,
+  modelo_financiero: REGLAS.modeloFinanciero,
+};
+const NOMBRE_ENTREGA_FINAL: Record<TipoEntregaFinal, string> = {
+  'proyecto-final': 'Business Plan',
+  one_pager: 'Resumen · One Pager',
+  logo: 'Logo',
+  modelo_financiero: 'Modelo Financiero',
+};
+const COL_ASSET: Record<TipoAssetNaves, string> = {
+  logo: 'logo_path', one_pager: 'one_pager_path', modelo_financiero: 'modelo_financiero_path',
+};
+
+router.post('/equipos/:equipoId/entrega-final', uploadTrabajo.array('files', 4), async (req: AuthenticatedRequest, res) => {
+  const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+  if (!files.length) return res.status(400).json({ error: 'NO_FILE', mensaje: 'No llegó ningún archivo.' });
+
+  let tipos: unknown;
+  try { tipos = JSON.parse(String(req.body?.tipos ?? '[]')); } catch { tipos = null; }
+  if (!Array.isArray(tipos) || tipos.length !== files.length
+    || !tipos.every((t) => (TIPOS_ENTREGA_FINAL as readonly string[]).includes(t))) {
+    return res.status(400).json({ error: 'TIPOS_INVALIDOS', mensaje: 'Falta decir qué documento es cada archivo.' });
+  }
+  const lista = tipos as TipoEntregaFinal[];
+  if (new Set(lista).size !== lista.length) {
+    return res.status(400).json({ error: 'TIPO_REPETIDO', mensaje: 'Dos archivos quedaron como el mismo documento. Cada documento lleva un solo archivo.' });
+  }
+
+  // 1. Formatos (por contenido) de TODOS antes de subir nada.
+  const formatos = files.map((f, i) => ({ f, tipo: lista[i], v: validarFormato(f, REGLA_ENTREGA_FINAL[lista[i]]) }));
+  const malos = formatos.filter((x) => !x.v.ok);
+  if (malos.length) {
+    return res.status(400).json({
+      error: 'FORMATO_INVALIDO',
+      mensaje: malos.map((x) => `«${x.f.originalname}» no sirve como ${NOMBRE_ENTREGA_FINAL[x.tipo]}: debe ser ${REGLA_ENTREGA_FINAL[x.tipo].descripcion}.`).join(' '),
+      archivos: malos.map((x) => ({ nombre: x.f.originalname, tipo: x.tipo })),
+    });
+  }
+
+  // 2. Equipo, modalidad y proyecto definitivo.
+  const { data: ant } = await supabaseAdmin
+    .from('anteproyectos')
+    .select('id, equipo_id, archivo_proyecto_final_path, equipos:equipos!inner ( id, nombre_equipo, cohorte_id, tipo_trabajo_grado, proyecto_definitivo_id )')
+    .eq('equipo_id', req.params.equipoId)
+    .maybeSingle();
+  if (!ant) return res.status(404).json({ error: 'EQUIPO_SIN_ANTEPROYECTO', mensaje: 'Este equipo todavía no tiene anteproyecto.' });
+  const eq = (ant as any).equipos ?? {};
+  if (eq.tipo_trabajo_grado !== 'business_plan') {
+    return res.status(400).json({ error: 'SOLO_BUSINESS_PLAN', mensaje: 'La entrega de cuatro documentos es solo de Business Plan. En caso y proyecto de investigación se carga únicamente el PDF.' });
+  }
+  const proyectoId = eq.proyecto_definitivo_id as string | null;
+  if (!proyectoId && lista.some((t) => t !== 'proyecto-final')) {
+    return res.status(409).json({ error: 'ESPERA_PROYECTO_DEFINITIVO', mensaje: 'El equipo aún no tiene proyecto definitivo: el One Pager, el logo y el modelo financiero se cuelgan de él. Elige primero el proyecto definitivo.' });
+  }
+  const publicada = eq.cohorte_id ? await programacionPublicadaAt(eq.cohorte_id) : null;
+  const completaAntes = await entregaTrabajoGradoCompleta(ant.id);
+
+  const { data: contenidoPrevio } = proyectoId
+    ? await supabaseAdmin.from('proyecto_contenido').select('logo_path, one_pager_path, modelo_financiero_path').eq('proyecto_id', proyectoId).maybeSingle()
+    : { data: null };
+
+  // 3. Subir uno por uno. Si uno falla, los anteriores quedan (cada uno es
+  //    completo por sí mismo) y se informa cuál falló.
+  const resultados: { tipo: TipoEntregaFinal; nombre: string; ok: boolean; reemplazo?: boolean; error?: string }[] = [];
+  const ahora = new Date().toISOString();
+  for (const { f, tipo, v } of formatos) {
+    const mime = (v as { ok: true; mime: string }).mime;
+    try {
+      let reemplazo: boolean;
+      let size = f.size;
+      if (tipo === 'proyecto-final') {
+        reemplazo = !!(ant as any).archivo_proyecto_final_path;
+        const subida = await uploadTrabajoGradoFile(ant.equipo_id, 'proyecto-final', f.buffer, mime, f.originalname || 'business-plan.pdf');
+        size = subida.size;
+        const { error } = await supabaseAdmin.from('anteproyectos').update({
+          archivo_proyecto_final_path: subida.path,
+          archivo_proyecto_final_mime: mime,
+          archivo_proyecto_final_size_bytes: subida.size,
+          archivo_proyecto_final_uploaded_at: ahora,
+        }).eq('id', ant.id);
+        if (error) throw new Error(error.message);
+      } else {
+        const previo = (contenidoPrevio as any)?.[COL_ASSET[tipo]] as string | null | undefined;
+        reemplazo = !!previo;
+        const { path } = await uploadAssetNaves(proyectoId!, tipo, f.buffer, mime);
+        const { error } = await supabaseAdmin.from('proyecto_contenido')
+          .upsert({ proyecto_id: proyectoId, [COL_ASSET[tipo]]: path, updated_at: ahora }, { onConflict: 'proyecto_id' });
+        if (error) throw new Error(error.message);
+        // Un logo .png reemplazado por un .jpg deja el viejo con otro nombre: se borra.
+        if (previo && previo !== path) await deleteAssetNaves(previo).catch(() => { /* huérfano inofensivo */ });
+      }
+      resultados.push({ tipo, nombre: f.originalname, ok: true, reemplazo });
+      await supabaseAdmin.from('auditoria').insert({
+        actor_tipo: 'super_admin',
+        actor_id: req.user?.profesorId ?? null,
+        accion: 'ADMIN_CARGA_DOCUMENTO',
+        entidad_tipo: 'anteproyectos',
+        entidad_id: ant.id,
+        detalles: {
+          tipo, equipo: eq.nombre_equipo, cohorte_id: eq.cohorte_id, reemplazo, size_bytes: size,
+          fuera_de_plazo: true, carga_multiple: true, programacion_publicada: !!publicada,
+        },
+        timestamp: ahora,
+      }).then(() => { /* el rastro no debe tumbar la carga */ }, () => { /* idem */ });
+    } catch (e: any) {
+      resultados.push({ tipo, nombre: f.originalname, ok: false, error: e?.message ?? 'UPLOAD_FAILED' });
+    }
+  }
+
+  // 4. ¿Quedó completa con esta carga? Entonces el correo al equipo (una vez).
+  let correo = false;
+  if (!completaAntes && resultados.some((r) => r.ok)) {
+    try {
+      if (await entregaTrabajoGradoCompleta(ant.id)) {
+        correo = true;
+        void notificarEntregaTrabajoGrado({ equipoId: ant.equipo_id, fechaIso: ahora })
+          .catch((e) => console.error('[admin] aviso de entrega completa falló:', e?.message ?? e));
+      }
+    } catch (e: any) {
+      console.error('[admin] no se pudo revisar si la entrega quedó completa:', e?.message ?? e);
+    }
+  }
+
+  const fallos = resultados.filter((r) => !r.ok);
+  res.status(fallos.length ? 500 : 201).json({
+    ok: !fallos.length,
+    equipo: eq.nombre_equipo,
+    resultados,
+    completa: completaAntes || correo,
+    correo_entrega: correo,
+    programacion_publicada: !!publicada,
+    ...(fallos.length ? { error: 'CARGA_PARCIAL', mensaje: `No se pudo subir: ${fallos.map((r) => `${NOMBRE_ENTREGA_FINAL[r.tipo]} («${r.nombre}»)`).join(', ')}. Lo demás sí quedó. Inténtalo de nuevo con lo que falló.` } : {}),
   });
 });
 
