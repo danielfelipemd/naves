@@ -51,6 +51,28 @@ function filasDe(j: Jornada): Fila[] {
 // Duración y ubicación de una pausa larga (pausa adicional o almuerzo) de una
 // jornada. En vez de «tras el slot [número]», un menú con las presentaciones del
 // día: «Automático» o «después de la 7 · Nombre del proyecto».
+// Número que se guarda al salir de la casilla o con Enter, no a cada tecla ni a
+// cada clic de las flechas: antes cada cambio guardaba y recargaba la página, y
+// no se podía escribir un número de dos cifras (JMV, 17-nov-2026).
+function NumeroDiferido({ valor, min, max, step = 1, onGuardar, className }: {
+  valor: number; min: number; max: number; step?: number; onGuardar: (v: number) => void; className?: string;
+}) {
+  const [texto, setTexto] = useState(String(valor));
+  useEffect(() => { setTexto(String(valor)); }, [valor]);
+  const confirmar = () => {
+    const v = Number(texto);
+    if (texto.trim() === '' || !Number.isFinite(v) || v < min || v > max) { setTexto(String(valor)); return; }
+    if (v !== valor) onGuardar(Math.round(v));
+  };
+  return (
+    <input type="number" min={min} max={max} step={step} value={texto}
+      onChange={(e) => setTexto(e.target.value)}
+      onBlur={confirmar}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+      className={className} />
+  );
+}
+
 function PausaJornada({ minutos, trasSlot, slots, onMinutos, onTrasSlot }: {
   minutos: number; trasSlot: number | null; slots: Slot[];
   onMinutos: (v: number) => void; onTrasSlot: (v: number | null) => void;
@@ -59,8 +81,7 @@ function PausaJornada({ minutos, trasSlot, slots, onMinutos, onTrasSlot }: {
     <>
       <label className="text-xs flex items-center gap-1">
         de
-        <input type="number" min={5} max={240} step={5} defaultValue={minutos}
-          onBlur={(e) => { const v = Number(e.target.value); if (v >= 5 && v <= 240 && v !== minutos) onMinutos(v); }}
+        <NumeroDiferido valor={minutos} min={5} max={240} step={5} onGuardar={onMinutos}
           className="w-14 text-inalde-text rounded px-1 py-0.5" /> min, después de
       </label>
       <select value={trasSlot ?? ''} onChange={(e) => onTrasSlot(e.target.value === '' ? null : Number(e.target.value))}
@@ -130,7 +151,7 @@ export default function Programacion() {
       const detalle = (data.por_jornada ?? []).map((p: any) => `jornada ${p.numero}: ${p.proyectos}`).join(' · ');
       setMsg({ kind: 'ok', text: `Repartidos ${data.repartidos} proyecto(s) — ${detalle}.` });
       setReparto(null);
-      load();
+      load(true);
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setRepartiendo(false); }
   }
@@ -166,7 +187,7 @@ export default function Programacion() {
       setMsg(data.aviso
         ? { kind: 'err', text: data.aviso }
         : { kind: 'ok', text: `Programación publicada. Notificados ${data.notificados} participante(s) de ${data.proyectos} proyecto(s). Ya es visible para marketing, operaciones y el asistente de programa.` });
-      load();
+      load(true);
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setPublicando(false); }
   }
@@ -175,9 +196,11 @@ export default function Programacion() {
     setCohortes(((await api.get('/admin/cohortes')).data as Cohorte[]).filter((c) => c.activa));
   })(); }, []);
 
-  async function load() {
+  // silencioso: recarga los datos sin el «Cargando…» que desmonta la tabla (y
+  // hace saltar la página) ni borra el mensaje que se acaba de mostrar.
+  async function load(silencioso = false) {
     if (!cohorte) { setConfig(null); setJornadas([]); setProyectos([]); return; }
-    setLoading(true); setMsg(null);
+    if (!silencioso) { setLoading(true); setMsg(null); }
     try {
       const { data } = await api.get(`/programacion/admin/${cohorte}`);
       setConfig(data.config); setJornadas(data.jornadas ?? []); setProyectos(data.proyectos ?? []);
@@ -195,7 +218,7 @@ export default function Programacion() {
         evento_nombre: config.evento_nombre, expo_min: config.expo, trans_min: config.trans,
         foto_min: config.foto, cierre_min: config.cierre, break_min: config.break_min, bloque: config.bloque,
       });
-      setMsg({ kind: 'ok', text: 'Configuración guardada.' }); load();
+      setMsg({ kind: 'ok', text: 'Configuración guardada.' }); load(true);
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }
 
@@ -207,7 +230,7 @@ export default function Programacion() {
   }) {
     try {
       await api.put(`/programacion/admin/jornada/${j.id}`, cambios);
-      load();
+      load(true);
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }
 
@@ -365,7 +388,7 @@ export default function Programacion() {
                       Termina (calculado) <span className="font-mono text-white">{(j.hora_fin ?? '').slice(0, 5) || '—'}</span>
                     </span>
                     <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
-                    <label className="text-xs flex items-center gap-1">Intro <input type="number" value={j.intro_min} min={0} onChange={(e) => guardarJornada(j, { intro_min: Number(e.target.value) })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
+                    <label className="text-xs flex items-center gap-1">Intro <NumeroDiferido valor={j.intro_min} min={0} max={240} onGuardar={(v) => guardarJornada(j, { intro_min: v })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
                     {/* Break y almuerzo son DOS pausas distintas y de cada
                         jornada: un día se para a almorzar y el otro no, y la
                         parada no siempre dura lo mismo. Se pueden tener las dos.
