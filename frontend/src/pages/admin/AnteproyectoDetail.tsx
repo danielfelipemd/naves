@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { confirmar } from '../../components/inalde/Dialogos';
+import { confirmar, pedirTexto } from '../../components/inalde/Dialogos';
+import { useAuth } from '../../auth/store';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
@@ -24,6 +25,29 @@ export default function AnteproyectoDetail() {
   // Carga de documentos por el administrador, en nombre del equipo.
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [progreso, setProgreso] = useState<number | null>(null);
+
+  const role = useAuth((s) => s.role);
+  const isSuperAdmin = useAuth((s) => (s.user?.app_metadata as any)?.es_super_admin === true) || role === 'super_admin';
+
+  // El súper admin corrige el nombre de un proyecto (queda en la auditoría).
+  async function renombrarProyecto(p: { id: string; nombre: string }) {
+    const nuevo = await pedirTexto({
+      titulo: 'Cambiar nombre del proyecto',
+      mensaje: `Nombre actual: «${p.nombre}». Escribe el nombre nuevo. Se verá en todas las pantallas, en el Excel y en las actas que se generen desde ahora; queda en la auditoría.`,
+      etiqueta: 'Nombre nuevo',
+      placeholder: p.nombre,
+      aceptar: 'Cambiar nombre',
+      minimo: 1,
+    });
+    if (!nuevo || nuevo.trim() === p.nombre) return;
+    try {
+      await api.patch(`/admin/proyectos/${p.id}/nombre`, { nombre: nuevo.trim() });
+      setMsg({ kind: 'ok', text: `El proyecto ahora se llama «${nuevo.trim()}».` });
+      await load();
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+    }
+  }
 
   async function load() {
     try { setData((await api.get(`/admin/anteproyectos/${id}`)).data); }
@@ -146,7 +170,8 @@ export default function AnteproyectoDetail() {
           subiendo={subiendo} progreso={progreso} onSubir={subirPorElEquipo} />
       ) : (
         <BusinessPlanView data={data} onAbrirArchivo={abrirArchivo}
-          onCargaMultiple={(m) => { setMsg(m); void load(); }} />
+          onCargaMultiple={(m) => { setMsg(m); void load(); }}
+          puedeRenombrar={isSuperAdmin} onRenombrar={renombrarProyecto} />
       )}
     </>
   );
@@ -317,11 +342,13 @@ function CasoPIView({
 // Vista para Business Plan (la original, intacta)
 // =============================================================================
 function BusinessPlanView({
-  data, onAbrirArchivo, onCargaMultiple,
+  data, onAbrirArchivo, onCargaMultiple, puedeRenombrar, onRenombrar,
 }: {
   data: any;
   onAbrirArchivo: (tipo: 'anteproyecto' | 'avance' | 'proyecto-final') => void;
   onCargaMultiple: (m: { kind: 'ok' | 'err'; text: string }) => void;
+  puedeRenombrar?: boolean;
+  onRenombrar?: (p: { id: string; nombre: string }) => void;
 }) {
   const proyectoFinalPath = data.archivo_proyecto_final_path as string | null;
   const entrega = data.entrega_final as null | {
@@ -355,7 +382,13 @@ function BusinessPlanView({
           <div key={p.id} className="border border-inalde-gray-light rounded p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-primary font-bold text-lg">{p.nombre}</h3>
+                <h3 className="font-primary font-bold text-lg">
+                  {p.nombre}
+                  {puedeRenombrar && onRenombrar && (
+                    <button onClick={() => onRenombrar({ id: p.id, nombre: p.nombre })}
+                      className="ml-2 align-middle text-[11px] font-semibold text-inalde-blue hover:underline">✏️ Cambiar nombre</button>
+                  )}
+                </h3>
                 <p className="text-xs text-inalde-gray">
                   {p.tipo}{p.sector && ` · ${p.sector}`}{p.ciiu && ` · CIIU ${p.ciiu}`}
                 </p>

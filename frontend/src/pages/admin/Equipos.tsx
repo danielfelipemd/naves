@@ -82,17 +82,53 @@ export default function AdminEquipos() {
   // de confirmación se pintaba AQUÍ, en la página de detrás, y el propio modal lo
   // tapaba — el admin quitaba a alguien y no veía nada que se lo confirmara.
   async function quitar(eq: Equipo, participanteId: string, nombre: string): Promise<boolean> {
+    // Sacar al último integrante deja el equipo vacío pero vivo, con su
+    // anteproyecto y proyectos: aparece "huérfano" en listas y conteos
+    // (17/11/2026, Conexia). Se avisa y se ofrece borrarlo en el mismo paso.
+    const ultimo = eq.miembros_equipo.length === 1;
     if (!(await confirmar({
       titulo: 'Quitar del equipo',
-      mensaje: `¿Quitar a ${nombre} del equipo? El participante quedará libre para unirse a otro equipo.`,
+      mensaje: `¿Quitar a ${nombre} del equipo? El participante quedará libre para unirse a otro equipo.`
+        + (ultimo ? '\n\nOjo: es el único integrante. El equipo quedará vacío, pero su anteproyecto y sus proyectos siguen existiendo hasta que lo borres.' : ''),
       aceptar: 'Quitar',
       tono: 'peligro',
     }))) return false;
     setMsg(null);
     try {
       await api.post(`/admin/equipos/${eq.id}/remover-miembro`, { participante_id: participanteId });
+      if (ultimo && await confirmar({
+        titulo: 'El equipo quedó vacío',
+        mensaje: `${nombre} ya salió del equipo. ¿Borrar también el equipo vacío con su anteproyecto, proyectos y asignación de profesor?\n\nSi lo dejas, seguirá apareciendo en Anteproyectos y en los conteos. Borrarlo es irreversible.`,
+        aceptar: 'Borrar equipo',
+        cancelar: 'Dejarlo vacío',
+        tono: 'peligro',
+      })) {
+        return await borrarEquipo(eq, true);
+      }
       await refetchEquipo(eq.id);
       setMsg({ kind: 'ok', text: `${nombre} fue retirado del equipo.` });
+      return true;
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: formatBackendError(e) });
+      return false;
+    }
+  }
+
+  // Borra el equipo completo (mismo endpoint que el 🗑 de Anteproyectos).
+  async function borrarEquipo(eq: Equipo, yaConfirmado = false): Promise<boolean> {
+    if (!yaConfirmado && !(await confirmar({
+      titulo: 'Borrar equipo',
+      mensaje: `Se eliminará el equipo con su anteproyecto, proyectos, archivos de entrega y asignación de profesor.`
+        + (eq.miembros_equipo.length ? ` Sus ${eq.miembros_equipo.length} integrante(s) no se borran: quedan libres para unirse a otro equipo.` : '')
+        + '\n\nEsta acción es irreversible.',
+      aceptar: 'Borrar equipo',
+      tono: 'peligro',
+    }))) return false;
+    try {
+      await api.delete(`/admin/equipos/${eq.id}`);
+      setSeleccionado(null);
+      setMsg({ kind: 'ok', text: 'Equipo borrado. Sus integrantes, si tenía, quedaron libres.' });
+      await cargarEquipos();
       return true;
     } catch (e: any) {
       setMsg({ kind: 'err', text: formatBackendError(e) });
@@ -164,7 +200,7 @@ export default function AdminEquipos() {
                       </li>
                     ))}
                   {eq.miembros_equipo.length === 0 && (
-                    <li className="text-inalde-gray italic">Equipo sin miembros</li>
+                    <li className="text-inalde-red italic">Equipo sin miembros: ábrelo para borrarlo si ya no se usa</li>
                   )}
                 </ul>
               </button>
@@ -178,6 +214,7 @@ export default function AdminEquipos() {
           equipo={seleccionado}
           onClose={() => setSeleccionado(null)}
           onQuitar={(pid, nombre) => quitar(seleccionado, pid, nombre)}
+          onBorrar={() => void borrarEquipo(seleccionado)}
           onAgregado={() => refetchEquipo(seleccionado.id)}
         />
       )}
@@ -344,10 +381,11 @@ function CrearEquipoModal({
 }
 
 function DetalleEquipo({
-  equipo, onClose, onQuitar, onAgregado,
+  equipo, onClose, onQuitar, onAgregado, onBorrar,
 }: {
   equipo: Equipo;
   onClose: () => void;
+  onBorrar: () => void;
   onQuitar: (participanteId: string, nombre: string) => Promise<boolean>;
   onAgregado: () => void;
 }) {
@@ -485,7 +523,10 @@ function DetalleEquipo({
             agregar y quitar escriben en el momento. Se dice en voz alta para que
             nadie se quede esperando un botón que confirme. */}
         <div className="border-t border-inalde-gray-light px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-inalde-gray">Los cambios se guardan al instante.</p>
+          <div className="flex items-center gap-4">
+            <p className="text-xs text-inalde-gray">Los cambios se guardan al instante.</p>
+            <button onClick={onBorrar} className="text-xs text-inalde-red hover:underline">🗑 Borrar equipo</button>
+          </div>
           <button onClick={onClose} className="btn-inalde-primary !py-2 !px-6 !text-sm">Listo</button>
         </div>
       </div>

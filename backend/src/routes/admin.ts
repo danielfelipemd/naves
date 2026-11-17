@@ -2192,6 +2192,31 @@ router.post('/equipos/:id/remover-miembro', async (req, res) => {
 // (esperando_equipo_at) para volver al pool de la cohorte. Solo super_admin
 // (el middleware del router ya restringe a profesor a GETs puntuales).
 // Pensado para limpiar equipos/anteproyectos creados por error.
+// PATCH /api/admin/proyectos/:id/nombre — el súper admin corrige el nombre de
+// un proyecto (17/11/2026: «Electrocarga» debía llamarse «CharGo» y no había
+// cómo hacerlo desde el sistema). Queda en la auditoría con el nombre anterior.
+const renombrarProyectoSchema = z.object({ nombre: z.string().trim().min(1).max(200) });
+router.patch('/proyectos/:id/nombre', async (req: AuthenticatedRequest, res) => {
+  const parsed = renombrarProyectoSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'NOMBRE_INVALIDO', mensaje: 'Escribe un nombre (máximo 200 caracteres).' });
+  const { data: p } = await supabaseAdmin.from('proyectos').select('id, nombre, anteproyecto_id').eq('id', req.params.id).maybeSingle();
+  if (!p) return res.status(404).json({ error: 'PROYECTO_NO_ENCONTRADO' });
+  const nuevo = parsed.data.nombre;
+  if (nuevo === (p as any).nombre) return res.json({ ok: true, nombre: nuevo, sin_cambios: true });
+  const { error } = await supabaseAdmin.from('proyectos').update({ nombre: nuevo }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: 'RENOMBRAR_FALLIDO', detail: error.message });
+  await supabaseAdmin.from('auditoria').insert({
+    actor_tipo: 'super_admin',
+    actor_id: req.user?.profesorId ?? null,
+    accion: 'ADMIN_RENOMBRAR_PROYECTO',
+    entidad_tipo: 'proyectos',
+    entidad_id: req.params.id,
+    detalles: { antes: (p as any).nombre, despues: nuevo, anteproyecto_id: (p as any).anteproyecto_id },
+    timestamp: new Date().toISOString(),
+  }).then(() => { /* el rastro no debe tumbar el cambio */ }, () => { /* idem */ });
+  res.json({ ok: true, nombre: nuevo });
+});
+
 router.delete('/equipos/:id', async (req, res) => {
   const equipoId = req.params.id;
 
