@@ -779,7 +779,9 @@ export default function Anteproyectos() {
                                 {idx + 1}
                               </span>
                               <div className="flex items-center gap-2 mt-2">
-                                {isSuperAdmin && enviado && (
+                                {/* También en borrador: es la forma de "resetear" a un
+                                    participante (queda libre y empieza desde el anteproyecto). */}
+                                {isSuperAdmin && (
                                   <button
                                     onClick={() => borrarEquipo(f.equipo_id, f.nombre_equipo || f.autores || `equipo #${idx + 1}`)}
                                     title="Borrar equipo completo"
