@@ -10,7 +10,7 @@ import { REGLAS, validarFormato, errorFormato } from '../lib/formato-archivo.js'
 import { uploadAssetNaves, deleteAssetNaves, crearUrlProxyArchivo, mimeFromPath, downloadTrabajoGradoFile, type TipoAssetNaves } from '../services/storage.js';
 import { generarContenidoOnePager, type OnePagerDoc } from '../services/ai-onepager.js';
 import { proyectosFase2, type ProyectoFase2 } from '../services/proyectos-fase2.js';
-import { desfaseDeJornadas } from '../services/escaleta.js';
+import { desfaseDeJornadas, programacionPublicadaAt, quitarDeProgramacion } from '../services/escaleta.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el enlace externo.
@@ -85,10 +85,11 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
     contenido = new Map((data ?? []).map((c: any) => [c.proyecto_id, c]));
   }
   const rows = proyectos.map((e) => {
-    const h = horarios.get(e.proyecto_id) ?? null;
+    const h = e.privado ? null : (horarios.get(e.proyecto_id) ?? null);
     const c = contenido.get(e.proyecto_id) ?? null;
     return {
       equipo_id: e.equipo_id, proyecto_id: e.proyecto_id, proyecto: e.proyecto, autores: e.autores, sector: e.sector,
+      privado: e.privado,
       fecha: h?.fecha ?? null, fecha_legible: h ? fechaLegible(h.fecha) : null,
       jornada: h?.jornada ?? null, slot: h?.slot ?? null,
       hora_inicio: h?.hora_inicio ?? null, hora_fin: h?.hora_fin ?? null,
@@ -195,7 +196,9 @@ async function miPresentacion(proyectoId: string, cohorteId: string) {
   const [pf, horarios, evento] = await Promise.all([
     proyectosFase2(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId),
   ]);
-  return { evento, info: pf.get(proyectoId) ?? null, h: horarios.get(proyectoId) ?? null };
+  // Un proyecto privado (sql/54) no se presenta: no tiene horario que mostrar.
+  const info = pf.get(proyectoId) ?? null;
+  return { evento, info, h: info?.privado ? null : (horarios.get(proyectoId) ?? null) };
 }
 
 router.get('/mi-presentacion', requireAuth(), async (req: AuthenticatedRequest, res) => {
@@ -575,6 +578,46 @@ router.put('/admin/proyecto/:proyectoId/contenido', ...soloAdmin, async (req, re
   const errG = await guardarContenido(req.params.proyectoId, campos);
   if (errG) return res.status(500).json({ error: 'GUARDAR_FALLIDO', detail: errG });
   res.json({ ok: true });
+});
+
+// PATCH privado: un proyecto privado sigue en esta base pero sale de la
+// programación (sql/54). Si ya tenía turno se le quita y se recalcula su
+// jornada. Con la programación publicada no se puede sacar a nadie.
+router.patch('/admin/proyecto/:proyectoId/privado', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const parsed = z.object({ privado: z.boolean() }).safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID' });
+  const proyectoId = req.params.proyectoId;
+  const { data: p } = await supabaseAdmin
+    .from('proyectos').select('id, privado, anteproyectos(equipos(cohorte_id))').eq('id', proyectoId).maybeSingle();
+  if (!p) return res.status(404).json({ error: 'PROYECTO_NO_ENCONTRADO' });
+  const privado = parsed.data.privado;
+  if (!!(p as any).privado === privado) return res.json({ ok: true, privado });
+  const ante: any = Array.isArray((p as any).anteproyectos) ? (p as any).anteproyectos[0] : (p as any).anteproyectos;
+  const eq: any = Array.isArray(ante?.equipos) ? ante.equipos[0] : ante?.equipos;
+  if (eq?.cohorte_id && (await programacionPublicadaAt(eq.cohorte_id))) {
+    return res.status(423).json({ error: 'PROGRAMACION_PUBLICADA', message: 'La programación de esta cohorte ya está publicada: no se puede sacar ni meter proyectos.' });
+  }
+  const { error } = await supabaseAdmin.from('proyectos').update({ privado }).eq('id', proyectoId);
+  if (error) return res.status(500).json({ error: 'GUARDAR_FALLIDO', detail: error.message });
+  let quitado = false;
+  if (privado) {
+    const { count } = await supabaseAdmin.from('slot_presentacion').select('id', { count: 'exact', head: true }).eq('proyecto_id', proyectoId);
+    if (count) {
+      const errQ = await quitarDeProgramacion(proyectoId);
+      if (errQ) {
+        await supabaseAdmin.from('proyectos').update({ privado: false }).eq('id', proyectoId);
+        return res.status(500).json({ error: 'PROGRAMACION_NO_ACTUALIZADA', detail: errQ });
+      }
+      quitado = true;
+    }
+  }
+  await supabaseAdmin.from('auditoria').insert({
+    actor_tipo: 'super_admin', actor_id: req.user?.profesorId ?? null,
+    accion: 'ADMIN_PROYECTO_PRIVADO', entidad_tipo: 'proyectos', entidad_id: proyectoId,
+    detalles: { privado, quitado_de_programacion: quitado },
+    timestamp: new Date().toISOString(),
+  }).then(() => { /* el rastro no debe tumbar el cambio */ }, () => { /* idem */ });
+  res.json({ ok: true, privado, quitado_de_programacion: quitado });
 });
 
 // PATCH sector del proyecto (el súper admin lo corrige desde la base de datos

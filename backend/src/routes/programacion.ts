@@ -4,7 +4,7 @@ import ExcelJS from 'exceljs';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { notificar, limpiarNotificaciones } from '../services/notify.js';
-import { proyectosFase2, autoresAuthPorProyecto, contarEquiposSinProyectoFinal, type ProyectoFase2 } from '../services/proyectos-fase2.js';
+import { proyectosProgramables, autoresAuthPorProyecto, contarEquiposSinProyectoFinal, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
 // El motor de escaleta vive en services/escaleta.ts: lo comparte la Programación
 // Interna (marketing, operaciones, asistente de programa), que debe ver
@@ -61,7 +61,7 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   // nunca teclea una fecha que el sistema ya conoce.
   await sincronizarJornadasDesdeHitos(cohorteId);
   const C = await getConfig(cohorteId);
-  const pf = await proyectosFase2(cohorteId);
+  const pf = await proyectosProgramables(cohorteId);
   const contenido = await contenidoPorProyecto([...pf.keys()]);
   const fijas = await jornadasFijas([...pf.keys()]);
   const { data: jornadas } = await supabaseAdmin
@@ -190,7 +190,7 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
 
   if (parsed.data.proyecto_ids !== undefined) {
     const C = await getConfig((jornada as any).cohorte_id);
-    const pf = await proyectosFase2((jornada as any).cohorte_id);
+    const pf = await proyectosProgramables((jornada as any).cohorte_id);
 
     // Solo se programan proyectos definitivos de esta cohorte. Un id ajeno o de
     // un equipo que aún no eligió definitivo entraría como slot fantasma (sin
@@ -263,7 +263,7 @@ router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
   await sincronizarJornadasDesdeHitos(cohorteId);
 
   const C = await getConfig(cohorteId);
-  const pf = await proyectosFase2(cohorteId);
+  const pf = await proyectosProgramables(cohorteId);
   const { data: jornadasRaw } = await supabaseAdmin
     .from('jornadas').select(COLS_JORNADA).eq('cohorte_id', cohorteId).order('numero');
   const js = (jornadasRaw ?? []) as any[];
@@ -421,7 +421,7 @@ router.patch('/admin/proyecto/:proyectoId/jornada-fija', ...soloAdmin, async (re
 router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const C = await getConfig(cohorteId);
-  const pf = await proyectosFase2(cohorteId);
+  const pf = await proyectosProgramables(cohorteId);
   const { data: jornadas } = await supabaseAdmin
     .from('jornadas').select(COLS_JORNADA)
     .eq('cohorte_id', cohorteId).order('numero');
@@ -541,7 +541,7 @@ async function notificarProgramacion(cohorteId: string): Promise<{ notificados: 
   const desfase = desfaseDeJornadas((jornadas ?? []) as any[], (slots ?? []) as any[]);
 
   // Integrantes (auth_user_id) del equipo dueño de cada proyecto programado.
-  const pf = await proyectosFase2(cohorteId);
+  const pf = await proyectosProgramables(cohorteId);
   const proyectoIds = [...new Set(asignados.map((s: any) => s.proyecto_id))] as string[];
   const authsPorProyecto = await autoresAuthPorProyecto(
     proyectoIds.map((id) => pf.get(id)).filter(Boolean) as ProyectoFase2[],

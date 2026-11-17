@@ -27,6 +27,7 @@ export interface ProyectoFase2 {
   proyecto: string;
   autores: string;
   sector: string;
+  privado: boolean; // sql/54: fuera de la programación (sigue en la base de proyectos)
 }
 
 function pickAnte(raw: any) { return Array.isArray(raw) ? raw[0] : raw; }
@@ -68,11 +69,21 @@ function equipoConEntregaCompleta(e: any, contMap: Map<string, any>): boolean {
   });
 }
 
+// Los que SÍ entran a la programación: los de Fase 2 que no están marcados como
+// privados. Todo lo que arma jornadas, horarios, avisos o la vista de la
+// programación debe usar esta y no proyectosFase2 (que también lista privados,
+// porque la base de proyectos los muestra para poder desmarcarlos).
+export async function proyectosProgramables(cohorteId: string): Promise<Map<string, ProyectoFase2>> {
+  const pf = await proyectosFase2(cohorteId);
+  for (const [id, p] of pf) if (p.privado) pf.delete(id);
+  return pf;
+}
+
 // Proyectos con la entrega final COMPLETA (los 4 documentos), indexados por proyecto_id.
 export async function proyectosFase2(cohorteId: string): Promise<Map<string, ProyectoFase2>> {
   const { data } = await supabaseAdmin
     .from('equipos')
-    .select('id, proyecto_definitivo_id, miembros_equipo(posicion, participantes_lista(nombre_completo)), anteproyectos(archivo_proyecto_final_path, proyectos(id, nombre, sector, estado_seleccion))')
+    .select('id, proyecto_definitivo_id, miembros_equipo(posicion, participantes_lista(nombre_completo)), anteproyectos(archivo_proyecto_final_path, proyectos(id, nombre, sector, estado_seleccion, privado))')
     .eq('cohorte_id', cohorteId)
     // Solo Business Plan presenta (ver cabecera): Caso/PI quedan fuera del evento.
     .eq('tipo_trabajo_grado', 'business_plan');
@@ -95,6 +106,7 @@ export async function proyectosFase2(cohorteId: string): Promise<Map<string, Pro
       proyecto: def.nombre ?? '(sin nombre)',
       autores: autoresDe(e),
       sector: def.sector ?? '',
+      privado: !!def.privado,
     });
   }
   return map;

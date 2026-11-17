@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../db/supabase.js';
-import { proyectosFase2, type ProyectoFase2 } from './proyectos-fase2.js';
+import { proyectosProgramables, type ProyectoFase2 } from './proyectos-fase2.js';
 
 // Motor de escaleta del evento (Módulo B). Vive aquí, y no dentro de la ruta de
 // admin, porque hay DOS consumidores con permisos distintos: la programación de
@@ -316,7 +316,7 @@ export interface JornadaEscaleta {
 // consume la Programación Interna: solo horarios y qué ocurre en cada franja.
 export async function escaletaDeCohorte(cohorteId: string): Promise<{ evento_nombre: string; jornadas: JornadaEscaleta[] }> {
   const C = await getConfig(cohorteId);
-  const pf = await proyectosFase2(cohorteId);
+  const pf = await proyectosProgramables(cohorteId);
   const { data: jornadas } = await supabaseAdmin
     .from('jornadas').select(COLS_JORNADA)
     .eq('cohorte_id', cohorteId).order('numero');
@@ -346,7 +346,7 @@ export async function escaletaDeCohorte(cohorteId: string): Promise<{ evento_nom
 // puede ser de antes del último cambio en la programación.
 export async function recalcularFinesDeJornadas(cohorteId: string): Promise<void> {
   const C = await getConfig(cohorteId);
-  const pf = await proyectosFase2(cohorteId);
+  const pf = await proyectosProgramables(cohorteId);
   const { data: jornadas } = await supabaseAdmin
     .from('jornadas').select(COLS_JORNADA)
     .eq('cohorte_id', cohorteId).order('numero');
@@ -354,4 +354,45 @@ export async function recalcularFinesDeJornadas(cohorteId: string): Promise<void
   for (let i = 0; i < total; i++) {
     await jornadaConSlots((jornadas as any[])[i], C, i === total - 1, pf);
   }
+}
+
+// Saca un proyecto de la programación (p. ej. al marcarlo privado, sql/54) y
+// recalcula la jornada en la que estaba: los que quedan se renumeran y corren
+// sus horarios para no dejar un hueco. Devuelve null si todo bien o el error.
+// Ojo: llamar DESPUÉS de marcar el proyecto como privado, para que
+// proyectosProgramables ya no lo incluya.
+export async function quitarDeProgramacion(proyectoId: string): Promise<string | null> {
+  const { data: slots } = await supabaseAdmin.from('slot_presentacion').select('jornada_id').eq('proyecto_id', proyectoId);
+  for (const jid of [...new Set(((slots ?? []) as any[]).map((s) => s.jornada_id as string))]) {
+    const { data: jornada } = await supabaseAdmin.from('jornadas').select(`cohorte_id, ${COLS_JORNADA}`).eq('id', jid).maybeSingle();
+    if (!jornada) continue;
+    const { data: prev } = await supabaseAdmin
+      .from('slot_presentacion').select('jornada_id, orden, proyecto_id, hora_inicio, hora_fin').eq('jornada_id', jid).order('orden');
+    const pf = await proyectosProgramables((jornada as any).cohorte_id);
+    const C = await getConfig((jornada as any).cohorte_id);
+    const restantes = ((prev ?? []) as any[]).filter((s) => s.proyecto_id && s.proyecto_id !== proyectoId);
+    const conDatos = restantes.filter((s) => pf.has(s.proyecto_id));
+    // Los que no están en pf (p. ej. entrega incompleta) se conservan al final,
+    // sin hora: jornadaConSlots ya los omite al mostrar.
+    const sinDatos = restantes.filter((s) => !pf.has(s.proyecto_id));
+    const filas = computarJornada(opcionesDeJornada(jornada), conDatos.map((s) => pf.get(s.proyecto_id)!), 1, false, C)
+      .filter((f) => f.tipo === 'proyecto');
+    const nuevas = [
+      ...filas.map((f) => ({
+        jornada_id: jid, orden: f.slot, proyecto_id: f.proyecto_id ?? null,
+        hora_inicio: f.ini >= 0 ? toHHMM(f.ini) : null, hora_fin: f.fin >= 0 ? toHHMM(f.fin) : null,
+      })),
+      ...sinDatos.map((s, i) => ({ jornada_id: jid, orden: filas.length + i + 1, proyecto_id: s.proyecto_id, hora_inicio: null, hora_fin: null })),
+    ];
+    const { error: errDel } = await supabaseAdmin.from('slot_presentacion').delete().eq('jornada_id', jid);
+    if (errDel) return errDel.message;
+    if (nuevas.length) {
+      const { error: errIns } = await supabaseAdmin.from('slot_presentacion').insert(nuevas);
+      if (errIns) {
+        if ((prev ?? []).length) await supabaseAdmin.from('slot_presentacion').insert(prev as any[]);
+        return errIns.message;
+      }
+    }
+  }
+  return null;
 }

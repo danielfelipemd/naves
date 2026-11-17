@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, type AuthenticatedRequest } from '../auth/middleware.js';
-import { proyectosFase2 } from '../services/proyectos-fase2.js';
+import { proyectosFase2, proyectosProgramables } from '../services/proyectos-fase2.js';
 import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
 import {
   getConfig, jornadaConSlots, programacionPublicadaAt, fechaLegibleProg, toHHMM, COLS_JORNADA,
@@ -190,7 +190,7 @@ router.get('/programacion', async (req: AuthenticatedRequest, res) => {
     }
 
     const C = await getConfig(c.cohorte_id);
-    const pf = await proyectosFase2(c.cohorte_id);
+    const pf = await proyectosProgramables(c.cohorte_id);
     const contenido = await contenidoPorProyecto([...pf.keys()]);
     const { data: jornadas } = await supabaseAdmin
       .from('jornadas').select(COLS_JORNADA)

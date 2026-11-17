@@ -12,6 +12,7 @@ interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Dia { fecha: string; legible: string; }
 interface Proyecto {
   equipo_id: string; proyecto_id: string | null; proyecto: string; autores: string; sector: string;
+  privado: boolean; // fuera de la programación
   fecha: string | null; fecha_legible: string | null; jornada: number | null; slot: number | null;
   hora_inicio: string | null; hora_fin: string | null;
   resumen: string | null; linkedin: string | null; one_pager_url: string | null; logo_url: string | null;
@@ -126,6 +127,23 @@ export default function ProyectosDB() {
   // «＋ Agregar sector nuevo…» desde el mismo menú: lo crea en el catálogo y se
   // lo asigna a este proyecto en un paso (Daniel, 17-nov-2026: «una opción
   // dentro del sistema, fácil de configurar», no una pantalla aparte).
+  // Privado = sigue en esta base pero no entra a la programación. Si ya tenía
+  // turno, el servidor se lo quita y recalcula la jornada.
+  async function cambiarPrivado(p: Proyecto, privado: boolean) {
+    if (!p.proyecto_id) return;
+    if (privado && p.fecha && !(await confirmar({
+      titulo: 'Marcar como privado',
+      mensaje: `«${p.proyecto}» está programado (jornada ${p.jornada}, ${p.hora_inicio}). Al marcarlo privado sale de la programación y los horarios de ese día se recalculan.\n\n¿Continuar?`,
+      aceptar: 'Marcar privado',
+    }))) return;
+    setBusy(p.proyecto_id + 'privado'); setErr('');
+    try {
+      await api.patch(`/proyectos-db/admin/proyecto/${p.proyecto_id}/privado`, { privado });
+      await load();
+    } catch (e: any) { setErr(errorLegible(e)); }
+    finally { setBusy(''); }
+  }
+
   async function nuevoSector(p: Proyecto): Promise<void> {
     const nombre = (await pedirTexto({
       titulo: 'Agregar sector nuevo',
@@ -301,7 +319,17 @@ export default function ProyectosDB() {
                           {p.sector || 'Sin sector'} ✏️
                         </button>
                       )}
-                      {p.fecha_legible ? (
+                      {p.proyecto_id && (
+                        <label className={`inline-flex items-center gap-1 px-2 py-0.5 rounded cursor-pointer ${p.privado ? 'bg-inalde-text text-white' : 'bg-inalde-gray-bg text-inalde-gray'}`}
+                          title="Privado: el proyecto sigue en esta base pero no entra a la programación de presentaciones">
+                          <input type="checkbox" checked={p.privado} disabled={busy === p.proyecto_id + 'privado'}
+                            onChange={(e) => cambiarPrivado(p, e.target.checked)} />
+                          Privado
+                        </label>
+                      )}
+                      {p.privado ? (
+                        <span className="text-inalde-gray italic">No se programa</span>
+                      ) : p.fecha_legible ? (
                         <span className="text-inalde-gray capitalize">🗓 {p.fecha_legible.replace(/ de \d{4}$/, '')} · Jornada {p.jornada} · {p.hora_inicio}–{p.hora_fin}</span>
                       ) : (
                         <span className="text-inalde-gray italic">Sin horario asignado</span>
