@@ -170,7 +170,7 @@ export default function Programacion() {
       '· No podrás reordenar, agregar ni quitar proyectos nunca más.',
       '· No podrás cambiar los tiempos del evento ni las jornadas.',
       '· Marketing, operaciones y el asistente de programa la verán de inmediato.',
-      '· Se notificará a los participantes.',
+      '· Cada participante recibe un aviso en la plataforma (campana) con su día, número y hora, y desde ese momento los ve en «Mi presentación».',
       '',
       'No hay forma de deshacerlo desde el sistema.',
     ].join('\n');
@@ -274,7 +274,11 @@ export default function Programacion() {
         {cohorte && jornadas.length > 0 && (
           <>
             <button onClick={() => downloadFile(`/programacion/admin/${cohorte}/excel`, `NAVES_Programacion_${cohorte}.xlsx`)} className="btn-inalde-secondary !py-2 !px-4 !text-xs">↓ Excel de calificación</button>
-            <button onClick={notificar} disabled={notificando} className="btn-inalde-secondary !py-2 !px-4 !text-xs disabled:opacity-50" title="Reenvía a cada participante la fecha y hora de su presentación">{notificando ? 'Notificando…' : '🔔 Reenviar aviso'}</button>
+            {/* Solo con la programación publicada: antes, el aviso llevaría a los
+                participantes un horario que todavía puede cambiar. Publicar ya avisa. */}
+            {publicada && (
+              <button onClick={notificar} disabled={notificando} className="btn-inalde-secondary !py-2 !px-4 !text-xs disabled:opacity-50" title="Vuelve a enviar a cada participante la fecha y hora de su presentación (aviso dentro de la plataforma)">{notificando ? 'Notificando…' : '🔔 Reenviar aviso'}</button>
+            )}
             {!publicada && proyectos.length > 0 && jornadas.length > 1 && (
               <button onClick={abrirReparto} disabled={repartiendo || !!reparto} className="btn-inalde-secondary !py-2 !px-4 !text-xs disabled:opacity-50"
                 title="Decide cuántos proyectos presentan cada día y el sistema los reparte entre las jornadas">
@@ -301,7 +305,7 @@ export default function Programacion() {
         </div>
       )}
 
-      {msg && <div className={`rounded border-l-4 px-4 py-3 text-sm mb-5 ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>{msg.text}</div>}
+      {msg && <div className={`rounded border-l-4 px-4 py-3 text-sm mb-5 whitespace-pre-line ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>{msg.text}</div>}
 
       {cohorte && !loading && !publicada && proyectos.length > 0 && (
         <p className="text-sm text-inalde-text mb-4">

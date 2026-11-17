@@ -240,18 +240,6 @@ export const COLS_JORNADA =
   + 'almuerzo, almuerzo_min, almuerzo_tras_slot';
 
 // Traduce una fila de `jornadas` a las opciones que entiende el motor.
-// Para quien lee los slots directo de la base (orden desde 1 en cada jornada):
-// cuánto sumarle al orden de cada jornada para tener la numeración corrida.
-export function desfaseDeJornadas(jornadas: Array<{ id: string; numero: number }>, slots: Array<{ jornada_id: string; proyecto_id: string | null }>): Map<string, number> {
-  const out = new Map<string, number>();
-  let acumulado = 0;
-  for (const j of [...jornadas].sort((a, b) => a.numero - b.numero)) {
-    out.set(j.id, acumulado);
-    acumulado += slots.filter((s) => s.jornada_id === j.id && s.proyecto_id).length;
-  }
-  return out;
-}
-
 export function opcionesDeJornada(j: any): OpcionesJornada {
   return {
     inicioMin: toMin(j.hora_inicio),
@@ -354,6 +342,83 @@ export async function recalcularFinesDeJornadas(cohorteId: string): Promise<void
   for (let i = 0; i < total; i++) {
     await jornadaConSlots((jornadas as any[])[i], C, i === total - 1, pf);
   }
+}
+
+// Horario de cada proyecto programado, calculado con la escaleta del momento
+// (la misma que se ve en la pantalla de programación). Los avisos, «Mi
+// presentación», el .ics y el Excel de la base de proyectos leen de aquí: así
+// nunca muestran una hora guardada que ya no coincide con la pantalla (p. ej.
+// después de cambiar los tiempos del evento o la hora de inicio de un día).
+export interface HorarioCalculado { jornada_id: string; jornada: number; fecha: string; slot: number; hora_inicio: string | null; hora_fin: string | null; }
+export async function horariosCalculados(cohorteId: string): Promise<Map<string, HorarioCalculado>> {
+  const C = await getConfig(cohorteId);
+  const pf = await proyectosProgramables(cohorteId);
+  const { data: jornadas } = await supabaseAdmin
+    .from('jornadas').select(COLS_JORNADA)
+    .eq('cohorte_id', cohorteId).order('numero');
+  const out = new Map<string, HorarioCalculado>();
+  const total = (jornadas ?? []).length;
+  let base = 1;
+  for (let i = 0; i < total; i++) {
+    const j: any = (jornadas as any[])[i];
+    const jc = await jornadaConSlots(j, C, i === total - 1, pf, base);
+    base += jc.proyectos.length;
+    for (const f of jc.filas) {
+      if (f.tipo !== 'proyecto' || !f.proyecto_id) continue;
+      out.set(f.proyecto_id, {
+        jornada_id: j.id, jornada: j.numero, fecha: j.fecha, slot: f.slot!,
+        hora_inicio: f.ini >= 0 ? toHHMM(f.ini) : null, hora_fin: f.fin >= 0 ? toHHMM(f.fin) : null,
+      });
+    }
+  }
+  return out;
+}
+
+// Reescribe las horas guardadas en slot_presentacion para que coincidan con la
+// escaleta calculada. Las horas guardadas son una copia: solo se escribían al
+// repartir o al reordenar, y se quedaban viejas si después cambiaban los tiempos
+// del evento o las opciones de una jornada. Se llama tras cada cambio y antes de
+// publicar o avisar. Un slot de un proyecto que ya no es programable queda sin
+// hora. No toca el orden. Devuelve cuántos slots corrigió.
+export async function sincronizarHorasGuardadas(cohorteId: string): Promise<number> {
+  const calc = await horariosCalculados(cohorteId);
+  const { data: jornadas } = await supabaseAdmin.from('jornadas').select('id').eq('cohorte_id', cohorteId);
+  const ids = (jornadas ?? []).map((j: any) => j.id);
+  if (!ids.length) return 0;
+  const { data: slots } = await supabaseAdmin
+    .from('slot_presentacion').select('id, jornada_id, proyecto_id, hora_inicio, hora_fin').in('jornada_id', ids);
+  const norm = (h: string | null | undefined) => (h ? String(h).slice(0, 5) : null);
+  let corregidos = 0;
+  for (const s of (slots ?? []) as any[]) {
+    const h = s.proyecto_id ? calc.get(s.proyecto_id) : undefined;
+    const ini = h && h.jornada_id === s.jornada_id ? h.hora_inicio : null;
+    const fin = h && h.jornada_id === s.jornada_id ? h.hora_fin : null;
+    if (norm(s.hora_inicio) === ini && norm(s.hora_fin) === fin) continue;
+    const { error } = await supabaseAdmin.from('slot_presentacion').update({ hora_inicio: ini, hora_fin: fin }).eq('id', s.id);
+    if (!error) corregidos++;
+  }
+  return corregidos;
+}
+
+// Lo que falta para poder publicar: proyectos programables sin turno, días con
+// presentaciones pero sin hora de inicio, y proyectos fijados a un día que
+// quedaron en otro. Lista vacía = se puede publicar.
+export async function problemasParaPublicar(cohorteId: string): Promise<string[]> {
+  const pf = await proyectosProgramables(cohorteId);
+  const calc = await horariosCalculados(cohorteId);
+  const problemas: string[] = [];
+  const sinTurno = [...pf.values()].filter((p) => !calc.has(p.proyecto_id)).map((p) => p.proyecto);
+  if (sinTurno.length) problemas.push(`${sinTurno.length} proyecto(s) sin programar: ${sinTurno.join('; ')}.`);
+  const sinHora = [...new Set([...calc.values()].filter((h) => !h.hora_inicio).map((h) => h.jornada))].sort();
+  if (sinHora.length) problemas.push(`La(s) jornada(s) ${sinHora.join(', ')} tiene(n) presentaciones pero no tiene(n) hora de inicio.`);
+  if (pf.size) {
+    const { data: fijos } = await supabaseAdmin.from('proyectos').select('id, jornada_fija').in('id', [...pf.keys()]).not('jornada_fija', 'is', null);
+    const malUbicados = ((fijos ?? []) as any[])
+      .filter((p) => calc.has(p.id) && calc.get(p.id)!.jornada !== p.jornada_fija)
+      .map((p) => `${pf.get(p.id)!.proyecto} (fijado a la jornada ${p.jornada_fija}, está en la ${calc.get(p.id)!.jornada})`);
+    if (malUbicados.length) problemas.push(`Proyecto(s) en un día distinto al fijado: ${malUbicados.join('; ')}.`);
+  }
+  return problemas;
 }
 
 // Saca un proyecto de la programación (p. ej. al marcarlo privado, sql/54) y

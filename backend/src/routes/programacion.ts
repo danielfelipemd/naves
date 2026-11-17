@@ -9,7 +9,7 @@ import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
 // El motor de escaleta vive en services/escaleta.ts: lo comparte la Programación
 // Interna (marketing, operaciones, asistente de programa), que debe ver
 // exactamente los mismos horarios que publica esta pantalla.
-import { toHHMM, fechaLegibleProg, computarJornada, getConfig, jornadaConSlots, programacionPublicadaAt, sincronizarJornadasDesdeHitos, opcionesDeJornada, desfaseDeJornadas, COLS_JORNADA, type Config } from '../services/escaleta.js';
+import { toHHMM, fechaLegibleProg, computarJornada, getConfig, jornadaConSlots, programacionPublicadaAt, sincronizarJornadasDesdeHitos, opcionesDeJornada, COLS_JORNADA, horariosCalculados, sincronizarHorasGuardadas, problemasParaPublicar, type Config } from '../services/escaleta.js';
 
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el
 // enlace externo. Mismo criterio que el Módulo C.
@@ -129,6 +129,8 @@ router.put('/admin/:cohorteId/config', ...soloAdmin, async (req, res) => {
   const { error } = await supabaseAdmin.from('programacion_config')
     .upsert({ cohorte_id: req.params.cohorteId, ...parsed.data, updated_at: new Date().toISOString() }, { onConflict: 'cohorte_id' });
   if (error) return res.status(500).json({ error: error.message });
+  // Cambiar los tiempos mueve todas las horas: la copia guardada se pone al día.
+  await sincronizarHorasGuardadas(req.params.cohorteId);
   res.json({ ok: true });
 });
 
@@ -221,6 +223,9 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
       }
     }
   }
+  // Una jornada que cambia (hora, foto, pausas, orden) mueve sus horas y la
+  // numeración de los días siguientes: se pone al día la copia guardada.
+  await sincronizarHorasGuardadas((jornada as any).cohorte_id);
   res.json({ ok: true });
 });
 
@@ -491,6 +496,19 @@ router.post('/admin/:cohorteId/publicar', ...soloAdmin, async (req: any, res) =>
     .from('slot_presentacion').select('id, proyecto_id').in('jornada_id', ids);
   if (!(slots ?? []).some((s: any) => s.proyecto_id)) return res.status(400).json({ error: 'SIN_PROYECTOS_ASIGNADOS' });
 
+  // Publicar congela la programación para siempre: no se publica a medias. Todo
+  // proyecto que se presenta debe tener turno, todo día con presentaciones su
+  // hora de inicio, y los fijados a un día deben estar en ese día.
+  const problemas = await problemasParaPublicar(cohorteId);
+  if (problemas.length) {
+    return res.status(400).json({
+      error: 'NO_SE_PUEDE_PUBLICAR', problemas,
+      message: 'Todavía no se puede publicar:\n• ' + problemas.join('\n• '),
+    });
+  }
+  // Las horas guardadas quedan iguales a la escaleta que el admin está viendo.
+  await sincronizarHorasGuardadas(cohorteId);
+
   // El candado ANTES de notificar: si el correo falla, la programación ya quedó
   // publicada y se puede reintentar la notificación. Al revés, habríamos avisado
   // a todo el mundo de algo que aún era editable.
@@ -522,27 +540,26 @@ router.post('/admin/:cohorteId/publicar', ...soloAdmin, async (req: any, res) =>
 // reenviar si hace falta.
 router.post('/admin/:cohorteId/notificar', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
+  // Solo se avisa lo definitivo: antes de publicar, el aviso llevaría a los
+  // participantes un horario que todavía puede cambiar.
+  if (!(await programacionPublicadaAt(cohorteId))) {
+    return res.status(409).json({ error: 'NO_PUBLICADA', message: 'Primero publica la programación. El aviso solo se envía con la programación definitiva (publicar ya lo envía).' });
+  }
+  await sincronizarHorasGuardadas(cohorteId);
   const r = await notificarProgramacion(cohorteId);
   res.json({ ok: true, ...r });
 });
 
 // Notifica a cada integrante la fecha/hora de la presentación de su proyecto.
 async function notificarProgramacion(cohorteId: string): Promise<{ notificados: number; proyectos: number }> {
-  const { data: jornadas } = await supabaseAdmin
-    .from('jornadas').select('id, numero, fecha').eq('cohorte_id', cohorteId);
-  const jById = new Map((jornadas ?? []).map((j: any) => [j.id, j]));
-  const ids = (jornadas ?? []).map((j: any) => j.id);
-  if (!ids.length) return { notificados: 0, proyectos: 0 };
-
-  const { data: slots } = await supabaseAdmin
-    .from('slot_presentacion').select('jornada_id, orden, proyecto_id, hora_inicio, hora_fin').in('jornada_id', ids);
-  const asignados = (slots ?? []).filter((s: any) => s.proyecto_id);
-  if (!asignados.length) return { notificados: 0, proyectos: 0 };
-  const desfase = desfaseDeJornadas((jornadas ?? []) as any[], (slots ?? []) as any[]);
+  // Horario calculado con la escaleta: el mismo número y la misma hora que se
+  // ven en la pantalla de programación (no la copia guardada en los slots).
+  const horarios = await horariosCalculados(cohorteId);
+  if (!horarios.size) return { notificados: 0, proyectos: 0 };
 
   // Integrantes (auth_user_id) del equipo dueño de cada proyecto programado.
   const pf = await proyectosProgramables(cohorteId);
-  const proyectoIds = [...new Set(asignados.map((s: any) => s.proyecto_id))] as string[];
+  const proyectoIds = [...horarios.keys()];
   const authsPorProyecto = await autoresAuthPorProyecto(
     proyectoIds.map((id) => pf.get(id)).filter(Boolean) as ProyectoFase2[],
   );
@@ -550,16 +567,15 @@ async function notificarProgramacion(cohorteId: string): Promise<{ notificados: 
   const evento = (await getConfig(cohorteId)).evento_nombre ?? 'NAVES';
   const items: Array<{ destinatario_auth_id: string; tipo: string; titulo: string; cuerpo: string; enlace: string }> = [];
   const todosAuth: string[] = [];
-  for (const s of asignados as any[]) {
-    const j: any = jById.get(s.jornada_id); if (!j) continue;
-    const auths = authsPorProyecto.get(s.proyecto_id) ?? [];
-    const fl = fechaLegibleProg(j.fecha);
+  for (const [proyectoId, h] of horarios) {
+    const auths = authsPorProyecto.get(proyectoId) ?? [];
+    const fl = fechaLegibleProg(h.fecha);
     for (const a of auths) {
       todosAuth.push(a);
       items.push({
         destinatario_auth_id: a, tipo: 'presentacion_programada',
         titulo: `Tu presentación de ${evento} quedó programada`,
-        cuerpo: `${fl} · Jornada ${j.numero}, presentación ${s.orden + (desfase.get(s.jornada_id) ?? 0)} · ${String(s.hora_inicio).slice(0, 5)}–${String(s.hora_fin).slice(0, 5)}.`,
+        cuerpo: `${fl} · Jornada ${h.jornada}, presentación ${h.slot} · ${h.hora_inicio ?? '--:--'}–${h.hora_fin ?? '--:--'}.`,
         enlace: '/mi-presentacion',
       });
     }

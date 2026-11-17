@@ -10,7 +10,7 @@ import { REGLAS, validarFormato, errorFormato } from '../lib/formato-archivo.js'
 import { uploadAssetNaves, deleteAssetNaves, crearUrlProxyArchivo, mimeFromPath, downloadTrabajoGradoFile, type TipoAssetNaves } from '../services/storage.js';
 import { generarContenidoOnePager, type OnePagerDoc } from '../services/ai-onepager.js';
 import { proyectosFase2, type ProyectoFase2 } from '../services/proyectos-fase2.js';
-import { desfaseDeJornadas, programacionPublicadaAt, quitarDeProgramacion } from '../services/escaleta.js';
+import { horariosCalculados, programacionPublicadaAt, quitarDeProgramacion } from '../services/escaleta.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el enlace externo.
@@ -27,7 +27,6 @@ function urlAsset(path: string | null, urlExterna: string | null): string | null
 const router = Router();
 const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
 
-const hhmm = (t: string | null) => (t ? t.slice(0, 5) : '');
 const MESES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 function fechaLegible(iso: string): string {
@@ -41,24 +40,14 @@ async function proyectosDeCohorte(cohorteId: string): Promise<ProyectoFase2[]> {
   return [...(await proyectosFase2(cohorteId)).values()];
 }
 
-// --- Horario por proyecto (de slot_presentacion + jornadas)
+// --- Horario por proyecto: el de la escaleta calculada (el mismo número y la
+// misma hora que muestra la pantalla de programación), no la copia guardada en
+// slot_presentacion, que podía quedarse vieja al cambiar los tiempos.
 interface Horario { fecha: string; jornada: number; slot: number; hora_inicio: string; hora_fin: string; }
 async function horariosDeCohorte(cohorteId: string): Promise<Map<string, Horario>> {
-  const { data: jornadas } = await supabaseAdmin
-    .from('jornadas').select('id, numero, fecha').eq('cohorte_id', cohorteId);
-  const jById = new Map((jornadas ?? []).map((j: any) => [j.id, j]));
-  const ids = (jornadas ?? []).map((j: any) => j.id);
   const map = new Map<string, Horario>();
-  if (!ids.length) return map;
-  const { data: slots } = await supabaseAdmin
-    .from('slot_presentacion').select('jornada_id, orden, proyecto_id, hora_inicio, hora_fin').in('jornada_id', ids);
-  // Numeración corrida entre jornadas (la base guarda el orden desde 1 por día).
-  const desfase = desfaseDeJornadas((jornadas ?? []) as any[], (slots ?? []) as any[]);
-  for (const s of (slots ?? []) as any[]) {
-    if (!s.proyecto_id) continue;
-    const j: any = jById.get(s.jornada_id);
-    if (!j) continue;
-    map.set(s.proyecto_id, { fecha: j.fecha, jornada: j.numero, slot: s.orden + (desfase.get(s.jornada_id) ?? 0), hora_inicio: hhmm(s.hora_inicio), hora_fin: hhmm(s.hora_fin) });
+  for (const [id, h] of await horariosCalculados(cohorteId)) {
+    map.set(id, { fecha: h.fecha, jornada: h.jornada, slot: h.slot, hora_inicio: h.hora_inicio ?? '', hora_fin: h.hora_fin ?? '' });
   }
   return map;
 }
@@ -196,12 +185,14 @@ async function miEquipo(req: AuthenticatedRequest): Promise<MiEquipo | null> {
 
 // Resuelve la presentación del proyecto definitivo (h == null si aún no está programada)
 async function miPresentacion(proyectoId: string, cohorteId: string) {
-  const [pf, horarios, evento] = await Promise.all([
-    proyectosFase2(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId),
+  const [pf, horarios, evento, publicada] = await Promise.all([
+    proyectosFase2(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId), programacionPublicadaAt(cohorteId),
   ]);
   // Un proyecto privado (sql/54) no se presenta: no tiene horario que mostrar.
+  // Y antes de publicar el participante no ve su turno: es un borrador que el
+  // admin sigue moviendo, y verlo cambiar confunde (revisión 17-nov-2026).
   const info = pf.get(proyectoId) ?? null;
-  return { evento, info, h: info?.privado ? null : (horarios.get(proyectoId) ?? null) };
+  return { evento, info, h: !publicada || info?.privado ? null : (horarios.get(proyectoId) ?? null) };
 }
 
 router.get('/mi-presentacion', requireAuth(), async (req: AuthenticatedRequest, res) => {
