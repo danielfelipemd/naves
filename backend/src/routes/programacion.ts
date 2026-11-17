@@ -200,7 +200,8 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
     if (slots.length) {
       const { error: errIns } = await supabaseAdmin.from('slot_presentacion').insert(slots.map((f) => ({
         jornada_id: jid, orden: f.slot, proyecto_id: f.proyecto_id ?? null,
-        hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin),
+        // Jornada sin hora de inicio: el slot queda sin hora (null), no "--:--".
+        hora_inicio: f.ini >= 0 ? toHHMM(f.ini) : null, hora_fin: f.fin >= 0 ? toHHMM(f.fin) : null,
       })));
       if (errIns) {
         // uq_slot_proyecto: el proyecto ya está programado en OTRA jornada.
@@ -224,8 +225,17 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
 // mover cuatro del día 1 al día 2 es justo lo que hay que hacer para equilibrar.
 // El orden se respeta — primero lo ya programado tal como está, después lo que
 // nunca se asignó — así que repartir no baraja el trabajo previo del admin.
+// Cuántos proyectos van a cada jornada. Si el admin no lo dice, reparto parejo
+// (35 en 2 → 18 y 17). Si lo dice (JMV quiere poder poner 20 y 15), tiene que
+// sumar el total exacto: ni sobra ni falta ningún proyecto.
+const repartirSchema = z.object({
+  por_jornada: z.array(z.number().int().min(0).max(200)).optional(),
+});
+
 router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
+  const parsed = repartirSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
   if (await bloqueadaSiPublicada(cohorteId, res)) return;
   await sincronizarJornadasDesdeHitos(cohorteId);
 
@@ -239,9 +249,10 @@ router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
 
   // Orden de referencia: lo ya programado primero, respetando jornada y posición,
   // y detrás lo que nunca se asignó, por nombre.
-  const { data: slotsPrev } = await supabaseAdmin
-    .from('slot_presentacion').select('jornada_id, orden, proyecto_id')
+  const { data: slotsPrev, error: errPrev } = await supabaseAdmin
+    .from('slot_presentacion').select('jornada_id, orden, proyecto_id, hora_inicio, hora_fin')
     .in('jornada_id', js.map((j) => j.id));
+  if (errPrev) return res.status(500).json({ error: 'SLOTS_READ_FAILED', detail: errPrev.message });
   const posJornada = new Map(js.map((j, i) => [j.id, i]));
   const yaProgramados = ((slotsPrev ?? []) as any[])
     .filter((s) => s.proyecto_id && pf.has(s.proyecto_id))
@@ -254,36 +265,67 @@ router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
     .map((p) => p.proyecto_id);
   const todos = [...yaProgramados, ...nuevos];
 
-  // Reparto parejo: 14 proyectos en 2 jornadas → 7 y 7; 13 → 7 y 6. El resto se
-  // le da a las primeras jornadas, que son las que arrancan más temprano.
-  const base = Math.floor(todos.length / js.length);
-  const sobran = todos.length % js.length;
-  const porJornada: string[][] = [];
-  let k = 0;
-  for (let i = 0; i < js.length; i++) {
-    const n = base + (i < sobran ? 1 : 0);
-    porJornada.push(todos.slice(k, k + n));
-    k += n;
+  // Cantidades por jornada: las del admin, o reparto parejo (el resto se le da a
+  // las primeras jornadas).
+  let cantidades: number[];
+  if (parsed.data.por_jornada) {
+    cantidades = parsed.data.por_jornada;
+    const suma = cantidades.reduce((a, b) => a + b, 0);
+    if (cantidades.length !== js.length || suma !== todos.length) {
+      return res.status(400).json({
+        error: 'REPARTO_NO_CUADRA',
+        message: `Hay ${todos.length} proyectos para presentar y la suma por jornada da ${suma}. Ajusta las cantidades para que sumen ${todos.length}.`,
+      });
+    }
+  } else {
+    const base = Math.floor(todos.length / js.length);
+    const sobran = todos.length % js.length;
+    cantidades = js.map((_, i) => base + (i < sobran ? 1 : 0));
   }
 
-  // Borrar TODO antes de insertar nada: un proyecto no puede estar en dos
-  // jornadas (uq_slot_proyecto), así que mover uno del día 1 al día 2 mientras el
-  // slot viejo sigue en pie chocaría con la restricción.
+  // Una jornada que recibe proyectos necesita hora de inicio: sin ella no hay
+  // horarios que calcular. Antes esto reventaba a mitad de camino con un error
+  // genérico del servidor DESPUÉS de haber borrado la programación.
+  const sinHora = js.filter((j, i) => cantidades[i] > 0 && !j.hora_inicio).map((j) => j.numero);
+  if (sinHora.length) {
+    return res.status(400).json({
+      error: 'JORNADA_SIN_HORA',
+      message: `Ponle hora de inicio a la jornada ${sinHora.join(' y ')} antes de repartir.`,
+    });
+  }
+
+  // Calcular TODO antes de tocar la base.
+  const filasNuevas: any[] = [];
+  let k = 0;
+  const porJornada: string[][] = [];
+  for (let i = 0; i < js.length; i++) {
+    const ids = todos.slice(k, k + cantidades[i]);
+    k += cantidades[i];
+    porJornada.push(ids);
+    if (!ids.length) continue;
+    const filas = computarJornada(opcionesDeJornada(js[i]), ids.map((id) => pf.get(id)!), 1, i === js.length - 1, C);
+    for (const f of filas.filter((x) => x.tipo === 'proyecto')) {
+      filasNuevas.push({
+        jornada_id: js[i].id, orden: f.slot, proyecto_id: f.proyecto_id ?? null,
+        hora_inicio: f.ini >= 0 ? toHHMM(f.ini) : null, hora_fin: f.fin >= 0 ? toHHMM(f.fin) : null,
+      });
+    }
+  }
+
+  // Borrar TODO antes de insertar: un proyecto no puede estar en dos jornadas
+  // (uq_slot_proyecto), así que mover uno del día 1 al día 2 mientras el slot
+  // viejo sigue en pie chocaría con la restricción. Si el insert falla, se
+  // restaura lo que había: nunca dejar la programación a medias.
   const { error: errDel } = await supabaseAdmin
     .from('slot_presentacion').delete().in('jornada_id', js.map((j) => j.id));
   if (errDel) return res.status(500).json({ error: 'SLOTS_DELETE_FAILED', detail: errDel.message });
 
-  for (let i = 0; i < js.length; i++) {
-    const ids = porJornada[i];
-    if (!ids.length) continue;
-    const filas = computarJornada(opcionesDeJornada(js[i]), ids.map((id) => pf.get(id)!), 1, i === js.length - 1, C);
-    const { error: errIns } = await supabaseAdmin.from('slot_presentacion').insert(
-      filas.filter((f) => f.tipo === 'proyecto').map((f) => ({
-        jornada_id: js[i].id, orden: f.slot, proyecto_id: f.proyecto_id ?? null,
-        hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin),
-      })),
-    );
-    if (errIns) return res.status(500).json({ error: 'SLOTS_INSERT_FAILED', detail: errIns.message });
+  const { error: errIns } = filasNuevas.length
+    ? await supabaseAdmin.from('slot_presentacion').insert(filasNuevas)
+    : { error: null };
+  if (errIns) {
+    if ((slotsPrev ?? []).length) await supabaseAdmin.from('slot_presentacion').insert(slotsPrev as any[]);
+    return res.status(500).json({ error: 'SLOTS_INSERT_FAILED', detail: errIns.message, restaurado: true });
   }
 
   res.json({

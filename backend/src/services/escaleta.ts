@@ -71,15 +71,21 @@ export function slotDePausa(total: number, bloque: number, trasSlot: number | nu
   return cortes.reduce((mejor, n) => (Math.abs(n - mitad) < Math.abs(mejor - mitad) ? n : mejor), cortes[0]);
 }
 
-// Porta construirDia del prototipo: dado la hora de inicio (1ª presentación),
-// si hay foto/intro/almuerzo y la lista de equipos, devuelve las filas con horarios.
+// Porta construirDia del prototipo: dada la hora de INICIO DE LA JORNADA, si hay
+// foto/intro/almuerzo y la lista de equipos, devuelve las filas con horarios.
+//
+// La hora de inicio es la de la primera actividad del día (foto o introducción),
+// no la de la primera presentación. Antes era al revés y la foto y la intro se
+// calculaban hacia atrás: el admin ponía 07:25 y la jornada arrancaba a las
+// 06:40, que no es lo que nadie espera al escribir la hora de inicio (JMV,
+// 17-nov-2026).
 export function computarJornada(J: OpcionesJornada, proyectos: Array<any>, slotBase: number, esUltimoDia: boolean, C: Config): Fila[] {
   const { inicioMin, foto, introMin } = J;
   const filas: Fila[] = [];
-  // Sin hora de inicio (toMin devuelve 0) no hay escaleta que calcular: la foto
-  // y la introducción se programan hacia atrás desde la 1ª presentación, así que
-  // partir de 0 daba horas negativas ("-1:-5"). No inventamos un horario: se
-  // devuelven los proyectos asignados sin hora, y la pantalla pide la hora.
+  // Sin hora de inicio (toMin devuelve 0) no hay escaleta que calcular. No
+  // inventamos un horario: se devuelven los proyectos asignados sin hora (-1), y
+  // la pantalla pide la hora. Quien guarde estas filas debe guardar la hora como
+  // null (toHHMM(-1) da "--:--", que la base rechaza).
   const sinHora = inicioMin <= 0;
   if (sinHora) {
     proyectos.forEach((e, i) => filas.push({
@@ -88,11 +94,12 @@ export function computarJornada(J: OpcionesJornada, proyectos: Array<any>, slotB
     }));
     return filas;
   }
-  // Foto + intro se programan HACIA ATRÁS, terminando justo antes del slot 1.
-  let t = inicioMin - C.trans - introMin - (foto ? C.foto : 0);
+  // Foto + intro abren la jornada a la hora de inicio; luego una transición y
+  // la primera presentación. Sin foto ni intro, la jornada abre presentando.
+  let t = inicioMin;
   if (foto) { filas.push({ tipo: 'foto', desc: 'Toma de foto de grupo — Puerta principal', ini: t, fin: t + C.foto }); t += C.foto; }
-  filas.push({ tipo: 'intro', desc: 'Introducción', ini: t, fin: t + introMin }); t += introMin;
-  t += C.trans; // t == inicioMin
+  if (introMin > 0) { filas.push({ tipo: 'intro', desc: 'Introducción', ini: t, fin: t + introMin }); t += introMin; }
+  if (foto || introMin > 0) t += C.trans;
   const total = proyectos.length;
   const trasAlmuerzo = J.almuerzo ? slotDePausa(total, C.bloque, J.almuerzoTrasSlot) : 0;
   let trasBreakJornada = J.breakJornada ? slotDePausa(total, C.bloque, J.breakJornadaTrasSlot) : 0;
@@ -139,8 +146,7 @@ export function computarJornada(J: OpcionesJornada, proyectos: Array<any>, slotB
 // se quedaba desfasado en cuanto se agregaba o quitaba un proyecto.
 //
 // Devuelve null cuando no hay escaleta que terminar: sin hora de inicio (las
-// filas llegan con -1) o sin ningún proyecto asignado (solo foto e intro, que se
-// programan HACIA ATRÁS y darían un "fin" anterior al inicio).
+// filas llegan con -1) o sin ningún proyecto asignado (solo foto e intro).
 export function finDeJornada(filas: Fila[]): string | null {
   if (!filas.some((f) => f.tipo === 'proyecto')) return null;
   const fin = filas.reduce((max, f) => (f.fin > max ? f.fin : max), -1);

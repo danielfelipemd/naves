@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { confirmar, pedirTexto } from '../../components/inalde/Dialogos';
+import { pedirTexto } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { VisorArchivo } from '../../components/inalde/VisorArchivo';
@@ -48,6 +48,33 @@ function filasDe(j: Jornada): Fila[] {
   });
 }
 
+// Duración y ubicación de una pausa larga (pausa adicional o almuerzo) de una
+// jornada. En vez de «tras el slot [número]», un menú con las presentaciones del
+// día: «Automático» o «después de la 7 · Nombre del proyecto».
+function PausaJornada({ minutos, trasSlot, slots, onMinutos, onTrasSlot }: {
+  minutos: number; trasSlot: number | null; slots: Slot[];
+  onMinutos: (v: number) => void; onTrasSlot: (v: number | null) => void;
+}) {
+  return (
+    <>
+      <label className="text-xs flex items-center gap-1">
+        de
+        <input type="number" min={5} max={240} step={5} defaultValue={minutos}
+          onBlur={(e) => { const v = Number(e.target.value); if (v >= 5 && v <= 240 && v !== minutos) onMinutos(v); }}
+          className="w-14 text-inalde-text rounded px-1 py-0.5" /> min, después de
+      </label>
+      <select value={trasSlot ?? ''} onChange={(e) => onTrasSlot(e.target.value === '' ? null : Number(e.target.value))}
+        className="text-xs text-inalde-text rounded px-1 py-0.5 max-w-[220px]">
+        <option value="">Automático (a mitad de la jornada)</option>
+        {slots.slice(0, -1).map((s, i) => (
+          <option key={s.proyecto_id} value={i + 1}>la presentación {i + 1} · {s.proyecto}</option>
+        ))}
+        {trasSlot != null && trasSlot > Math.max(0, slots.length - 1) && <option value={trasSlot}>la presentación {trasSlot}</option>}
+      </select>
+    </>
+  );
+}
+
 export default function Programacion() {
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorte, setCohorte] = useState('');
@@ -86,23 +113,23 @@ export default function Programacion() {
     finally { setNotificando(false); }
   }
 
-  // Repartir los proyectos entre todas las jornadas. Pide confirmación porque
-  // reordena lo ya asignado: mover proyectos del día 1 al día 2 es justo el
-  // objetivo, pero no debe pasar por un clic despistado.
+  // Repartir los proyectos entre las jornadas. Se abre un panel con el total y
+  // una casilla por jornada (JMV no siempre quiere partes iguales: p. ej. 20 y
+  // 15). Arranca con el reparto parejo y la suma tiene que dar el total.
+  const [reparto, setReparto] = useState<number[] | null>(null);
+  function abrirReparto() {
+    const total = proyectos.length, dias = jornadas.length;
+    const base = Math.floor(total / dias), sobran = total % dias;
+    setReparto(jornadas.map((_, i) => base + (i < sobran ? 1 : 0)));
+  }
   async function repartir() {
-    const total = proyectos.length;
-    const dias = jornadas.length;
-    if (!(await confirmar({
-      titulo: 'Repartir proyectos',
-      mensaje: `Se repartirán los ${total} proyecto(s) programable(s) entre las ${dias} jornada(s), en partes iguales.\n\n`
-        + 'Se respeta el orden actual, pero algunos proyectos cambiarán de día.\n\n¿Continuar?',
-      aceptar: 'Repartir',
-    }))) return;
+    if (!reparto) return;
     setRepartiendo(true); setMsg(null);
     try {
-      const { data } = await api.post(`/programacion/admin/${cohorte}/repartir`, {});
+      const { data } = await api.post(`/programacion/admin/${cohorte}/repartir`, { por_jornada: reparto });
       const detalle = (data.por_jornada ?? []).map((p: any) => `jornada ${p.numero}: ${p.proyectos}`).join(' · ');
       setMsg({ kind: 'ok', text: `Repartidos ${data.repartidos} proyecto(s) — ${detalle}.` });
+      setReparto(null);
       load();
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
     finally { setRepartiendo(false); }
@@ -215,8 +242,8 @@ export default function Programacion() {
             <button onClick={() => downloadFile(`/programacion/admin/${cohorte}/excel`, `NAVES_Programacion_${cohorte}.xlsx`)} className="btn-inalde-secondary !py-2 !px-4 !text-xs">↓ Excel de calificación</button>
             <button onClick={notificar} disabled={notificando} className="btn-inalde-secondary !py-2 !px-4 !text-xs disabled:opacity-50" title="Reenvía a cada participante la fecha y hora de su presentación">{notificando ? 'Notificando…' : '🔔 Reenviar aviso'}</button>
             {!publicada && proyectos.length > 0 && jornadas.length > 1 && (
-              <button onClick={repartir} disabled={repartiendo} className="btn-inalde-secondary !py-2 !px-4 !text-xs disabled:opacity-50"
-                title="Reparte los proyectos en partes iguales entre todas las jornadas, en vez de dejarlos apilados en un solo día">
+              <button onClick={abrirReparto} disabled={repartiendo || !!reparto} className="btn-inalde-secondary !py-2 !px-4 !text-xs disabled:opacity-50"
+                title="Decide cuántos proyectos presentan cada día y el sistema los reparte entre las jornadas">
                 {repartiendo ? 'Repartiendo…' : '⇄ Repartir entre las jornadas'}
               </button>
             )}
@@ -242,13 +269,58 @@ export default function Programacion() {
 
       {msg && <div className={`rounded border-l-4 px-4 py-3 text-sm mb-5 ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>{msg.text}</div>}
 
+      {cohorte && !loading && !publicada && proyectos.length > 0 && (
+        <p className="text-sm text-inalde-text mb-4">
+          <strong>{proyectos.length}</strong> proyecto(s) para presentar
+          {' · '}{proyectos.filter((p) => p.asignado).length} ya programado(s)
+          {disponibles.length > 0 && <> · <span className="text-inalde-red">{disponibles.length} sin programar</span></>}
+          {sinProyectoFinal > 0 && <span className="text-inalde-gray"> · {sinProyectoFinal} equipo(s) aún sin entrega final completa (no entran)</span>}
+        </p>
+      )}
+
+      {reparto && (() => {
+        const suma = reparto.reduce((a, b) => a + b, 0);
+        const total = proyectos.length;
+        const cuadra = suma === total;
+        const sinHora = jornadas.filter((j, i) => reparto[i] > 0 && !j.hora_inicio).map((j) => j.numero);
+        return (
+          <div className="border-2 border-inalde-blue rounded-lg p-4 mb-5 bg-blue-50/40">
+            <h3 className="font-primary font-bold text-inalde-text mb-1">Repartir proyectos entre las jornadas</h3>
+            <p className="text-sm text-inalde-gray mb-3">
+              Hay <strong className="text-inalde-text">{total}</strong> proyecto(s) para presentar. Escribe cuántos presentan cada día.
+              Se respeta el orden actual: los primeros van a la jornada 1 y así sucesivamente.
+            </p>
+            <div className="flex flex-wrap gap-4 items-end mb-3">
+              {jornadas.map((j, i) => (
+                <label key={j.id} className="text-sm">
+                  <span className="block text-xs text-inalde-gray capitalize mb-1">Jornada {j.numero} · {j.fecha_legible ?? j.fecha}</span>
+                  <input type="number" min={0} max={total} value={reparto[i]}
+                    onChange={(e) => { const v = Math.max(0, Math.floor(Number(e.target.value) || 0)); setReparto(reparto.map((x, k) => (k === i ? v : x))); }}
+                    className="input-inalde !py-1.5 w-24" /> proyectos
+                </label>
+              ))}
+              <span className={`text-sm font-semibold ${cuadra ? 'text-green-700' : 'text-inalde-red'}`}>
+                Suma: {suma} de {total}{cuadra ? ' ✓' : suma > total ? ` (sobran ${suma - total})` : ` (faltan ${total - suma})`}
+              </span>
+            </div>
+            {sinHora.length > 0 && (
+              <p className="text-sm text-inalde-red mb-3">La jornada {sinHora.join(' y ')} no tiene hora de inicio. Ponla en la barra de la jornada antes de repartir.</p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={repartir} disabled={!cuadra || sinHora.length > 0 || repartiendo} className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-50">{repartiendo ? 'Repartiendo…' : 'Repartir'}</button>
+              <button onClick={() => setReparto(null)} disabled={repartiendo} className="btn-inalde-secondary !py-2 !px-4 !text-xs">Cancelar</button>
+            </div>
+          </div>
+        );
+      })()}
+
       {!cohorte ? null : loading ? <p className="text-inalde-gray">Cargando…</p> : (
         <>
           {config && !publicada && (
             <div className="bg-inalde-gray-bg/40 border border-inalde-gray-light rounded p-3 mb-5">
               <h3 className="text-xs font-primary font-semibold uppercase tracking-wider text-inalde-gray mb-2">Tiempos del evento (minutos)</h3>
               <div className="flex flex-wrap gap-3 items-end">
-                {([['evento_nombre', 'Evento', 'text'], ['expo', 'Exposición', 'n'], ['trans', 'Transición', 'n'], ['foto', 'Foto inicial', 'n'], ['cierre', 'Cierre', 'n'], ['break_min', 'Break', 'n'], ['bloque', 'Slots por bloque', 'n']] as const).map(([k, l, t]) => (
+                {([['evento_nombre', 'Evento', 'text'], ['expo', 'Exposición', 'n'], ['trans', 'Transición', 'n'], ['foto', 'Foto inicial', 'n'], ['cierre', 'Cierre', 'n'], ['break_min', 'Break entre bloques', 'n'], ['bloque', 'Presentaciones por bloque', 'n']] as const).map(([k, l, t]) => (
                   <div key={k}>
                     <label className="block text-[10px] uppercase text-inalde-gray mb-1">{l}</label>
                     <input type={t === 'text' ? 'text' : 'number'} value={(config as any)[k]}
@@ -280,8 +352,8 @@ export default function Programacion() {
                   </span>
                 ) : (
                   <>
-                    <label className="text-xs flex items-center gap-1 ml-auto">
-                      Inicio
+                    <label className="text-xs flex items-center gap-1 ml-auto" title="Hora en que arranca la jornada: la primera actividad (foto o introducción). Las presentaciones empiezan después.">
+                      Inicio de la jornada
                       <input type="time" defaultValue={(j.hora_inicio ?? '').slice(0, 5)}
                         onBlur={(e) => { if (e.target.value && e.target.value !== (j.hora_inicio ?? '').slice(0, 5)) guardarJornada(j, { hora_inicio: e.target.value }); }}
                         className="text-inalde-text rounded px-1 py-0.5" />
@@ -290,7 +362,7 @@ export default function Programacion() {
                         última franja. Se muestra calculado para que el admin lo
                         vea moverse al agregar o quitar proyectos. */}
                     <span className="text-xs text-white/70" title="La calcula el sistema: la jornada termina al acabar la última franja (el cierre). Cambia sola al agregar o quitar proyectos.">
-                      Fin <span className="font-mono text-white">{(j.hora_fin ?? '').slice(0, 5) || '—'}</span>
+                      Termina (calculado) <span className="font-mono text-white">{(j.hora_fin ?? '').slice(0, 5) || '—'}</span>
                     </span>
                     <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
                     <label className="text-xs flex items-center gap-1">Intro <input type="number" value={j.intro_min} min={0} onChange={(e) => guardarJornada(j, { intro_min: Number(e.target.value) })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
@@ -299,47 +371,25 @@ export default function Programacion() {
                         parada no siempre dura lo mismo. Se pueden tener las dos.
                         Aparte está el break automático de fin de bloque, que es
                         de la cohorte y dura lo mismo en todas las jornadas. */}
-                    <label className="text-xs flex items-center gap-1" title="Un break largo propio de esta jornada, además de los breaks automáticos de fin de bloque."><input type="checkbox" checked={j.break_jornada} onChange={(e) => guardarJornada(j, { break_jornada: e.target.checked })} /> Break</label>
+                    <label className="text-xs flex items-center gap-1" title="Una pausa larga solo para este día, además de los breaks automáticos entre bloques. Reemplaza el break que caiga en ese punto."><input type="checkbox" checked={j.break_jornada} onChange={(e) => guardarJornada(j, { break_jornada: e.target.checked })} /> Pausa adicional</label>
                     {j.break_jornada && (
-                      <>
-                        <label className="text-xs flex items-center gap-1" title="Cuánto dura el break de esta jornada.">
-                          <input type="number" min={5} max={240} step={5} defaultValue={j.break_jornada_min}
-                            onBlur={(e) => { const v = Number(e.target.value); if (v >= 5 && v <= 240 && v !== j.break_jornada_min) guardarJornada(j, { break_jornada_min: v }); }}
-                            className="w-14 text-inalde-text rounded px-1 py-0.5" /> min
-                        </label>
-                        <label className="text-xs flex items-center gap-1" title="Después de qué presentación cae el break. Déjalo vacío y el sistema lo pone en el corte más cercano a la mitad de la jornada.">
-                          tras el slot
-                          <input type="number" min={1} max={Math.max(1, j.slots.length - 1)} placeholder="auto"
-                            defaultValue={j.break_jornada_tras_slot ?? ''}
-                            onBlur={(e) => {
-                              const t = e.target.value.trim();
-                              const v = t === '' ? null : Number(t);
-                              if (v !== (j.break_jornada_tras_slot ?? null)) guardarJornada(j, { break_jornada_tras_slot: v });
-                            }}
-                            className="w-16 text-inalde-text rounded px-1 py-0.5" />
-                        </label>
-                      </>
+                      <PausaJornada
+                        minutos={j.break_jornada_min} trasSlot={j.break_jornada_tras_slot} slots={j.slots}
+                        onMinutos={(v) => guardarJornada(j, { break_jornada_min: v })}
+                        onTrasSlot={(v) => guardarJornada(j, { break_jornada_tras_slot: v })} />
                     )}
-                    <label className="text-xs flex items-center gap-1" title="La parada para almorzar de esta jornada. Es independiente del break."><input type="checkbox" checked={j.almuerzo} onChange={(e) => guardarJornada(j, { almuerzo: e.target.checked })} /> Almuerzo</label>
+                    <label className="text-xs flex items-center gap-1" title="La parada para almorzar de este día. Es independiente de la pausa adicional."><input type="checkbox" checked={j.almuerzo} onChange={(e) => guardarJornada(j, { almuerzo: e.target.checked })} /> Almuerzo</label>
                     {j.almuerzo && (
-                      <>
-                        <label className="text-xs flex items-center gap-1" title="Cuánto dura el almuerzo de esta jornada.">
-                          <input type="number" min={5} max={240} step={5} defaultValue={j.almuerzo_min}
-                            onBlur={(e) => { const v = Number(e.target.value); if (v >= 5 && v <= 240 && v !== j.almuerzo_min) guardarJornada(j, { almuerzo_min: v }); }}
-                            className="w-14 text-inalde-text rounded px-1 py-0.5" /> min
-                        </label>
-                        <label className="text-xs flex items-center gap-1" title="Después de qué presentación se para a almorzar. Déjalo vacío y el sistema lo pone en el corte más cercano a la mitad de la jornada. Si coincide con el break, manda el almuerzo: fija uno de los dos a mano para tener los dos.">
-                          tras el slot
-                          <input type="number" min={1} max={Math.max(1, j.slots.length - 1)} placeholder="auto"
-                            defaultValue={j.almuerzo_tras_slot ?? ''}
-                            onBlur={(e) => {
-                              const t = e.target.value.trim();
-                              const v = t === '' ? null : Number(t);
-                              if (v !== (j.almuerzo_tras_slot ?? null)) guardarJornada(j, { almuerzo_tras_slot: v });
-                            }}
-                            className="w-16 text-inalde-text rounded px-1 py-0.5" />
-                        </label>
-                      </>
+                      <PausaJornada
+                        minutos={j.almuerzo_min} trasSlot={j.almuerzo_tras_slot} slots={j.slots}
+                        onMinutos={(v) => guardarJornada(j, { almuerzo_min: v })}
+                        onTrasSlot={(v) => guardarJornada(j, { almuerzo_tras_slot: v })} />
+                    )}
+                    {config && (
+                      <span className="basis-full text-[11px] text-white/60">
+                        Cada {config.bloque} presentaciones hay un break de {config.break_min} min (se cambia en «Tiempos del evento»).
+                        La pausa adicional y el almuerzo reemplazan el break que caiga en ese punto; si los dos caen en el mismo sitio, queda solo el almuerzo.
+                      </span>
                     )}
                   </>
                 )}
