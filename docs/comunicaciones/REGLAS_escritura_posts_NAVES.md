@@ -69,6 +69,13 @@ Porque las mejores decisiones no se improvisan: se construyen con método.
 | 25 | La institución nunca aparece con su nombre religioso. | JMV, memoria «Opus Dei sin mención explícita» |
 | 26 | Tildes y ortografía revisadas, incluidos los nombres. | JMV, manual 1.6 |
 
+## El post no dice lo obvio
+
+| # | Regla | Origen |
+|---|---|---|
+| 28 | Se da por hecho que el proyecto es colombiano: nada de «colombiano», «de Colombia», «en Colombia» ni «del país». Solo se nombra un lugar concreto y distintivo (región, ciudad) u otro país. Si «Colombia» está en el nombre del proyecto, el nombre se deja. | JMV, 17-nov-2026 |
+| 29 | Nada de etiquetas genéricas («un emprendimiento», «una empresa»): se dice qué es. | JMV, 17-nov-2026 |
+
 ## Los hashtags son siempre los mismos
 
 | # | Regla | Origen |

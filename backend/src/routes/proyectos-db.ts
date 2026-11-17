@@ -256,7 +256,7 @@ router.get('/mi-presentacion/ics', requireAuth(), async (req: AuthenticatedReque
 
 // Sube esta versión cuando cambien las reglas de redacción: invalida la caché
 // (sha) y «Generar todo» rehace lo que no esté aprobado.
-const REGLAS_POSTS_VERSION = 'posts-v1';
+const REGLAS_POSTS_VERSION = 'posts-v2';
 const HASHTAGS = '#SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES';
 
 const CANVAS_LABELS: Array<[string, string]> = [
@@ -354,6 +354,8 @@ function revisarPost(post: string, nombreProyecto = ''): string[] {
   const palabras = texto.trim().split(/\s+/).filter(Boolean).length;
   if (palabras > 80) problemas.push(`Tiene ${palabras} palabras sin hashtags y el máximo es 80 (regla 9). Recórtalo a unas 65: quita la frase 3 o sus detalles, y deja una sola idea por frase.`);
   if (palabras < 45) problemas.push(`Tiene ${palabras} palabras sin hashtags y el mínimo es 45 (regla 9). Añade un hecho concreto del one pager.`);
+  if (/colombian[oa]s?|(?:de|en|para) colombia|del país/i.test(texto)) problemas.push('Dice que el proyecto es colombiano o de/en Colombia. Se da por hecho: quítalo (solo vale una región o ciudad concreta, o un país distinto).');
+  if (/(?<!\p{L})(?:un|una) (?:emprendimiento|empresa|startup)(?!\p{L})/iu.test(texto)) problemas.push('Usa una etiqueta genérica («un emprendimiento», «una empresa»). Di qué es el proyecto en concreto.');
   if (/[¿?]/.test(texto)) problemas.push('Tiene una pregunta. Regla 18: prohibidas las preguntas retóricas.');
   return problemas;
 }
@@ -385,7 +387,8 @@ async function generarUno(proyectoId: string): Promise<{ resumen: string; linked
     'Genera DOS piezas distintas y llama a la herramienta entregar_contenido con ellas:',
     '',
     'resumen — EXACTAMENTE 2 frases, sin autores, sin hashtags, sin emojis, sin superlativos vacíos:',
-    '  Frase 1 (qué es): tipo de negocio + para quién + dónde. Ej.: "FinTech colombiana que financia medicamentos y procedimientos urgentes no cubiertos por salud."',
+    '  Frase 1 (qué es): tipo de negocio + para quién (+ dónde solo si es una región o ciudad concreta, o un país distinto de Colombia). Ej.: "FinTech que financia medicamentos y procedimientos urgentes no cubiertos por salud."',
+    '  Nunca "colombiano/a", "de Colombia" ni "en Colombia": se da por hecho (ver regla de lugar más abajo).',
     '  Frase 2 (el diferencial o dato de validación). Ej.: "Aprobación en menos de 5 minutos, desembolso directo al proveedor médico."',
     '',
     'linkedin — post para LinkedIn. Cumple TODAS estas reglas de INALDE:',
@@ -408,6 +411,9 @@ async function generarUno(proyectoId: string): Promise<{ resumen: string; linked
     '  - Preguntas retóricas, metáforas, emojis.',
     '  - Superlativos y primicias sin prueba ("el primero", "el único", "nunca había", "revoluciona", "democratiza", "innovador").',
     '  - Ejemplos de cierres PROHIBIDOS: "El campo colombiano tiene solución, y nació en un aula del Executive MBA." / "Cargar tu vehículo eléctrico nunca había sido tan placentero." / "La emoción es el combustible; el movimiento, el vehículo del cambio." / "Porque las mejores decisiones no se improvisan: se construyen con método."',
+    'Lugar',
+    '  - Se da por hecho que los proyectos son colombianos: PROHIBIDO "colombiano/a", "de Colombia", "en Colombia", "del país" (JMV, 17-nov-2026). Solo se nombra el lugar si es concreto y distintivo (una región o ciudad: "del Caribe", "en Medellín") o si el proyecto apunta a otro país o a Latinoamérica. Si «Colombia» es parte del nombre del proyecto, el nombre se deja como está.',
+    '  - Nada de etiquetas genéricas como "un emprendimiento" o "una empresa" a secas: di qué es (p. ej. "miel trazable…", "un software de gestión de bodegas…").',
     'Vocabulario',
     '  - Participantes (nunca estudiantes), jornadas de presentación (nunca Demo Day), panelistas (nunca jurado).',
     '  - Siglas y anglicismos de negocio (B2B, RTD, WMS, asset-light…) se escriben en español; marcas y nombres propios se dejan como están.',
