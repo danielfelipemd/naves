@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { VisorArchivo } from '../../components/inalde/VisorArchivo';
 
 // Vista PÚBLICA de trabajos de grado definitivos agrupados por sector
 // (Comentario 13). Protegida por clave (se valida en el backend contra el hash de
@@ -27,6 +28,13 @@ export default function TrabajosSector() {
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
+  // "Ver" abre el visor (el proxy de archivos descarga por defecto).
+  const [visor, setVisor] = useState<{ url: string; titulo: string } | null>(null);
+  // Los del proxy (/api/archivos/…) van al visor; una URL externa se abre aparte.
+  const verArchivo = (url: string, titulo: string) => {
+    if (url.startsWith('/api/archivos/')) setVisor({ url, titulo });
+    else window.open(url, '_blank', 'noopener');
+  };
 
   async function abrir(e: React.FormEvent) {
     e.preventDefault();
@@ -131,7 +139,7 @@ export default function TrabajosSector() {
                             {p.resumen && <p className="text-sm text-inalde-text leading-relaxed mb-2 clamp-4" title={p.resumen}>{p.resumen}</p>}
                             <div className="flex flex-wrap items-center gap-2">
                               {p.one_pager_url && (
-                                <a href={p.one_pager_url} target="_blank" rel="noreferrer" className="text-[0.72rem] font-primary font-bold text-inalde-red hover:underline">Ver One Pager →</a>
+                                <button onClick={() => verArchivo(p.one_pager_url!, 'One Pager')} className="text-[0.72rem] font-primary font-bold text-inalde-red hover:underline">Ver One Pager →</button>
                               )}
                               {p.logo_url && (
                                 <a href={p.logo_url} target="_blank" rel="noreferrer" className="text-[0.62rem] font-primary font-bold px-2 py-1 rounded-[3px] bg-inalde-gray-bg text-inalde-blue border border-inalde-blue hover:bg-inalde-blue hover:text-white whitespace-nowrap"><span aria-hidden="true">⬇ </span>Logo</a>
@@ -158,6 +166,7 @@ export default function TrabajosSector() {
           </>
         )}
       </main>
+      {visor && <VisorArchivo url={visor.url} titulo={visor.titulo} onClose={() => setVisor(null)} />}
     </div>
   );
 }

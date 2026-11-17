@@ -3,6 +3,7 @@ import { confirmar } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
+import { VisorArchivo } from '../../components/inalde/VisorArchivo';
 import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
@@ -29,6 +30,12 @@ export default function ProyectosDB() {
   const [q, setQ] = useState('');
   const [dia, setDia] = useState('all');
   const [copied, setCopied] = useState('');
+  const [visor, setVisor] = useState<{ url: string; titulo: string } | null>(null);
+  // Los del proxy (/api/archivos/…) van al visor; una URL externa se abre aparte.
+  const verArchivo = (url: string, titulo: string) => {
+    if (url.startsWith('/api/archivos/')) setVisor({ url, titulo });
+    else window.open(url, '_blank', 'noopener');
+  };
   const [iaOn, setIaOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState('');            // proyecto_id generándose
   const [bulk, setBulk] = useState('');            // mensaje de generación masiva
@@ -205,7 +212,8 @@ export default function ProyectosDB() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5 shrink-0 items-end">
-                    {p.one_pager_url && <a href={p.one_pager_url} target="_blank" rel="noreferrer" className="text-xs text-inalde-red font-semibold hover:underline">Ver One Pager →</a>}
+                    {/* El proxy de archivos descarga por defecto; el visor lo muestra (&v=1). */}
+                    {p.one_pager_url && <button onClick={() => verArchivo(p.one_pager_url!, `One Pager · ${p.proyecto}`)} className="text-xs text-inalde-red font-semibold hover:underline">Ver One Pager →</button>}
                     {p.linkedin && (
                       <button onClick={() => copiar(p.equipo_id, p.linkedin!)} className={`text-xs font-semibold px-2 py-1 rounded ${copied === p.equipo_id ? 'bg-green-100 text-green-700' : 'bg-inalde-gray-bg text-inalde-gray hover:text-inalde-text'}`}>{copied === p.equipo_id ? '✓ Copiado' : 'Copiar LinkedIn'}</button>
                     )}
@@ -275,6 +283,7 @@ export default function ProyectosDB() {
           </div>
         </>
       )}
+      {visor && <VisorArchivo url={visor.url} titulo={visor.titulo} onClose={() => setVisor(null)} />}
     </>
   );
 }
