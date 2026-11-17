@@ -232,7 +232,19 @@ router.put('/admin/jornada/:jornadaId', ...soloAdmin, async (req, res) => {
 // sumar el total exacto: ni sobra ni falta ningún proyecto.
 const repartirSchema = z.object({
   por_jornada: z.array(z.number().int().min(0).max(200)).optional(),
+  // Por defecto los proyectos de un mismo sector quedan seguidos (las jornadas
+  // se arman por bloques de sector, ver frontend/src/lib/sectores.ts). Con
+  // false se conserva el orden actual de la programación.
+  agrupar_por_sector: z.boolean().optional(),
 });
+
+// Orden de los sectores al agrupar: alfabético, con «Otro» y «sin sector» al final.
+function claveSector(sector: string): string {
+  const s = (sector ?? '').trim();
+  if (!s) return '\uffff2';
+  if (s.toLowerCase() === 'otro') return '\uffff1';
+  return s.toLocaleLowerCase('es');
+}
 
 router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
@@ -265,7 +277,16 @@ router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
     .filter((p) => !vistos.has(p.proyecto_id))
     .sort((a, b) => a.proyecto.localeCompare(b.proyecto))
     .map((p) => p.proyecto_id);
-  const todos = [...yaProgramados, ...nuevos];
+  let todos = [...yaProgramados, ...nuevos];
+  if (parsed.data.agrupar_por_sector !== false) {
+    // Sector primero; dentro del sector se respeta el orden de referencia
+    // (sort estable), así un reparto repetido no baraja lo que ya estaba.
+    const pos = new Map(todos.map((id, i) => [id, i]));
+    todos = [...todos].sort((a, b) => {
+      const ka = claveSector(pf.get(a)!.sector), kb = claveSector(pf.get(b)!.sector);
+      return ka < kb ? -1 : ka > kb ? 1 : pos.get(a)! - pos.get(b)!;
+    });
+  }
 
   // Cantidades por jornada: las del admin, o reparto parejo (el resto se le da a
   // las primeras jornadas).

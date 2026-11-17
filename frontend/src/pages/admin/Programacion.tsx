@@ -139,6 +139,7 @@ export default function Programacion() {
   // una casilla por jornada (JMV no siempre quiere partes iguales: p. ej. 20 y
   // 15). Arranca con el reparto parejo y la suma tiene que dar el total.
   const [reparto, setReparto] = useState<number[] | null>(null);
+  const [agruparSector, setAgruparSector] = useState(true);
   function abrirReparto() {
     const total = proyectos.length, dias = jornadas.length;
     const base = Math.floor(total / dias), sobran = total % dias;
@@ -148,7 +149,7 @@ export default function Programacion() {
     if (!reparto) return;
     setRepartiendo(true); setMsg(null);
     try {
-      const { data } = await api.post(`/programacion/admin/${cohorte}/repartir`, { por_jornada: reparto });
+      const { data } = await api.post(`/programacion/admin/${cohorte}/repartir`, { por_jornada: reparto, agrupar_por_sector: agruparSector });
       const detalle = (data.por_jornada ?? []).map((p: any) => `jornada ${p.numero}: ${p.proyectos}`).join(' · ');
       setMsg({ kind: 'ok', text: `Repartidos ${data.repartidos} proyecto(s) — ${detalle}.` });
       setReparto(null);
@@ -312,8 +313,15 @@ export default function Programacion() {
             <h3 className="font-primary font-bold text-inalde-text mb-1">Repartir proyectos entre las jornadas</h3>
             <p className="text-sm text-inalde-gray mb-3">
               Hay <strong className="text-inalde-text">{total}</strong> proyecto(s) para presentar. Escribe cuántos presentan cada día.
-              Se respeta el orden actual: los primeros van a la jornada 1 y así sucesivamente.
+              Los primeros van a la jornada 1 y así sucesivamente.
             </p>
+            <label className="flex items-start gap-2 text-sm mb-3">
+              <input type="checkbox" checked={agruparSector} onChange={(e) => setAgruparSector(e.target.checked)} className="mt-1" />
+              <span>
+                <strong>Agrupar por sector</strong> (recomendado): los proyectos de un mismo sector quedan seguidos.
+                {!agruparSector && <span className="text-inalde-gray"> Sin esto se conserva el orden actual de la programación.</span>}
+              </span>
+            </label>
             <div className="flex flex-wrap gap-4 items-end mb-3">
               {jornadas.map((j, i) => (
                 <label key={j.id} className="text-sm">
