@@ -475,6 +475,32 @@ router.put('/admin/proyecto/:proyectoId/contenido', ...soloAdmin, async (req, re
   res.json({ ok: true });
 });
 
+// PATCH sector del proyecto (el súper admin lo corrige desde la base de datos
+// de proyectos). La lista cerrada vive en frontend/src/lib/sectores.ts; aquí
+// solo se valida largo (la columna es varchar(100)). Ojo: cambiar el sector no
+// reacomoda una programación ya armada, y cambia el agrupado de la vista pública.
+const sectorSchema = z.object({ sector: z.string().trim().min(1).max(100) });
+router.patch('/admin/proyecto/:proyectoId/sector', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const parsed = sectorSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'SECTOR_INVALIDO', details: parsed.error.issues });
+  const { data: p } = await supabaseAdmin.from('proyectos').select('id, sector').eq('id', req.params.proyectoId).maybeSingle();
+  if (!p) return res.status(404).json({ error: 'PROYECTO_NO_ENCONTRADO' });
+  const nuevo = parsed.data.sector;
+  if (((p as any).sector ?? '') === nuevo) return res.json({ ok: true, sector: nuevo });
+  const { error } = await supabaseAdmin.from('proyectos').update({ sector: nuevo }).eq('id', req.params.proyectoId);
+  if (error) return res.status(500).json({ error: 'GUARDAR_FALLIDO', detail: error.message });
+  await supabaseAdmin.from('auditoria').insert({
+    actor_tipo: 'super_admin',
+    actor_id: req.user?.profesorId ?? null,
+    accion: 'ADMIN_CAMBIAR_SECTOR_PROYECTO',
+    entidad_tipo: 'proyectos',
+    entidad_id: req.params.proyectoId,
+    detalles: { antes: (p as any).sector ?? null, despues: nuevo },
+    timestamp: new Date().toISOString(),
+  }).then(() => { /* el rastro no debe tumbar el cambio */ }, () => { /* idem */ });
+  res.json({ ok: true, sector: nuevo });
+});
+
 // =====================================================================
 // Módulo F — Migración de archivos: subir logo / one pager a Storage
 // =====================================================================

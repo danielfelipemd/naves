@@ -5,6 +5,7 @@ import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
 import { VisorArchivo } from '../../components/inalde/VisorArchivo';
 import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
+import { SECTORES } from '../../lib/sectores';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Dia { fecha: string; legible: string; }
@@ -43,6 +44,7 @@ export default function ProyectosDB() {
   const [editId, setEditId] = useState('');        // proyecto_id en edición
   const [edR, setEdR] = useState('');
   const [edL, setEdL] = useState('');
+  const [sectorId, setSectorId] = useState('');    // proyecto_id con el sector en edición
 
   useEffect(() => { (async () => {
     setCohortes(((await api.get('/admin/cohortes')).data as Cohorte[]).filter((c) => c.activa));
@@ -88,6 +90,16 @@ export default function ProyectosDB() {
       await load();
     } catch (e: any) { setErr(errorLegible(e)); }
     finally { setBulkLoad(false); }
+  }
+
+  async function cambiarSector(p: Proyecto, sector: string) {
+    if (!p.proyecto_id || !sector || sector === p.sector) { setSectorId(''); return; }
+    setBusy(p.proyecto_id + 'sector'); setErr('');
+    try {
+      await api.patch(`/proyectos-db/admin/proyecto/${p.proyecto_id}/sector`, { sector });
+      setSectorId(''); await load();
+    } catch (e: any) { setErr(errorLegible(e)); }
+    finally { setBusy(''); }
   }
 
   function abrirEdicion(p: Proyecto) { setEditId(p.proyecto_id ?? ''); setEdR(p.resumen ?? ''); setEdL(p.linkedin ?? ''); }
@@ -203,7 +215,32 @@ export default function ProyectosDB() {
                     </div>
                     <p className="text-xs text-inalde-gray">{p.autores || '—'}</p>
                     <div className="flex flex-wrap gap-2 mt-1 text-[11px]">
-                      {p.sector && <span className="px-2 py-0.5 rounded bg-inalde-gold/15 text-inalde-text">{p.sector}</span>}
+                      {p.proyecto_id && sectorId === p.proyecto_id ? (
+                        <span className="inline-flex items-center gap-1">
+                          <select
+                            autoFocus
+                            defaultValue={p.sector}
+                            disabled={busy === p.proyecto_id + 'sector'}
+                            onChange={(e) => cambiarSector(p, e.target.value)}
+                            className="input-inalde !py-0.5 !px-1 !text-[11px] max-w-[260px]"
+                          >
+                            {/* Un sector viejo que ya no está en el catálogo se muestra para no perderlo de vista. */}
+                            {!p.sector && <option value="">— Escoge un sector —</option>}
+                            {p.sector && !(SECTORES as readonly string[]).includes(p.sector) && <option value={p.sector}>{p.sector} (fuera de la lista)</option>}
+                            {SECTORES.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <button onClick={() => setSectorId('')} className="text-inalde-gray hover:underline">cancelar</button>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => p.proyecto_id && setSectorId(p.proyecto_id)}
+                          disabled={!p.proyecto_id}
+                          title="Cambiar sector"
+                          className="px-2 py-0.5 rounded bg-inalde-gold/15 text-inalde-text hover:bg-inalde-gold/30"
+                        >
+                          {p.sector || 'Sin sector'} ✏️
+                        </button>
+                      )}
                       {p.fecha_legible ? (
                         <span className="text-inalde-gray capitalize">🗓 {p.fecha_legible.replace(/ de \d{4}$/, '')} · Jornada {p.jornada} · {p.hora_inicio}–{p.hora_fin}</span>
                       ) : (
