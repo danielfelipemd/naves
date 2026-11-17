@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { confirmar } from '../../components/inalde/Dialogos';
+import { Link } from 'react-router-dom';
+import { confirmar, pedirTexto } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { BarraProgreso } from '../../components/inalde/BarraProgreso';
 import { VisorArchivo } from '../../components/inalde/VisorArchivo';
 import { FORMATOS, acceptDe, revisarFormato } from '../../lib/formatos';
-import { SECTORES } from '../../lib/sectores';
+import { useSectores, invalidarSectores } from '../../lib/sectores';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Dia { fecha: string; legible: string; }
@@ -19,6 +20,7 @@ interface Proyecto {
 }
 
 export default function ProyectosDB() {
+  const SECTORES = useSectores();
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   // Progreso de la subida en curso (0-100). Null cuando no hay ninguna.
   const [progreso, setProgreso] = useState<number | null>(null);
@@ -121,7 +123,34 @@ export default function ProyectosDB() {
     return () => { vivo = false; };
   }, [cohorte]);
 
-  async function cambiarSector(p: Proyecto, sector: string) {
+  // «＋ Agregar sector nuevo…» desde el mismo menú: lo crea en el catálogo y se
+  // lo asigna a este proyecto en un paso (Daniel, 17-nov-2026: «una opción
+  // dentro del sistema, fácil de configurar», no una pantalla aparte).
+  async function nuevoSector(p: Proyecto): Promise<void> {
+    const nombre = (await pedirTexto({
+      titulo: 'Agregar sector nuevo',
+      mensaje: `Se agrega a la lista de sectores y se le asigna a «${p.proyecto}».`,
+      etiqueta: 'Nombre del sector',
+      placeholder: 'Ej.: Industrial',
+      aceptar: 'Agregar y asignar',
+      minimo: 2,
+    }))?.trim();
+    if (!nombre) { setSectorId(''); return; }
+    try {
+      await api.post('/sectores/admin', { nombre });
+    } catch (e: any) {
+      // Si ya existía (p. ej. con otra mayúscula), se asigna el que hay.
+      const existente = SECTORES.find((s) => s.toLocaleLowerCase('es') === nombre.toLocaleLowerCase('es'));
+      if (e?.response?.data?.error !== 'SECTOR_EXISTE' || !existente) { setErr(formatBackendError(e)); setSectorId(''); return; }
+      invalidarSectores();
+      return cambiarSector(p, existente);
+    }
+    invalidarSectores();
+    await cambiarSector(p, nombre);
+  }
+
+  async function cambiarSector(p: Proyecto, sector: string): Promise<void> {
+    if (sector === '__nuevo__') return nuevoSector(p);
     if (!p.proyecto_id || !sector || sector === p.sector) { setSectorId(''); return; }
     setBusy(p.proyecto_id + 'sector'); setErr('');
     try {
@@ -255,10 +284,12 @@ export default function ProyectosDB() {
                           >
                             {/* Un sector viejo que ya no está en el catálogo se muestra para no perderlo de vista. */}
                             {!p.sector && <option value="">— Escoge un sector —</option>}
-                            {p.sector && !(SECTORES as readonly string[]).includes(p.sector) && <option value={p.sector}>{p.sector} (fuera de la lista)</option>}
+                            {p.sector && !SECTORES.includes(p.sector) && <option value={p.sector}>{p.sector} (fuera de la lista)</option>}
                             {SECTORES.map((s) => <option key={s} value={s}>{s}</option>)}
+                            <option value="__nuevo__">＋ Agregar sector nuevo…</option>
                           </select>
                           <button onClick={() => setSectorId('')} className="text-inalde-gray hover:underline">cancelar</button>
+                          <Link to="/admin/sectores" className="text-inalde-blue hover:underline" title="Cambiar nombre, ordenar u ocultar sectores">⚙️ Sectores</Link>
                         </span>
                       ) : (
                         <button

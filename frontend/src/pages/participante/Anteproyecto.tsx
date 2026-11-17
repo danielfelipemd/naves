@@ -16,7 +16,7 @@ import { CiiuPicker } from '../../components/inalde/CiiuPicker';
 import { RangoFechas } from '../../components/inalde/RangoFechas';
 import { api, enSegundoPlano } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
-import { SECTORES } from '../../lib/sectores';
+import { useSectores } from '../../lib/sectores';
 
 // ============== Catálogos (alineados con DOCUMENTACION_BACKEND.md) ==========
 type Emocion = 'crear' | 'dinero' | 'problema' | 'autonomia' | 'ninguna';
@@ -1099,6 +1099,7 @@ function ProyectoForm({ proyecto, fechaEntrega, fechaFinal, onChange, onUpdateHi
   onAddHito: () => void;
   onRemoveHito: (hi: number) => void;
 }) {
+  const SECTORES = useSectores();
   // Hitos con descripcion fuera de los presets arrancan en modo manual
   const [manualHitos, setManualHitos] = useState<Set<number>>(() => {
     const s = new Set<number>();
@@ -1136,7 +1137,7 @@ function ProyectoForm({ proyecto, fechaEntrega, fechaFinal, onChange, onUpdateHi
             <option value="">Selecciona un sector…</option>
             {/* Red de seguridad: si el sector guardado no está en el catálogo (dato
                 antiguo), se muestra para que no quede en blanco al editar. */}
-            {proyecto.sector && !(SECTORES as readonly string[]).includes(proyecto.sector) && (
+            {proyecto.sector && !SECTORES.includes(proyecto.sector) && (
               <option value={proyecto.sector}>{proyecto.sector}</option>
             )}
             {SECTORES.map((a) => <option key={a} value={a}>{a}</option>)}

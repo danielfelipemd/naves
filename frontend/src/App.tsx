@@ -23,6 +23,7 @@ import ConfirmarAsistencia from './pages/panelista/ConfirmarAsistencia';
 import AdminPanelistas from './pages/admin/Panelistas';
 import AdminProgramacion from './pages/admin/Programacion';
 import AdminProyectosDB from './pages/admin/ProyectosDB';
+import AdminSectores from './pages/admin/Sectores';
 import ProfesorSeleccionarProyectos from './pages/profesor/SeleccionarProyectos';
 import ProfesorTrabajosDefinitivos from './pages/profesor/TrabajosDefinitivos';
 import ProfesorEquiposConsulta from './pages/profesor/EquiposConsulta';
@@ -163,6 +164,7 @@ export default function App() {
           <Route path="panelistas" element={<SuperAdminOnly><AdminPanelistas /></SuperAdminOnly>} />
           <Route path="programacion" element={<SuperAdminOnly><AdminProgramacion /></SuperAdminOnly>} />
           <Route path="proyectos-db" element={<SuperAdminOnly><AdminProyectosDB /></SuperAdminOnly>} />
+          <Route path="sectores" element={<SuperAdminOnly><AdminSectores /></SuperAdminOnly>} />
           <Route path="trabajos-sector" element={<SuperAdminOnly><AdminTrabajosSector /></SuperAdminOnly>} />
           {/* El dashboard de control es de solo lectura: el profesor lo ve para
               las cohortes que acompaña (el backend acota el alcance). */}

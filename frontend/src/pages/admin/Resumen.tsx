@@ -63,6 +63,11 @@ const GROUPS: Group[] = [
         desc: 'Vista interna de los proyectos definitivos de la cohorte con su horario de presentación, sector, autores, resumen y post de LinkedIn. Exporta a Excel (comunicaciones + programación).',
       },
       {
+        to: '/admin/sectores', icon: '🏷️',
+        title: 'Sectores',
+        desc: 'La lista de sectores para clasificar los proyectos: agrega, cambia el nombre, ordena u oculta sectores.',
+      },
+      {
         to: '/admin/trabajos-sector', icon: '🗂️',
         title: 'Trabajos por sector (público)',
         desc: 'Vista de los trabajos definitivos agrupada por sector, protegida con clave para compartir. Marca proyectos confidenciales (sin descargas).',
