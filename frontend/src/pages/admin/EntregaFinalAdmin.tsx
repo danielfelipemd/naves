@@ -68,9 +68,14 @@ export function EntregaFinalAdmin(props: {
   estado: Record<TipoEntrega, boolean>;
   tieneDefinitivo: boolean;
   programacionPublicada: boolean;
+  /** El equipo no tiene ningún proyecto: al subir material se crea uno con
+   *  este nombre (editable) y queda como definitivo. null = ya tiene proyecto. */
+  nombreProyectoNuevo?: string | null;
   onListo: (mensaje: { kind: 'ok' | 'err'; text: string }) => void;
 }) {
-  const { equipoId, estado, tieneDefinitivo, programacionPublicada, onListo } = props;
+  const { equipoId, estado, tieneDefinitivo, programacionPublicada, nombreProyectoNuevo, onListo } = props;
+  const creaProyecto = nombreProyectoNuevo != null;
+  const [nombreProyecto, setNombreProyecto] = useState(nombreProyectoNuevo ?? '');
   const [filas, setFilas] = useState<Fila[] | null>(null);
   const [progreso, setProgreso] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,15 +103,18 @@ export function EntregaFinalAdmin(props: {
 
   const asignadas = (filas ?? []).filter((f) => f.tipo);
   const repetidos = new Set(asignadas.map((f) => f.tipo).filter((t, i, a) => a.indexOf(t) !== i));
-  const listo = !!filas && asignadas.length > 0 && !repetidos.size && asignadas.every((f) => !f.problema);
+  const material = asignadas.some((f) => f.tipo !== 'proyecto-final');
+  const pideNombre = creaProyecto && material;
+  const listo = !!filas && asignadas.length > 0 && !repetidos.size && asignadas.every((f) => !f.problema)
+    && (!pideNombre || !!nombreProyecto.trim());
   const faltanTrasCarga = DOCUMENTOS.filter((d) => !estado[d.tipo] && !asignadas.some((f) => f.tipo === d.tipo));
 
   async function subir() {
     if (!filas || !listo || !equipoId) return;
     const reemplaza = asignadas.filter((f) => estado[f.tipo as TipoEntrega]).map((f) => NOMBRE[f.tipo as TipoEntrega]);
-    const material = asignadas.some((f) => f.tipo !== 'proyecto-final');
     const avisos = [
       `Vas a cargar en nombre del equipo: ${asignadas.map((f) => NOMBRE[f.tipo as TipoEntrega]).join(', ')}. No aplica la fecha límite y queda en la auditoría.`,
+      pideNombre ? `El equipo no tiene proyecto: se crea «${nombreProyecto.trim()}» y queda como su proyecto definitivo.` : '',
       reemplaza.length ? `Ya hay archivo cargado de: ${reemplaza.join(', ')}. Se reemplazará y el anterior se perderá.` : '',
       programacionPublicada && material ? 'La programación de presentaciones ya se publicó: el material (One Pager, Logo, Modelo Financiero) que cambies es el que verán las áreas desde ahora.' : '',
       faltanTrasCarga.length ? `Después de esta carga todavía faltará: ${faltanTrasCarga.map((d) => d.nombre).join(', ')}.` : 'Con esta carga la entrega queda completa: si no lo estaba, el equipo recibe el correo de entrega.',
@@ -121,6 +129,7 @@ export function EntregaFinalAdmin(props: {
     const fd = new FormData();
     for (const f of asignadas) fd.append('files', f.file);
     fd.append('tipos', JSON.stringify(asignadas.map((f) => f.tipo)));
+    if (pideNombre) fd.append('nombre_proyecto', nombreProyecto.trim());
     const total = asignadas.reduce((n, f) => n + f.file.size, 0);
     setProgreso(0); setError(null);
     try {
@@ -202,6 +211,16 @@ export function EntregaFinalAdmin(props: {
                 ))}
               </tbody>
             </table>
+            {pideNombre && (
+              <div className="mt-4">
+                <label className="block text-xs font-semibold text-inalde-text mb-1">Nombre del proyecto</label>
+                <input className="input-inalde !py-1.5 !text-sm w-full" value={nombreProyecto} maxLength={200}
+                  onChange={(e) => setNombreProyecto(e.target.value)} placeholder="Nombre del proyecto del equipo" />
+                <p className="text-[11px] text-inalde-gray mt-1">
+                  El equipo no tiene ningún proyecto. Al subir se crea con este nombre y queda como su proyecto definitivo (ahí se guardan el One Pager, el Logo y el Modelo Financiero).
+                </p>
+              </div>
+            )}
             {programacionPublicada && (
               <p className="text-xs mt-4 border-l-4 border-inalde-gold bg-yellow-50 px-3 py-2">
                 La programación de presentaciones ya está publicada. El equipo ya no puede cambiar su material; como súper admin sí puedes, y quedará en la auditoría.

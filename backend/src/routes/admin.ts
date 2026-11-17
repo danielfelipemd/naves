@@ -1395,6 +1395,9 @@ router.get('/anteproyectos/:id', async (req, res) => {
       proyecto_definitivo_id: proyectoId,
       // Sin definitivo pero con un solo proyecto: la carga del admin lo marca.
       unico_proyecto_id: proyectoId ? null : await unicoProyectoVigente((data as any).id),
+      // Sin ningún proyecto: la carga del admin lo crea (con nombre_proyecto).
+      sin_proyectos: proyectoId ? false : (await contarProyectos((data as any).id)) === 0,
+      nombre_equipo: eqd.nombre_equipo ?? null,
       one_pager: !!(pc as any)?.one_pager_path,
       logo: !!(pc as any)?.logo_path,
       modelo_financiero: !!(pc as any)?.modelo_financiero_path,
@@ -2408,6 +2411,12 @@ async function unicoProyectoVigente(anteproyectoId: string): Promise<string | nu
   return vigentes.length === 1 ? vigentes[0].id : null;
 }
 
+/** Cuántos proyectos tiene el anteproyecto (archivados incluidos). */
+async function contarProyectos(anteproyectoId: string): Promise<number> {
+  const { count } = await supabaseAdmin.from('proyectos').select('id', { count: 'exact', head: true }).eq('anteproyecto_id', anteproyectoId);
+  return count ?? 0;
+}
+
 router.post('/equipos/:equipoId/entrega-final', uploadTrabajo.array('files', 4), async (req: AuthenticatedRequest, res) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   if (!files.length) return res.status(400).json({ error: 'NO_FILE', mensaje: 'No llegó ningún archivo.' });
@@ -2452,12 +2461,28 @@ router.post('/equipos/:equipoId/entrega-final', uploadTrabajo.array('files', 4),
     // Habitta, 16/11/2026: quedó en borrador), no hay definitivo y el material
     // no tenía dónde colgarse. En la carga del admin se aplica la misma regla:
     // el único proyecto queda como definitivo, y se deja rastro.
-    const unico = await unicoProyectoVigente(ant.id);
+    let unico = await unicoProyectoVigente(ant.id);
+    let creado = false;
+    if (!unico && (await contarProyectos(ant.id)) === 0) {
+      // Equipo sin ningún proyecto (p. ej. rehecho por el admin después del
+      // plazo del anteproyecto, 17/11/2026): el admin carga todo por el
+      // equipo, así que se crea el proyecto con el nombre que dé.
+      const nombre = String(req.body?.nombre_proyecto ?? '').trim().slice(0, 200)
+        || String(eq.nombre_equipo ?? '').trim() || 'Proyecto del equipo';
+      const { data: nuevo, error: errNuevo } = await supabaseAdmin.from('proyectos')
+        .insert({ anteproyecto_id: ant.id, posicion: 1, nombre, estado_seleccion: 'definitivo' })
+        .select('id').single();
+      if (errNuevo || !nuevo) {
+        return res.status(500).json({ error: 'PROYECTO_NO_CREADO', mensaje: 'No se pudo crear el proyecto del equipo. Inténtalo de nuevo.', detail: errNuevo?.message });
+      }
+      unico = (nuevo as any).id as string;
+      creado = true;
+    }
     if (!unico) {
       return res.status(409).json({ error: 'ESPERA_PROYECTO_DEFINITIVO', mensaje: 'El equipo tiene varios proyectos y aún no se ha elegido el definitivo: el One Pager, el logo y el modelo financiero se cuelgan de él. Elige primero el proyecto definitivo.' });
     }
     const ahoraSel = new Date().toISOString();
-    const rp = await supabaseAdmin.from('proyectos').update({ estado_seleccion: 'definitivo' }).eq('id', unico);
+    const rp = creado ? { error: null } : await supabaseAdmin.from('proyectos').update({ estado_seleccion: 'definitivo' }).eq('id', unico);
     const re = rp.error ? null : await supabaseAdmin.from('equipos')
       .update({ proyecto_definitivo_id: unico, fecha_seleccion_definitivo: ahoraSel }).eq('id', ant.equipo_id);
     if (rp.error || re?.error) {
@@ -2469,7 +2494,7 @@ router.post('/equipos/:equipoId/entrega-final', uploadTrabajo.array('files', 4),
       accion: 'ADMIN_SELECCION_DEFINITIVO',
       entidad_tipo: 'equipos',
       entidad_id: ant.equipo_id,
-      detalles: { proyecto_id: unico, cohorte_id: eq.cohorte_id, motivo: 'unico_proyecto_en_carga_entrega_final' },
+      detalles: { proyecto_id: unico, cohorte_id: eq.cohorte_id, motivo: creado ? 'proyecto_creado_en_carga_entrega_final' : 'unico_proyecto_en_carga_entrega_final' },
       timestamp: ahoraSel,
     }).then(() => { /* el rastro no debe tumbar la carga */ }, () => { /* idem */ });
     proyectoId = unico;

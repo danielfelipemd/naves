@@ -326,6 +326,7 @@ function BusinessPlanView({
   const proyectoFinalPath = data.archivo_proyecto_final_path as string | null;
   const entrega = data.entrega_final as null | {
     proyecto_definitivo_id: string | null; unico_proyecto_id?: string | null; one_pager: boolean; logo: boolean; modelo_financiero: boolean;
+    sin_proyectos?: boolean; nombre_equipo?: string | null;
     programacion_publicada_at: string | null;
   };
   const estadoEntrega: Record<TipoEntrega, boolean> = {
@@ -409,15 +410,19 @@ function BusinessPlanView({
         </ul>
         {!entrega?.proyecto_definitivo_id && (
           <p className="text-[11px] text-inalde-gray italic mt-3">
-            {entrega?.unico_proyecto_id
+            {entrega?.sin_proyectos
+              ? 'El equipo no tiene ningún proyecto (el anteproyecto no se llenó). Al cargar el material escribes el nombre del proyecto: se crea y queda como definitivo.'
+              : entrega?.unico_proyecto_id
               ? 'El equipo aún no tiene proyecto definitivo marcado (el anteproyecto no se envió). Tiene un solo proyecto: al cargar el material queda como definitivo.'
               : 'El equipo tiene varios proyectos y aún no se eligió el definitivo: por ahora solo se puede cargar el Business Plan.'}
           </p>
         )}
         <EntregaFinalAdmin
+          key={entrega?.sin_proyectos ? 'sin-proyecto' : 'con-proyecto'}
           equipoId={data.equipos?.id ?? data.equipo_id ?? null}
           estado={estadoEntrega}
-          tieneDefinitivo={!!entrega?.proyecto_definitivo_id || !!entrega?.unico_proyecto_id}
+          tieneDefinitivo={!!entrega?.proyecto_definitivo_id || !!entrega?.unico_proyecto_id || !!entrega?.sin_proyectos}
+          nombreProyectoNuevo={entrega?.sin_proyectos ? (entrega?.nombre_equipo ?? '') : null}
           programacionPublicada={!!entrega?.programacion_publicada_at}
           onListo={onCargaMultiple} />
       </div>
