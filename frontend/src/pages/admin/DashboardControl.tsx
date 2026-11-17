@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../../lib/api';
+import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { useAuth } from '../../auth/store';
 
@@ -237,12 +237,31 @@ function colorAvance(p: number): string {
 // El paso se puede ABRIR: la barra dice cuánto falta, la lista dice quién
 // falta. Se despliega con un botón real (no un div con onClick) para que
 // funcione con teclado y lo anuncie el lector de pantalla.
-function PasoProceso({ paso }: { paso: Paso }) {
+function PasoProceso({ paso, cohorteId }: { paso: Paso; cohorteId?: string }) {
   const [abierto, setAbierto] = useState(false);
+  // "Solo pendientes" y Excel: por ahora solo en los trabajos definitivos, que
+  // es la lista que el súper admin necesita sacar (17/11/2026).
+  const conExcel = paso.clave === 'trabajos_definitivos' && !!cohorteId;
+  const [soloPendientes, setSoloPendientes] = useState(false);
+  const [bajando, setBajando] = useState(false);
+  const [errExcel, setErrExcel] = useState('');
   const p = pct(paso.n, paso.total);
-  const detalle = paso.detalle ?? [];
-  const pendientes = detalle.filter((d) => !d.ok);
-  const hayDetalle = detalle.length > 0;
+  const todos = paso.detalle ?? [];
+  const pendientes = todos.filter((d) => !d.ok);
+  const detalle = soloPendientes ? pendientes : todos;
+  async function bajarExcel() {
+    if (!cohorteId) return;
+    setBajando(true); setErrExcel('');
+    try {
+      await downloadFile(
+        `/dashboard-control/${encodeURIComponent(cohorteId)}?excel=trabajos-definitivos${soloPendientes ? '&solo_pendientes=1' : ''}`,
+        `${soloPendientes ? 'Trabajos_por_entregar' : 'Trabajos_definitivos'}_${cohorteId}.xlsx`,
+      );
+    } catch (e: any) {
+      setErrExcel(formatBackendError(e));
+    } finally { setBajando(false); }
+  }
+  const hayDetalle = todos.length > 0;
 
   const barra = (
     <>
@@ -298,6 +317,19 @@ function PasoProceso({ paso }: { paso: Paso }) {
               ? ` Faltan ${pendientes.length} de ${paso.total}.`
               : ' Nada pendiente.'}
           </p>
+          {conExcel && (
+            <div className="flex flex-wrap items-center gap-3 mb-2">
+              <label className="inline-flex items-center gap-1.5 text-xs text-inalde-text cursor-pointer">
+                <input type="checkbox" checked={soloPendientes} onChange={(e) => setSoloPendientes(e.target.checked)} />
+                Solo pendientes
+              </label>
+              <button type="button" onClick={() => void bajarExcel()} disabled={bajando}
+                className="text-xs font-semibold text-inalde-blue hover:underline disabled:opacity-50">
+                {bajando ? 'Generando…' : `↓ Descargar Excel${soloPendientes ? ' (solo pendientes)' : ''}`}
+              </button>
+              {errExcel && <span className="text-xs text-inalde-red">{errExcel}</span>}
+            </div>
+          )}
           <ul className="max-h-72 overflow-y-auto divide-y divide-inalde-gray-light/70">
             {detalle.map((d) => (
               <li key={d.id} className="flex items-start gap-2 py-1.5">
@@ -586,7 +618,7 @@ export default function DashboardControl() {
             </div>
             <div className="card-inalde p-5 flex flex-col gap-4">
               {data.bloque2.map((paso) => (
-                <PasoProceso key={paso.clave ?? paso.label} paso={paso} />
+                <PasoProceso key={paso.clave ?? paso.label} paso={paso} cohorteId={cohorteId} />
               ))}
             </div>
           </section>

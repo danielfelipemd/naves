@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import ExcelJS from 'exceljs';
 import { supabaseAdmin } from '../db/supabase.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { entregaFinalCompleta } from '../services/entrega-final.js';
@@ -498,6 +499,40 @@ router.get('/:cohorteId', ...adminOProfesor, async (req: AuthenticatedRequest, r
       }),
     },
   ];
+
+  // --- Excel de trabajos de grado por entregar (?excel=trabajos-definitivos) --
+  // Mismo criterio que el paso "Trabajos definitivos entregados" (17/11/2026:
+  // el súper admin necesitaba la lista y solo existía desplegada en pantalla).
+  if (req.query.excel === 'trabajos-definitivos') {
+    const soloPendientes = req.query.solo_pendientes === '1';
+    const MOD: Record<string, string> = { business_plan: 'Business Plan', caso: 'Caso', proyecto_investigacion: 'Proyecto de investigación' };
+    const filas = equipos
+      .map((e) => ({ e, ok: definitivoEntregadoDeEquipo(e), nombre: nombreEquipo(e) }))
+      .filter((x) => !soloPendientes || !x.ok)
+      .sort((a, b) => Number(a.ok) - Number(b.ok) || a.nombre.localeCompare(b.nombre));
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(soloPendientes ? 'Por entregar' : 'Trabajos definitivos', { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.columns = [{ width: 13 }, { width: 40 }, { width: 24 }, { width: 55 }, { width: 45 }] as any;
+    const h = ws.addRow(['Estado', 'Equipo / proyecto', 'Modalidad', 'Integrantes', 'Falta']);
+    h.eachCell((c) => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A1A' } }; });
+    for (const { e, ok, nombre } of filas) {
+      const r = ws.addRow([
+        ok ? 'Entregado' : 'Pendiente',
+        nombre,
+        MOD[e.tipo_trabajo_grado] ?? e.tipo_trabajo_grado ?? '',
+        miembrosDe(e).map((m) => m.participantes_lista?.nombre_completo).filter(Boolean).join(', '),
+        faltantesDeEquipo(e).join(', '),
+      ]);
+      r.alignment = { vertical: 'top', wrapText: true };
+      if (!ok) r.getCell(1).font = { bold: true, color: { argb: 'FFD0021B' } };
+    }
+    ws.autoFilter = { from: 'A1', to: 'E1' };
+    const nombreArchivo = `${soloPendientes ? 'Trabajos_por_entregar' : 'Trabajos_definitivos'}_${cohorteId.replace(/[^\w-]/g, '_')}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+    await wb.xlsx.write(res);
+    return res.end();
+  }
 
   res.json({
     alcance,
