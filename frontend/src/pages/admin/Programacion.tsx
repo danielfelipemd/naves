@@ -8,6 +8,7 @@ interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Config { evento_nombre: string; expo: number; trans: number; foto: number; cierre: number; break_min: number; bloque: number; }
 interface Slot {
   slot: number; proyecto_id: string; proyecto: string; autores: string; sector: string;
+  jornada_fija: number | null; // día al que está fijado (casos especiales); null = libre
   hora_inicio: string; hora_fin: string;
   resumen: string | null; linkedin: string | null; one_pager_url: string | null; logo_url: string | null;
 }
@@ -21,7 +22,7 @@ interface Jornada {
   almuerzo: boolean; almuerzo_min: number; almuerzo_tras_slot: number | null;
   slots: Slot[]; actividades: Actividad[];
 }
-interface Proyecto { proyecto_id: string; equipo_id: string; proyecto: string; autores: string; sector: string; asignado: boolean; }
+interface Proyecto { proyecto_id: string; equipo_id: string; proyecto: string; autores: string; sector: string; asignado: boolean; jornada_fija: number | null; }
 
 // Color estable por sector: mismo sector, mismo color en toda la tabla.
 // Solo tokens del sistema (tailwind.config.ts): azul, dorado, texto y rojo
@@ -236,6 +237,14 @@ export default function Programacion() {
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }
 
+  // Fija un proyecto a una jornada (o lo libera). Lo aplica el próximo «Repartir».
+  async function fijarJornada(proyectoId: string, jornada: number | null) {
+    try {
+      await api.patch(`/programacion/admin/proyecto/${proyectoId}/jornada-fija`, { jornada });
+      load(true);
+    } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
+  }
+
   function idsDe(j: Jornada) { return j.slots.map((s) => s.proyecto_id); }
   function asignar(j: Jornada, proyectoId: string) { guardarJornada(j, { proyecto_ids: [...idsDe(j), proyectoId] }); }
   function quitar(j: Jornada, proyectoId: string) { guardarJornada(j, { proyecto_ids: idsDe(j).filter((x) => x !== proyectoId) }); }
@@ -335,6 +344,17 @@ export default function Programacion() {
                 Suma: {suma} de {total}{cuadra ? ' ✓' : suma > total ? ` (sobran ${suma - total})` : ` (faltan ${total - suma})`}
               </span>
             </div>
+            {(() => {
+              const fijos = jornadas.map((jj, i) => ({ jj, i, n: proyectos.filter((p) => p.jornada_fija === jj.numero).length })).filter((x) => x.n > 0);
+              if (!fijos.length) return null;
+              const exceden = fijos.filter(({ i, n }) => n > reparto[i]);
+              return (
+                <p className={`text-sm mb-3 ${exceden.length ? 'text-inalde-red' : 'text-inalde-gray'}`}>
+                  📌 Fijados: {fijos.map(({ jj, n }) => `${n} en la jornada ${jj.numero}`).join(' · ')}. Se quedan en su día; los demás se acomodan alrededor.
+                  {exceden.length > 0 && ` La jornada ${exceden.map(({ jj }) => jj.numero).join(' y ')} tiene más fijados que su cantidad: súbela.`}
+                </p>
+              );
+            })()}
             {sinHora.length > 0 && (
               <p className="text-sm text-inalde-red mb-3">La jornada {sinHora.join(' y ')} no tiene hora de inicio. Ponla en la barra de la jornada antes de repartir.</p>
             )}
@@ -467,6 +487,16 @@ export default function Programacion() {
                         <td className="text-center px-3 py-2.5">
                           <strong className="font-primary text-inalde-text">{f.s.slot}</strong>
                           <span className="block text-[0.7rem] text-inalde-gray mt-0.5 font-mono">{f.s.hora_inicio}–{f.s.hora_fin}</span>
+                          {publicada ? (
+                            f.s.jornada_fija != null && <span className="block text-[0.65rem] text-inalde-blue mt-1">📌 Día {f.s.jornada_fija}</span>
+                          ) : (
+                            <select value={f.s.jornada_fija ?? ''} onChange={(e) => fijarJornada(f.s.proyecto_id, e.target.value === '' ? null : Number(e.target.value))}
+                              title="Fija este proyecto a un día: «Repartir» lo deja siempre en esa jornada"
+                              className={`mt-1 text-[0.65rem] rounded border px-0.5 py-0.5 max-w-[84px] ${f.s.jornada_fija != null ? 'border-inalde-blue text-inalde-blue font-semibold' : 'border-inalde-gray-light text-inalde-gray'}`}>
+                              <option value="">Día libre</option>
+                              {jornadas.map((jj) => <option key={jj.id} value={jj.numero}>📌 Día {jj.numero}</option>)}
+                            </select>
+                          )}
                         </td>
                         <td className="px-3 py-2.5 font-primary font-bold text-[0.85rem] text-inalde-text">{f.s.proyecto}</td>
                         {/* Autores vacío = el equipo se quedó sin miembros (p. ej.

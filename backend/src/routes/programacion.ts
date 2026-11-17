@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import ExcelJS from 'exceljs';
 import { supabaseAdmin } from '../db/supabase.js';
-import { requireAuth, requireRole } from '../auth/middleware.js';
+import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { notificar, limpiarNotificaciones } from '../services/notify.js';
 import { proyectosFase2, autoresAuthPorProyecto, contarEquiposSinProyectoFinal, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
@@ -47,6 +47,13 @@ async function contenidoPorProyecto(proyIds: string[]): Promise<Map<string, any>
 }
 
 // GET /api/programacion/admin/:cohorteId — estado completo
+// Jornada a la que está fijado cada proyecto (sql/52): proyecto_id → número.
+async function jornadasFijas(ids: string[]): Promise<Map<string, number>> {
+  if (!ids.length) return new Map();
+  const { data } = await supabaseAdmin.from('proyectos').select('id, jornada_fija').in('id', ids).not('jornada_fija', 'is', null);
+  return new Map((data ?? []).map((p: any) => [p.id, p.jornada_fija as number]));
+}
+
 router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   // Las jornadas se derivan del cronograma (hitos 12 y 13): al abrir la pantalla
@@ -56,6 +63,7 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
   const C = await getConfig(cohorteId);
   const pf = await proyectosFase2(cohorteId);
   const contenido = await contenidoPorProyecto([...pf.keys()]);
+  const fijas = await jornadasFijas([...pf.keys()]);
   const { data: jornadas } = await supabaseAdmin
     .from('jornadas').select(COLS_JORNADA)
     .eq('cohorte_id', cohorteId).order('numero');
@@ -78,6 +86,7 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
         const c = f.proyecto_id ? contenido.get(f.proyecto_id) : null;
         return {
           slot: f.slot, proyecto_id: f.proyecto_id, proyecto: f.proyecto, autores: f.autores, sector: f.sector,
+          jornada_fija: f.proyecto_id ? (fijas.get(f.proyecto_id) ?? null) : null,
           hora_inicio: toHHMM(f.ini), hora_fin: toHHMM(f.fin),
           resumen: c?.resumen ?? null, linkedin: c?.linkedin ?? null,
           one_pager_url: urlAsset(c?.one_pager_path ?? null, c?.one_pager_url ?? null),
@@ -93,7 +102,7 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
     .from('slot_presentacion').select('proyecto_id, jornada_id')
     .in('jornada_id', (jornadas ?? []).map((j: any) => j.id));
   const asignados = new Set((slotsAll ?? []).map((s: any) => s.proyecto_id).filter(Boolean));
-  const proyectosDisponibles = [...pf.values()].map((d) => ({ ...d, asignado: asignados.has(d.proyecto_id) }))
+  const proyectosDisponibles = [...pf.values()].map((d) => ({ ...d, asignado: asignados.has(d.proyecto_id), jornada_fija: fijas.get(d.proyecto_id) ?? null }))
     .sort((a, b) => a.proyecto.localeCompare(b.proyecto));
 
   res.json({
@@ -306,6 +315,26 @@ router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
     cantidades = js.map((_, i) => base + (i < sobran ? 1 : 0));
   }
 
+  // Proyectos fijados a una jornada (casos especiales de JMV): van a su jornada
+  // sí o sí; el resto llena los cupos que quedan, en el orden de referencia.
+  const fijas = await jornadasFijas(todos);
+  const numeros = new Set(js.map((j) => j.numero));
+  const fijaInvalida = [...fijas.entries()].filter(([, n]) => !numeros.has(n));
+  if (fijaInvalida.length) {
+    return res.status(400).json({
+      error: 'JORNADA_FIJA_INEXISTENTE',
+      message: `Hay ${fijaInvalida.length} proyecto(s) fijados a una jornada que no existe (${[...new Set(fijaInvalida.map(([, n]) => n))].join(', ')}). Cámbiales el día fijo.`,
+    });
+  }
+  const excedidas = js.map((j, i) => ({ j, i, n: [...fijas.values()].filter((x) => x === j.numero).length }))
+    .filter(({ i, n }) => n > cantidades[i]);
+  if (excedidas.length) {
+    return res.status(400).json({
+      error: 'FIJOS_EXCEDEN_CUPO',
+      message: excedidas.map(({ j, i, n }) => `La jornada ${j.numero} tiene ${n} proyecto(s) fijados y solo le asignaste ${cantidades[i]}.`).join(' ') + ' Sube esa cantidad o quita algún día fijo.',
+    });
+  }
+
   // Una jornada que recibe proyectos necesita hora de inicio: sin ella no hay
   // horarios que calcular. Antes esto reventaba a mitad de camino con un error
   // genérico del servidor DESPUÉS de haber borrado la programación.
@@ -319,11 +348,17 @@ router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
 
   // Calcular TODO antes de tocar la base.
   const filasNuevas: any[] = [];
+  const posicion = new Map(todos.map((id, i) => [id, i]));
+  const libres = todos.filter((id) => !fijas.has(id));
   let k = 0;
   const porJornada: string[][] = [];
   for (let i = 0; i < js.length; i++) {
-    const ids = todos.slice(k, k + cantidades[i]);
-    k += cantidades[i];
+    const fijosAqui = todos.filter((id) => fijas.get(id) === js[i].numero);
+    const cupo = cantidades[i] - fijosAqui.length;
+    // Fijos + libres, en el orden de referencia: así el agrupado por sector se
+    // mantiene dentro del día aunque haya proyectos fijados.
+    const ids = [...fijosAqui, ...libres.slice(k, k + cupo)].sort((a, b) => posicion.get(a)! - posicion.get(b)!);
+    k += cupo;
     porJornada.push(ids);
     if (!ids.length) continue;
     const filas = computarJornada(opcionesDeJornada(js[i]), ids.map((id) => pf.get(id)!), 1, i === js.length - 1, C);
@@ -356,6 +391,30 @@ router.post('/admin/:cohorteId/repartir', ...soloAdmin, async (req, res) => {
     repartidos: todos.length,
     por_jornada: js.map((j, i) => ({ numero: j.numero, proyectos: porJornada[i].length })),
   });
+});
+
+// PATCH /admin/proyecto/:proyectoId/jornada-fija — fija (o libera) el día de un
+// proyecto. No mueve nada por sí solo: lo aplica el próximo «Repartir».
+const jornadaFijaSchema = z.object({ jornada: z.number().int().min(1).max(9).nullable() });
+router.patch('/admin/proyecto/:proyectoId/jornada-fija', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const parsed = jornadaFijaSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
+  const { data: p } = await supabaseAdmin
+    .from('proyectos').select('id, jornada_fija, anteproyectos(equipos(cohorte_id))')
+    .eq('id', req.params.proyectoId).maybeSingle();
+  if (!p) return res.status(404).json({ error: 'PROYECTO_NO_ENCONTRADO' });
+  const ante: any = Array.isArray((p as any).anteproyectos) ? (p as any).anteproyectos[0] : (p as any).anteproyectos;
+  const eq: any = Array.isArray(ante?.equipos) ? ante.equipos[0] : ante?.equipos;
+  if (eq?.cohorte_id && (await bloqueadaSiPublicada(eq.cohorte_id, res))) return;
+  const { error } = await supabaseAdmin.from('proyectos').update({ jornada_fija: parsed.data.jornada }).eq('id', req.params.proyectoId);
+  if (error) return res.status(500).json({ error: 'GUARDAR_FALLIDO', detail: error.message });
+  await supabaseAdmin.from('auditoria').insert({
+    actor_tipo: 'super_admin', actor_id: req.user?.profesorId ?? null,
+    accion: 'ADMIN_FIJAR_JORNADA_PROYECTO', entidad_tipo: 'proyectos', entidad_id: req.params.proyectoId,
+    detalles: { antes: (p as any).jornada_fija ?? null, despues: parsed.data.jornada },
+    timestamp: new Date().toISOString(),
+  }).then(() => { /* el rastro no debe tumbar el cambio */ }, () => { /* idem */ });
+  res.json({ ok: true, jornada_fija: parsed.data.jornada });
 });
 
 // GET Excel de calificación (server-side)
