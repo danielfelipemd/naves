@@ -88,7 +88,8 @@ function PausaJornada({ minutos, trasSlot, slots, onMinutos, onTrasSlot }: {
         className="text-xs text-inalde-text rounded px-1 py-0.5 max-w-[220px]">
         <option value="">Automático (a mitad de la jornada)</option>
         {slots.slice(0, -1).map((s, i) => (
-          <option key={s.proyecto_id} value={i + 1}>la presentación {i + 1} · {s.proyecto}</option>
+          // value = posición dentro del día (lo que usa el motor); texto = número corrido del evento.
+          <option key={s.proyecto_id} value={i + 1}>la presentación {s.slot} · {s.proyecto}</option>
         ))}
         {trasSlot != null && trasSlot > Math.max(0, slots.length - 1) && <option value={trasSlot}>la presentación {trasSlot}</option>}
       </select>

@@ -9,7 +9,7 @@ import { crearUrlProxyArchivo, mimeFromPath } from '../services/storage.js';
 // El motor de escaleta vive en services/escaleta.ts: lo comparte la Programación
 // Interna (marketing, operaciones, asistente de programa), que debe ver
 // exactamente los mismos horarios que publica esta pantalla.
-import { toHHMM, fechaLegibleProg, computarJornada, getConfig, jornadaConSlots, programacionPublicadaAt, sincronizarJornadasDesdeHitos, opcionesDeJornada, COLS_JORNADA, type Config } from '../services/escaleta.js';
+import { toHHMM, fechaLegibleProg, computarJornada, getConfig, jornadaConSlots, programacionPublicadaAt, sincronizarJornadasDesdeHitos, opcionesDeJornada, desfaseDeJornadas, COLS_JORNADA, type Config } from '../services/escaleta.js';
 
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el
 // enlace externo. Mismo criterio que el Módulo C.
@@ -61,8 +61,10 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
     .eq('cohorte_id', cohorteId).order('numero');
 
   const jornadasOut = [];
+  let base = 1; // numeración corrida entre jornadas
   for (let i = 0; i < (jornadas ?? []).length; i++) {
-    const jc = await jornadaConSlots((jornadas as any[])[i], C, i === (jornadas ?? []).length - 1, pf);
+    const jc = await jornadaConSlots((jornadas as any[])[i], C, i === (jornadas ?? []).length - 1, pf, base);
+    base += jc.proyectos.length;
     jornadasOut.push({
       id: jc.jornada.id, numero: jc.jornada.numero, fecha: jc.jornada.fecha,
       fecha_legible: fechaLegibleProg(jc.jornada.fecha),
@@ -351,9 +353,11 @@ router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   const fill = (argb: string) => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } });
   const fechaLegible = (iso: string) => { const [y, m, d] = iso.split('-'); const meses = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']; return `${parseInt(d, 10)} de ${meses[parseInt(m, 10)]} de ${y}`; };
 
+  let base = 1; // numeración corrida entre jornadas
   for (let i = 0; i < (jornadas ?? []).length; i++) {
     const j: any = (jornadas as any[])[i];
-    const jc = await jornadaConSlots(j, C, i === (jornadas ?? []).length - 1, pf);
+    const jc = await jornadaConSlots(j, C, i === (jornadas ?? []).length - 1, pf, base);
+    base += jc.proyectos.length;
     const ws = wb.addWorksheet((`J${j.numero} ${fechaLegible(j.fecha)}`).slice(0, 31), { views: [{ showGridLines: false }] });
     ws.columns = [{ width: 8 }, { width: 11 }, { width: 11 }, { width: 30 }, { width: 40 }, { width: 16 }, { width: 16 }, { width: 14 }] as any;
     ws.addRow([`${C.evento_nombre} — Hoja de calificación del panelista`]); ws.mergeCells('A1:H1'); ws.getCell('A1').font = { bold: true, size: 14 };
@@ -454,6 +458,7 @@ async function notificarProgramacion(cohorteId: string): Promise<{ notificados: 
     .from('slot_presentacion').select('jornada_id, orden, proyecto_id, hora_inicio, hora_fin').in('jornada_id', ids);
   const asignados = (slots ?? []).filter((s: any) => s.proyecto_id);
   if (!asignados.length) return { notificados: 0, proyectos: 0 };
+  const desfase = desfaseDeJornadas((jornadas ?? []) as any[], (slots ?? []) as any[]);
 
   // Integrantes (auth_user_id) del equipo dueño de cada proyecto programado.
   const pf = await proyectosFase2(cohorteId);
@@ -474,7 +479,7 @@ async function notificarProgramacion(cohorteId: string): Promise<{ notificados: 
       items.push({
         destinatario_auth_id: a, tipo: 'presentacion_programada',
         titulo: `Tu presentación de ${evento} quedó programada`,
-        cuerpo: `${fl} · Jornada ${j.numero}, slot ${s.orden} · ${String(s.hora_inicio).slice(0, 5)}–${String(s.hora_fin).slice(0, 5)}.`,
+        cuerpo: `${fl} · Jornada ${j.numero}, presentación ${s.orden + (desfase.get(s.jornada_id) ?? 0)} · ${String(s.hora_inicio).slice(0, 5)}–${String(s.hora_fin).slice(0, 5)}.`,
         enlace: '/mi-presentacion',
       });
     }

@@ -10,6 +10,7 @@ import { REGLAS, validarFormato, errorFormato } from '../lib/formato-archivo.js'
 import { uploadAssetNaves, deleteAssetNaves, crearUrlProxyArchivo, mimeFromPath, downloadTrabajoGradoFile, type TipoAssetNaves } from '../services/storage.js';
 import { generarContenidoOnePager, type OnePagerDoc } from '../services/ai-onepager.js';
 import { proyectosFase2, type ProyectoFase2 } from '../services/proyectos-fase2.js';
+import { desfaseDeJornadas } from '../services/escaleta.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el enlace externo.
@@ -51,11 +52,13 @@ async function horariosDeCohorte(cohorteId: string): Promise<Map<string, Horario
   if (!ids.length) return map;
   const { data: slots } = await supabaseAdmin
     .from('slot_presentacion').select('jornada_id, orden, proyecto_id, hora_inicio, hora_fin').in('jornada_id', ids);
+  // Numeración corrida entre jornadas (la base guarda el orden desde 1 por día).
+  const desfase = desfaseDeJornadas((jornadas ?? []) as any[], (slots ?? []) as any[]);
   for (const s of (slots ?? []) as any[]) {
     if (!s.proyecto_id) continue;
     const j: any = jById.get(s.jornada_id);
     if (!j) continue;
-    map.set(s.proyecto_id, { fecha: j.fecha, jornada: j.numero, slot: s.orden, hora_inicio: hhmm(s.hora_inicio), hora_fin: hhmm(s.hora_fin) });
+    map.set(s.proyecto_id, { fecha: j.fecha, jornada: j.numero, slot: s.orden + (desfase.get(s.jornada_id) ?? 0), hora_inicio: hhmm(s.hora_inicio), hora_fin: hhmm(s.hora_fin) });
   }
   return map;
 }
@@ -235,7 +238,7 @@ router.get('/mi-presentacion/ics', requireAuth(), async (req: AuthenticatedReque
   const dtend = icsStampUTC(h.fecha, h.hora_fin || h.hora_inicio);
   const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
   const summary = icsEscape(`Presentación ${evento} — ${info?.proyecto ?? ''}`.trim());
-  const desc = icsEscape(`Jornada ${h.jornada}, slot ${h.slot}. Proyecto: ${info?.proyecto ?? ''}. Integrantes: ${info?.autores ?? ''}.`);
+  const desc = icsEscape(`Jornada ${h.jornada}, presentación ${h.slot}. Proyecto: ${info?.proyecto ?? ''}. Integrantes: ${info?.autores ?? ''}.`);
   const ics = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//INALDE//NAVES//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT', `UID:${uid}`, `DTSTAMP:${dtstamp}`, `DTSTART:${dtstart}`, `DTEND:${dtend}`,

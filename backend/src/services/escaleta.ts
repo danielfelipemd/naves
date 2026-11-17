@@ -240,6 +240,18 @@ export const COLS_JORNADA =
   + 'almuerzo, almuerzo_min, almuerzo_tras_slot';
 
 // Traduce una fila de `jornadas` a las opciones que entiende el motor.
+// Para quien lee los slots directo de la base (orden desde 1 en cada jornada):
+// cuánto sumarle al orden de cada jornada para tener la numeración corrida.
+export function desfaseDeJornadas(jornadas: Array<{ id: string; numero: number }>, slots: Array<{ jornada_id: string; proyecto_id: string | null }>): Map<string, number> {
+  const out = new Map<string, number>();
+  let acumulado = 0;
+  for (const j of [...jornadas].sort((a, b) => a.numero - b.numero)) {
+    out.set(j.id, acumulado);
+    acumulado += slots.filter((s) => s.jornada_id === j.id && s.proyecto_id).length;
+  }
+  return out;
+}
+
 export function opcionesDeJornada(j: any): OpcionesJornada {
   return {
     inicioMin: toMin(j.hora_inicio),
@@ -265,7 +277,12 @@ export async function getConfig(cohorteId: string): Promise<Config & { evento_no
 }
 
 // Estado completo de una jornada (filas calculadas).
-export async function jornadaConSlots(jornada: any, C: Config, esUltimo: boolean, pf: Map<string, ProyectoFase2>) {
+// La numeración de las presentaciones es CORRIDA en todo el evento: si la
+// jornada 1 termina en la 20, la jornada 2 empieza en la 21 (JMV, 17-nov-2026).
+// En la base cada jornada guarda su orden desde 1; el número que se muestra es
+// ese orden más los proyectos de las jornadas anteriores. `slotBase` es el
+// número de la primera presentación de esta jornada.
+export async function jornadaConSlots(jornada: any, C: Config, esUltimo: boolean, pf: Map<string, ProyectoFase2>, slotBase = 1) {
   const { data: slots } = await supabaseAdmin
     .from('slot_presentacion').select('orden, proyecto_id').eq('jornada_id', jornada.id).order('orden');
   // Un slot asignado a un equipo que ya NO entra a Fase 2 (entrega incompleta:
@@ -275,7 +292,7 @@ export async function jornadaConSlots(jornada: any, C: Config, esUltimo: boolean
   const proyectos = (slots ?? [])
     .filter((s: any) => pf.has(s.proyecto_id))
     .map((s: any) => ({ ...(pf.get(s.proyecto_id) as ProyectoFase2), proyecto_id: s.proyecto_id }));
-  const filas = computarJornada(opcionesDeJornada(jornada), proyectos, 1, esUltimo, C);
+  const filas = computarJornada(opcionesDeJornada(jornada), proyectos, slotBase, esUltimo, C);
   // El fin se recalcula en CADA lectura, no solo al editar la jornada: la
   // escaleta se mueve sin pasar por la pantalla de programación (basta con que un
   // equipo complete o pierda alguno de sus 4 documentos y entre o salga de `pf`,
@@ -306,9 +323,11 @@ export async function escaletaDeCohorte(cohorteId: string): Promise<{ evento_nom
 
   const out: JornadaEscaleta[] = [];
   const total = (jornadas ?? []).length;
+  let base = 1;
   for (let i = 0; i < total; i++) {
     const j: any = (jornadas as any[])[i];
-    const jc = await jornadaConSlots(j, C, i === total - 1, pf);
+    const jc = await jornadaConSlots(j, C, i === total - 1, pf, base);
+    base += jc.proyectos.length;
     out.push({
       numero: j.numero,
       fecha: j.fecha,

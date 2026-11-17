@@ -197,8 +197,10 @@ router.get('/programacion', async (req: AuthenticatedRequest, res) => {
       .eq('cohorte_id', c.cohorte_id).order('numero');
 
     const jornadasOut = [];
+    let base = 1; // numeración corrida entre jornadas
     for (let i = 0; i < (jornadas ?? []).length; i++) {
-      const jc = await jornadaConSlots((jornadas as any[])[i], C, i === (jornadas ?? []).length - 1, pf);
+      const jc = await jornadaConSlots((jornadas as any[])[i], C, i === (jornadas ?? []).length - 1, pf, base);
+      base += jc.proyectos.length;
       jornadasOut.push({
         id: jc.jornada.id, numero: jc.jornada.numero, fecha: jc.jornada.fecha,
         fecha_legible: fechaLegibleProg(jc.jornada.fecha),
