@@ -352,7 +352,8 @@ function revisarPost(post: string, nombreProyecto = ''): string[] {
     .filter((w) => !SUSTANTIVOS_RIA.has(w.toLowerCase()));
   if (cond.length) problemas.push(`Puede tener verbos en condicional (${[...new Set(cond)].join(', ')}). Regla 14: prohibido el condicional; usa futuro («saldrá») o «Su plan de negocio propone…». Si alguna de esas palabras es un sustantivo, déjala.`);
   const palabras = texto.trim().split(/\s+/).filter(Boolean).length;
-  if (palabras < 45 || palabras > 80) problemas.push(`Tiene ${palabras} palabras sin hashtags. Regla 9: entre 45 y 80.`);
+  if (palabras > 80) problemas.push(`Tiene ${palabras} palabras sin hashtags y el máximo es 80 (regla 9). Recórtalo a unas 65: quita la frase 3 o sus detalles, y deja una sola idea por frase.`);
+  if (palabras < 45) problemas.push(`Tiene ${palabras} palabras sin hashtags y el mínimo es 45 (regla 9). Añade un hecho concreto del one pager.`);
   if (/[¿?]/.test(texto)) problemas.push('Tiene una pregunta. Regla 18: prohibidas las preguntas retóricas.');
   return problemas;
 }
@@ -392,7 +393,7 @@ async function generarUno(proyectoId: string): Promise<{ resumen: string; linked
     '  - Frase 1: "[integrantes] presentaron [PROYECTO], [qué es, con el subtítulo o la propuesta de valor del one pager]." Con un solo integrante, "presentó". Nombres a secas, sin "Dr.", "Ing." ni honoríficos.',
     '  - Frase 2: a quién le vende el proyecto y qué problema le resuelve, con sujeto explícito (p. ej. "Su plan de negocio propone…").',
     '  - Frase 3 (opcional): cómo lo hace, con un hecho concreto del one pager.',
-    '  - Dos o tres frases en total, entre 45 y 80 palabras sin contar los hashtags.',
+    '  - Dos o tres frases en total, entre 45 y 80 palabras sin contar los hashtags (apunta a unas 65; el ejemplo de abajo tiene 69). Cuenta las palabras antes de entregar.',
     '  - No menciones la jornada ni el programa (se entiende que fue en las jornadas de presentación de NAVES del Executive MBA).',
     '  - El post termina en el último hecho del one pager. NADA de frase final tipo eslogan, máxima o aforismo.',
     'Cero cifras',
