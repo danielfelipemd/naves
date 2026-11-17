@@ -13,6 +13,7 @@ export const SECTORES = [
   'Servicios financieros / Fintech / Insurtech',
   'Inmobiliario / Construcción / Proptech',
   'Energía / Movilidad',
+  'Energía',
   'Economía circular / Reciclaje / Ambiental',
   'Educación / Edtech',
   'Moda / Vestuario y Calzado / Lujo',
@@ -21,7 +22,9 @@ export const SECTORES = [
   'Turismo / Entretenimiento / Cultura',
   'Consultoría y servicios profesionales',
   'Bienestar / Deporte / Servicios personales',
+  'Sector social',
   'Otro',
 ] as const;
+// 17-nov-2026: JMV pide añadir «Energía» (a secas) y «Sector social».
 
 export type Sector = (typeof SECTORES)[number];
