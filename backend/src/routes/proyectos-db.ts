@@ -115,9 +115,12 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
 // GET /api/proyectos-db/admin/:cohorteId/excel — 2 hojas: Proyectos + Programación
 router.get('/admin/:cohorteId/excel', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
-  const [proyectos, horarios, evento] = await Promise.all([
+  const [todosProyectos, horarios, evento] = await Promise.all([
     proyectosDeCohorte(cohorteId), horariosDeCohorte(cohorteId), eventoNombre(cohorteId),
   ]);
+  // Los privados (sql/54) no salen en el Excel: es lo que se comparte con
+  // comunicaciones y con los asistentes de programa (JMV, 17-nov-2026).
+  const proyectos = todosProyectos.filter((e) => !e.privado);
   const proyIds = proyectos.map((e) => e.proyecto_id);
   let contenido = new Map<string, any>();
   if (proyIds.length) {
