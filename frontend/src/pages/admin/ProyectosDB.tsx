@@ -328,6 +328,9 @@ export default function ProyectosDB() {
 function errorLegible(e: any): string {
   const code = e?.response?.data?.error;
   if (code === 'SIN_FUENTE') return 'El proyecto no tiene información suficiente (canvas) para generar contenido sin inventar.';
+  if (code === 'SIN_ONE_PAGER') return 'El proyecto no tiene One Pager: súbelo primero. El post se escribe solo a partir del One Pager.';
+  if (code === 'ONE_PAGER_ILEGIBLE') return 'La IA no puede leer este One Pager (debe ser PDF o imagen). Cámbialo y vuelve a generar.';
+  if (code === 'IA_POST_CON_CIFRAS') return 'La IA insistió en poner cifras en el post y no se guardó. Vuelve a intentarlo o escríbelo a mano.';
   // IA_NO_CONFIGURADA lo traduce errors.ts: el nombre de la variable de
   // entorno es jerga para quien administra, no para quien usa la pantalla.
   return formatBackendError(e);

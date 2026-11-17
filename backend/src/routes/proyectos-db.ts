@@ -254,6 +254,9 @@ router.get('/mi-presentacion/ics', requireAuth(), async (req: AuthenticatedReque
 // Nunca inventa: si no hay material suficiente, falla explícito (doc §5.5).
 // =====================================================================
 
+// Sube esta versión cuando cambien las reglas de redacción: invalida la caché
+// (sha) y «Generar todo» rehace lo que no esté aprobado.
+const REGLAS_POSTS_VERSION = 'posts-v1';
 const HASHTAGS = '#SoyINALDE #NavesINALDE #ExecutiveMBA #Líder #INALDE #Liderazgo #MBA #EMBA #NAVES';
 
 const CANVAS_LABELS: Array<[string, string]> = [
@@ -307,7 +310,7 @@ async function fuenteProyecto(proyectoId: string): Promise<Fuente | null> {
   if ((proy.fuentes_primarias ?? '').trim()) partes.push(`Fuentes primarias: ${proy.fuentes_primarias.trim()}`);
   if ((proy.fuentes_secundarias ?? '').trim()) partes.push(`Fuentes secundarias: ${proy.fuentes_secundarias.trim()}`);
   const texto = partes.join('\n');
-  const sha256 = createHash('sha256').update(`${proy.nombre}|${proy.sector}|${proy.tipo}|${autores}|${texto}|${onePagerPath ?? ''}`).digest('hex');
+  const sha256 = createHash('sha256').update(`${REGLAS_POSTS_VERSION}|${proy.nombre}|${proy.sector}|${proy.tipo}|${autores}|${texto}|${onePagerPath ?? ''}`).digest('hex');
   return { nombre: proy.nombre, sector: proy.sector ?? '', tipo: proy.tipo ?? '', autores, texto, onePagerPath, sha256 };
 }
 
@@ -329,20 +332,44 @@ async function cargarOnePagerDoc(path: string | null): Promise<OnePagerDoc | nul
   }
 }
 
+// Revisión automática del post antes de guardarlo (reglas 10, 11 y 14 de
+// docs/comunicaciones/REGLAS_escritura_posts_NAVES.md): cero cifras, en dígitos
+// o en letras, y nada de condicional. Devuelve los problemas encontrados.
+const NUMEROS_EN_LETRAS = /(?<!\p{L})(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|diecis\w+|veinte|veinti\w+|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|cientos|doscient\w+|trescient\w+|cuatrocient\w+|quinient\w+|seiscient\w+|setecient\w+|ochocient\w+|novecient\w+|mil|miles|mill[oó]n|millones|billones|docena|docenas|decena|decenas|centenar|centenares|doble|triple|mitad|tercio|cuarto|primer|primera|primero|segund\p{L}|tercer\p{L}*)(?!\p{L})/giu;
+// Condicional: -aría/-ería/-iría(n), salvo sustantivos frecuentes terminados igual.
+const SUSTANTIVOS_RIA = new Set(['ganadería', 'ingeniería', 'batería', 'baterías', 'galería', 'galerías', 'librería', 'librerías', 'panadería', 'panaderías', 'cafetería', 'cafeterías', 'joyería', 'joyerías', 'zapatería', 'zapaterías', 'hotelería', 'minería', 'tesorería', 'cervecería', 'cervecerías', 'lechería', 'pastelería', 'pastelerías', 'carpintería', 'tubería', 'tuberías', 'ferretería', 'ferreterías', 'droguería', 'droguerías', 'lavandería', 'lavanderías', 'peluquería', 'peluquerías', 'heladería', 'heladerías', 'mensajería', 'papelería', 'floristería', 'floristerías', 'confitería', 'chocolatería', 'chocolaterías', 'marroquinería', 'lencería', 'perfumería', 'relojería', 'carnicería', 'carnicerías', 'frutería', 'pescadería', 'mercería', 'sastrería', 'tapicería', 'vidriería', 'herrería', 'orfebrería', 'cerrajería', 'cristalería', 'jardinería', 'mueblería', 'mueblerías', 'alfarería', 'cerería', 'tortillería', 'arepería', 'bisutería', 'cuchillería', 'hojalatería', 'platería', 'sombrerería', 'tintorería', 'charcutería', 'travesía', 'fantasía', 'categoría', 'mayoría', 'minoría', 'consultoría', 'asesoría', 'auditoría', 'tutoría', 'mentoría', 'teoría', 'alegría', 'energía', 'tecnología', 'metodología', 'economía', 'compañía', 'compañías', 'garantía', 'garantías', 'vía', 'vías', 'día', 'días', 'filosofía', 'geografía', 'cirugía', 'biología', 'fotografía', 'cartografía', 'odontología', 'cardiología', 'gastronomía', 'agronomía', 'autonomía', 'soberanía', 'ciudadanía', 'lotería', 'cría', 'guía', 'guías', 'sequía', 'policía']);
+function revisarPost(post: string, nombreProyecto = ''): string[] {
+  // El nombre del proyecto es marca (p. ej. «Ready2»): no cuenta como cifra.
+  let texto = post.split('#SoyINALDE')[0];
+  if (nombreProyecto.trim()) texto = texto.split(nombreProyecto.trim()).join('Proyecto');
+  const problemas: string[] = [];
+  // Dígitos sueltos; los pegados a letras son parte de una marca o sigla (B2B, Ready2).
+  const digitos = texto.match(/(?<![\p{L}\d])\d[\d.,]*(?![\p{L}\d])/gu);
+  if (digitos) problemas.push(`Tiene cifras en dígitos (${[...new Set(digitos)].join(', ')}). Regla 10: cero cifras de cualquier tipo; reescribe esas frases sin ellas.`);
+  const letras = texto.match(NUMEROS_EN_LETRAS);
+  if (letras) problemas.push(`Tiene números o cantidades escritos en letras (${[...new Set(letras.map((w) => w.toLowerCase()))].join(', ')}). Regla 10: cero cifras, tampoco en letras ni ordinales; reescribe esas frases.`);
+  const cond = (texto.match(/(?<!\p{L})\p{L}+(?:aría|ería|iría)n?(?!\p{L})/giu) ?? [])
+    .filter((w) => !SUSTANTIVOS_RIA.has(w.toLowerCase()));
+  if (cond.length) problemas.push(`Puede tener verbos en condicional (${[...new Set(cond)].join(', ')}). Regla 14: prohibido el condicional; usa futuro («saldrá») o «Su plan de negocio propone…». Si alguna de esas palabras es un sustantivo, déjala.`);
+  const palabras = texto.trim().split(/\s+/).filter(Boolean).length;
+  if (palabras < 45 || palabras > 80) problemas.push(`Tiene ${palabras} palabras sin hashtags. Regla 9: entre 45 y 80.`);
+  if (/[¿?]/.test(texto)) problemas.push('Tiene una pregunta. Regla 18: prohibidas las preguntas retóricas.');
+  return problemas;
+}
+
 async function generarUno(proyectoId: string): Promise<{ resumen: string; linkedin: string; sha256: string }> {
   const f = await fuenteProyecto(proyectoId);
   if (!f) throw new Error('PROYECTO_NO_ENCONTRADO');
 
-  // Fuente PREFERIDA: el one-pager real (leído por la IA, incluidas imágenes).
-  // Respaldo: el canvas. Sin one-pager Y sin canvas suficiente → falla explícito.
+  // Regla 1 y 2 de los posts: todo sale del one pager real, leído completo.
+  // Sin one pager legible no se escribe nada (antes se caía al canvas).
   const doc = await cargarOnePagerDoc(f.onePagerPath);
-  if (!doc && f.texto.replace(/\s/g, '').length < 40) throw new Error('SIN_FUENTE');
+  if (!doc) throw new Error(f.onePagerPath ? 'ONE_PAGER_ILEGIBLE' : 'SIN_ONE_PAGER');
 
   const system = [
-    'Eres redactor de comunicaciones de INALDE Business School para el programa NAVES (trabajos de grado del Executive MBA).',
-    'Escribes en español de Colombia, en tercera persona, con ortografía y gramática de la RAE.',
-    'No usas emojis ni superlativos vacíos ("innovador", "revolucionario", "líder del mercado", "único", etc.). Tono neutro y sobrio.',
-    'REGLA ABSOLUTA: usa ÚNICAMENTE la información del one-pager (o del texto de respaldo) que te entregan. No inventes datos, cifras, clientes ni sectores. Si algo no está, no lo afirmes.',
+    'Eres redactor de comunicaciones de INALDE Business School para NAVES, las jornadas de presentación de los trabajos de grado del Executive MBA.',
+    'Escribes en español de Colombia, en tercera persona, con ortografía y gramática de la RAE, con estilo llano (estándar Pinker): sujetos que actúan, verbos concretos, una idea por frase, sin palabras que sobren.',
+    'REGLA ABSOLUTA: usa ÚNICAMENTE la información del one pager adjunto. No inventes datos, clientes ni sectores. Si algo no está, no lo afirmes. Lo que el one pager presenta como proyección no se cuenta como hecho.',
     'Entregas el resultado exclusivamente llamando a la herramienta entregar_contenido.',
   ].join(' ');
 
@@ -350,12 +377,9 @@ async function generarUno(proyectoId: string): Promise<{ resumen: string; linked
     `Proyecto: ${f.nombre}`,
     f.sector ? `Sector: ${f.sector}` : '',
     f.tipo ? `Tipo: ${f.tipo}` : '',
-    f.autores ? `Autores (nombres completos, tal como están registrados; úsalos exactamente, no los cambies ni inventes): ${f.autores}` : '',
+    f.autores ? `Integrantes (nombres completos de la lista oficial; cópialos exactos, con su ortografía y en este orden): ${f.autores}` : '',
     '',
-    doc
-      ? 'Fuente ÚNICA y fiel: el ONE-PAGER del proyecto adjunto arriba. Léelo por completo, INCLUIDAS las imágenes, gráficos y datos que contenga.'
-      : 'No hay one-pager adjunto. Usa como fuente ÚNICA y fiel la siguiente información del proyecto:',
-    doc ? '' : f.texto,
+    'Fuente ÚNICA y fiel: el ONE PAGER del proyecto adjunto arriba. Léelo por completo, INCLUIDAS las imágenes, gráficos y datos que contenga.',
     '',
     'Genera DOS piezas distintas y llama a la herramienta entregar_contenido con ellas:',
     '',
@@ -363,21 +387,56 @@ async function generarUno(proyectoId: string): Promise<{ resumen: string; linked
     '  Frase 1 (qué es): tipo de negocio + para quién + dónde. Ej.: "FinTech colombiana que financia medicamentos y procedimientos urgentes no cubiertos por salud."',
     '  Frase 2 (el diferencial o dato de validación). Ej.: "Aprobación en menos de 5 minutos, desembolso directo al proveedor médico."',
     '',
-    'linkedin — post BREVE para LinkedIn: máximo 2 frases (además de los hashtags), unas 40–55 palabras en total. NO describas el problema, el mercado ni el contexto; NO expliques cómo funciona el producto. Tono celebratorio institucional, tercera persona, sin emojis, sin superlativos vacíos, con estas 3 partes en este orden:',
-    '  Parte 1 (autores + proyecto): "[Nombres completos] presentó/presentaron [PROYECTO], [qué es en una línea]." Usa los nombres completos indicados arriba, bien escritos.',
-    '  Parte 2 (una sola oración de cierre aspiracional). Ej.: "El campo colombiano tiene solución, y nació en un aula del Executive MBA."',
-    `  Parte 3 (hashtags fijos al final, en una línea aparte, EXACTAMENTE estos y en este orden): ${HASHTAGS}`,
+    'linkedin — post para LinkedIn. Cumple TODAS estas reglas de INALDE:',
+    'Estructura',
+    '  - Frase 1: "[integrantes] presentaron [PROYECTO], [qué es, con el subtítulo o la propuesta de valor del one pager]." Con un solo integrante, "presentó". Nombres a secas, sin "Dr.", "Ing." ni honoríficos.',
+    '  - Frase 2: a quién le vende el proyecto y qué problema le resuelve, con sujeto explícito (p. ej. "Su plan de negocio propone…").',
+    '  - Frase 3 (opcional): cómo lo hace, con un hecho concreto del one pager.',
+    '  - Dos o tres frases en total, entre 45 y 80 palabras sin contar los hashtags.',
+    '  - No menciones la jornada ni el programa (se entiende que fue en las jornadas de presentación de NAVES del Executive MBA).',
+    '  - El post termina en el último hecho del one pager. NADA de frase final tipo eslogan, máxima o aforismo.',
+    'Cero cifras',
+    '  - Ninguna cifra de ningún tipo: porcentajes, montos, ventas, toneladas, unidades, clientes, plazos, tiempos ni conteos, ni en dígitos ni en letras (tampoco "dos", "mil", "primer"). Antes de entregar, revisa el texto y reescribe toda frase que tenga una.',
+    'Tiempos verbales',
+    '  - "Presentaron" en pasado.',
+    '  - Lo que el proyecto hará va en futuro ("Cada lote saldrá…") o como propuesta ("Su plan de negocio propone…").',
+    '  - PROHIBIDO el condicional ("saldría", "permitiría", "podría").',
+    '  - El presente ("La empresa vende…") solo si el one pager muestra que la empresa ya opera.',
+    'Prohibido',
+    '  - Redacción adversativa en todas sus formas ("no es X, sino Y", "más allá de", "deja de ser… para", definir algo por lo que ya fue o por lo que supera). Cada cosa se dice por lo que es.',
+    '  - Preguntas retóricas, metáforas, emojis.',
+    '  - Superlativos y primicias sin prueba ("el primero", "el único", "nunca había", "revoluciona", "democratiza", "innovador").',
+    '  - Ejemplos de cierres PROHIBIDOS: "El campo colombiano tiene solución, y nació en un aula del Executive MBA." / "Cargar tu vehículo eléctrico nunca había sido tan placentero." / "La emoción es el combustible; el movimiento, el vehículo del cambio." / "Porque las mejores decisiones no se improvisan: se construyen con método."',
+    'Vocabulario',
+    '  - Participantes (nunca estudiantes), jornadas de presentación (nunca Demo Day), panelistas (nunca jurado).',
+    '  - Siglas y anglicismos de negocio (B2B, RTD, WMS, asset-light…) se escriben en español; marcas y nombres propios se dejan como están.',
+    '  - La institución nunca aparece con su nombre religioso.',
+    '  - Tildes y ortografía revisadas, incluidos los nombres.',
+    `Hashtags: una línea en blanco después del texto y luego, sin cambios: ${HASHTAGS}`,
+    '',
+    'Ejemplo que cumple todas las reglas (es de OTRO proyecto: copia la forma, no el contenido):',
+    '"César David Trujillo Laverde, Diego Fernando Cavanzo García y Sandra Marcela Meneses Quinchía presentaron Apivoltaicos de Colombia, miel trazable producida en parques solares del Caribe. Su plan de negocio propone instalar apiarios dentro de parques fotovoltaicos y vender la miel a cadenas con marca propia y con la marca Heliflora. Cada lote saldrá con análisis de laboratorio acreditado y un código QR que lleva hasta el apiario de origen."',
   ];
-  const instruccion = partesInstruccion.filter((l) => l !== '').join('\n');
+  const base = partesInstruccion.filter((l) => l !== '').join('\n');
 
-  const { resumen, linkedin: linkedinRaw } = await generarContenidoOnePager({
-    system,
-    instruccion,
-    documento: doc,
-    maxTokens: 1500,
-  });
-  let linkedin = linkedinRaw;
-  if (!resumen || !linkedin) throw new Error('IA_RESPUESTA_INCOMPLETA');
+  // Hasta 3 intentos: si la revisión automática encuentra cifras, condicional,
+  // preguntas o un largo fuera de rango, se le devuelve a la IA para corregir.
+  let instruccion = base;
+  let resumen = '';
+  let linkedin = '';
+  let problemas: string[] = [];
+  for (let intento = 0; intento < 3; intento++) {
+    const r = await generarContenidoOnePager({ system, instruccion, documento: doc, maxTokens: 1500 });
+    resumen = r.resumen; linkedin = r.linkedin;
+    if (!resumen || !linkedin) throw new Error('IA_RESPUESTA_INCOMPLETA');
+    problemas = revisarPost(linkedin, f.nombre);
+    if (!problemas.length) break;
+    instruccion = `${base}\n\nTu versión anterior del post fue:\n"""${linkedin}"""\nLa revisión encontró estos problemas; corrígelos y vuelve a entregar ambas piezas:\n- ${problemas.join('\n- ')}`;
+  }
+  // Lo que siga con cifras no se guarda: mejor un error visible que un post que
+  // incumple la regla 10. El resto (posible condicional, largo) se deja pasar
+  // porque la revisión puede equivocarse con un sustantivo.
+  if (problemas.some((p) => p.startsWith('Tiene cifras'))) throw new Error('IA_POST_CON_CIFRAS');
   // Salvaguarda: si la IA omitió los hashtags fijos, los añadimos al final.
   if (!linkedin.includes('#SoyINALDE')) linkedin = `${linkedin}\n\n${HASHTAGS}`;
   return { resumen, linkedin, sha256: f.sha256 };
@@ -425,7 +484,7 @@ router.post('/admin/proyecto/:proyectoId/generar-contenido', ...soloAdmin, async
     res.json({ ok: true, resumen, linkedin });
   } catch (e: any) {
     const msg = e?.message ?? 'IA_ERROR';
-    const code = msg === 'SIN_FUENTE' ? 422 : msg.startsWith('IA_') || msg.startsWith('PROYECTO') ? 400 : 500;
+    const code = ['SIN_FUENTE', 'SIN_ONE_PAGER', 'ONE_PAGER_ILEGIBLE'].includes(msg) ? 422 : msg.startsWith('IA_') || msg.startsWith('PROYECTO') ? 400 : 500;
     res.status(code).json({ error: msg });
   }
 });
@@ -451,7 +510,7 @@ router.post('/admin/:cohorteId/generar-todo', ...soloAdmin, async (req, res) => 
       resultado.generados++;
       await new Promise((r) => setTimeout(r, 600)); // respirar entre llamadas
     } catch (e: any) {
-      if (e?.message === 'SIN_FUENTE') resultado.sin_fuente++; else resultado.errores++;
+      if (['SIN_FUENTE', 'SIN_ONE_PAGER', 'ONE_PAGER_ILEGIBLE'].includes(e?.message)) resultado.sin_fuente++; else resultado.errores++;
     }
   }
   res.json({ ok: true, ...resultado });
