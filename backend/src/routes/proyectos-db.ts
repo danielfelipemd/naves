@@ -490,31 +490,64 @@ router.post('/admin/proyecto/:proyectoId/generar-contenido', ...soloAdmin, async
   }
 });
 
-// POST generar TODOS los faltantes/cambiados de una cohorte (serial, con pausa)
-router.post('/admin/:cohorteId/generar-todo', ...soloAdmin, async (req, res) => {
-  if (!iaConfigurada()) return res.status(503).json({ error: 'IA_NO_CONFIGURADA', message: 'Falta configurar ANTHROPIC_API_KEY en el servidor.' });
-  const proyIds = (await proyectosDeCohorte(req.params.cohorteId)).map((e) => e.proyecto_id);
+// POST generar TODOS los faltantes/cambiados de una cohorte (serial, con pausa).
+// Corre en segundo plano: con decenas de proyectos y hasta 3 intentos por post
+// tarda minutos, más que el timeout del navegador (15 s) y de nginx (120 s).
+// La pantalla consulta el avance con GET …/generar-todo/estado. Un solo trabajo
+// por cohorte a la vez (en memoria: el backend corre en una sola instancia).
+interface TrabajoGeneracion {
+  total: number; hechos: number; generados: number; saltados: number; sin_fuente: number; errores: number;
+  en_curso: boolean; inicio: string; fin: string | null; actual: string | null;
+}
+const trabajos = new Map<string, TrabajoGeneracion>();
+
+async function correrGeneracion(cohorteId: string, t: TrabajoGeneracion, proyectos: ProyectoFase2[]) {
+  const proyIds = proyectos.map((e) => e.proyecto_id);
+  const nombres = new Map(proyectos.map((e) => [e.proyecto_id, e.proyecto]));
   const { data: existentes } = await supabaseAdmin.from('proyecto_contenido').select('proyecto_id, source_sha256, aprobado, resumen').in('proyecto_id', proyIds.length ? proyIds : ['00000000-0000-0000-0000-000000000000']);
   const prevMap = new Map((existentes ?? []).map((c: any) => [c.proyecto_id, c]));
-
-  const resultado = { generados: 0, saltados: 0, sin_fuente: 0, errores: 0, total: proyIds.length };
   for (const pid of proyIds) {
+    t.actual = nombres.get(pid) ?? null;
     try {
       const f = await fuenteProyecto(pid);
       const prev: any = prevMap.get(pid);
       // Saltar si ya está aprobado o si el hash no cambió y ya hay resumen.
-      if (prev?.aprobado || (f && prev && prev.source_sha256 === f.sha256 && prev.resumen)) { resultado.saltados++; continue; }
+      if (prev?.aprobado || (f && prev && prev.source_sha256 === f.sha256 && prev.resumen)) { t.saltados++; continue; }
       const { resumen, linkedin, sha256 } = await generarUno(pid);
-      // No contar como "generado" algo que no se guardó (antes sumaba igual).
+      // No contar como "generado" algo que no se guardó.
       const errG = await guardarContenido(pid, { resumen, linkedin, source_sha256: sha256, generado_en: new Date().toISOString(), aprobado: false });
-      if (errG) { resultado.errores++; continue; }
-      resultado.generados++;
+      if (errG) { t.errores++; continue; }
+      t.generados++;
       await new Promise((r) => setTimeout(r, 600)); // respirar entre llamadas
     } catch (e: any) {
-      if (['SIN_FUENTE', 'SIN_ONE_PAGER', 'ONE_PAGER_ILEGIBLE'].includes(e?.message)) resultado.sin_fuente++; else resultado.errores++;
+      if (['SIN_FUENTE', 'SIN_ONE_PAGER', 'ONE_PAGER_ILEGIBLE'].includes(e?.message)) t.sin_fuente++; else t.errores++;
+      if (!['SIN_FUENTE', 'SIN_ONE_PAGER', 'ONE_PAGER_ILEGIBLE'].includes(e?.message)) console.error(`[generar-todo] ${cohorteId} ${pid}:`, e?.message);
+    } finally {
+      t.hechos++;
     }
   }
-  res.json({ ok: true, ...resultado });
+}
+
+router.post('/admin/:cohorteId/generar-todo', ...soloAdmin, async (req, res) => {
+  if (!iaConfigurada()) return res.status(503).json({ error: 'IA_NO_CONFIGURADA', message: 'Falta configurar ANTHROPIC_API_KEY en el servidor.' });
+  const cohorteId = req.params.cohorteId;
+  const previo = trabajos.get(cohorteId);
+  if (previo?.en_curso) return res.status(202).json({ ok: true, ya_en_curso: true, ...previo });
+  const proyectos = await proyectosDeCohorte(cohorteId);
+  const t: TrabajoGeneracion = {
+    total: proyectos.length, hechos: 0, generados: 0, saltados: 0, sin_fuente: 0, errores: 0,
+    en_curso: true, inicio: new Date().toISOString(), fin: null, actual: null,
+  };
+  trabajos.set(cohorteId, t);
+  correrGeneracion(cohorteId, t, proyectos)
+    .catch((e) => { console.error(`[generar-todo] ${cohorteId}:`, e?.message); t.errores++; })
+    .finally(() => { t.en_curso = false; t.actual = null; t.fin = new Date().toISOString(); });
+  res.status(202).json({ ok: true, ...t });
+});
+
+router.get('/admin/:cohorteId/generar-todo/estado', ...soloAdmin, (req, res) => {
+  const t = trabajos.get(req.params.cohorteId);
+  res.json(t ? { existe: true, ...t } : { existe: false, en_curso: false });
 });
 
 // PUT edición manual + aprobación de contenido

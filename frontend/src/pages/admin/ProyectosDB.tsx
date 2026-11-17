@@ -76,21 +76,50 @@ export default function ProyectosDB() {
     if (!p.proyecto_id) return;
     setBusy(p.proyecto_id); setErr('');
     try {
-      await api.post(`/proyectos-db/admin/proyecto/${p.proyecto_id}/generar-contenido`, { force });
+      // Hasta 3 intentos de la IA: puede pasar del minuto; sin el timeout global de 15 s.
+      await api.post(`/proyectos-db/admin/proyecto/${p.proyecto_id}/generar-contenido`, { force }, { timeout: 0 });
       await load();
     } catch (e: any) { setErr(errorLegible(e)); }
     finally { setBusy(''); }
   }
 
+  // «Generar todo» corre en el servidor en segundo plano (tarda minutos): aquí
+  // solo se lanza y se consulta el avance cada pocos segundos.
+  async function seguirGeneracion(coh: string) {
+    setBulkLoad(true);
+    for (;;) {
+      let t: any;
+      try { t = (await api.get(`/proyectos-db/admin/${coh}/generar-todo/estado`)).data; }
+      catch (e: any) { setErr(errorLegible(e)); break; }
+      if (!t?.existe) break;
+      const cuenta = `generados ${t.generados}, sin cambios ${t.saltados}${t.sin_fuente ? `, sin One Pager ${t.sin_fuente}` : ''}${t.errores ? `, errores ${t.errores}` : ''}`;
+      if (!t.en_curso) { setBulk(`Listo: ${cuenta} (de ${t.total}).`); await load(); break; }
+      setBulk(`Generando ${Math.min(t.hechos + 1, t.total)} de ${t.total}${t.actual ? ` (${t.actual})` : ''}… ${cuenta}. Puedes seguir trabajando; esto tarda unos minutos.`);
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+    setBulkLoad(false);
+  }
+
   async function generarTodo() {
     setBulkLoad(true); setBulk(''); setErr('');
     try {
-      const { data } = await api.post(`/proyectos-db/admin/${cohorte}/generar-todo`, {});
-      setBulk(`Generados ${data.generados}, saltados ${data.saltados}${data.sin_fuente ? `, sin material ${data.sin_fuente}` : ''}${data.errores ? `, errores ${data.errores}` : ''} (de ${data.total}).`);
-      await load();
-    } catch (e: any) { setErr(errorLegible(e)); }
-    finally { setBulkLoad(false); }
+      await api.post(`/proyectos-db/admin/${cohorte}/generar-todo`, {});
+      await seguirGeneracion(cohorte);
+    } catch (e: any) { setErr(errorLegible(e)); setBulkLoad(false); }
   }
+
+  // Si al abrir la cohorte ya hay una generación en curso, seguirla.
+  useEffect(() => {
+    if (!cohorte) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const t = (await api.get(`/proyectos-db/admin/${cohorte}/generar-todo/estado`)).data;
+        if (vivo && t?.en_curso) seguirGeneracion(cohorte);
+      } catch { /* sin estado: nada que seguir */ }
+    })();
+    return () => { vivo = false; };
+  }, [cohorte]);
 
   async function cambiarSector(p: Proyecto, sector: string) {
     if (!p.proyecto_id || !sector || sector === p.sector) { setSectorId(''); return; }
@@ -171,7 +200,7 @@ export default function ProyectosDB() {
         {cohorte && proyectos.length > 0 && (
           <>
             <button onClick={() => downloadFile(`/proyectos-db/admin/${cohorte}/excel`, `${evento.replace(/[^\w-]/g, '_')}_BaseDatos.xlsx`)} className="btn-inalde-secondary !py-2 !px-4 !text-xs">↓ Descargar Excel</button>
-            <button onClick={generarTodo} disabled={bulkLoad || iaOn === false} title={iaOn === false ? 'IA no configurada en el servidor' : ''} className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-50">{bulkLoad ? 'Generando…' : '✨ Generar contenido faltante con IA'}</button>
+            <button onClick={generarTodo} disabled={bulkLoad || iaOn === false} title={iaOn === false ? 'IA no configurada en el servidor' : ''} className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-50">{bulkLoad ? 'Generando…' : '✨ Generar o actualizar contenido con IA'}</button>
           </>
         )}
       </div>
