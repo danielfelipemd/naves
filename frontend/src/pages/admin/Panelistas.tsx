@@ -28,7 +28,7 @@ interface Panelista {
 interface Stats { total: number; enviados: number; confirmados: number; con_transporte: number; pendientes: number; }
 interface BloqueInfo { numero: number; hora_inicio: string; hora_fin: string; primer_slot: number; ultimo_slot: number; }
 interface EnlaceInfo {
-  enlace: { url: string | null; activo: boolean; vence_at: string; estado: 'vigente' | 'inactivo' | 'vencido' } | null;
+  enlace: { url: string | null; activo: boolean; vence_at: string; estado: 'vigente' | 'inactivo' | 'vencido'; avisar_a: string[] } | null;
   publicada_at: string | null;
   bloques: Array<{ numero: number; fecha: string; fecha_legible: string; bloques: BloqueInfo[] }>;
 }
@@ -165,6 +165,7 @@ function EnlaceCard({ cohorte, info, jornadas, onChange, setMsg }: {
     : aLocal(new Date(Date.now() + 10 * 86400000).toISOString());
   const [vence, setVence] = useState(e ? aLocal(e.vence_at) : porDefecto);
   const [guardando, setGuardando] = useState(false);
+  const [avisos, setAvisos] = useState((e?.avisar_a ?? []).join(', '));
   const totalBloques = info.bloques.reduce((n, j) => n + j.bloques.length, 0);
 
   async function guardar(activo: boolean) {
@@ -175,6 +176,20 @@ function EnlaceCard({ cohorte, info, jornadas, onChange, setMsg }: {
       // Primero recargar y después avisar: la recarga limpia el mensaje.
       onChange();
       setMsg({ kind: 'ok', text: activo ? 'Enlace activo. Cópialo y compártelo con los panelistas.' : 'Enlace desactivado: ya no abre.' });
+    } catch (err: any) { setMsg({ kind: 'err', text: formatBackendError(err) }); }
+    finally { setGuardando(false); }
+  }
+  // Quién recibe un aviso por cada confirmación (hoy, el super admin y la
+  // asistente de programa). Se escribe separado por comas.
+  async function guardarAvisos() {
+    const lista = avisos.split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+    const malo = lista.find((x) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
+    if (malo) { setMsg({ kind: 'err', text: `«${malo}» no es un correo válido.` }); return; }
+    setGuardando(true);
+    try {
+      await api.put(`/panelistas-enlace/admin/${cohorte}/avisos`, { avisar_a: lista });
+      onChange();
+      setMsg({ kind: 'ok', text: lista.length ? `Se avisará de cada confirmación a: ${lista.join(', ')}.` : 'Nadie recibirá aviso de las confirmaciones.' });
     } catch (err: any) { setMsg({ kind: 'err', text: formatBackendError(err) }); }
     finally { setGuardando(false); }
   }
@@ -237,6 +252,15 @@ function EnlaceCard({ cohorte, info, jornadas, onChange, setMsg }: {
         {e && <button onClick={regenerar} disabled={guardando} className="text-xs text-inalde-gray hover:text-inalde-red underline ml-auto" title="Crea un enlace nuevo; el actual deja de abrir">Regenerar enlace</button>}
       </div>
       {e && estado !== 'inactivo' && <p className="text-[11px] text-inalde-gray mt-2">{estado === 'vencido' ? 'Venció' : 'Vence'} el {legibleCorto(e.vence_at)}</p>}
+      <div className="mt-4 pt-3 border-t border-inalde-gray-light">
+        <label htmlFor="avisar-a" className="block text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-1">Avisar de cada confirmación a</label>
+        <div className="flex flex-wrap gap-2 items-center">
+          <input id="avisar-a" value={avisos} onChange={(ev) => setAvisos(ev.target.value)} placeholder="correo@inalde.edu.co, otro@inalde.edu.co"
+            className="input-inalde !py-1.5 !text-sm flex-1 min-w-[260px]" />
+          <button onClick={guardarAvisos} disabled={guardando || avisos.trim() === (e?.avisar_a ?? []).join(', ')} className="btn-inalde-secondary !py-1.5 !px-4 !text-xs disabled:opacity-50">Guardar</button>
+        </div>
+        <p className="text-[11px] text-inalde-gray mt-1">Les llega un correo con el nombre, el correo, los bloques y la logística de cada panelista que confirme. El panelista recibe además su propia confirmación.</p>
+      </div>
     </section>
   );
 }

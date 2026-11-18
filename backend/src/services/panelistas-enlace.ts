@@ -26,6 +26,7 @@ export interface EnlacePanelistas {
   activo: boolean;
   vence_at: string;
   estado: EstadoEnlace;
+  avisar_a: string[];   // a quién avisar de cada confirmación (sql/56)
 }
 
 function estadoDe(activo: boolean, venceAt: string): EstadoEnlace {
@@ -35,12 +36,12 @@ function estadoDe(activo: boolean, venceAt: string): EstadoEnlace {
 
 export async function enlaceDeCohorte(cohorteId: string): Promise<EnlacePanelistas | null> {
   const { data } = await supabaseAdmin.from('panelistas_enlace')
-    .select('cohorte_id, token_cifrado, activo, vence_at').eq('cohorte_id', cohorteId).maybeSingle();
+    .select('cohorte_id, token_cifrado, activo, vence_at, avisar_a').eq('cohorte_id', cohorteId).maybeSingle();
   if (!data) return null;
   const d = data as any;
   let url: string | null = null;
   try { url = urlEnlacePanelistas(decryptPII(d.token_cifrado)); } catch { url = null; }
-  return { cohorte_id: d.cohorte_id, url, activo: d.activo, vence_at: d.vence_at, estado: estadoDe(d.activo, d.vence_at) };
+  return { cohorte_id: d.cohorte_id, url, activo: d.activo, vence_at: d.vence_at, estado: estadoDe(d.activo, d.vence_at), avisar_a: d.avisar_a ?? [] };
 }
 
 /**
@@ -48,12 +49,15 @@ export async function enlaceDeCohorte(cohorteId: string): Promise<EnlacePanelist
  * y al regenerar (el anterior deja de abrir al instante); cambiar activo o la
  * fecha no lo cambia, así el enlace que ya circula sigue siendo el mismo.
  */
-export async function guardarEnlace(cohorteId: string, cambios: { activo: boolean; vence_at: string }, regenerar = false): Promise<EnlacePanelistas> {
+export async function guardarEnlace(
+  cohorteId: string, cambios: { activo: boolean; vence_at: string; avisar_a?: string[] }, regenerar = false,
+): Promise<EnlacePanelistas> {
   const { data: actual } = await supabaseAdmin.from('panelistas_enlace')
     .select('cohorte_id').eq('cohorte_id', cohorteId).maybeSingle();
   const fila: Record<string, unknown> = {
     cohorte_id: cohorteId, activo: cambios.activo, vence_at: cambios.vence_at, actualizado_at: new Date().toISOString(),
   };
+  if (cambios.avisar_a) fila.avisar_a = cambios.avisar_a;
   if (!actual || regenerar) {
     const token = crypto.randomBytes(32).toString('base64url');
     fila.token_hash = sha256Hex(token);
@@ -66,6 +70,17 @@ export async function guardarEnlace(cohorteId: string, cambios: { activo: boolea
   const out = await enlaceDeCohorte(cohorteId);
   if (!out) throw new Error('ENLACE_NO_GUARDADO');
   return out;
+}
+
+/**
+ * Guarda a quién avisar de cada confirmación. Se puede hacer antes de activar
+ * el enlace: si la cohorte aún no tiene enlace, se crea desactivado (vence en
+ * 10 días; la fecha real se elige al activarlo).
+ */
+export async function guardarAvisos(cohorteId: string, avisarA: string[]): Promise<EnlacePanelistas> {
+  const actual = await enlaceDeCohorte(cohorteId);
+  if (actual) return guardarEnlace(cohorteId, { activo: actual.activo, vence_at: actual.vence_at, avisar_a: avisarA });
+  return guardarEnlace(cohorteId, { activo: false, vence_at: new Date(Date.now() + 10 * 86400000).toISOString(), avisar_a: avisarA });
 }
 
 /** La cohorte de un token y si todavía abre. null = el enlace no existe. */

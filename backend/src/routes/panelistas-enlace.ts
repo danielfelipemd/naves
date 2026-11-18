@@ -10,7 +10,7 @@ import { ipCliente } from '../lib/ip-cliente.js';
 import { programacionPublicadaAt } from '../services/escaleta.js';
 import { downloadMiniatura, downloadTrabajoGradoFile, mimeFromPath } from '../services/storage.js';
 import {
-  cohorteDeEnlace, describirAsistencia, enlaceDeCohorte, guardarEnlace, programacionPorBloques,
+  cohorteDeEnlace, describirAsistencia, enlaceDeCohorte, guardarAvisos, guardarEnlace, programacionPorBloques,
   proyectoEnProgramacion, type JornadaBloques,
 } from '../services/panelistas-enlace.js';
 
@@ -272,7 +272,9 @@ router.post('/p/:token/confirmar', limiteConfirmar, async (req, res) => {
   // falla, queda sin marca de enviado y el admin lo reenvía desde la lista.
   res.json({ ok: true, nuevo });
   void enviarConfirmacion(panelistaId, prog)
-    .catch((e) => console.error('[panelistas-enlace] confirmación falló:', e?.message ?? e));
+    .catch((e) => console.error('[panelistas-enlace] confirmación falló:', e?.message ?? e))
+    .then(() => avisarEquipo(panelistaId, prog))
+    .catch((e) => console.error('[panelistas-enlace] aviso al equipo falló:', e?.message ?? e));
 });
 
 // =====================================================================
@@ -319,13 +321,14 @@ function lineasLogistica(log: any, jornadas: JornadaBloques[]): string[] {
   return out;
 }
 
-/** Envía (o reenvía) el correo de confirmación de un panelista. */
-export async function enviarConfirmacion(panelistaId: string, prog?: { jornadas: JornadaBloques[] }): Promise<{ ok: boolean; razon?: string }> {
+// Lo que dice una confirmación, cargado una vez para los dos correos: el del
+// panelista y el aviso al equipo.
+async function datosConfirmacion(panelistaId: string, prog?: { jornadas: JornadaBloques[] }) {
   const { data: p } = await supabaseAdmin.from('panelistas')
-    .select('id, cohorte_id, nombre_completo, email_encriptado, asiste_todas, confirmado').eq('id', panelistaId).maybeSingle();
-  if (!p) return { ok: false, razon: 'NOT_FOUND' };
-  if (!(p as any).confirmado) return { ok: false, razon: 'SIN_CONFIRMAR' };
-  let email = ''; try { email = decryptPII((p as any).email_encriptado); } catch { return { ok: false, razon: 'PII_DECRYPT_FAILED' }; }
+    .select('id, cohorte_id, nombre_completo, email_encriptado, asiste_todas, confirmado, registro_por_enlace').eq('id', panelistaId).maybeSingle();
+  if (!p) return { error: 'NOT_FOUND' as const };
+  if (!(p as any).confirmado) return { error: 'SIN_CONFIRMAR' as const };
+  let email = ''; try { email = decryptPII((p as any).email_encriptado); } catch { return { error: 'PII_DECRYPT_FAILED' as const }; }
   const cohorteId = (p as any).cohorte_id as string;
   const [programa, { data: bl }, { data: log }, { data: coh }] = await Promise.all([
     prog ? Promise.resolve(prog) : programacionPorBloques(cohorteId),
@@ -334,11 +337,67 @@ export async function enviarConfirmacion(panelistaId: string, prog?: { jornadas:
     supabaseAdmin.from('cohortes').select('etiqueta').eq('id', cohorteId).maybeSingle(),
   ]);
   const asistencia = describirAsistencia(programa.jornadas, (p as any).asiste_todas, (bl ?? []) as any[]);
-  const html = htmlConfirmacion((p as any).nombre_completo, (coh as any)?.etiqueta ?? cohorteId,
-    asistencia.length ? asistencia : ['(sin bloques registrados)'], lineasLogistica(log, programa.jornadas));
-  const r = await sendEmail(email, 'Confirmación de asistencia como panelista — NAVES', html);
+  return {
+    error: null,
+    nombre: (p as any).nombre_completo as string,
+    email, cohorteId,
+    cohorte: ((coh as any)?.etiqueta ?? cohorteId) as string,
+    nuevo: !!(p as any).registro_por_enlace,
+    asistencia: asistencia.length ? asistencia : ['(sin bloques registrados)'],
+    logistica: lineasLogistica(log, programa.jornadas),
+  };
+}
+
+/** Envía (o reenvía) el correo de confirmación de un panelista. */
+export async function enviarConfirmacion(panelistaId: string, prog?: { jornadas: JornadaBloques[] }): Promise<{ ok: boolean; razon?: string }> {
+  const d = await datosConfirmacion(panelistaId, prog);
+  if (d.error) return { ok: false, razon: d.error };
+  const html = htmlConfirmacion(d.nombre, d.cohorte, d.asistencia, d.logistica);
+  const r = await sendEmail(d.email, 'Confirmación de asistencia como panelista — NAVES', html);
   if (r.ok) await supabaseAdmin.from('panelistas').update({ confirmacion_enviada_at: new Date().toISOString() }).eq('id', panelistaId);
   return { ok: r.ok, razon: r.ok ? undefined : r.reason };
+}
+
+function htmlAvisoEquipo(d: { nombre: string; email: string; cohorte: string; nuevo: boolean; asistencia: string[]; logistica: string[] }): string {
+  const li = (xs: string[]) => xs.map((x) => `<li style="margin:4px 0;">${escaparHtml(x)}</li>`).join('');
+  return `
+    <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:560px;margin:0 auto">
+      <div style="border-bottom:3px solid #e30613;padding-bottom:14px;margin-bottom:22px;">
+        <p style="color:#888;text-transform:uppercase;letter-spacing:1.5px;font-size:11px;margin:0;">Panelistas — NAVES ${escaparHtml(d.cohorte)}</p>
+        <h2 style="color:#1a1a1a;margin:6px 0 0 0;font-size:22px;">Un panelista confirmó su asistencia</h2>
+      </div>
+      <p style="margin:0 0 4px;"><strong>${escaparHtml(d.nombre)}</strong> · <a href="mailto:${escaparHtml(d.email)}" style="color:#e30613;">${escaparHtml(d.email)}</a></p>
+      ${d.nuevo ? '<p style="margin:0 0 12px;font-size:13px;color:#b45309;"><strong>Nuevo registro:</strong> no estaba en la lista de panelistas cargada.</p>' : ''}
+      <p style="margin:12px 0 4px;"><strong>Asistirá a</strong></p>
+      <ul style="padding-left:20px;margin:4px 0 16px;">${li(d.asistencia)}</ul>
+      ${d.logistica.length ? `<p style="margin-bottom:4px;"><strong>Logística</strong></p><ul style="padding-left:20px;margin:4px 0 16px;">${li(d.logistica)}</ul>` : ''}
+      <p style="font-size:13px;color:#555;">La lista completa está en el sistema, en Administración → Panelistas.</p>
+      <hr style="border:none;border-top:1px solid #ddd;margin:24px 0 16px;">
+      <p style="font-size:11px;color:#888;line-height:1.5;margin:0;">
+        <strong>INALDE Business School</strong> — Programa MBA · NAVES<br>
+        Este es un mensaje automático, por favor no responda a este correo.
+      </p>
+    </div>`;
+}
+
+/**
+ * Avisa al equipo (sql/56: la lista «Avisar a» de la cohorte; hoy, el super
+ * admin y la asistente de programa) de que un panelista confirmó. Un correo por
+ * persona: nadie ve las direcciones de los demás. Un fallo no se reintenta solo
+ * (la confirmación ya quedó en el sistema); se anota en el registro.
+ */
+async function avisarEquipo(panelistaId: string, prog: { jornadas: JornadaBloques[] }): Promise<void> {
+  const d = await datosConfirmacion(panelistaId, prog);
+  if (d.error) return;
+  const enlace = await enlaceDeCohorte(d.cohorteId);
+  const destinos = enlace?.avisar_a ?? [];
+  if (!destinos.length) return;
+  const html = htmlAvisoEquipo(d);
+  const asunto = `Panelista confirmado: ${d.nombre} — NAVES ${d.cohorte}`;
+  for (const destino of destinos) {
+    const r = await sendEmail(destino, asunto, html);
+    if (!r.ok) console.warn(`[panelistas-enlace] aviso al equipo falló (${destino}): ${r.reason}`);
+  }
 }
 
 // =====================================================================
@@ -374,6 +433,22 @@ router.put('/admin/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest, 
   try {
     const enlace = await guardarEnlace(req.params.cohorteId, parsed.data);
     await auditarAdmin(req, 'ADMIN_ENLACE_PANELISTAS', { cohorte_id: req.params.cohorteId, activo: enlace.activo, vence_at: enlace.vence_at });
+    res.json({ enlace });
+  } catch (e: any) { res.status(500).json({ error: 'NO_SE_PUDO_GUARDAR', detail: e?.message }); }
+});
+
+// PUT /api/panelistas-enlace/admin/:cohorteId/avisos — a quién avisar de cada
+// confirmación. Máximo 10 correos.
+const avisosSchema = z.object({ avisar_a: z.array(z.string().trim().toLowerCase().email().max(200)).max(10) });
+router.put('/admin/:cohorteId/avisos', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const parsed = avisosSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: 'CORREO_INVALIDO', mensaje: 'Revisa los correos: alguno no es válido.' });
+  const { data: coh } = await supabaseAdmin.from('cohortes').select('id').eq('id', req.params.cohorteId).maybeSingle();
+  if (!coh) return res.status(404).json({ error: 'COHORTE_NO_ENCONTRADA' });
+  const unicos = [...new Set(parsed.data.avisar_a)];
+  try {
+    const enlace = await guardarAvisos(req.params.cohorteId, unicos);
+    await auditarAdmin(req, 'ADMIN_ENLACE_PANELISTAS_AVISOS', { cohorte_id: req.params.cohorteId, avisar_a: unicos.length });
     res.json({ enlace });
   } catch (e: any) { res.status(500).json({ error: 'NO_SE_PUDO_GUARDAR', detail: e?.message }); }
 });

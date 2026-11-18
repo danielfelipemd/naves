@@ -199,6 +199,7 @@ export function formatBackendError(e: any): string {
     SIN_ENLACE: 'Esta cohorte todavía no tiene enlace de panelistas. Actívalo primero.',
     SIN_CONFIRMAR: 'Este panelista todavía no ha confirmado: no hay confirmación que enviarle.',
     NO_SE_PUDO_GUARDAR: 'No pudimos guardar el enlace. Inténtalo de nuevo.',
+    CORREO_INVALIDO: 'Revisa los correos: alguno no es válido.',
 
     // ── Cohortes y sábana ────────────────────────────────────────────────
     COHORTE_NO_ENCONTRADA: 'No encontramos esa cohorte.',
