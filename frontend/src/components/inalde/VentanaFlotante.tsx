@@ -8,6 +8,11 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type 
  * fondo ni bloquea nada, así que se puede cambiar una opción y ver al mismo
  * tiempo cómo cambia la tabla de abajo. Se puede minimizar a la barra.
  *
+ * Anclado también se minimiza: queda solo el título y la tabla sube a ocupar
+ * su sitio. Son dos preferencias separadas (`plegado` anclado, `minimizado`
+ * flotando), porque se usan para cosas distintas: plegarlo anclado es «ya
+ * configuré, quiero ver la tabla»; minimizar la ventana es «apártate un rato».
+ *
  * Lo que eligió la persona (anclado o flotante, posición, minimizado) se
  * recuerda en este navegador. Es solo una comodidad: si el almacenamiento
  * falla, el panel arranca anclado y funciona igual.
@@ -22,7 +27,7 @@ const ANCHO = 460;
 const MARGEN = 8;
 const ALTO_BARRA = 44;
 
-interface Estado { flotante: boolean; x: number; y: number; minimizado: boolean; }
+interface Estado { flotante: boolean; x: number; y: number; minimizado: boolean; plegado: boolean; }
 
 function leer(clave: string): Partial<Estado> {
   try {
@@ -76,6 +81,7 @@ export function VentanaFlotante({ titulo, clave, children }: {
       x: typeof g.x === 'number' && Number.isFinite(g.x) ? g.x : inicial.x,
       y: typeof g.y === 'number' && Number.isFinite(g.y) ? g.y : inicial.y,
       minimizado: g.minimizado === true,
+      plegado: g.plegado === true,
     };
   });
   const arrastre = useRef<{ dx: number; dy: number } | null>(null);
@@ -119,15 +125,21 @@ export function VentanaFlotante({ titulo, clave, children }: {
   if (!estado.flotante) {
     return (
       <section aria-labelledby={idTitulo} className="bg-white border border-inalde-gray-light rounded-lg mb-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-inalde-gray-light">
-          <h2 id={idTitulo} className="font-primary font-bold text-xs tracking-widest uppercase text-inalde-text">{titulo}</h2>
+        <div className={`flex flex-wrap items-center gap-2 px-4 py-2.5 ${estado.plegado ? '' : 'border-b border-inalde-gray-light'}`}>
+          <h2 id={idTitulo} className="flex-1 font-primary font-bold text-xs tracking-widest uppercase text-inalde-text">{titulo}</h2>
+          <button type="button" onClick={() => cambiar({ plegado: !estado.plegado })}
+            aria-expanded={!estado.plegado} aria-controls={`${idTitulo}-cuerpo`}
+            title={estado.plegado ? 'Mostrar las opciones' : 'Dejar solo el título y ganar espacio para la tabla'}
+            className={`${botonBarra} border-inalde-gray-light text-inalde-gray hover:border-inalde-blue hover:text-inalde-blue`}>
+            {estado.plegado ? 'Abrir' : 'Minimizar'}
+          </button>
           <button type="button" onClick={() => cambiar({ flotante: true, minimizado: false })}
             title="Saca las opciones a una ventana que puedes mover por la pantalla, para ver la tabla mientras las cambias"
             className={`${botonBarra} border-inalde-gray-light text-inalde-gray hover:border-inalde-blue hover:text-inalde-blue`}>
             <span aria-hidden="true">⧉ </span>Ventana flotante
           </button>
         </div>
-        <div className="p-4">{children(false)}</div>
+        {!estado.plegado && <div id={`${idTitulo}-cuerpo`} className="p-4">{children(false)}</div>}
       </section>
     );
   }
@@ -138,7 +150,7 @@ export function VentanaFlotante({ titulo, clave, children }: {
           se pueden volver a anclar sin buscar la ventana. */}
       <div className="flex flex-wrap items-center gap-3 border border-dashed border-inalde-gray-light rounded-lg px-4 py-2.5 mb-5 text-sm text-inalde-gray">
         <span><span aria-hidden="true">⧉ </span><strong className="text-inalde-text">{titulo}</strong> en ventana flotante.</span>
-        <button type="button" onClick={() => cambiar({ flotante: false })}
+        <button type="button" onClick={() => cambiar({ flotante: false, plegado: false })}
           className={`${botonBarra} border-inalde-gray-light text-inalde-gray hover:border-inalde-blue hover:text-inalde-blue`}>
           Anclar aquí
         </button>
@@ -163,7 +175,7 @@ export function VentanaFlotante({ titulo, clave, children }: {
             className={`${botonBarra} border-white/30 text-white hover:bg-white hover:text-inalde-text`}>
             {estado.minimizado ? 'Abrir' : 'Minimizar'}
           </button>
-          <button type="button" onClick={() => cambiar({ flotante: false })}
+          <button type="button" onClick={() => cambiar({ flotante: false, plegado: false })}
             title="Vuelve a poner las opciones en su sitio, encima de las jornadas"
             className={`${botonBarra} border-white/30 text-white hover:bg-white hover:text-inalde-text`}>
             Anclar
