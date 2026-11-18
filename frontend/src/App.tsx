@@ -35,6 +35,7 @@ import ActasFirmaLote from './pages/admin/actas/FirmaLote';
 import ActasLotes from './pages/admin/actas/Lotes';
 import ActaMicroformulario from './pages/publico/ActaMicroformulario';
 import FirmarActas from './pages/publico/FirmarActas';
+import PanelistasEnlace from './pages/publico/PanelistasEnlace';
 import AdminTrabajosSector from './pages/admin/TrabajosSectorAdmin';
 import AdminDashboardControl from './pages/admin/DashboardControl';
 import AolTrabajos from './pages/admin/aol/Trabajos';
@@ -127,6 +128,8 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/cambiar-clave-inicial" element={<CambiarClaveRoute />} />
         <Route path="/panelista/confirmar" element={<ConfirmarAsistencia />} />
+        {/* Enlace compartido de panelistas (sql/55): sin sesión, lo activa el super admin. */}
+        <Route path="/panelistas/:token" element={<PanelistasEnlace />} />
         <Route path="/trabajos/:cohorteId" element={<TrabajosSectorPublico />} />
         <Route path="/actas/micro/:token" element={<ActaMicroformulario />} />
         <Route path="/actas/firmar/:token" element={<FirmarActas />} />

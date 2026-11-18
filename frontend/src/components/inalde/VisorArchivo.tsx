@@ -12,10 +12,15 @@ import { useEffect } from 'react';
  * que hace que el backend lo sirva `inline`. El botón "Descargar" usa la URL
  * original, así que sigue disparando el diálogo de guardar.
  */
-export function VisorArchivo({ url, titulo, onClose }: {
+export function VisorArchivo({ url, titulo, onClose, urlDescarga, imagen }: {
   url: string;
   titulo: string;
   onClose: () => void;
+  // Para archivos que NO vienen del proxy (p. ej. el enlace de panelistas, que
+  // sirve inline por defecto y descarga con ?descargar=1): con `urlDescarga` se
+  // usa `url` tal cual para ver, y `imagen` dice qué es sin leer ningún token.
+  urlDescarga?: string;
+  imagen?: boolean;
 }) {
   // Cerrar con Escape y bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -29,10 +34,10 @@ export function VisorArchivo({ url, titulo, onClose }: {
     };
   }, [onClose]);
 
-  const urlVer = `${url}${url.includes('?') ? '&' : '?'}v=1`;
+  const urlVer = urlDescarga ? url : `${url}${url.includes('?') ? '&' : '?'}v=1`;
   // El token del proxy lleva el mime en su payload. Leerlo evita mandar las
   // imágenes al visor de documentos del navegador, que las muestra crudas.
-  const esImagen = (() => {
+  const esImagen = imagen ?? (() => {
     try {
       const t = new URL(url, window.location.origin).searchParams.get('t') ?? '';
       const payload = JSON.parse(atob(t.split('.')[1]));
@@ -51,7 +56,7 @@ export function VisorArchivo({ url, titulo, onClose }: {
         <div className="border-b-[3px] border-inalde-red px-5 py-3 flex items-center justify-between gap-4">
           <h2 className="font-primary font-bold text-base text-inalde-text truncate">{titulo}</h2>
           <div className="flex items-center gap-2 shrink-0">
-            <a href={url} download
+            <a href={urlDescarga ?? url} download
               className="font-primary font-bold text-[0.65rem] tracking-wider uppercase border border-inalde-red text-inalde-red px-3 py-1.5 rounded-[3px] hover:bg-inalde-red hover:text-white transition-colors">
               <span aria-hidden="true">⬇ </span>Descargar
             </a>

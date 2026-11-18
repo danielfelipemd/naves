@@ -1,18 +1,18 @@
 import { Router } from 'express';
+import ExcelJS from 'exceljs';
 import { z } from 'zod';
-import { config } from '../config.js';
 import { supabaseAdmin } from '../db/supabase.js';
 import { encryptPII, decryptPII, sha256Hex } from '../auth/crypto.js';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
 import { sendEmail } from '../services/email.js';
 import { ipCliente } from '../lib/ip-cliente.js';
 import { sincronizarJornadasDesdeHitos, recalcularFinesDeJornadas } from '../services/escaleta.js';
+import { enlaceDeCohorte } from '../services/panelistas-enlace.js';
 
 // Módulo A (Fase 2) — Panelistas / Evaluadores.
 // Portal público por token (confirmar asistencia + logística) + panel admin.
 
 const router = Router();
-const PUBLIC_URL = config.frontendUrl; // dominio público (FRONTEND_URL)
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
@@ -193,19 +193,29 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
 
   const { data: panelistas, error } = await supabaseAdmin
     .from('panelistas')
-    .select('id, nombre_completo, email_encriptado, asiste_todas, token_confirmacion, confirmado, email_enviado, activo, created_at')
+    .select('id, nombre_completo, email_encriptado, asiste_todas, token_confirmacion, confirmado, email_enviado, activo, created_at, registro_por_enlace, confirmacion_enviada_at')
     .eq('cohorte_id', cohorteId)
     .eq('activo', true)
     .order('created_at');
   if (error) return res.status(500).json({ error: error.message });
 
   const ids = (panelistas ?? []).map((p: any) => p.id);
-  const [{ data: pjs }, { data: logs }] = ids.length === 0
-    ? [{ data: [] as any[] }, { data: [] as any[] }]
+  const [{ data: pjs }, { data: logs }, { data: bls }] = ids.length === 0
+    ? [{ data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }]
     : await Promise.all([
         supabaseAdmin.from('panelista_jornadas').select('panelista_id, jornada_id').in('panelista_id', ids),
         supabaseAdmin.from('logistica_panelista').select('*').in('panelista_id', ids),
+        // Los bloques que eligió por el enlace compartido (sql/55).
+        supabaseAdmin.from('panelista_bloques').select('panelista_id, jornada_id, bloque').in('panelista_id', ids),
       ]);
+  const bloquesPorPanelista = new Map<string, Array<{ jornada_numero: number; bloque: number }>>();
+  for (const b of (bls ?? []) as any[]) {
+    const numero = jornadaById.get(b.jornada_id)?.numero;
+    if (numero == null) continue;
+    const arr = bloquesPorPanelista.get(b.panelista_id) ?? [];
+    arr.push({ jornada_numero: numero, bloque: b.bloque });
+    bloquesPorPanelista.set(b.panelista_id, arr);
+  }
   const jornadasPorPanelista = new Map<string, string[]>();
   for (const r of (pjs ?? []) as any[]) {
     const arr = jornadasPorPanelista.get(r.panelista_id) ?? [];
@@ -227,6 +237,10 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
       email_enviado: p.email_enviado,
       token: p.token_confirmacion,
       logistica: logPorPanelista.get(p.id) ?? null,
+      bloques: (bloquesPorPanelista.get(p.id) ?? [])
+        .sort((a, b) => a.jornada_numero - b.jornada_numero || a.bloque - b.bloque),
+      registro_por_enlace: !!p.registro_por_enlace,
+      confirmacion_enviada_at: p.confirmacion_enviada_at ?? null,
     };
   });
 
@@ -336,22 +350,39 @@ router.put('/admin/panelista/:id/logistica', ...soloAdmin, async (req, res) => {
 });
 
 // --- ENVÍO DE CORREOS -------------------------------------------------
-function htmlInvitacionPanelista(nombre: string, cohorte: string, url: string): string {
+// La invitación y el recordatorio llevan el ENLACE COMPARTIDO de la cohorte
+// (sql/55, routes/panelistas-enlace.ts): ahí el panelista ve la programación,
+// elige los bloques y deja su logística. Antes llevaban un enlace personal a un
+// portal donde no se veía la programación ni se podía elegir a qué asistir.
+// Sin enlace vigente no se envía nada: un correo con un enlace que no abre es
+// peor que no mandarlo.
+function escaparHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+}
+function venceLegible(iso: string): string {
+  return new Date(iso).toLocaleString('es-CO', { timeZone: 'America/Bogota', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function htmlCorreoEnlace(tipo: 'invitacion' | 'recordatorio', nombre: string, cohorte: string, url: string, venceAt: string): string {
+  const titulo = tipo === 'invitacion' ? 'Programación y confirmación de asistencia' : 'Recordatorio: confirme su asistencia';
+  const intro = tipo === 'invitacion'
+    ? `Reciba un cordial saludo. Le invitamos a participar como panelista evaluador en las presentaciones de NAVES de la cohorte <strong>${escaparHtml(cohorte)}</strong> del Executive MBA de INALDE.`
+    : `Le recordamos que aún está pendiente confirmar su asistencia como panelista evaluador de NAVES para la cohorte <strong>${escaparHtml(cohorte)}</strong> del Executive MBA de INALDE. Su confirmación nos ayuda a organizar la logística del evento.`;
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:560px;margin:0 auto">
       <div style="border-bottom:3px solid #e30613;padding-bottom:14px;margin-bottom:22px;">
         <p style="color:#888;text-transform:uppercase;letter-spacing:1.5px;font-size:11px;margin:0;">Panel de Evaluación — NAVES</p>
-        <h2 style="color:#1a1a1a;margin:6px 0 0 0;font-size:22px;">Confirma tu asistencia como panelista</h2>
+        <h2 style="color:#1a1a1a;margin:6px 0 0 0;font-size:22px;">${titulo}</h2>
       </div>
-      <p><strong>${nombre}</strong>:</p>
-      <p>Reciba un cordial saludo. Le invitamos a participar como panelista evaluador en las
-      presentaciones de NAVES de la cohorte <strong>${cohorte}</strong> del Executive MBA de INALDE.</p>
-      <p>Por favor confirme su asistencia e indique sus preferencias de logística (transporte y comidas)
-      desde el siguiente enlace personal:</p>
+      <p><strong>${escaparHtml(nombre)}</strong>:</p>
+      <p>${intro}</p>
+      <p>En el siguiente enlace encontrará la programación con el resumen y el One Pager de cada proyecto.
+      Elija los bloques a los que asistirá y confirme su logística (transporte y comidas):</p>
       <div style="text-align:center;margin:24px 0 8px;">
-        <a href="${url}" style="display:inline-block;background:#e30613;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 30px;border-radius:6px;">Confirmar mi asistencia</a>
+        <a href="${url}" style="display:inline-block;background:#e30613;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 30px;border-radius:6px;">Ver la programación y confirmar</a>
       </div>
       <p style="text-align:center;font-size:11px;color:#888;margin:6px 0 0;">O ingrese en <a href="${url}" style="color:#e30613;">${url}</a></p>
+      <p style="text-align:center;font-size:12px;color:#555;margin:14px 0 0;">El enlace estará disponible hasta el ${venceLegible(venceAt)}.</p>
       <hr style="border:none;border-top:1px solid #ddd;margin:24px 0 16px;">
       <p style="font-size:11px;color:#888;line-height:1.5;margin:0;">
         <strong>INALDE Business School</strong> — Programa MBA · NAVES<br>
@@ -360,28 +391,42 @@ function htmlInvitacionPanelista(nombre: string, cohorte: string, url: string): 
     </div>`;
 }
 
-async function enviarInvitacion(panelistaId: string): Promise<{ ok: boolean; razon?: string }> {
+async function enviarCorreoEnlace(panelistaId: string, tipo: 'invitacion' | 'recordatorio'): Promise<{ ok: boolean; razon?: string }> {
   const p = await cargarPanelista(panelistaId);
   if (!p) return { ok: false, razon: 'NOT_FOUND' };
+  const enlace = await enlaceDeCohorte(p.cohorte_id);
+  if (!enlace || enlace.estado !== 'vigente' || !enlace.url) return { ok: false, razon: 'ENLACE_NO_VIGENTE' };
   let email = ''; try { email = decryptPII(p.email_encriptado); } catch { return { ok: false, razon: 'PII_DECRYPT_FAILED' }; }
   if (!email) return { ok: false, razon: 'EMAIL_VACIO' };
   const { data: coh } = await supabaseAdmin.from('cohortes').select('etiqueta').eq('id', p.cohorte_id).maybeSingle();
-  const url = `${PUBLIC_URL}/panelista/confirmar?token=${p.token_confirmacion}`;
-  const html = htmlInvitacionPanelista(p.nombre_completo, (coh as any)?.etiqueta ?? p.cohorte_id, url);
-  const r = await sendEmail(email, 'Confirma tu asistencia como panelista — NAVES', html);
-  if (r.ok) {
+  const html = htmlCorreoEnlace(tipo, p.nombre_completo, (coh as any)?.etiqueta ?? p.cohorte_id, enlace.url, enlace.vence_at);
+  const asunto = tipo === 'invitacion'
+    ? 'Programación de presentaciones y confirmación de asistencia — NAVES'
+    : 'Recordatorio: confirme su asistencia como panelista — NAVES';
+  const r = await sendEmail(email, asunto, html);
+  if (r.ok && tipo === 'invitacion') {
     await supabaseAdmin.from('panelistas').update({ email_enviado: true, email_enviado_at: new Date().toISOString() }).eq('id', panelistaId);
   }
   return { ok: r.ok, razon: r.ok ? undefined : r.reason };
 }
 
+// Antes de lanzar un envío en lote: sin enlace vigente, ninguno saldría.
+async function enlaceVigenteORechazo(cohorteId: string, res: any): Promise<boolean> {
+  const enlace = await enlaceDeCohorte(cohorteId);
+  if (enlace?.estado === 'vigente' && enlace.url) return true;
+  res.status(409).json({ error: 'ENLACE_NO_VIGENTE' });
+  return false;
+}
+
 router.post('/admin/panelista/:id/enviar', ...soloAdmin, async (req, res) => {
-  const r = await enviarInvitacion(req.params.id);
+  const r = await enviarCorreoEnlace(req.params.id, 'invitacion');
+  if (r.razon === 'ENLACE_NO_VIGENTE') return res.status(409).json({ error: 'ENLACE_NO_VIGENTE' });
   if (!r.ok) return res.status(502).json({ error: 'ENVIO_FALLIDO', razon: r.razon });
   res.json({ ok: true });
 });
 
 router.post('/admin/:cohorteId/enviar-pendientes', ...soloAdmin, async (req, res) => {
+  if (!(await enlaceVigenteORechazo(req.params.cohorteId, res))) return;
   const { data: pend } = await supabaseAdmin
     .from('panelistas')
     .select('id')
@@ -397,52 +442,16 @@ router.post('/admin/:cohorteId/enviar-pendientes', ...soloAdmin, async (req, res
   // evita además que una promesa rechazada tumbe el proceso.
   void (async () => {
     for (const id of ids) {
-      try { await enviarInvitacion(id); }
+      try { await enviarCorreoEnlace(id, 'invitacion'); }
       catch (e: any) { console.error(`[panelistas] invitación falló para ${id}:`, e?.message ?? e); }
       await sleep(600);
     }
   })().catch((e) => console.error('[panelistas] envío de invitaciones falló:', e?.message ?? e));
 });
 
-// --- RECORDATORIOS a panelistas invitados pero sin confirmar -----------
-function htmlRecordatorioPanelista(nombre: string, cohorte: string, url: string): string {
-  return `
-    <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:560px;margin:0 auto">
-      <div style="border-bottom:3px solid #e30613;padding-bottom:14px;margin-bottom:22px;">
-        <p style="color:#888;text-transform:uppercase;letter-spacing:1.5px;font-size:11px;margin:0;">Panel de Evaluación — NAVES</p>
-        <h2 style="color:#1a1a1a;margin:6px 0 0 0;font-size:22px;">Recordatorio: confirma tu asistencia</h2>
-      </div>
-      <p><strong>${nombre}</strong>:</p>
-      <p>Le recordamos que aún está pendiente confirmar su asistencia como panelista evaluador de NAVES
-      para la cohorte <strong>${cohorte}</strong> del Executive MBA de INALDE. Su confirmación nos ayuda a
-      organizar la logística del evento.</p>
-      <p>Puede confirmar e indicar sus preferencias de transporte y comidas desde su enlace personal:</p>
-      <div style="text-align:center;margin:24px 0 8px;">
-        <a href="${url}" style="display:inline-block;background:#e30613;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 30px;border-radius:6px;">Confirmar mi asistencia</a>
-      </div>
-      <p style="text-align:center;font-size:11px;color:#888;margin:6px 0 0;">O ingrese en <a href="${url}" style="color:#e30613;">${url}</a></p>
-      <hr style="border:none;border-top:1px solid #ddd;margin:24px 0 16px;">
-      <p style="font-size:11px;color:#888;line-height:1.5;margin:0;">
-        <strong>INALDE Business School</strong> — Programa MBA · NAVES<br>
-        Este es un mensaje automático, por favor no responda a este correo.
-      </p>
-    </div>`;
-}
-
-async function enviarRecordatorio(panelistaId: string): Promise<boolean> {
-  const p = await cargarPanelista(panelistaId);
-  if (!p) return false;
-  let email = ''; try { email = decryptPII(p.email_encriptado); } catch { return false; }
-  if (!email) return false;
-  const { data: coh } = await supabaseAdmin.from('cohortes').select('etiqueta').eq('id', p.cohorte_id).maybeSingle();
-  const url = `${PUBLIC_URL}/panelista/confirmar?token=${p.token_confirmacion}`;
-  const html = htmlRecordatorioPanelista(p.nombre_completo, (coh as any)?.etiqueta ?? p.cohorte_id, url);
-  const r = await sendEmail(email, 'Recordatorio: confirma tu asistencia como panelista — NAVES', html);
-  return r.ok;
-}
-
 // POST /admin/:cohorteId/recordatorios — a los invitados (email_enviado) sin confirmar
 router.post('/admin/:cohorteId/recordatorios', ...soloAdmin, async (req, res) => {
+  if (!(await enlaceVigenteORechazo(req.params.cohorteId, res))) return;
   const { data: pend } = await supabaseAdmin
     .from('panelistas')
     .select('id')
@@ -454,7 +463,7 @@ router.post('/admin/:cohorteId/recordatorios', ...soloAdmin, async (req, res) =>
   res.json({ ok: true, iniciado: true, total: ids.length });
   void (async () => {
     for (const id of ids) {
-      try { await enviarRecordatorio(id); }
+      try { await enviarCorreoEnlace(id, 'recordatorio'); }
       catch (e: any) { console.error(`[panelistas] recordatorio falló para ${id}:`, e?.message ?? e); }
       await sleep(600);
     }
@@ -489,15 +498,17 @@ async function computarResumen(cohorteId: string) {
       panelistas: asistentes.map((p: any) => {
         const log = logPorPan.get(p.id) ?? {};
         const transp = log.necesita_transporte === true && (log.transporte_por_fecha?.[j.fecha] ?? true);
-        const esViernes = diaSemana(j.fecha) === 'viernes';
-        const esSabado = diaSemana(j.fecha) === 'sábado';
+        // Desayuno y almuerzo se preguntan CUALQUIER día (Daniel, 18/11/2026).
+        // Antes solo almuerzo los viernes y desayuno los sábados, el calendario
+        // del Fin de Semana: en el Intensivo (martes y miércoles) no se
+        // preguntaba ninguna de las dos.
         return {
           nombre: p.nombre_completo,
           transporte: !!transp,
           direccion: transp ? (log.direccion_recogida ?? null) : null,
           hora_recogida: transp ? (log.hora_recogida ?? null) : null,
-          almuerza: esViernes ? !!(log.almuerzo_por_fecha?.[j.fecha]) : null,
-          desayuna: esSabado ? !!(log.desayuno_por_fecha?.[j.fecha]) : null,
+          almuerza: !!(log.almuerzo_por_fecha?.[j.fecha]),
+          desayuna: !!(log.desayuno_por_fecha?.[j.fecha]),
         };
       }),
     };
@@ -509,6 +520,44 @@ router.get('/admin/:cohorteId/resumen', ...soloAdmin, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const r = await computarResumen(cohorteId);
   res.json({ cohorte_id: cohorteId, ...r });
+});
+
+// GET /admin/:cohorteId/resumen.xlsx — el resumen por jornada en Excel (como el
+// «⬇ Excel» del sitio alterno). Una hoja, una fila por panelista y jornada.
+router.get('/admin/:cohorteId/resumen.xlsx', ...soloAdmin, async (req, res) => {
+  const cohorteId = req.params.cohorteId;
+  const r = await computarResumen(cohorteId);
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Panelistas por jornada', { views: [{ state: 'frozen', ySplit: 1 }] });
+  ws.columns = [
+    { header: 'Jornada', key: 'jornada', width: 34 },
+    { header: 'Panelista', key: 'nombre', width: 32 },
+    { header: 'Transporte', key: 'transporte', width: 12 },
+    { header: 'Dirección de recogida', key: 'direccion', width: 40 },
+    { header: 'Hora recogida', key: 'hora', width: 14 },
+    { header: 'Desayuna', key: 'desayuna', width: 11 },
+    { header: 'Almuerza', key: 'almuerza', width: 11 },
+  ];
+  ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A1A' } };
+  for (const pj of r.por_jornada) {
+    const jornada = `Jornada ${pj.jornada.numero} · ${pj.jornada.fecha_legible}`;
+    if (!pj.panelistas.length) ws.addRow({ jornada, nombre: '(sin panelistas)' });
+    for (const p of pj.panelistas) {
+      ws.addRow({
+        jornada, nombre: p.nombre,
+        transporte: p.transporte ? 'Sí' : 'No',
+        direccion: p.transporte ? (p.direccion ?? '') : '',
+        hora: p.transporte && p.hora_recogida ? String(p.hora_recogida).slice(0, 5) : '',
+        desayuna: p.desayuna ? 'Sí' : 'No',
+        almuerza: p.almuerza ? 'Sí' : 'No',
+      });
+    }
+  }
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="panelistas-${cohorteId}.xlsx"`);
+  await wb.xlsx.write(res);
+  res.end();
 });
 
 // POST /admin/:cohorteId/resumen-logistico — envía el resumen por correo al coordinador
@@ -540,7 +589,7 @@ function htmlResumenLogistico(cohorte: string, r: Awaited<ReturnType<typeof comp
         <p style="color:#888;text-transform:uppercase;letter-spacing:1.5px;font-size:11px;margin:0;">NAVES — Logística de panelistas</p>
         <h2 style="color:#1a1a1a;margin:6px 0 0 0;font-size:22px;">Resumen logístico · ${cohorte}</h2>
       </div>
-      <p style="color:#666;font-size:13px;">Total de panelistas activos: <strong>${r.total_panelistas}</strong>. Transporte, almuerzo (viernes) y desayuno (sábado) por jornada.</p>
+      <p style="color:#666;font-size:13px;">Total de panelistas activos: <strong>${r.total_panelistas}</strong>. Transporte, almuerzo y desayuno por jornada.</p>
       ${bloques}
       <hr style="border:none;border-top:1px solid #ddd;margin:24px 0 16px;">
       <p style="font-size:11px;color:#888;line-height:1.5;margin:0;"><strong>INALDE Business School</strong> — Programa MBA · NAVES</p>

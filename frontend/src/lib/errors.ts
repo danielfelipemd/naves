@@ -193,6 +193,13 @@ export function formatBackendError(e: any): string {
     ENLACE_REVOCADO: 'Este enlace fue anulado. Solicita uno nuevo a la asistente del programa.',
     ENLACE_BLOQUEADO: 'Este enlace se bloqueó por varios intentos fallidos. Solicita uno nuevo a la asistente del programa.',
 
+    // ── Enlace compartido de panelistas ──────────────────────────────────
+    ENLACE_NO_VIGENTE: 'El enlace de panelistas no está activo o ya venció. Actívalo (con una fecha futura) antes de enviarlo.',
+    VENCE_EN_EL_PASADO: 'La fecha de vencimiento ya pasó: elige una fecha futura para activar el enlace.',
+    SIN_ENLACE: 'Esta cohorte todavía no tiene enlace de panelistas. Actívalo primero.',
+    SIN_CONFIRMAR: 'Este panelista todavía no ha confirmado: no hay confirmación que enviarle.',
+    NO_SE_PUDO_GUARDAR: 'No pudimos guardar el enlace. Inténtalo de nuevo.',
+
     // ── Cohortes y sábana ────────────────────────────────────────────────
     COHORTE_NO_ENCONTRADA: 'No encontramos esa cohorte.',
     FALTA_COHORTE: 'Selecciona una cohorte.',

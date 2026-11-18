@@ -134,6 +134,19 @@ export function verificarTokenArchivo(token: string): { path: string; mime: stri
   return { path, mime };
 }
 
+/**
+ * Una imagen del bucket reducida a `ancho` px (la redimensiona el propio
+ * Storage). Para miniaturas: el logo más pesado de int-24-26 pasa de 1,34 MB a
+ * 1,9 KB a 160 px, y la página de panelistas pinta 33 a la vez. Devuelve null si
+ * Storage no la puede servir, para que quien llama caiga al original.
+ */
+export async function downloadMiniatura(path: string, ancho: number): Promise<{ buf: Buffer; mime: string } | null> {
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET)
+    .download(path, { transform: { width: ancho, resize: 'contain' } });
+  if (error || !data) return null;
+  return { buf: Buffer.from(await data.arrayBuffer()), mime: data.type || 'image/jpeg' };
+}
+
 /** Descarga el archivo del bucket privado a un Buffer (para adjuntar en emails). */
 export async function downloadTrabajoGradoFile(path: string): Promise<Buffer> {
   const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(path);

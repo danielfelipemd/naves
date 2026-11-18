@@ -16,6 +16,7 @@ import equiposRouter from './routes/equipos.js';
 import participantesRouter from './routes/participantes.js';
 import anteproyectosRouter from './routes/anteproyectos.js';
 import panelistasRouter from './routes/panelistas.js';
+import panelistasEnlaceRouter from './routes/panelistas-enlace.js';
 import programacionRouter from './routes/programacion.js';
 import programacionInternaRouter from './routes/programacion-interna.js';
 import proyectosDbRouter from './routes/proyectos-db.js';
@@ -109,6 +110,8 @@ app.use('/api/equipos', equiposRouter);
 app.use('/api/participantes', participantesRouter);
 app.use('/api/anteproyectos', anteproyectosRouter);
 app.use('/api/panelistas', panelistasRouter);
+// Enlace compartido de panelistas (sql/55): parte pública sin sesión + admin.
+app.use('/api/panelistas-enlace', panelistasEnlaceRouter);
 app.use('/api/programacion', programacionRouter);
 app.use('/api/programacion-interna', programacionInternaRouter);
 app.use('/api/proyectos-db', proyectosDbRouter);
