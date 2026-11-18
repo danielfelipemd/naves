@@ -4,6 +4,7 @@ import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { VisorArchivo } from '../../components/inalde/VisorArchivo';
 import { VentanaFlotante } from '../../components/inalde/VentanaFlotante';
+import { TarjetasJornada } from './ProgramacionTarjetas';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Config { evento_nombre: string; expo: number; trans: number; foto: number; cierre: number; break_min: number; bloque: number; }
@@ -549,8 +550,9 @@ export default function Programacion() {
               </div>
               {/* Desde 1280 px la tabla cabe entera: sin caja propia (la página
                   hace el scroll y los títulos se pegan bajo la cabecera). Por
-                  debajo, caja con scroll lateral como siempre. */}
-              <div className="tabla-scroll tabla-en-pagina xl:rounded-none xl:border-0">
+                  debajo no se muestra: no cabe (en un celular se veían 2 de 8
+                  columnas) y cada proyecto va en una tarjeta, más abajo. */}
+              <div className="tabla-scroll tabla-en-pagina hidden xl:block xl:rounded-none xl:border-0">
                 {/* Los anchos se declaran UNA vez en el colgroup y el layout es
                     fijo: con table-auto el navegador reparte el sobrante a su
                     manera y la cabecera deja de caer sobre su columna.
@@ -681,6 +683,12 @@ export default function Programacion() {
                   </tbody>
                 </table>
               </div>
+              {/* Celular y tableta (< 1280 px): una tarjeta por proyecto, con
+                  los mismos manejadores que la fila de la tabla. */}
+              <TarjetasJornada className="xl:hidden" j={j} filas={filasDe(j)} jornadas={jornadas} publicada={publicada}
+                copiado={copied} colorSector={colorSector} onCopiar={copiar}
+                onVer={(url, titulo) => setVisor({ url, titulo })} onFijar={fijarJornada}
+                onMover={(idx, dir) => mover(j, idx, dir)} onQuitar={(id) => quitar(j, id)} />
               {disponibles.length > 0 && !publicada && (
                 <div className="p-3">
                   <select onChange={(e) => { if (e.target.value) { asignar(j, e.target.value); e.target.value = ''; } }} className="input-inalde !py-1.5 text-sm">
