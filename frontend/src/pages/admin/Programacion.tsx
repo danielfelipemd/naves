@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { pedirTexto } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
@@ -49,6 +50,16 @@ function filasDe(j: Jornada): Fila[] {
     const hy = y.kind === 'proyecto' ? y.s.hora_inicio : y.a.hora_inicio;
     return hx.localeCompare(hy);
   });
+}
+
+// Vista minimizada de las tablas: una línea por fila, como el Excel de la
+// jornada, para ver de un vistazo qué grupo va en cada franja al moverlos. El
+// texto que no cabe termina en «…»; se lee entero pasando el cursor o volviendo
+// a la vista completa. Es una preferencia de quien mira: se recuerda en su
+// navegador y, si no hay almacenamiento, arranca en la vista completa.
+const CLAVE_COMPACTA = 'naves.programacion.compacta';
+function leerCompacta(): boolean {
+  try { return window.localStorage.getItem(CLAVE_COMPACTA) === '1'; } catch { return false; }
 }
 
 // Duración y ubicación de una pausa larga (pausa adicional o almuerzo) de una
@@ -210,6 +221,35 @@ export default function Programacion() {
   const [copied, setCopied] = useState<string | null>(null);
   // Archivo abierto en el visor emergente (logo / one pager). Null = cerrado.
   const [visor, setVisor] = useState<{ url: string; titulo: string } | null>(null);
+
+  // Una sola vista para todas las jornadas: al mover grupos de un día a otro se
+  // quieren ver las dos igual. Al cambiar de vista todas las filas crecen o se
+  // encogen y, sin más, la página quedaría mostrando otra parte de la tabla. Se
+  // deja en su sitio la fila que se estaba mirando: la primera que asoma bajo
+  // los títulos de columna donde se pulsó el botón. El botón no sirve de ancla:
+  // esos títulos se quedan fijos arriba y no se mueven aunque la tabla salte.
+  const [compacta, setCompacta] = useState(leerCompacta);
+  function cambiarVista(boton: HTMLElement) {
+    const nueva = !compacta;
+    const limite = boton.getBoundingClientRect().bottom;
+    const ancla = Array.from(document.querySelectorAll<HTMLElement>('tr[data-fila]'))
+      .find((tr) => tr.getBoundingClientRect().top >= limite - 2) ?? boton;
+    const antes = ancla.getBoundingClientRect().top;
+    flushSync(() => setCompacta(nueva));
+    // Por debajo de 1280 px la tabla tiene su propia caja con scroll: primero se
+    // corrige dentro de la caja y lo que falte, en la página.
+    const caja = ancla.closest<HTMLElement>('.tabla-scroll');
+    if (caja && getComputedStyle(caja).overflowY !== 'visible') caja.scrollTop += ancla.getBoundingClientRect().top - antes;
+    // 'instant': globals.css pone scroll-behavior: smooth en la página y la
+    // corrección se vería deslizarse desde la posición que salta.
+    window.scrollBy({ top: ancla.getBoundingClientRect().top - antes, behavior: 'instant' });
+    try { window.localStorage.setItem(CLAVE_COMPACTA, nueva ? '1' : '0'); } catch { /* sin almacenamiento: no se recuerda */ }
+  }
+  // Minimizada, cada celda de texto queda en una línea y lo que no cabe termina
+  // en «…» (la tabla es table-fixed, así que el recorte cae en el ancho de la
+  // columna). El texto entero va en el title de la celda.
+  const celda = compacta ? 'py-1' : 'py-2.5';
+  const recorte = compacta ? 'truncate' : '';
 
   async function copiar(id: string, texto: string) {
     try {
@@ -566,10 +606,20 @@ export default function Programacion() {
                   {/* Sin columna de logo: la miniatura repetía lo que ya abre el
                       botón "Logo" de Archivos. */}
                   <colgroup>
-                    {/* Slot: 104 px para que quepa el selector de día fijo (84 px). */}
-                    <col className="w-[104px]" /><col className="w-[10%]" /><col className="w-[12%]" />
-                    <col className="w-[140px]" /><col /><col />
-                    <col className="w-[120px]" /><col className="w-[80px]" />
+                    {/* Slot: 104 px para que quepa el selector de día fijo (84 px).
+                        Minimizada (una línea por fila) el espacio va a lo que
+                        identifica al grupo, como en el Excel: proyecto, autores
+                        y sector. Resumen y Post quedan de avance. Número, hora
+                        y selector caben en 200 px y los dos botones de
+                        Archivos en 150. Medido a 1600 px con int-24-26: con los
+                        anchos de la vista completa se cortaban 16 de 33
+                        nombres de proyecto y 26 de 33 listas de autores; con
+                        estos, 11 y 17. Más del 17 % deja a 1280 px el post en
+                        49 px y el botón «Copiar» no cabe. */}
+                    <col className={compacta ? 'w-[200px]' : 'w-[104px]'} />
+                    <col className={compacta ? 'w-[17%]' : 'w-[10%]'} /><col className={compacta ? 'w-[17%]' : 'w-[12%]'} />
+                    <col className={compacta ? 'w-[180px]' : 'w-[140px]'} /><col /><col />
+                    <col className={compacta ? 'w-[150px]' : 'w-[120px]'} /><col className="w-[80px]" />
                   </colgroup>
                   {/* El encabezado de columnas solo tiene sentido si la jornada
                       tiene proyectos. En jornadas de solo actividades (p. ej. la
@@ -579,79 +629,112 @@ export default function Programacion() {
                     <tr className="bg-inalde-text text-white">
                       {/* La sexta columna muestra el RESUMEN del proyecto; el one
                           pager vive en "Archivos", que es donde se abre y se baja. */}
-                      {['Slot', 'Proyecto', 'Autores', 'Sector', 'Resumen', 'Post LinkedIn', 'Archivos', ''].map((h, i) => (
-                        <th key={i} scope="col" className="bg-inalde-text text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase whitespace-nowrap px-3 py-2.5">{h}</th>
+                      {['Slot', 'Proyecto', 'Autores', 'Sector', 'Resumen', 'Post LinkedIn', 'Archivos'].map((h) => (
+                        <th key={h} scope="col" className="bg-inalde-text text-left font-primary font-bold text-[0.68rem] tracking-widest uppercase whitespace-nowrap px-3 py-2.5">{h}</th>
                       ))}
+                      {/* Minimizar / maximizar, en el título de la columna de
+                          acciones (la barra de la jornada lleva solo jornada y
+                          fecha). Los títulos se quedan fijos al bajar, así que
+                          el botón está a mano en cualquier punto de la tabla. */}
+                      <th scope="col" className="bg-inalde-text px-2 py-1.5 text-right">
+                        <button type="button" onClick={(e) => cambiarVista(e.currentTarget)}
+                          aria-label={compacta ? 'Maximizar tabla' : 'Minimizar tabla'}
+                          title={compacta
+                            ? 'Maximizar tabla: volver a ver proyecto, autores, resumen y post completos. Cambia todas las jornadas.'
+                            : 'Minimizar tabla: una línea por proyecto, como en el Excel, para ver y mover los grupos de un vistazo. El texto que no cabe termina en «…»; pasa el cursor para leerlo entero. Cambia todas las jornadas.'}
+                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-white/40 text-white hover:bg-white hover:text-inalde-text transition-colors">
+                          {/* Flechas hacia dentro = minimizar; hacia fuera = maximizar. */}
+                          <svg aria-hidden="true" viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 22v-6M12 8V2M4 12H2M10 12H8M16 12h-2M22 12h-2" />
+                            <path d={compacta ? 'm15 19-3 3-3-3M15 5l-3-3-3 3' : 'm15 19-3-3-3 3M15 5l-3 3-3-3'} />
+                          </svg>
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   )}
                   <tbody>
                     {filasDe(j).map((f) => f.kind === 'actividad' ? (
                       <tr key={`act-${f.a.tipo}-${f.a.hora_inicio}`} className="bg-inalde-gray-bg">
-                        <td colSpan={8} className="border-l-4 border-inalde-red px-4 py-3">
+                        <td colSpan={8} className={`border-l-4 border-inalde-red px-4 ${compacta ? 'py-1.5' : 'py-3'}`}>
                           <span className="font-primary font-extrabold text-[0.85rem] text-inalde-text">
                             <span aria-hidden="true">🕐 </span>{f.a.hora_inicio} – {f.a.hora_fin} hrs. — {f.a.desc}
                           </span>
                         </td>
                       </tr>
                     ) : (
-                      <tr key={f.s.proyecto_id} className="border-b border-inalde-gray-light align-top">
-                        <td className="text-center px-2 py-2.5">
-                          <strong className="font-primary text-inalde-text">{f.s.slot}</strong>
-                          <span className="block text-[0.7rem] text-inalde-gray mt-0.5 font-mono">{f.s.hora_inicio}–{f.s.hora_fin}</span>
-                          {publicada ? (
-                            f.s.jornada_fija != null && <span className="block text-[0.65rem] text-inalde-blue mt-1">📌 Día {f.s.jornada_fija}</span>
-                          ) : (
-                            <select value={f.s.jornada_fija ?? ''} onChange={(e) => fijarJornada(f.s.proyecto_id, e.target.value === '' ? null : Number(e.target.value))}
-                              title="Fija este proyecto a un día: «Repartir» lo deja siempre en esa jornada"
-                              className={`mt-1 text-[0.65rem] rounded border px-0.5 py-0.5 max-w-[84px] ${f.s.jornada_fija != null ? 'border-inalde-blue text-inalde-blue font-semibold' : 'border-inalde-gray-light text-inalde-gray'}`}>
-                              <option value="">Día libre</option>
-                              {jornadas.map((jj) => <option key={jj.id} value={jj.numero}>📌 Día {jj.numero}</option>)}
-                            </select>
-                          )}
+                      <tr key={f.s.proyecto_id} data-fila={f.s.proyecto_id} className={`border-b border-inalde-gray-light ${compacta ? 'align-middle' : 'align-top'}`}>
+                        <td className={`px-2 ${celda}${compacta ? '' : ' text-center'}`}>
+                          {/* Completa: número, hora y día uno debajo de otro.
+                              Minimizada: los tres en la misma línea. */}
+                          <div className={compacta ? 'flex items-center gap-1.5 whitespace-nowrap' : undefined}>
+                            {/* Minimizada, ancho fijo: si no, el 1 y el 10 dejan
+                                la hora y el selector en sitios distintos. */}
+                            <strong className={`font-primary text-inalde-text${compacta ? ' w-5 shrink-0 text-right tabular-nums' : ''}`}>{f.s.slot}</strong>
+                            <span className={`${compacta ? '' : 'block mt-0.5 '}text-[0.7rem] text-inalde-gray font-mono`}>{f.s.hora_inicio}–{f.s.hora_fin}</span>
+                            {publicada ? (
+                              f.s.jornada_fija != null && <span className={`${compacta ? '' : 'block mt-1 '}text-[0.65rem] text-inalde-blue`}>📌 Día {f.s.jornada_fija}</span>
+                            ) : (
+                              <select value={f.s.jornada_fija ?? ''} onChange={(e) => fijarJornada(f.s.proyecto_id, e.target.value === '' ? null : Number(e.target.value))}
+                                title="Fija este proyecto a un día: «Repartir» lo deja siempre en esa jornada"
+                                className={`${compacta ? '' : 'mt-1 '}text-[0.65rem] rounded border px-0.5 py-0.5 max-w-[84px] ${f.s.jornada_fija != null ? 'border-inalde-blue text-inalde-blue font-semibold' : 'border-inalde-gray-light text-inalde-gray'}`}>
+                                <option value="">Día libre</option>
+                                {jornadas.map((jj) => <option key={jj.id} value={jj.numero}>📌 Día {jj.numero}</option>)}
+                              </select>
+                            )}
+                          </div>
                         </td>
-                        <td className="px-3 py-2.5 font-primary font-bold text-[0.85rem] text-inalde-text">{f.s.proyecto}</td>
+                        <td className={`px-3 ${celda} ${recorte} font-primary font-bold text-[0.85rem] text-inalde-text`} title={compacta ? f.s.proyecto : undefined}>{f.s.proyecto}</td>
                         {/* Autores vacío = el equipo se quedó sin miembros (p. ej.
                             tras resetear a un participante). En blanco parecía un
                             fallo de la pantalla; se dice lo que pasa. */}
-                        <td className="px-3 py-2.5 text-[0.78rem] text-inalde-gray">
+                        <td className={`px-3 ${celda} ${recorte} text-[0.78rem] text-inalde-gray`} title={compacta && f.s.autores ? f.s.autores : undefined}>
                           {f.s.autores
                             ? f.s.autores
                             : <span className="italic" title="Este equipo no tiene participantes registrados. Revísalo en Equipos.">Sin autores</span>}
                         </td>
-                        <td className="px-3 py-2.5">
+                        {/* Minimizada, menos relleno: los nombres del catálogo
+                            llegan a ~295 px y cortados se sigue leyendo el
+                            primer tramo («LOGÍSTICA / TRANSPO…») y el color. */}
+                        <td className={`${compacta ? 'px-2' : 'px-3'} ${celda}`}>
                           {f.s.sector && (
-                            <span className="inline-block max-w-full text-white rounded-[3px] px-2 py-0.5 font-primary font-bold text-[0.62rem] tracking-wider uppercase whitespace-normal break-words leading-tight" style={{ background: colorSector(f.s.sector) }}>{f.s.sector}</span>
+                            <span title={compacta ? f.s.sector : undefined}
+                              className={`inline-block max-w-full text-white rounded-[3px] px-2 py-0.5 font-primary font-bold text-[0.62rem] tracking-wider uppercase leading-tight ${compacta ? 'whitespace-nowrap overflow-hidden text-ellipsis align-middle' : 'whitespace-normal break-words'}`}
+                              style={{ background: colorSector(f.s.sector) }}>{f.s.sector}</span>
                           )}
                         </td>
                         {/* El resumen ya no se recorta a tres líneas: con la
                             columna del logo fuera tiene ancho de sobra, y al lado
                             el post de LinkedIn se muestra entero — recortar solo
-                            este parecía un error. */}
-                        <td className="px-3 py-2.5 text-[0.8rem] leading-relaxed align-top">
+                            este parecía un error. Solo se recorta (a una línea,
+                            igual que el post) en la vista minimizada. */}
+                        <td className={`px-3 ${celda} ${recorte} text-[0.8rem] leading-relaxed`} title={compacta && f.s.resumen ? f.s.resumen : undefined}>
                           {f.s.resumen
                             ? f.s.resumen
                             : <span className="text-inalde-gray italic">Sin resumen</span>}
                         </td>
-                        <td className="px-3 py-2.5">
+                        <td className={`${compacta ? 'px-2' : 'px-3'} ${celda} ${recorte}`}>
                           {f.s.linkedin ? (
-                            <>
-                              <div className="text-[0.76rem] leading-relaxed text-inalde-text mb-1.5 whitespace-pre-line">{f.s.linkedin}</div>
+                            // Minimizada, el post cede el sitio al botón: el
+                            // texto se corta y «Copiar» sigue a la vista.
+                            <div className={compacta ? 'flex items-center gap-2' : undefined}>
+                              <div className={`text-[0.76rem] leading-relaxed text-inalde-text ${compacta ? 'truncate min-w-0 flex-1' : 'mb-1.5 whitespace-pre-line'}`}
+                                title={compacta ? f.s.linkedin : undefined}>{f.s.linkedin}</div>
                               <button onClick={() => copiar(f.s.proyecto_id, f.s.linkedin!)}
-                                className={`font-primary font-bold text-[0.63rem] tracking-wider uppercase border px-2 py-1 transition-colors ${copied === f.s.proyecto_id ? 'bg-inalde-blue text-white border-inalde-blue' : 'border-inalde-gray-light text-inalde-gray hover:bg-inalde-text hover:text-white hover:border-inalde-text'}`}>
+                                className={`shrink-0 font-primary font-bold text-[0.63rem] tracking-wider uppercase border px-2 py-1 transition-colors ${copied === f.s.proyecto_id ? 'bg-inalde-blue text-white border-inalde-blue' : 'border-inalde-gray-light text-inalde-gray hover:bg-inalde-text hover:text-white hover:border-inalde-text'}`}>
                                 {copied === f.s.proyecto_id ? '✓ Copiado' : 'Copiar'}
                               </button>
-                            </>
+                            </div>
                           ) : <span className="text-[0.76rem] text-inalde-gray italic">Sin post</span>}
                         </td>
-                        <td className="px-3 py-2.5">
+                        <td className={`px-3 ${celda}${compacta ? ' whitespace-nowrap' : ''}`}>
                           {/* Abren el visor emergente: se ve el archivo encima de
                               la tabla y al cerrar se vuelve a la misma fila. */}
                           {f.s.logo_url && <button onClick={() => setVisor({ url: f.s.logo_url!, titulo: `Logo · ${f.s.proyecto}` })} className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-blue border border-inalde-blue hover:bg-inalde-blue hover:text-white whitespace-nowrap">Logo</button>}
                           {f.s.one_pager_url && <button onClick={() => setVisor({ url: f.s.one_pager_url!, titulo: `One Pager · ${f.s.proyecto}` })} className="inline-block m-0.5 px-2 py-1 rounded-[3px] font-primary font-bold text-[0.62rem] bg-inalde-gray-bg text-inalde-red border border-inalde-red hover:bg-inalde-red hover:text-white whitespace-nowrap">One Pager</button>}
                           {!f.s.logo_url && !f.s.one_pager_url && <span className="text-[0.7rem] text-inalde-gray italic">—</span>}
                         </td>
-                        <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                        <td className={`px-2 ${celda} text-right whitespace-nowrap`}>
                           {!publicada && (
                             <>
                               <button onClick={() => mover(j, f.idx, -1)} disabled={f.idx === 0} aria-label={`Subir ${f.s.proyecto}`} className="text-inalde-gray disabled:opacity-30 px-1">↑</button>
