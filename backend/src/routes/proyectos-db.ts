@@ -11,6 +11,7 @@ import { uploadAssetNaves, deleteAssetNaves, crearUrlProxyArchivo, mimeFromPath,
 import { generarContenidoOnePager, type OnePagerDoc } from '../services/ai-onepager.js';
 import { proyectosFase2, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 import { horariosCalculados, programacionPublicadaAt, quitarDeProgramacion } from '../services/escaleta.js';
+import { sinNombreProyecto } from '../lib/nombreProyecto.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el enlace externo.
@@ -339,9 +340,8 @@ const NUMEROS_EN_LETRAS = /(?<!\p{L})(dos|tres|cuatro|cinco|seis|siete|ocho|nuev
 // Condicional: -aría/-ería/-iría(n), salvo sustantivos frecuentes terminados igual.
 const SUSTANTIVOS_RIA = new Set(['ganadería', 'ingeniería', 'batería', 'baterías', 'galería', 'galerías', 'librería', 'librerías', 'panadería', 'panaderías', 'cafetería', 'cafeterías', 'joyería', 'joyerías', 'zapatería', 'zapaterías', 'hotelería', 'minería', 'tesorería', 'cervecería', 'cervecerías', 'lechería', 'pastelería', 'pastelerías', 'carpintería', 'tubería', 'tuberías', 'ferretería', 'ferreterías', 'droguería', 'droguerías', 'lavandería', 'lavanderías', 'peluquería', 'peluquerías', 'heladería', 'heladerías', 'mensajería', 'papelería', 'floristería', 'floristerías', 'confitería', 'chocolatería', 'chocolaterías', 'marroquinería', 'lencería', 'perfumería', 'relojería', 'carnicería', 'carnicerías', 'frutería', 'pescadería', 'mercería', 'sastrería', 'tapicería', 'vidriería', 'herrería', 'orfebrería', 'cerrajería', 'cristalería', 'jardinería', 'mueblería', 'mueblerías', 'alfarería', 'cerería', 'tortillería', 'arepería', 'bisutería', 'cuchillería', 'hojalatería', 'platería', 'sombrerería', 'tintorería', 'charcutería', 'travesía', 'fantasía', 'categoría', 'mayoría', 'minoría', 'consultoría', 'asesoría', 'auditoría', 'tutoría', 'mentoría', 'teoría', 'alegría', 'energía', 'tecnología', 'metodología', 'economía', 'compañía', 'compañías', 'garantía', 'garantías', 'vía', 'vías', 'día', 'días', 'filosofía', 'geografía', 'cirugía', 'biología', 'fotografía', 'cartografía', 'odontología', 'cardiología', 'gastronomía', 'agronomía', 'autonomía', 'soberanía', 'ciudadanía', 'lotería', 'cría', 'guía', 'guías', 'sequía', 'policía']);
 function revisarPost(post: string, nombreProyecto = ''): string[] {
-  // El nombre del proyecto es marca (p. ej. «Ready2»): no cuenta como cifra.
-  let texto = post.split('#SoyINALDE')[0];
-  if (nombreProyecto.trim()) texto = texto.split(nombreProyecto.trim()).join('Proyecto');
+  // El nombre del proyecto es marca (p. ej. «Ready2», «Nexo 3-21»): no cuenta como cifra.
+  const texto = sinNombreProyecto(post.split('#SoyINALDE')[0], nombreProyecto);
   const problemas: string[] = [];
   // Dígitos sueltos; los pegados a letras son parte de una marca o sigla (B2B, Ready2).
   const digitos = texto.match(/(?<![\p{L}\d])\d[\d.,]*(?![\p{L}\d])/gu);
