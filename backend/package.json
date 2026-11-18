@@ -32,6 +32,7 @@
     "nodemailer": "^6.9.15",
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.15.0",
+    "sharp": "^0.33.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

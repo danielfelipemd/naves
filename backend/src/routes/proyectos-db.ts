@@ -12,6 +12,7 @@ import { generarContenidoOnePager, type OnePagerDoc } from '../services/ai-onepa
 import { proyectosFase2, type ProyectoFase2 } from '../services/proyectos-fase2.js';
 import { horariosCalculados, programacionPublicadaAt, quitarDeProgramacion } from '../services/escaleta.js';
 import { sinNombreProyecto } from '../lib/nombreProyecto.js';
+import { achicarImagenParaIA } from '../lib/achicarImagen.js';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 // URL servida de un asset: proxy con token efímero si está en Storage; si no, el enlace externo.
@@ -327,6 +328,11 @@ async function cargarOnePagerDoc(path: string | null): Promise<OnePagerDoc | nul
   if (!kind) return null; // formato no soportado por la IA (p. ej. xlsx) → respaldo
   try {
     const buf = await downloadTrabajoGradoFile(path);
+    if (kind === 'imagen') {
+      // Fotos gigantes (más de 5 MB o 8000 px) las rechaza la IA: se achican antes.
+      const img = await achicarImagenParaIA(buf, mediaType);
+      return { kind, mediaType: img.mediaType, base64: img.buf.toString('base64') };
+    }
     return { kind, mediaType, base64: buf.toString('base64') };
   } catch {
     return null; // si falla la descarga, no reventamos: caemos al canvas
