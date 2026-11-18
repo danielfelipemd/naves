@@ -18,6 +18,7 @@ import anteproyectosRouter from './routes/anteproyectos.js';
 import panelistasRouter from './routes/panelistas.js';
 import panelistasEnlaceRouter from './routes/panelistas-enlace.js';
 import panelistasAccesoRouter from './routes/panelistas-acceso.js';
+import programacionEnlacesRouter from './routes/programacion-enlaces.js';
 import programacionRouter from './routes/programacion.js';
 import programacionInternaRouter from './routes/programacion-interna.js';
 import proyectosDbRouter from './routes/proyectos-db.js';
@@ -115,6 +116,8 @@ app.use('/api/panelistas', panelistasRouter);
 app.use('/api/panelistas-enlace', panelistasEnlaceRouter);
 // Acceso por enlace mágico de la asistente al panel de Panelistas (sql/57).
 app.use('/api/panelistas-acceso', panelistasAccesoRouter);
+// Enlaces mágicos de la programación por público (sql/58).
+app.use('/api/programacion-enlaces', programacionEnlacesRouter);
 app.use('/api/programacion', programacionRouter);
 app.use('/api/programacion-interna', programacionInternaRouter);
 app.use('/api/proyectos-db', proyectosDbRouter);

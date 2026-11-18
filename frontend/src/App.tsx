@@ -37,6 +37,7 @@ import ActaMicroformulario from './pages/publico/ActaMicroformulario';
 import FirmarActas from './pages/publico/FirmarActas';
 import PanelistasEnlace from './pages/publico/PanelistasEnlace';
 import PanelistasAcceso from './pages/publico/PanelistasAcceso';
+import ProgramacionVer from './pages/publico/ProgramacionVer';
 import AdminTrabajosSector from './pages/admin/TrabajosSectorAdmin';
 import AdminDashboardControl from './pages/admin/DashboardControl';
 import AolTrabajos from './pages/admin/aol/Trabajos';
@@ -133,6 +134,8 @@ export default function App() {
         <Route path="/panelistas/:token" element={<PanelistasEnlace />} />
         {/* Enlace mágico de la asistente de programa al panel de Panelistas (sql/57). */}
         <Route path="/panelistas-admin/:token" element={<PanelistasAcceso />} />
+        {/* Enlaces mágicos de la programación por público (sql/58). */}
+        <Route path="/programacion/ver/:token" element={<ProgramacionVer />} />
         <Route path="/trabajos/:cohorteId" element={<TrabajosSectorPublico />} />
         <Route path="/actas/micro/:token" element={<ActaMicroformulario />} />
         <Route path="/actas/firmar/:token" element={<FirmarActas />} />

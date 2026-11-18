@@ -205,6 +205,7 @@ export function formatBackendError(e: any): string {
     ACCESO_VENCIDO: 'Este acceso ya venció. Pide uno nuevo a la dirección del programa.',
     ACCESO_NO_VIGENTE: 'Ese acceso ya no está vigente: crea uno nuevo.',
     FUERA_DE_ALCANCE: 'Tu acceso no incluye esa cohorte.',
+    VENCE_DEMASIADO_TARDE: 'Un enlace dura como máximo 10 días: elige una fecha más cercana.',
 
     // ── Cohortes y sábana ────────────────────────────────────────────────
     COHORTE_NO_ENCONTRADA: 'No encontramos esa cohorte.',

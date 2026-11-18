@@ -5,6 +5,7 @@ import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { VisorArchivo } from '../../components/inalde/VisorArchivo';
 import { VentanaFlotante } from '../../components/inalde/VentanaFlotante';
+import { EnlacesProgramacion } from './EnlacesProgramacion';
 import { TarjetasJornada } from './ProgramacionTarjetas';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
@@ -449,6 +450,9 @@ export default function Programacion() {
           </p>
         </div>
       )}
+
+      {/* Enlaces mágicos para asistentes, marketing y publicaciones (sql/58). */}
+      {cohorte && !loading && <EnlacesProgramacion cohorte={cohorte} publicada={publicada} />}
 
       {msg && <div className={`rounded border-l-4 px-4 py-3 text-sm mb-5 whitespace-pre-line ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>{msg.text}</div>}
 
