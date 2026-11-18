@@ -10,6 +10,11 @@ interface Logistica {
   necesita_transporte: boolean | null;
   direccion_recogida: string | null;
   hora_recogida: string | null;
+  // Ida y regreso por separado (sql/60). null = no se le preguntó.
+  transporte_ida?: boolean | null;
+  transporte_regreso?: boolean | null;
+  direccion_regreso?: string | null;
+  hora_regreso?: string | null;
   transporte_por_fecha: Record<string, boolean>;
   almuerzo_por_fecha: Record<string, boolean>;
   desayuno_por_fecha: Record<string, boolean>;
@@ -601,7 +606,9 @@ function PanelistasTab({ cohorte, jornadas, panelistas, enlace, onChange, setMsg
                     {log?.necesita_transporte === true && (
                       <>
                         <span className="text-green-700 font-semibold">✓ Sí</span>
-                        {log.direccion_recogida && <div className="text-[11px] text-inalde-gray">📍 {log.direccion_recogida}{log.hora_recogida ? ` · ${log.hora_recogida.slice(0, 5)}` : ''}</div>}
+                        {(log.transporte_ida ?? true) && <div className="text-[11px] text-inalde-gray">Ida{log.direccion_recogida ? `: 📍 ${log.direccion_recogida}` : ''}{log.hora_recogida ? ` · ${log.hora_recogida.slice(0, 5)}` : ''}</div>}
+                        {log.transporte_regreso === true && <div className="text-[11px] text-inalde-gray">Regreso{(log.direccion_regreso || log.direccion_recogida) ? `: 📍 ${log.direccion_regreso || log.direccion_recogida}` : ''}{log.hora_regreso ? ` · ${log.hora_regreso.slice(0, 5)}` : ''}</div>}
+                        {log.transporte_regreso == null && <div className="text-[11px] text-amber-700">Regreso: sin preguntar</div>}
                       </>
                     )}
                     {log?.necesita_transporte === false && <span className="text-inalde-gray">No</span>}
@@ -655,11 +662,12 @@ function ResumenTab({ cohorte }: { cohorte: string }) {
       if (!jr.panelistas.length) lineas.push('  (sin panelistas)');
       for (const p of jr.panelistas) {
         const extra = [
-          p.transporte ? `transporte${p.direccion ? ` (${p.direccion}${p.hora_recogida ? `, ${String(p.hora_recogida).slice(0, 5)}` : ''})` : ''}` : null,
+          p.transporte || p.regreso_sin_preguntar ? p.transporte_texto : 'sin transporte',
           p.desayuna ? 'desayuna' : null,
           p.almuerza ? 'almuerza' : null,
         ].filter(Boolean);
-        lineas.push(`  • ${p.nombre}${extra.length ? ` — ${extra.join(' · ')}` : ''}`);
+        lineas.push(`  • ${p.nombre} — ${p.sesiones_texto}`);
+        lineas.push(`      ${extra.join(' · ')}`);
       }
       lineas.push('');
     }
@@ -687,13 +695,28 @@ function ResumenTab({ cohorte }: { cohorte: string }) {
       {data.por_jornada.map((jr: any) => (
         <div key={jr.jornada.numero} className="border border-inalde-gray-light rounded p-4">
           <h3 className="font-primary font-bold text-inalde-text">Jornada {jr.jornada.numero} · <span className="capitalize">{jr.jornada.fecha_legible}</span> {(jr.jornada.hora_inicio ?? '').slice(0, 5) && `· ${(jr.jornada.hora_inicio ?? '').slice(0, 5)}–${(jr.jornada.hora_fin ?? '').slice(0, 5)}`}</h3>
-          <ul className="mt-2 space-y-1 text-sm">
+          {jr.bloques?.length > 0 && (
+            <p className="text-[11px] text-inalde-gray mt-1">
+              {jr.bloques.map((b: any) => `Bloque ${b.numero}: ${jr.panelistas.filter((p: any) => p.sesiones.bloques.some((x: any) => x.numero === b.numero)).length} panelista(s)`).join(' · ')}
+            </p>
+          )}
+          <ul className="mt-2 space-y-1.5 text-sm">
             {jr.panelistas.map((p: any, i: number) => (
-              <li key={i} className="text-inalde-text">
+              <li key={i} className="text-inalde-text border-t border-inalde-gray-light/60 first:border-t-0 pt-1.5 first:pt-0">
                 <strong>{p.nombre}</strong>
-                {p.transporte ? <span className="text-inalde-gray"> · 🚗 Transporte{p.direccion ? ` (${p.direccion}${p.hora_recogida ? `, ${p.hora_recogida.slice(0, 5)}` : ''})` : ''}</span> : <span className="text-inalde-gray"> · sin transporte</span>}
-                <span className="text-inalde-gray"> · {p.desayuna ? '☕ Desayuna' : 'no desayuna'}</span>
-                <span className="text-inalde-gray"> · {p.almuerza ? '🍽️ Almuerza' : 'no almuerza'}</span>
+                {p.sesiones.tipo === 'bloques'
+                  ? <span className="ml-1 inline-flex flex-wrap gap-1 align-middle">{p.sesiones.bloques.map((b: any) => (
+                      <span key={b.numero} title={`Presentaciones ${b.primer_slot} a ${b.ultimo_slot}`} className="text-[11px] rounded px-1.5 py-0.5 bg-blue-50 text-blue-900 border border-blue-200">Bloque {b.numero} · <span className="font-mono">{b.hora_inicio}–{b.hora_fin}</span></span>
+                    ))}</span>
+                  : <span className={`ml-1 text-[11px] rounded px-1.5 py-0.5 border ${p.sesiones.tipo === 'todas' ? 'bg-green-50 text-green-900 border-green-200' : 'bg-amber-50 text-amber-900 border-amber-200'}`}>{p.sesiones_texto}</span>}
+                <div className="text-inalde-gray text-[13px]">
+                  {p.ida && <span>🚗 Ida{p.ida.direccion ? ` (${p.ida.direccion}${p.ida.hora ? `, ${p.ida.hora}` : ''})` : (p.ida.hora ? ` (${p.ida.hora})` : '')} · </span>}
+                  {p.regreso && <span>🚗 Regreso{p.regreso.direccion ? ` (a ${p.regreso.direccion}` : ' ('}{p.regreso.direccion ? ', ' : ''}{p.regreso.hora ? (p.regreso.hora_estimada ? `~${p.regreso.hora} al terminar` : p.regreso.hora) : 'sin hora'}) · </span>}
+                  {!p.regreso && p.regreso_sin_preguntar && <span className="text-amber-700">Regreso: sin preguntar · </span>}
+                  {!p.ida && !p.regreso && <span>sin transporte · </span>}
+                  <span>{p.desayuna ? '☕ Desayuna' : 'no desayuna'}</span>
+                  <span> · {p.almuerza ? '🍽️ Almuerza' : 'no almuerza'}</span>
+                </div>
               </li>
             ))}
             {jr.panelistas.length === 0 && <li className="text-inalde-gray italic">Sin panelistas asignados</li>}
@@ -719,6 +742,13 @@ export function LogisticaModal({ panelista, jornadas, onClose, onSaved, admin, s
   const [transp, setTransp] = useState<'si' | 'no' | ''>(log?.necesita_transporte === true ? 'si' : log?.necesita_transporte === false ? 'no' : '');
   const [dir, setDir] = useState(log?.direccion_recogida ?? '');
   const [hora, setHora] = useState((log?.hora_recogida ?? '').slice(0, 5));
+  // Ida y regreso por separado (sql/60). Quien confirmó antes pidió la recogida (ida).
+  const [ida, setIda] = useState<boolean>(log?.necesita_transporte === true ? (log.transporte_ida ?? true) : false);
+  // Regreso con tres estados: quien confirmó antes de preguntarlo queda «sin preguntar».
+  const [regresoSel, setRegresoSel] = useState<'' | 'si' | 'no'>(log?.transporte_regreso === true ? 'si' : log?.transporte_regreso === false ? 'no' : '');
+  const regreso = regresoSel === 'si';
+  const [dirReg, setDirReg] = useState(log?.direccion_regreso ?? '');
+  const [horaReg, setHoraReg] = useState((log?.hora_regreso ?? '').slice(0, 5));
   const [transpFechas, setTranspFechas] = useState<Record<string, boolean>>(() => {
     const o: Record<string, boolean> = {}; misJornadas.forEach((j) => { o[j.fecha] = log?.transporte_por_fecha?.[j.fecha] ?? true; }); return o;
   });
@@ -734,8 +764,12 @@ export function LogisticaModal({ panelista, jornadas, onClose, onSaved, admin, s
     setSaving(true);
     const payload = {
       necesita_transporte: transp === '' ? null : transp === 'si',
-      direccion_recogida: transp === 'si' ? (dir || null) : null,
-      hora_recogida: transp === 'si' && hora ? hora : null,
+      transporte_ida: transp === 'si' ? ida : null,
+      transporte_regreso: transp === 'si' ? (regresoSel === '' ? null : regreso) : null,
+      direccion_recogida: transp === 'si' && ida ? (dir || null) : null,
+      hora_recogida: transp === 'si' && ida && hora ? hora : null,
+      direccion_regreso: transp === 'si' && regreso ? (dirReg || null) : null,
+      hora_regreso: transp === 'si' && regreso && horaReg ? horaReg : null,
       transporte_por_fecha: transp === 'si' ? transpFechas : {},
       almuerzo_por_fecha: alm,
       desayuno_por_fecha: des,
@@ -768,8 +802,24 @@ export function LogisticaModal({ panelista, jornadas, onClose, onSaved, admin, s
                   </label>
                 ))}
               </div>
-              <input placeholder="Dirección de recogida" value={dir} onChange={(e) => setDir(e.target.value)} className="input-inalde !py-1.5 w-full" />
-              <div><label className="block text-[10px] uppercase text-inalde-gray mb-1">Hora preferida</label><input type="time" value={hora} onChange={(e) => setHora(e.target.value)} className="input-inalde !py-1.5" /></div>
+              <div className="rounded border border-inalde-gray-light p-2 space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={ida} onChange={(e) => setIda(e.target.checked)} /> Ida (recogida → INALDE)</label>
+                {ida && <>
+                  <input placeholder="Dirección de recogida" value={dir} onChange={(e) => setDir(e.target.value)} className="input-inalde !py-1.5 w-full" />
+                  <div><label className="block text-[10px] uppercase text-inalde-gray mb-1">Hora de recogida</label><input type="time" value={hora} onChange={(e) => setHora(e.target.value)} className="input-inalde !py-1.5" /></div>
+                </>}
+              </div>
+              <div className="rounded border border-inalde-gray-light p-2 space-y-2">
+                <label className="flex flex-wrap items-center gap-2 text-sm font-medium">Regreso (INALDE → destino)
+                  <select value={regresoSel} onChange={(e) => setRegresoSel(e.target.value as any)} className="input-inalde !py-1 !w-auto">
+                    <option value="">Sin preguntar</option><option value="si">Sí</option><option value="no">No</option>
+                  </select>
+                </label>
+                {regreso && <>
+                  <input placeholder="Destino (vacío = la misma dirección de recogida)" value={dirReg} onChange={(e) => setDirReg(e.target.value)} className="input-inalde !py-1.5 w-full" />
+                  <div><label className="block text-[10px] uppercase text-inalde-gray mb-1">Hora de regreso (vacío = al terminar su última sesión)</label><input type="time" value={horaReg} onChange={(e) => setHoraReg(e.target.value)} className="input-inalde !py-1.5" /></div>
+                </>}
+              </div>
             </div>
           )}
         </div>

@@ -7,7 +7,10 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/mid
 import { sendEmail } from '../services/email.js';
 import { ipCliente } from '../lib/ip-cliente.js';
 import { sincronizarJornadasDesdeHitos, recalcularFinesDeJornadas } from '../services/escaleta.js';
-import { enlaceDeCohorte } from '../services/panelistas-enlace.js';
+import { enlaceDeCohorte, programacionPorBloques } from '../services/panelistas-enlace.js';
+import {
+  sesionesDelDia, terminaA, textoSesiones, textoTransporte, transporteDelDia, type BloqueSesion,
+} from '../lib/logisticaPanelista.js';
 import { adminOAcceso, cohorteDelPanelista, cohorteDelParametro } from '../services/panelistas-acceso.js';
 
 // Módulo A (Fase 2) — Panelistas / Evaluadores.
@@ -112,10 +115,27 @@ const portalConfirmarSchema = z.object({
   necesita_transporte: z.boolean().nullable().optional(),
   direccion_recogida: z.string().max(300).nullable().optional(),
   hora_recogida: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  // Ida y regreso por separado (sql/60). Opcionales: el portal viejo no los manda.
+  transporte_ida: z.boolean().nullable().optional(),
+  transporte_regreso: z.boolean().nullable().optional(),
+  direccion_regreso: z.string().max(300).nullable().optional(),
+  hora_regreso: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
   transporte_por_fecha: z.record(z.string(), z.boolean()).optional(),
   almuerzo_por_fecha: z.record(z.string(), z.boolean()).optional(),
   desayuno_por_fecha: z.record(z.string(), z.boolean()).optional(),
 });
+
+// Las columnas de ida/regreso solo se escriben si vinieron: quien guarda desde
+// una pantalla que no las conoce no borra lo que el panelista ya respondió.
+function columnasTrayectos(d: z.infer<typeof portalConfirmarSchema>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const transp = d.necesita_transporte === true;
+  if (d.transporte_ida !== undefined) out.transporte_ida = transp ? d.transporte_ida : null;
+  if (d.transporte_regreso !== undefined) out.transporte_regreso = transp ? d.transporte_regreso : null;
+  if (d.direccion_regreso !== undefined) out.direccion_regreso = transp && d.transporte_regreso ? (d.direccion_regreso?.trim() || null) : null;
+  if (d.hora_regreso !== undefined) out.hora_regreso = transp && d.transporte_regreso ? (d.hora_regreso || null) : null;
+  return out;
+}
 
 // POST /api/panelistas/portal/:token/confirmar
 router.post('/portal/:token/confirmar', async (req, res) => {
@@ -140,6 +160,7 @@ router.post('/portal/:token/confirmar', async (req, res) => {
     transporte_por_fecha: d.transporte_por_fecha ?? {},
     almuerzo_por_fecha: d.almuerzo_por_fecha ?? {},
     desayuno_por_fecha: d.desayuno_por_fecha ?? {},
+    ...columnasTrayectos(d),
     updated_at: new Date().toISOString(),
   }, { onConflict: 'panelista_id' });
   if (errLog) return res.status(500).json({ error: errLog.message });
@@ -348,6 +369,7 @@ router.put('/admin/panelista/:id/logistica', ...porPanelista, async (req, res) =
     transporte_por_fecha: d.transporte_por_fecha ?? {},
     almuerzo_por_fecha: d.almuerzo_por_fecha ?? {},
     desayuno_por_fecha: d.desayuno_por_fecha ?? {},
+    ...columnasTrayectos(d),
     updated_at: new Date().toISOString(),
   }, { onConflict: 'panelista_id' });
   if (error) return res.status(500).json({ error: error.message });
@@ -476,42 +498,69 @@ router.post('/admin/:cohorteId/recordatorios', ...porCohorte, async (req, res) =
 });
 
 // --- RESUMEN POR JORNADA ---------------------------------------------
+// Por cada jornada, cada panelista con LAS SESIONES a las que va (no todos van
+// todo el día) y su transporte de ida y de regreso (Daniel, 18/11/2026).
 async function computarResumen(cohorteId: string) {
-  const jornadas = await jornadasDeCohorte(cohorteId);
+  const [jornadas, prog] = await Promise.all([jornadasDeCohorte(cohorteId), programacionPorBloques(cohorteId)]);
+  const bloquesDe = new Map<string, BloqueSesion[]>(prog.jornadas.map((j) => [j.id, j.bloques.map((b) => ({
+    numero: b.numero, hora_inicio: b.hora_inicio, hora_fin: b.hora_fin, primer_slot: b.primer_slot, ultimo_slot: b.ultimo_slot,
+  }))]));
   const { data: panelistas } = await supabaseAdmin
     .from('panelistas')
     .select('id, nombre_completo, asiste_todas, email_encriptado')
     .eq('cohorte_id', cohorteId).eq('activo', true).order('nombre_completo');
   const ids = (panelistas ?? []).map((p: any) => p.id);
-  const [{ data: pjs }, { data: logs }] = ids.length === 0
-    ? [{ data: [] as any[] }, { data: [] as any[] }]
+  const [{ data: pjs }, { data: logs }, { data: bls }] = ids.length === 0
+    ? [{ data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }]
     : await Promise.all([
         supabaseAdmin.from('panelista_jornadas').select('panelista_id, jornada_id').in('panelista_id', ids),
         supabaseAdmin.from('logistica_panelista').select('*').in('panelista_id', ids),
+        supabaseAdmin.from('panelista_bloques').select('panelista_id, jornada_id, bloque').in('panelista_id', ids),
       ]);
   const jorPorPan = new Map<string, Set<string>>();
   for (const r of (pjs ?? []) as any[]) {
     const s = jorPorPan.get(r.panelista_id) ?? new Set(); s.add(r.jornada_id); jorPorPan.set(r.panelista_id, s);
+  }
+  // Bloques elegidos, por panelista y jornada. Un bloque elegido también cuenta
+  // como asistencia al día aunque falte la fila en panelista_jornadas.
+  const bloquesPorPan = new Map<string, Map<string, number[]>>();
+  for (const b of (bls ?? []) as any[]) {
+    const m = bloquesPorPan.get(b.panelista_id) ?? new Map<string, number[]>();
+    m.set(b.jornada_id, [...(m.get(b.jornada_id) ?? []), b.bloque]);
+    bloquesPorPan.set(b.panelista_id, m);
+    const s = jorPorPan.get(b.panelista_id) ?? new Set(); s.add(b.jornada_id); jorPorPan.set(b.panelista_id, s);
   }
   const logPorPan = new Map<string, any>();
   for (const l of (logs ?? []) as any[]) logPorPan.set(l.panelista_id, l);
 
   const porJornada = jornadas.map((j) => {
     const asistentes = (panelistas ?? []).filter((p: any) => p.asiste_todas || jorPorPan.get(p.id)?.has(j.id));
+    const bloquesDia = bloquesDe.get(j.id) ?? [];
     return {
       jornada: { numero: j.numero, fecha: j.fecha, fecha_legible: fechaLegible(j.fecha), dia: diaSemana(j.fecha), hora_inicio: j.hora_inicio, hora_fin: j.hora_fin },
+      bloques: bloquesDia,
       panelistas: asistentes.map((p: any) => {
         const log = logPorPan.get(p.id) ?? {};
-        const transp = log.necesita_transporte === true && (log.transporte_por_fecha?.[j.fecha] ?? true);
+        const sesiones = sesionesDelDia(!!p.asiste_todas, bloquesPorPan.get(p.id)?.get(j.id) ?? [], bloquesDia);
+        const termina = terminaA(sesiones);
+        const t = transporteDelDia(log, j.fecha, termina);
         // Desayuno y almuerzo se preguntan CUALQUIER día (Daniel, 18/11/2026).
         // Antes solo almuerzo los viernes y desayuno los sábados, el calendario
         // del Fin de Semana: en el Intensivo (martes y miércoles) no se
         // preguntaba ninguna de las dos.
         return {
           nombre: p.nombre_completo,
-          transporte: !!transp,
-          direccion: transp ? (log.direccion_recogida ?? null) : null,
-          hora_recogida: transp ? (log.hora_recogida ?? null) : null,
+          sesiones,
+          sesiones_texto: textoSesiones(sesiones),
+          termina,
+          transporte: !!(t.ida || t.regreso),
+          ida: t.ida,
+          regreso: t.regreso,
+          regreso_sin_preguntar: t.regreso_sin_preguntar,
+          transporte_texto: textoTransporte(t),
+          // Compatibilidad con la pantalla anterior: la recogida (ida).
+          direccion: t.ida?.direccion ?? null,
+          hora_recogida: t.ida?.hora ?? null,
           almuerza: !!(log.almuerzo_por_fecha?.[j.fecha]),
           desayuna: !!(log.desayuno_por_fecha?.[j.fecha]),
         };
@@ -537,11 +586,16 @@ router.get('/admin/:cohorteId/resumen.xlsx', ...porCohorte, async (req, res) => 
   ws.columns = [
     { header: 'Jornada', key: 'jornada', width: 34 },
     { header: 'Panelista', key: 'nombre', width: 32 },
-    { header: 'Transporte', key: 'transporte', width: 12 },
-    { header: 'Dirección de recogida', key: 'direccion', width: 40 },
-    { header: 'Hora recogida', key: 'hora', width: 14 },
-    { header: 'Desayuna', key: 'desayuna', width: 11 },
-    { header: 'Almuerza', key: 'almuerza', width: 11 },
+    { header: 'Sesiones', key: 'sesiones', width: 46 },
+    { header: 'Termina', key: 'termina', width: 9 },
+    { header: 'Ida', key: 'ida', width: 7 },
+    { header: 'Recogida (dirección)', key: 'dir_ida', width: 34 },
+    { header: 'Hora recogida', key: 'hora_ida', width: 13 },
+    { header: 'Regreso', key: 'regreso', width: 15 },
+    { header: 'Regreso (destino)', key: 'dir_reg', width: 34 },
+    { header: 'Hora regreso', key: 'hora_reg', width: 16 },
+    { header: 'Desayuna', key: 'desayuna', width: 10 },
+    { header: 'Almuerza', key: 'almuerza', width: 10 },
   ];
   ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A1A' } };
@@ -551,9 +605,14 @@ router.get('/admin/:cohorteId/resumen.xlsx', ...porCohorte, async (req, res) => 
     for (const p of pj.panelistas) {
       ws.addRow({
         jornada, nombre: p.nombre,
-        transporte: p.transporte ? 'Sí' : 'No',
-        direccion: p.transporte ? (p.direccion ?? '') : '',
-        hora: p.transporte && p.hora_recogida ? String(p.hora_recogida).slice(0, 5) : '',
+        sesiones: p.sesiones_texto,
+        termina: p.termina ?? '',
+        ida: p.ida ? 'Sí' : 'No',
+        dir_ida: p.ida?.direccion ?? '',
+        hora_ida: p.ida?.hora ?? '',
+        regreso: p.regreso ? 'Sí' : (p.regreso_sin_preguntar ? 'Sin preguntar' : 'No'),
+        dir_reg: p.regreso?.direccion ?? '',
+        hora_reg: p.regreso?.hora ? (p.regreso.hora_estimada ? `~${p.regreso.hora} (al terminar)` : p.regreso.hora) : '',
         desayuna: p.desayuna ? 'Sí' : 'No',
         almuerza: p.almuerza ? 'Sí' : 'No',
       });
@@ -571,20 +630,19 @@ function htmlResumenLogistico(cohorte: string, r: Awaited<ReturnType<typeof comp
   const si = (b: boolean) => b ? '<span style="color:#1a7a1a;font-weight:600;">Sí</span>' : '<span style="color:#aaa;">—</span>';
   const bloques = r.por_jornada.map((pj) => {
     const filas = pj.panelistas.length === 0
-      ? `<tr><td colspan="5" style="padding:8px;color:#999;font-style:italic;">Sin panelistas confirmados para esta jornada.</td></tr>`
+      ? `<tr><td colspan="4" style="padding:8px;color:#999;font-style:italic;">Sin panelistas confirmados para esta jornada.</td></tr>`
       : pj.panelistas.map((p) => `
-        <tr style="border-bottom:1px solid #eee;">
-          <td style="padding:6px 8px;">${p.nombre}</td>
-          <td style="padding:6px 8px;text-align:center;">${si(p.transporte)}${p.transporte && p.hora_recogida ? ` <span style="color:#888;font-size:11px;">(${String(p.hora_recogida).slice(0, 5)})</span>` : ''}</td>
-          <td style="padding:6px 8px;font-size:11px;color:#666;">${p.transporte && p.direccion ? p.direccion : ''}</td>
-          <td style="padding:6px 8px;text-align:center;">${p.almuerza === null ? '<span style="color:#ccc;">n/a</span>' : si(p.almuerza)}</td>
-          <td style="padding:6px 8px;text-align:center;">${p.desayuna === null ? '<span style="color:#ccc;">n/a</span>' : si(p.desayuna)}</td>
+        <tr style="border-bottom:1px solid #eee;vertical-align:top;">
+          <td style="padding:6px 8px;"><strong>${escaparHtml(p.nombre)}</strong><br><span style="font-size:11px;color:#555;">${escaparHtml(p.sesiones_texto)}</span></td>
+          <td style="padding:6px 8px;font-size:12px;color:${p.transporte ? '#1a1a1a' : '#aaa'};">${p.transporte || p.regreso_sin_preguntar ? escaparHtml(p.transporte_texto).replace(' · ', '<br>') : '—'}</td>
+          <td style="padding:6px 8px;text-align:center;">${si(p.desayuna)}</td>
+          <td style="padding:6px 8px;text-align:center;">${si(p.almuerza)}</td>
         </tr>`).join('');
     return `
       <h3 style="margin:22px 0 6px;color:#1a1a1a;font-size:15px;">Jornada ${pj.jornada.numero} — ${pj.jornada.fecha_legible}${pj.jornada.hora_inicio ? ` · ${String(pj.jornada.hora_inicio).slice(0, 5)}${pj.jornada.hora_fin ? `–${String(pj.jornada.hora_fin).slice(0, 5)}` : ''}` : ''}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <tr style="background:#1a1a1a;color:#fff;text-align:left;">
-          <th style="padding:6px 8px;">Panelista</th><th style="padding:6px 8px;">Transporte</th><th style="padding:6px 8px;">Dirección</th><th style="padding:6px 8px;">Almuerzo</th><th style="padding:6px 8px;">Desayuno</th>
+          <th style="padding:6px 8px;">Panelista y sesiones</th><th style="padding:6px 8px;">Transporte</th><th style="padding:6px 8px;">Desayuno</th><th style="padding:6px 8px;">Almuerzo</th>
         </tr>${filas}
       </table>`;
   }).join('');
@@ -594,7 +652,7 @@ function htmlResumenLogistico(cohorte: string, r: Awaited<ReturnType<typeof comp
         <p style="color:#888;text-transform:uppercase;letter-spacing:1.5px;font-size:11px;margin:0;">NAVES — Logística de panelistas</p>
         <h2 style="color:#1a1a1a;margin:6px 0 0 0;font-size:22px;">Resumen logístico · ${cohorte}</h2>
       </div>
-      <p style="color:#666;font-size:13px;">Total de panelistas activos: <strong>${r.total_panelistas}</strong>. Transporte, almuerzo y desayuno por jornada.</p>
+      <p style="color:#666;font-size:13px;">Total de panelistas activos: <strong>${r.total_panelistas}</strong>. Por jornada: las sesiones de cada panelista, su transporte (ida y regreso) y comidas.</p>
       ${bloques}
       <hr style="border:none;border-top:1px solid #ddd;margin:24px 0 16px;">
       <p style="font-size:11px;color:#888;line-height:1.5;margin:0;"><strong>INALDE Business School</strong> — Programa MBA · NAVES</p>

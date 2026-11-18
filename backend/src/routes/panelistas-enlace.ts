@@ -176,6 +176,12 @@ const confirmarSchema = z.object({
     necesita_transporte: z.boolean().nullable(),
     direccion_recogida: z.string().trim().max(300).nullable().optional(),
     hora_recogida: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+    // Ida y regreso por separado (sql/60). Opcionales: una página abierta antes
+    // del cambio no los manda, y entonces el transporte es la recogida.
+    transporte_ida: z.boolean().nullable().optional(),
+    transporte_regreso: z.boolean().nullable().optional(),
+    direccion_regreso: z.string().trim().max(300).nullable().optional(),
+    hora_regreso: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
     transporte_por_fecha: z.record(fechaISO, z.boolean()).optional(),
     almuerzo_por_fecha: z.record(fechaISO, z.boolean()).optional(),
     desayuno_por_fecha: z.record(fechaISO, z.boolean()).optional(),
@@ -242,11 +248,17 @@ router.post('/p/:token/confirmar', limiteConfirmar, async (req, res) => {
     const soloFechas = (r?: Record<string, boolean>) => Object.fromEntries(Object.entries(r ?? {}).filter(([f]) => fechas.has(f)));
     const L = d.logistica;
     const transp = L.necesita_transporte === true;
+    const ida = transp && (L.transporte_ida ?? true);
+    const regreso = transp && L.transporte_regreso === true;
     const { error: el } = await supabaseAdmin.from('logistica_panelista').upsert({
       panelista_id: panelistaId,
       necesita_transporte: L.necesita_transporte,
-      direccion_recogida: transp ? (L.direccion_recogida || null) : null,
-      hora_recogida: transp ? (L.hora_recogida || null) : null,
+      transporte_ida: transp ? ida : null,
+      transporte_regreso: transp ? (L.transporte_regreso ?? null) : null,
+      direccion_recogida: ida ? (L.direccion_recogida || null) : null,
+      hora_recogida: ida ? (L.hora_recogida || null) : null,
+      direccion_regreso: regreso ? (L.direccion_regreso || null) : null,
+      hora_regreso: regreso ? (L.hora_regreso || null) : null,
       transporte_por_fecha: transp ? soloFechas(L.transporte_por_fecha) : {},
       almuerzo_por_fecha: soloFechas(L.almuerzo_por_fecha),
       desayuno_por_fecha: soloFechas(L.desayuno_por_fecha),
@@ -315,7 +327,16 @@ function lineasLogistica(log: any, jornadas: JornadaBloques[]): string[] {
   const out: string[] = [];
   if (log.necesita_transporte === true) {
     const ds = dias(log.transporte_por_fecha);
-    out.push(`Transporte: sí${ds.length ? ` (${ds.join(', ')})` : ''}${log.direccion_recogida ? ` · recogida en ${log.direccion_recogida}` : ''}${log.hora_recogida ? ` a las ${String(log.hora_recogida).slice(0, 5)}` : ''}`);
+    const enDias = ds.length ? ` (${ds.join(', ')})` : '';
+    if (log.transporte_ida ?? true) {
+      out.push(`Transporte de ida${enDias}: recogida${log.direccion_recogida ? ` en ${log.direccion_recogida}` : ''}${log.hora_recogida ? ` a las ${String(log.hora_recogida).slice(0, 5)}` : ''}`);
+    }
+    if (log.transporte_regreso === true) {
+      const destino = log.direccion_regreso || log.direccion_recogida;
+      out.push(`Transporte de regreso${enDias}: ${destino ? `a ${destino}` : 'sí'}${log.hora_regreso ? ` a las ${String(log.hora_regreso).slice(0, 5)}` : ' al terminar su última sesión'}`);
+    } else if (log.transporte_regreso === false) {
+      out.push('Regreso: por su cuenta');
+    }
   } else if (log.necesita_transporte === false) {
     out.push('Transporte: irá por su cuenta');
   }

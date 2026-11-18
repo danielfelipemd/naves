@@ -238,6 +238,11 @@ function FormularioConfirmacion({ token, datos, todas, elegidos, onClose, onHech
   const [diasTransporte, setDiasTransporte] = useState<Record<string, boolean>>(() => Object.fromEntries(dias.map((d) => [d.fecha, true])));
   const [direccion, setDireccion] = useState('');
   const [hora, setHora] = useState('');
+  // Ida y regreso se preguntan por separado (Daniel, 18/11/2026).
+  const [ida, setIda] = useState(false);
+  const [regreso, setRegreso] = useState(false);
+  const [dirRegreso, setDirRegreso] = useState('');
+  const [horaRegreso, setHoraRegreso] = useState('');
   // Sin marcar por defecto: el panelista confirma él si desayuna o almuerza
   // con INALDE (Daniel, 18/11/2026); de esto sale cuántos platos se piden.
   const [desayuno, setDesayuno] = useState<Record<string, boolean>>({});
@@ -250,7 +255,9 @@ function FormularioConfirmacion({ token, datos, todas, elegidos, onClose, onHech
     if (nombre.trim().length < 2) { setAviso('Escriba su nombre completo.'); return; }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setAviso('Escriba un correo válido: ahí le llegará la confirmación.'); return; }
     if (!transporte) { setAviso('Indique si necesita que lo recojamos.'); return; }
-    if (transporte === 'si' && !direccion.trim()) { setAviso('Escriba la dirección de recogida.'); return; }
+    if (transporte === 'si' && !ida && !regreso) { setAviso('Marque si necesita transporte de ida, de regreso o ambos.'); return; }
+    if (transporte === 'si' && ida && !direccion.trim()) { setAviso('Escriba la dirección de recogida.'); return; }
+    if (transporte === 'si' && regreso && !ida && !dirRegreso.trim()) { setAviso('Escriba a dónde lo llevamos de regreso.'); return; }
     setEnviando(true);
     const bloques = todas ? [] : [...elegidos].map((k) => { const [j, b] = k.split('-').map(Number); return { jornada: j, bloque: b }; });
     try {
@@ -258,8 +265,12 @@ function FormularioConfirmacion({ token, datos, todas, elegidos, onClose, onHech
         nombre: nombre.trim(), email: email.trim(), todas, bloques,
         logistica: {
           necesita_transporte: transporte === 'si',
-          direccion_recogida: transporte === 'si' ? direccion.trim() : null,
-          hora_recogida: transporte === 'si' && hora ? hora : null,
+          transporte_ida: transporte === 'si' ? ida : null,
+          transporte_regreso: transporte === 'si' ? regreso : null,
+          direccion_recogida: transporte === 'si' && ida ? direccion.trim() : null,
+          hora_recogida: transporte === 'si' && ida && hora ? hora : null,
+          direccion_regreso: transporte === 'si' && regreso ? (dirRegreso.trim() || null) : null,
+          hora_regreso: transporte === 'si' && regreso && horaRegreso ? horaRegreso : null,
           transporte_por_fecha: transporte === 'si' ? diasTransporte : {},
           desayuno_por_fecha: desayuno,
           almuerzo_por_fecha: almuerzo,
@@ -298,7 +309,7 @@ function FormularioConfirmacion({ token, datos, todas, elegidos, onClose, onHech
         </div>
 
         <fieldset>
-          <legend className={etiqueta}>¿Necesita que lo recojamos? *</legend>
+          <legend className={etiqueta}>¿Necesita transporte? *</legend>
           <label className={casilla}><input type="radio" name="transporte" checked={transporte === 'si'} onChange={() => setTransporte('si')} /> Sí, necesito transporte</label>
           <label className={casilla}><input type="radio" name="transporte" checked={transporte === 'no'} onChange={() => setTransporte('no')} /> No, iré por mi cuenta</label>
           {transporte === 'si' && (
@@ -313,8 +324,26 @@ function FormularioConfirmacion({ token, datos, todas, elegidos, onClose, onHech
                   ))}
                 </div>
               )}
-              <input value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Dirección de recogida. Ej.: Cra 15 #85-32, Bogotá" className="input-inalde !py-2" />
-              <label className="flex items-center gap-2 text-sm">Hora preferida <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} className="input-inalde !w-auto !py-1.5" /></label>
+              <div className="rounded border border-inalde-gray-light p-2.5 space-y-2">
+                <label className={casilla + ' font-medium'}><input type="checkbox" checked={ida} onChange={(e) => setIda(e.target.checked)} /> Ida: que lo recojamos y lo llevemos a INALDE</label>
+                {ida && (
+                  <div className="pl-6 space-y-2">
+                    <input value={direccion} onChange={(e) => setDireccion(e.target.value)} aria-label="Dirección de recogida" placeholder="Dirección de recogida. Ej.: Cra 15 #85-32, Bogotá" className="input-inalde !py-2" />
+                    <label className="flex flex-wrap items-center gap-2 text-sm">Hora de recogida <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} className="input-inalde !w-auto !py-1.5" /></label>
+                  </div>
+                )}
+              </div>
+              <div className="rounded border border-inalde-gray-light p-2.5 space-y-2">
+                <label className={casilla + ' font-medium'}><input type="checkbox" checked={regreso} onChange={(e) => setRegreso(e.target.checked)} /> Regreso: que lo llevemos de INALDE a su destino</label>
+                {regreso && (
+                  <div className="pl-6 space-y-2">
+                    <input value={dirRegreso} onChange={(e) => setDirRegreso(e.target.value)} aria-label="Dirección de destino del regreso"
+                      placeholder={ida ? 'Destino (si lo deja vacío, la misma dirección de recogida)' : 'Dirección de destino. Ej.: Cra 15 #85-32, Bogotá'} className="input-inalde !py-2" />
+                    <label className="flex flex-wrap items-center gap-2 text-sm">Hora de regreso <input type="time" value={horaRegreso} onChange={(e) => setHoraRegreso(e.target.value)} className="input-inalde !w-auto !py-1.5" /></label>
+                    <p className="text-xs text-inalde-gray">Si no indica hora, lo llevamos al terminar su última sesión.</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </fieldset>
