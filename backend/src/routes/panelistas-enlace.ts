@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import JSZip from 'jszip';
 import { z } from 'zod';
 import { supabaseAdmin } from '../db/supabase.js';
-import { requireAuth, requireRole, type AuthenticatedRequest } from '../auth/middleware.js';
+import { type AuthenticatedRequest } from '../auth/middleware.js';
 import { decryptPII, encryptPII, sha256Hex } from '../auth/crypto.js';
 import { sendEmail } from '../services/email.js';
 import { ipCliente } from '../lib/ip-cliente.js';
@@ -13,6 +13,7 @@ import {
   cohorteDeEnlace, describirAsistencia, enlaceDeCohorte, guardarAvisos, guardarEnlace, programacionPorBloques,
   proyectoEnProgramacion, type JornadaBloques,
 } from '../services/panelistas-enlace.js';
+import { adminOAcceso, cohorteDelPanelista, cohorteDelParametro } from '../services/panelistas-acceso.js';
 
 // Enlace compartido de panelistas (sql/55). Lo que hacía el sitio alterno
 // (navesfs.netlify.app/panelistas), dentro del sistema: la programación por
@@ -25,7 +26,10 @@ import {
 // ve lo que contestaron los demás.
 
 const router = Router();
-const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
+// El panel de Panelistas lo usa también la asistente de programa con su enlace
+// mágico (sql/57): el super admin con su sesión, o un acceso vigente de ESA cohorte.
+const porCohorte = [adminOAcceso(cohorteDelParametro)] as const;
+const porPanelista = [adminOAcceso(cohorteDelPanelista)] as const;
 const HORA = 60 * 60 * 1000;
 const porIp = { windowMs: HORA, keyGenerator: (req: Request) => ipCliente(req) ?? 'sin-ip', standardHeaders: true, legacyHeaders: false };
 // La página pide 1 vez la programación y ~33 miniaturas al cargar; un salón
@@ -406,7 +410,7 @@ async function avisarEquipo(panelistaId: string, prog: { jornadas: JornadaBloque
 
 // GET /api/panelistas-enlace/admin/:cohorteId — estado del enlace y los bloques
 // (para rotular lo que eligió cada panelista).
-router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
+router.get('/admin/:cohorteId', ...porCohorte, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const [enlace, publicada_at, prog] = await Promise.all([
     enlaceDeCohorte(cohorteId), programacionPublicadaAt(cohorteId), programacionPorBloques(cohorteId),
@@ -422,7 +426,7 @@ router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
 
 // PUT /api/panelistas-enlace/admin/:cohorteId — activar/desactivar y vencimiento.
 const enlaceSchema = z.object({ activo: z.boolean(), vence_at: z.string().datetime({ offset: true }) });
-router.put('/admin/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+router.put('/admin/:cohorteId', ...porCohorte, async (req: AuthenticatedRequest, res) => {
   const parsed = enlaceSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
   if (parsed.data.activo && new Date(parsed.data.vence_at).getTime() <= Date.now()) {
@@ -440,7 +444,7 @@ router.put('/admin/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest, 
 // PUT /api/panelistas-enlace/admin/:cohorteId/avisos — a quién avisar de cada
 // confirmación. Máximo 10 correos.
 const avisosSchema = z.object({ avisar_a: z.array(z.string().trim().toLowerCase().email().max(200)).max(10) });
-router.put('/admin/:cohorteId/avisos', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+router.put('/admin/:cohorteId/avisos', ...porCohorte, async (req: AuthenticatedRequest, res) => {
   const parsed = avisosSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: 'CORREO_INVALIDO', mensaje: 'Revisa los correos: alguno no es válido.' });
   const { data: coh } = await supabaseAdmin.from('cohortes').select('id').eq('id', req.params.cohorteId).maybeSingle();
@@ -455,7 +459,7 @@ router.put('/admin/:cohorteId/avisos', ...soloAdmin, async (req: AuthenticatedRe
 
 // POST /api/panelistas-enlace/admin/:cohorteId/regenerar — enlace nuevo; el
 // anterior deja de abrir al instante (por si se compartió donde no debía).
-router.post('/admin/:cohorteId/regenerar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+router.post('/admin/:cohorteId/regenerar', ...porCohorte, async (req: AuthenticatedRequest, res) => {
   const actual = await enlaceDeCohorte(req.params.cohorteId);
   if (!actual) return res.status(404).json({ error: 'SIN_ENLACE' });
   try {
@@ -466,7 +470,7 @@ router.post('/admin/:cohorteId/regenerar', ...soloAdmin, async (req: Authenticat
 });
 
 // POST /api/panelistas-enlace/admin/panelista/:id/confirmacion — (re)enviar.
-router.post('/admin/panelista/:id/confirmacion', ...soloAdmin, async (req, res) => {
+router.post('/admin/panelista/:id/confirmacion', ...porPanelista, async (req, res) => {
   const r = await enviarConfirmacion(req.params.id);
   if (r.razon === 'SIN_CONFIRMAR') return res.status(409).json({ error: 'SIN_CONFIRMAR' });
   if (r.razon === 'NOT_FOUND') return res.status(404).json({ error: 'NOT_FOUND' });
@@ -476,7 +480,7 @@ router.post('/admin/panelista/:id/confirmacion', ...soloAdmin, async (req, res) 
 
 // POST /api/panelistas-enlace/admin/:cohorteId/confirmaciones-pendientes —
 // a los que confirmaron y todavía no tienen su correo (p. ej. falló el SMTP).
-router.post('/admin/:cohorteId/confirmaciones-pendientes', ...soloAdmin, async (req, res) => {
+router.post('/admin/:cohorteId/confirmaciones-pendientes', ...porCohorte, async (req, res) => {
   const { data: pend } = await supabaseAdmin.from('panelistas').select('id')
     .eq('cohorte_id', req.params.cohorteId).eq('activo', true).eq('confirmado', true).is('confirmacion_enviada_at', null);
   const ids = (pend ?? []).map((p: any) => p.id as string);
@@ -493,9 +497,14 @@ router.post('/admin/:cohorteId/confirmaciones-pendientes', ...soloAdmin, async (
 });
 
 async function auditarAdmin(req: AuthenticatedRequest, accion: string, detalles: Record<string, unknown>) {
+  // Si lo hizo la asistente con su enlace (sql/57), el rastro lo dice: no fue
+  // el super admin.
+  const acceso = (req as any).accesoPanelistas as { id: string; email: string } | undefined;
   await supabaseAdmin.from('auditoria').insert({
-    actor_tipo: 'super_admin', actor_id: req.user?.profesorId ?? null, accion,
-    entidad_tipo: 'cohortes', entidad_id: null, detalles, timestamp: new Date().toISOString(),
+    actor_tipo: acceso ? 'anonimo' : 'super_admin', actor_id: acceso ? null : (req.user?.profesorId ?? null), accion,
+    entidad_tipo: 'cohortes', entidad_id: null,
+    detalles: acceso ? { ...detalles, acceso_id: acceso.id, acceso_email: acceso.email } : detalles,
+    timestamp: new Date().toISOString(),
   }).then(() => { /* el rastro no debe tumbar el cambio */ }, () => { /* idem */ });
 }
 

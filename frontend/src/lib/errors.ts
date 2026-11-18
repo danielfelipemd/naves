@@ -200,6 +200,11 @@ export function formatBackendError(e: any): string {
     SIN_CONFIRMAR: 'Este panelista todavía no ha confirmado: no hay confirmación que enviarle.',
     NO_SE_PUDO_GUARDAR: 'No pudimos guardar el enlace. Inténtalo de nuevo.',
     CORREO_INVALIDO: 'Revisa los correos: alguno no es válido.',
+    ACCESO_INVALIDO: 'Este enlace de acceso no existe o fue reemplazado. Pide uno nuevo a la dirección del programa.',
+    ACCESO_REVOCADO: 'Este acceso fue revocado. Pide uno nuevo a la dirección del programa.',
+    ACCESO_VENCIDO: 'Este acceso ya venció. Pide uno nuevo a la dirección del programa.',
+    ACCESO_NO_VIGENTE: 'Ese acceso ya no está vigente: crea uno nuevo.',
+    FUERA_DE_ALCANCE: 'Tu acceso no incluye esa cohorte.',
 
     // ── Cohortes y sábana ────────────────────────────────────────────────
     COHORTE_NO_ENCONTRADA: 'No encontramos esa cohorte.',

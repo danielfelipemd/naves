@@ -8,6 +8,7 @@ import { sendEmail } from '../services/email.js';
 import { ipCliente } from '../lib/ip-cliente.js';
 import { sincronizarJornadasDesdeHitos, recalcularFinesDeJornadas } from '../services/escaleta.js';
 import { enlaceDeCohorte } from '../services/panelistas-enlace.js';
+import { adminOAcceso, cohorteDelPanelista, cohorteDelParametro } from '../services/panelistas-acceso.js';
 
 // Módulo A (Fase 2) — Panelistas / Evaluadores.
 // Portal público por token (confirmar asistencia + logística) + panel admin.
@@ -16,6 +17,10 @@ const router = Router();
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const soloAdmin = [requireAuth(), requireRole('super_admin')] as const;
+// El panel de Panelistas lo usa también la asistente de programa con su enlace
+// mágico (sql/57): el super admin con su sesión, o un acceso vigente de ESA cohorte.
+const porCohorte = [adminOAcceso(cohorteDelParametro)] as const;
+const porPanelista = [adminOAcceso(cohorteDelPanelista)] as const;
 
 // Nombre de día en español para saber viernes (almuerzo) / sábado (desayuno).
 function diaSemana(fechaISO: string): string {
@@ -159,7 +164,7 @@ router.post('/portal/:token/confirmar', async (req, res) => {
 // =====================================================================
 
 // --- JORNADAS ---------------------------------------------------------
-router.get('/admin/:cohorteId/jornadas', ...soloAdmin, async (req, res) => {
+router.get('/admin/:cohorteId/jornadas', ...porCohorte, async (req, res) => {
   // Derivadas del cronograma: si el hito 12/13 ya tiene fecha y la jornada aún
   // no existe, se crea aquí también. Si no, esta pantalla mostraría "sin
   // jornadas" hasta que alguien abriera Programación, y el panelista no se
@@ -186,7 +191,7 @@ router.put('/admin/jornada/:id', ...soloAdmin, (_req, res) => res.status(409).js
 router.delete('/admin/jornada/:id', ...soloAdmin, (_req, res) => res.status(409).json(JORNADAS_DERIVADAS));
 
 // --- LISTADO DE PANELISTAS + STATS -----------------------------------
-router.get('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
+router.get('/admin/:cohorteId', ...porCohorte, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const jornadas = await jornadasDeCohorte(cohorteId);
   const jornadaById = new Map(jornadas.map((j) => [j.id, j]));
@@ -261,7 +266,7 @@ const crearSchema = z.object({
   asiste_todas: z.boolean().optional(),
   jornada_ids: z.array(z.string().uuid()).optional(),
 });
-router.post('/admin/:cohorteId', ...soloAdmin, async (req, res) => {
+router.post('/admin/:cohorteId', ...porCohorte, async (req, res) => {
   const parsed = crearSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
   const { nombre_completo, email, asiste_todas, jornada_ids } = parsed.data;
@@ -297,7 +302,7 @@ const editarSchema = z.object({
   asiste_todas: z.boolean().optional(),
   jornada_ids: z.array(z.string().uuid()).optional(),
 });
-router.patch('/admin/panelista/:id', ...soloAdmin, async (req, res) => {
+router.patch('/admin/panelista/:id', ...porPanelista, async (req, res) => {
   const parsed = editarSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
   const { nombre_completo, asiste_todas, jornada_ids } = parsed.data;
@@ -324,14 +329,14 @@ router.patch('/admin/panelista/:id', ...soloAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
-router.delete('/admin/panelista/:id', ...soloAdmin, async (req, res) => {
+router.delete('/admin/panelista/:id', ...porPanelista, async (req, res) => {
   const { error } = await supabaseAdmin.from('panelistas').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
 
 // --- LOGÍSTICA (edición desde admin) ---------------------------------
-router.put('/admin/panelista/:id/logistica', ...soloAdmin, async (req, res) => {
+router.put('/admin/panelista/:id/logistica', ...porPanelista, async (req, res) => {
   const parsed = portalConfirmarSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
   const d = parsed.data;
@@ -418,14 +423,14 @@ async function enlaceVigenteORechazo(cohorteId: string, res: any): Promise<boole
   return false;
 }
 
-router.post('/admin/panelista/:id/enviar', ...soloAdmin, async (req, res) => {
+router.post('/admin/panelista/:id/enviar', ...porPanelista, async (req, res) => {
   const r = await enviarCorreoEnlace(req.params.id, 'invitacion');
   if (r.razon === 'ENLACE_NO_VIGENTE') return res.status(409).json({ error: 'ENLACE_NO_VIGENTE' });
   if (!r.ok) return res.status(502).json({ error: 'ENVIO_FALLIDO', razon: r.razon });
   res.json({ ok: true });
 });
 
-router.post('/admin/:cohorteId/enviar-pendientes', ...soloAdmin, async (req, res) => {
+router.post('/admin/:cohorteId/enviar-pendientes', ...porCohorte, async (req, res) => {
   if (!(await enlaceVigenteORechazo(req.params.cohorteId, res))) return;
   const { data: pend } = await supabaseAdmin
     .from('panelistas')
@@ -450,7 +455,7 @@ router.post('/admin/:cohorteId/enviar-pendientes', ...soloAdmin, async (req, res
 });
 
 // POST /admin/:cohorteId/recordatorios — a los invitados (email_enviado) sin confirmar
-router.post('/admin/:cohorteId/recordatorios', ...soloAdmin, async (req, res) => {
+router.post('/admin/:cohorteId/recordatorios', ...porCohorte, async (req, res) => {
   if (!(await enlaceVigenteORechazo(req.params.cohorteId, res))) return;
   const { data: pend } = await supabaseAdmin
     .from('panelistas')
@@ -516,7 +521,7 @@ async function computarResumen(cohorteId: string) {
   return { total_panelistas: (panelistas ?? []).length, por_jornada: porJornada };
 }
 
-router.get('/admin/:cohorteId/resumen', ...soloAdmin, async (req, res) => {
+router.get('/admin/:cohorteId/resumen', ...porCohorte, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const r = await computarResumen(cohorteId);
   res.json({ cohorte_id: cohorteId, ...r });
@@ -524,7 +529,7 @@ router.get('/admin/:cohorteId/resumen', ...soloAdmin, async (req, res) => {
 
 // GET /admin/:cohorteId/resumen.xlsx — el resumen por jornada en Excel (como el
 // «⬇ Excel» del sitio alterno). Una hoja, una fila por panelista y jornada.
-router.get('/admin/:cohorteId/resumen.xlsx', ...soloAdmin, async (req, res) => {
+router.get('/admin/:cohorteId/resumen.xlsx', ...porCohorte, async (req, res) => {
   const cohorteId = req.params.cohorteId;
   const r = await computarResumen(cohorteId);
   const wb = new ExcelJS.Workbook();
@@ -596,7 +601,7 @@ function htmlResumenLogistico(cohorte: string, r: Awaited<ReturnType<typeof comp
     </div>`;
 }
 
-router.post('/admin/:cohorteId/resumen-logistico', ...soloAdmin, async (req, res) => {
+router.post('/admin/:cohorteId/resumen-logistico', ...porCohorte, async (req, res) => {
   const parsed = resumenEmailSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: 'INVALID', details: parsed.error.issues });
   const cohorteId = req.params.cohorteId;

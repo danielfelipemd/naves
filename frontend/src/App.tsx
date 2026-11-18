@@ -36,6 +36,7 @@ import ActasLotes from './pages/admin/actas/Lotes';
 import ActaMicroformulario from './pages/publico/ActaMicroformulario';
 import FirmarActas from './pages/publico/FirmarActas';
 import PanelistasEnlace from './pages/publico/PanelistasEnlace';
+import PanelistasAcceso from './pages/publico/PanelistasAcceso';
 import AdminTrabajosSector from './pages/admin/TrabajosSectorAdmin';
 import AdminDashboardControl from './pages/admin/DashboardControl';
 import AolTrabajos from './pages/admin/aol/Trabajos';
@@ -130,6 +131,8 @@ export default function App() {
         <Route path="/panelista/confirmar" element={<ConfirmarAsistencia />} />
         {/* Enlace compartido de panelistas (sql/55): sin sesión, lo activa el super admin. */}
         <Route path="/panelistas/:token" element={<PanelistasEnlace />} />
+        {/* Enlace mágico de la asistente de programa al panel de Panelistas (sql/57). */}
+        <Route path="/panelistas-admin/:token" element={<PanelistasAcceso />} />
         <Route path="/trabajos/:cohorteId" element={<TrabajosSectorPublico />} />
         <Route path="/actas/micro/:token" element={<ActaMicroformulario />} />
         <Route path="/actas/firmar/:token" element={<FirmarActas />} />

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import type { AxiosInstance } from 'axios';
 import { confirmar } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
@@ -44,8 +45,28 @@ function aLocal(iso: string) {
 function legibleCorto(iso: string) {
   return new Date(iso).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 }
+// Fecha de vencimiento que se propone: el final del último día de
+// presentaciones; si ese día ya pasó, 10 días desde hoy (un valor por defecto
+// vencido hacía fallar «Crear y activar» sin explicación).
+function venceSugerido(jornadas: Jornada[]) {
+  const ultimo = jornadas.length ? jornadas[jornadas.length - 1].fecha : null;
+  const finUltimo = ultimo ? `${ultimo}T23:59` : null;
+  return finUltimo && new Date(finUltimo).getTime() > Date.now()
+    ? finUltimo
+    : aLocal(new Date(Date.now() + 10 * 86400000).toISOString());
+}
 
-export default function Panelistas() {
+// El panel lo usa el super admin con su sesión y la asistente de programa con
+// su enlace mágico (sql/57). Cada componente toma el cliente de la API de aquí:
+// por defecto el de la sesión; la página del enlace pone uno que manda el
+// acceso. El portal viejo del panelista usa LogisticaModal sin proveedor y se
+// queda con el de siempre.
+export interface ClientePanelistas { api: AxiosInstance; descargar: (ruta: string, nombre: string) => Promise<void>; }
+export const ClientePanelistasCtx = createContext<ClientePanelistas>({ api, descargar: downloadFile });
+const useCliente = () => useContext(ClientePanelistasCtx);
+
+export default function Panelistas({ acceso }: { acceso?: { cohorte: string; etiqueta: string } } = {}) {
+  const { api } = useCliente();
   const [cohortes, setCohortes] = useState<Cohorte[]>([]);
   const [cohorte, setCohorte] = useState('');
   const [jornadas, setJornadas] = useState<Jornada[]>([]);
@@ -59,6 +80,8 @@ export default function Panelistas() {
   const [vista, setVista] = useState<'panelistas' | 'jornadas' | 'resumen'>('panelistas');
 
   useEffect(() => { (async () => {
+    // Con el enlace de la asistente la cohorte viene fijada por su acceso.
+    if (acceso) { setCohortes([{ id: acceso.cohorte, etiqueta: acceso.etiqueta, activa: true }]); setCohorte(acceso.cohorte); return; }
     const data = (await api.get('/admin/cohortes')).data as Cohorte[];
     setCohortes(data.filter((c) => c.activa));
   })(); }, []);
@@ -88,15 +111,17 @@ export default function Panelistas() {
         <p className="text-sm text-inalde-gray mt-2">Comparte el enlace con la programación para que cada evaluador elija a qué bloques asistir y deje su logística (transporte y comidas).</p>
       </div>
 
-      <div className="flex flex-wrap gap-3 items-end mb-5">
-        <div>
-          <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">Cohorte</label>
-          <select value={cohorte} onChange={(e) => setCohorte(e.target.value)} className="input-inalde !py-2">
-            <option value="">Selecciona…</option>
-            {cohortes.map((c) => <option key={c.id} value={c.id}>{c.etiqueta}</option>)}
-          </select>
+      {!acceso && (
+        <div className="flex flex-wrap gap-3 items-end mb-5">
+          <div>
+            <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">Cohorte</label>
+            <select value={cohorte} onChange={(e) => setCohorte(e.target.value)} className="input-inalde !py-2">
+              <option value="">Selecciona…</option>
+              {cohortes.map((c) => <option key={c.id} value={c.id}>{c.etiqueta}</option>)}
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
       {msg && (
         <div role="status" className={`rounded border-l-4 px-4 py-3 text-sm mb-5 ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>{msg.text}</div>
@@ -105,6 +130,10 @@ export default function Panelistas() {
       {cohorte && enlace && !loading && (
         <EnlaceCard cohorte={cohorte} info={enlace} jornadas={jornadas} onChange={load} setMsg={setMsg} />
       )}
+
+      {/* Dar acceso a la asistente es solo del super admin: quien entra por un
+          enlace no puede fabricar otros. */}
+      {cohorte && !acceso && !loading && <AccesosAsistente cohorte={cohorte} jornadas={jornadas} setMsg={setMsg} />}
 
       {cohorte && stats && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
@@ -154,15 +183,9 @@ export default function Panelistas() {
 function EnlaceCard({ cohorte, info, jornadas, onChange, setMsg }: {
   cohorte: string; info: EnlaceInfo; jornadas: Jornada[]; onChange: () => void; setMsg: (m: any) => void;
 }) {
+  const { api } = useCliente();
   const e = info.enlace;
-  // Por defecto, hasta el final del último día de presentaciones. Si ese día ya
-  // pasó (una cohorte de pruebas, o un evento anterior), 10 días desde hoy: un
-  // valor por defecto vencido hacía fallar «Crear y activar» sin explicación.
-  const ultimo = jornadas.length ? jornadas[jornadas.length - 1].fecha : null;
-  const finUltimo = ultimo ? `${ultimo}T23:59` : null;
-  const porDefecto = finUltimo && new Date(finUltimo).getTime() > Date.now()
-    ? finUltimo
-    : aLocal(new Date(Date.now() + 10 * 86400000).toISOString());
+  const porDefecto = venceSugerido(jornadas);
   const [vence, setVence] = useState(e ? aLocal(e.vence_at) : porDefecto);
   const [guardando, setGuardando] = useState(false);
   const [avisos, setAvisos] = useState((e?.avisar_a ?? []).join(', '));
@@ -265,6 +288,109 @@ function EnlaceCard({ cohorte, info, jornadas, onChange, setMsg }: {
   );
 }
 
+// ---- Acceso de la asistente de programa (sql/57) ----
+// Enlace mágico personal al panel de Panelistas: la asistente entra sin clave y
+// hace aquí todo lo del super admin, solo en esta cohorte y hasta la fecha que
+// se elija. Crearlo y revocarlo es solo del super admin.
+interface AccesoAsistente { id: string; nombre: string | null; email: string; vence_at: string; estado: 'vigente' | 'vencido' | 'revocado'; ultimo_uso_at: string | null; url: string | null }
+function AccesosAsistente({ cohorte, jornadas, setMsg }: { cohorte: string; jornadas: Jornada[]; setMsg: (m: any) => void }) {
+  const { api } = useCliente();
+  const [accesos, setAccesos] = useState<AccesoAsistente[] | null>(null);
+  const [abierto, setAbierto] = useState(false);
+  const [form, setForm] = useState({ nombre: '', email: '', vence: venceSugerido(jornadas) });
+  const [busy, setBusy] = useState(false);
+  const [nuevo, setNuevo] = useState<AccesoAsistente | null>(null);
+
+  async function cargar() {
+    try { setAccesos((await api.get(`/panelistas-acceso/admin/${cohorte}`)).data.accesos); }
+    catch (e: any) { setAccesos([]); setMsg({ kind: 'err', text: formatBackendError(e) }); }
+  }
+  useEffect(() => { cargar(); }, [cohorte]);
+
+  async function crear() {
+    const email = form.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setMsg({ kind: 'err', text: 'Escribe el correo de la asistente.' }); return; }
+    if (!form.vence) { setMsg({ kind: 'err', text: 'Elige hasta cuándo funciona el acceso.' }); return; }
+    setBusy(true);
+    try {
+      const { data } = await api.post(`/panelistas-acceso/admin/${cohorte}`, { nombre: form.nombre.trim() || null, email, vence_at: new Date(form.vence).toISOString() });
+      await cargar();
+      setAbierto(false); setForm({ nombre: '', email: '', vence: venceSugerido(jornadas) });
+      // El sistema no lo envía: se copia y se manda por WhatsApp, correo o lo
+      // que se use (Daniel, 18/11/2026).
+      setNuevo(data.acceso);
+      try { await navigator.clipboard.writeText(data.acceso.url); setMsg({ kind: 'ok', text: `Enlace de ${data.acceso.nombre || email} creado y copiado. Envíaselo por el medio que prefieras.` }); }
+      catch { setMsg({ kind: 'ok', text: `Enlace de ${data.acceso.nombre || email} creado. Cópialo abajo y envíaselo por el medio que prefieras.` }); }
+    } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
+    finally { setBusy(false); }
+  }
+  async function revocar(a: AccesoAsistente) {
+    if (!(await confirmar({
+      titulo: 'Revocar el acceso',
+      mensaje: `El enlace de ${a.nombre || a.email} deja de abrir al instante. ¿Continuar?`,
+      aceptar: 'Revocar', tono: 'peligro',
+    }))) return;
+    setBusy(true);
+    try { await api.delete(`/panelistas-acceso/admin/acceso/${a.id}`); await cargar(); setMsg({ kind: 'ok', text: 'Acceso revocado: ya no abre.' }); }
+    catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
+    finally { setBusy(false); }
+  }
+  async function copiar(a: AccesoAsistente) {
+    if (!a.url) return;
+    try { await navigator.clipboard.writeText(a.url); setMsg({ kind: 'ok', text: `Enlace de ${a.nombre || a.email} copiado.` }); }
+    catch { setMsg({ kind: 'err', text: 'El navegador no permitió copiar.' }); }
+  }
+
+  const ESTILO = { vigente: 'bg-green-100 text-green-800', vencido: 'bg-red-100 text-inalde-red', revocado: 'bg-inalde-gray-bg text-inalde-gray' } as const;
+  const TEXTO = { vigente: 'Activo', vencido: 'Vencido', revocado: 'Revocado' } as const;
+  return (
+    <section className="rounded-lg border border-inalde-gray-light bg-white p-4 sm:p-5 mb-5">
+      <div className="flex flex-wrap items-center gap-3 mb-1">
+        <h2 className="font-primary font-bold text-inalde-text">Acceso de la asistente de programa</h2>
+        {!abierto && <button onClick={() => setAbierto(true)} className="btn-inalde-secondary !py-1.5 !px-3 !text-xs ml-auto">+ Dar acceso</button>}
+      </div>
+      <p className="text-xs text-inalde-gray mb-3">Un enlace personal, sin clave, a este mismo panel y solo para esta cohorte: puede hacer todo lo que haces aquí, salvo dar o quitar accesos. El sistema no lo envía: lo copias y se lo mandas por el medio que prefieras.</p>
+      {nuevo?.url && (
+        <div role="status" className="rounded border-l-4 border-inalde-blue bg-blue-50 px-3 py-2 mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-inalde-text">Enlace de <strong>{nuevo.nombre || nuevo.email}</strong>:</span>
+          <input readOnly value={nuevo.url} onFocus={(ev) => ev.currentTarget.select()} aria-label="Enlace recién creado" className="input-inalde !py-1 !text-xs font-mono flex-1 min-w-[240px]" />
+          <button onClick={() => copiar(nuevo)} className="btn-inalde-secondary !py-1 !px-3 !text-xs">Copiar</button>
+        </div>
+      )}
+      {abierto && (
+        <div className="bg-inalde-gray-bg/40 border border-inalde-gray-light rounded p-3 mb-3 flex flex-wrap gap-2 items-end">
+          <label className="text-xs text-inalde-gray flex-1 min-w-[160px]"><span className="block uppercase tracking-wider font-semibold mb-1">Nombre</span>
+            <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} className="input-inalde !py-1.5 !text-sm" /></label>
+          <label className="text-xs text-inalde-gray flex-1 min-w-[200px]"><span className="block uppercase tracking-wider font-semibold mb-1">Correo *</span>
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-inalde !py-1.5 !text-sm" /></label>
+          <label className="text-xs text-inalde-gray"><span className="block uppercase tracking-wider font-semibold mb-1">Funciona hasta</span>
+            <input type="datetime-local" value={form.vence} onChange={(e) => setForm({ ...form, vence: e.target.value })} className="input-inalde !w-auto !py-1.5 !text-sm" /></label>
+          <button onClick={crear} disabled={busy} className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-50">Crear enlace</button>
+          <button onClick={() => setAbierto(false)} disabled={busy} className="btn-inalde-secondary !py-2 !px-4 !text-xs">Cancelar</button>
+        </div>
+      )}
+      {accesos && accesos.length > 0 && (
+        <ul className="divide-y divide-inalde-gray-light border border-inalde-gray-light rounded">
+          {accesos.map((a) => (
+            <li key={a.id} className="px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <span className="font-medium text-inalde-text">{a.nombre || a.email}</span>
+              {a.nombre && <span className="text-xs text-inalde-gray">{a.email}</span>}
+              <span className={`text-[10px] font-bold uppercase tracking-wider rounded px-2 py-0.5 ${ESTILO[a.estado]}`}>{TEXTO[a.estado]}</span>
+              <span className="text-[11px] text-inalde-gray">{a.estado === 'vencido' ? 'venció' : 'vence'} {legibleCorto(a.vence_at)}{a.ultimo_uso_at ? ` · último uso ${legibleCorto(a.ultimo_uso_at)}` : ' · sin usar'}</span>
+              {a.estado === 'vigente' && (
+                <span className="ml-auto flex gap-1.5">
+                  <button onClick={() => copiar(a)} aria-label={`Copiar el enlace de ${a.nombre || a.email}`} className="text-[11px] border border-inalde-gray-light rounded px-2 py-1">Copiar</button>
+                  <button onClick={() => revocar(a)} disabled={busy} className="text-[11px] text-inalde-gray hover:text-inalde-red px-1">Revocar</button>
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 // ---- Jornadas ----
 // Solo lectura: las jornadas se derivan del cronograma de la cohorte (hitos 12 y
 // 13). Antes se tecleaban aquí, duplicando una fecha que el sistema ya conocía —
@@ -305,6 +431,7 @@ function JornadasTab({ jornadas }: { jornadas: Jornada[] }) {
 
 // ---- Panelistas ----
 function PanelistasTab({ cohorte, jornadas, panelistas, enlace, onChange, setMsg, busy, setBusy, onEditLog }: any) {
+  const { api } = useCliente();
   const [form, setForm] = useState<{ nombre: string; email: string; asiste_todas: boolean; jornada_ids: string[] }>({ nombre: '', email: '', asiste_todas: true, jornada_ids: [] });
   const [showAdd, setShowAdd] = useState(false);
   const info = enlace as EnlaceInfo | null;
@@ -503,6 +630,7 @@ function PanelistasTab({ cohorte, jornadas, panelistas, enlace, onChange, setMsg
 
 // ---- Resumen ----
 function ResumenTab({ cohorte }: { cohorte: string }) {
+  const { api, descargar } = useCliente();
   const [data, setData] = useState<any>(null);
   const [email, setEmail] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -539,7 +667,7 @@ function ResumenTab({ cohorte }: { cohorte: string }) {
     catch { setAviso({ kind: 'err', text: 'El navegador no permitió copiar.' }); }
   }
   async function excel() {
-    try { await downloadFile(`/panelistas/admin/${cohorte}/resumen.xlsx`, `panelistas-${cohorte}.xlsx`); }
+    try { await descargar(`/panelistas/admin/${cohorte}/resumen.xlsx`, `panelistas-${cohorte}.xlsx`); }
     catch (e: any) { setAviso({ kind: 'err', text: formatBackendError(e) }); }
   }
 
@@ -582,6 +710,7 @@ function ResumenTab({ cohorte }: { cohorte: string }) {
 // de Semana: con el Intensivo (martes y miércoles) no salía ninguna de las dos.
 export function LogisticaModal({ panelista, jornadas, onClose, onSaved, admin, setMsg }:
   { panelista: any; jornadas: Jornada[]; onClose: () => void; onSaved: () => void; admin?: boolean; setMsg?: (m: any) => void }) {
+  const { api } = useCliente();
   const misJornadas: Jornada[] = admin
     ? (panelista.asiste_todas ? jornadas : jornadas.filter((j) => panelista.jornadas?.some((x: any) => x.id === j.id)))
     : jornadas;
