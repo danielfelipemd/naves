@@ -3,6 +3,7 @@ import { pedirTexto } from '../../components/inalde/Dialogos';
 import { api, downloadFile } from '../../lib/api';
 import { formatBackendError } from '../../lib/errors';
 import { VisorArchivo } from '../../components/inalde/VisorArchivo';
+import { VentanaFlotante } from '../../components/inalde/VentanaFlotante';
 
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 interface Config { evento_nombre: string; expo: number; trans: number; foto: number; cierre: number; break_min: number; bloque: number; }
@@ -74,27 +75,127 @@ function NumeroDiferido({ valor, min, max, step = 1, onGuardar, className }: {
   );
 }
 
+// Estilos del panel de opciones. Los campos van en tamaño pequeño: input-inalde
+// es de formulario (py-3, text-base) y aquí hay muchos en poco espacio.
+const ETIQUETA_GRUPO = 'block font-primary font-semibold text-[10px] uppercase tracking-wider text-inalde-gray mb-1.5';
+const CAMPO_NUMERO = 'input-inalde !w-20 !px-2 !py-1.5 !text-sm';
+
 function PausaJornada({ minutos, trasSlot, slots, onMinutos, onTrasSlot }: {
   minutos: number; trasSlot: number | null; slots: Slot[];
   onMinutos: (v: number) => void; onTrasSlot: (v: number | null) => void;
 }) {
   return (
-    <>
-      <label className="text-xs flex items-center gap-1">
-        de
-        <NumeroDiferido valor={minutos} min={5} max={240} step={5} onGuardar={onMinutos}
-          className="w-14 text-inalde-text rounded px-1 py-0.5" /> min, después de
+    <div className="mt-2 space-y-2">
+      <label className="flex items-center gap-2 text-sm">
+        Duración
+        <NumeroDiferido valor={minutos} min={5} max={240} step={5} onGuardar={onMinutos} className={CAMPO_NUMERO} /> min
       </label>
-      <select value={trasSlot ?? ''} onChange={(e) => onTrasSlot(e.target.value === '' ? null : Number(e.target.value))}
-        className="text-xs text-inalde-text rounded px-1 py-0.5 max-w-[220px]">
-        <option value="">Automático (a mitad de la jornada)</option>
-        {slots.slice(0, -1).map((s, i) => (
-          // value = posición dentro del día (lo que usa el motor); texto = número corrido del evento.
-          <option key={s.proyecto_id} value={i + 1}>la presentación {s.slot} · {s.proyecto}</option>
-        ))}
-        {trasSlot != null && trasSlot > Math.max(0, slots.length - 1) && <option value={trasSlot}>la presentación {trasSlot}</option>}
-      </select>
-    </>
+      <label className="block text-sm">
+        Después de
+        <select value={trasSlot ?? ''} onChange={(e) => onTrasSlot(e.target.value === '' ? null : Number(e.target.value))}
+          className="input-inalde !px-2 !py-1.5 !text-sm mt-1">
+          <option value="">Automático (a mitad de la jornada)</option>
+          {slots.slice(0, -1).map((s, i) => (
+            // value = posición dentro del día (lo que usa el motor); texto = número corrido del evento.
+            <option key={s.proyecto_id} value={i + 1}>la presentación {s.slot} · {s.proyecto}</option>
+          ))}
+          {trasSlot != null && trasSlot > Math.max(0, slots.length - 1) && <option value={trasSlot}>la presentación {trasSlot}</option>}
+        </select>
+      </label>
+    </div>
+  );
+}
+
+type CambiosJornada = {
+  foto_inicial?: boolean; intro_min?: number; hora_inicio?: string;
+  break_jornada?: boolean; break_jornada_min?: number; break_jornada_tras_slot?: number | null;
+  almuerzo?: boolean; almuerzo_min?: number; almuerzo_tras_slot?: number | null;
+  proyecto_ids?: string[];
+};
+
+// Las opciones de UNA jornada, en el panel de opciones (antes iban dentro de la
+// barra negra de la tabla). Cuatro grupos que se ponen lado a lado cuando el
+// panel está anclado a lo ancho y uno debajo de otro en la ventana flotante:
+// lo decide el ancho mínimo de cada grupo, no el modo.
+function OpcionesJornada({ j, config, onGuardar }: {
+  j: Jornada; config: Config; onGuardar: (cambios: CambiosJornada) => void;
+}) {
+  const inicio = (j.hora_inicio ?? '').slice(0, 5);
+  const grupo = 'flex-1 min-w-[230px]';
+  return (
+    <div>
+      <p className="text-sm text-inalde-text mb-3">
+        <strong className="font-primary">Jornada {j.numero}</strong>
+        {/* Solo la primera letra en mayúscula («Martes 24 de noviembre»):
+            capitalize ponía «De Noviembre De». */}
+        <span className="text-inalde-gray"> · <span className="inline-block first-letter:uppercase">{j.fecha_legible ?? j.fecha}</span></span>
+      </p>
+      <div className="flex flex-wrap gap-x-6 gap-y-4">
+        <div className={grupo}>
+          <span className={ETIQUETA_GRUPO}>Horario</span>
+          <label className="flex items-center gap-2 text-sm" title="Hora en que arranca la jornada: la primera actividad (foto o introducción). Las presentaciones empiezan después.">
+            Inicio
+            {/* Se guarda al salir de la casilla. La key la vuelve a montar
+                cuando la hora cambia en el servidor (defaultValue no se
+                actualiza solo). */}
+            <input key={inicio} type="time" defaultValue={inicio}
+              onBlur={(e) => { if (e.target.value && e.target.value !== inicio) onGuardar({ hora_inicio: e.target.value }); }}
+              className="input-inalde !w-auto !px-2 !py-1.5 !text-sm" />
+          </label>
+          {/* El fin no se elige: la jornada termina cuando termina su última
+              franja. Se muestra para verlo moverse al cambiar las opciones. */}
+          <p className="text-sm text-inalde-gray mt-2" title="La calcula el sistema: la jornada termina al acabar la última franja (el cierre). Cambia sola al agregar o quitar proyectos.">
+            Termina <span className="font-mono font-semibold text-inalde-text">{(j.hora_fin ?? '').slice(0, 5) || '—'}</span> (lo calcula el sistema)
+          </p>
+        </div>
+
+        <div className={grupo}>
+          <span className={ETIQUETA_GRUPO}>Apertura</span>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={j.foto_inicial} onChange={(e) => onGuardar({ foto_inicial: e.target.checked })} />
+            Foto inicial <span className="text-inalde-gray">({config.foto} min)</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm mt-2">
+            Introducción
+            <NumeroDiferido valor={j.intro_min} min={0} max={240} onGuardar={(v) => onGuardar({ intro_min: v })} className={CAMPO_NUMERO} /> min
+          </label>
+        </div>
+
+        {/* Pausa adicional y almuerzo son DOS pausas distintas y de cada
+            jornada: un día se para a almorzar y el otro no, y la parada no
+            siempre dura lo mismo. Se pueden tener las dos. Aparte está el break
+            automático de fin de bloque, que es de la cohorte. */}
+        <div className={grupo}>
+          <label className="flex items-center gap-2 text-sm font-semibold text-inalde-text" title="Una pausa larga solo para este día, además de los breaks automáticos entre bloques. Reemplaza el break que caiga en ese punto.">
+            <input type="checkbox" checked={j.break_jornada} onChange={(e) => onGuardar({ break_jornada: e.target.checked })} />
+            Pausa adicional
+          </label>
+          {j.break_jornada ? (
+            <PausaJornada
+              minutos={j.break_jornada_min} trasSlot={j.break_jornada_tras_slot} slots={j.slots}
+              onMinutos={(v) => onGuardar({ break_jornada_min: v })}
+              onTrasSlot={(v) => onGuardar({ break_jornada_tras_slot: v })} />
+          ) : <p className="text-xs text-inalde-gray mt-1">Una pausa larga solo para este día.</p>}
+        </div>
+
+        <div className={grupo}>
+          <label className="flex items-center gap-2 text-sm font-semibold text-inalde-text" title="La parada para almorzar de este día. Es independiente de la pausa adicional.">
+            <input type="checkbox" checked={j.almuerzo} onChange={(e) => onGuardar({ almuerzo: e.target.checked })} />
+            Almuerzo
+          </label>
+          {j.almuerzo ? (
+            <PausaJornada
+              minutos={j.almuerzo_min} trasSlot={j.almuerzo_tras_slot} slots={j.slots}
+              onMinutos={(v) => onGuardar({ almuerzo_min: v })}
+              onTrasSlot={(v) => onGuardar({ almuerzo_tras_slot: v })} />
+          ) : <p className="text-xs text-inalde-gray mt-1">La parada para almorzar de este día.</p>}
+        </div>
+      </div>
+      <p className="text-xs text-inalde-gray mt-4">
+        Cada {config.bloque} presentaciones hay un break de {config.break_min} min (se cambia en la pestaña «Tiempos del evento»).
+        La pausa adicional y el almuerzo reemplazan el break que caiga en ese punto; si los dos caen en el mismo sitio, queda solo el almuerzo.
+      </p>
+    </div>
   );
 }
 
@@ -225,12 +326,7 @@ export default function Programacion() {
     } catch (e: any) { setMsg({ kind: 'err', text: formatBackendError(e) }); }
   }
 
-  async function guardarJornada(j: Jornada, cambios: {
-    foto_inicial?: boolean; intro_min?: number; hora_inicio?: string;
-    break_jornada?: boolean; break_jornada_min?: number; break_jornada_tras_slot?: number | null;
-    almuerzo?: boolean; almuerzo_min?: number; almuerzo_tras_slot?: number | null;
-    proyecto_ids?: string[];
-  }) {
+  async function guardarJornada(j: Jornada, cambios: CambiosJornada) {
     try {
       await api.put(`/programacion/admin/jornada/${j.id}`, cambios);
       load(true);
@@ -254,6 +350,14 @@ export default function Programacion() {
   }
 
   const disponibles = proyectos.filter((e) => !e.asignado);
+
+  // Pestaña del panel de opciones: una por jornada y «Tiempos del evento».
+  // Si la elegida ya no existe (se cambió de cohorte), la primera jornada.
+  const [pestana, setPestana] = useState('');
+  const pestanaActiva = pestana === 'evento' || jornadas.some((j) => j.id === pestana)
+    ? pestana
+    : (jornadas[0]?.id ?? 'evento');
+  const jornadaActiva = jornadas.find((j) => j.id === pestanaActiva);
 
   return (
     <>
@@ -338,7 +442,7 @@ export default function Programacion() {
             <div className="flex flex-wrap gap-4 items-end mb-3">
               {jornadas.map((j, i) => (
                 <label key={j.id} className="text-sm">
-                  <span className="block text-xs text-inalde-gray capitalize mb-1">Jornada {j.numero} · {j.fecha_legible ?? j.fecha}</span>
+                  <span className="block text-xs text-inalde-gray mb-1">Jornada {j.numero} · {j.fecha_legible ?? j.fecha}</span>
                   <input type="number" min={0} max={total} value={reparto[i]}
                     onChange={(e) => { const v = Math.max(0, Math.floor(Number(e.target.value) || 0)); setReparto(reparto.map((x, k) => (k === i ? v : x))); }}
                     className="input-inalde !py-1.5 w-24" /> proyectos
@@ -360,7 +464,7 @@ export default function Programacion() {
               );
             })()}
             {sinHora.length > 0 && (
-              <p className="text-sm text-inalde-red mb-3">La jornada {sinHora.join(' y ')} no tiene hora de inicio. Ponla en la barra de la jornada antes de repartir.</p>
+              <p className="text-sm text-inalde-red mb-3">La jornada {sinHora.join(' y ')} no tiene hora de inicio. Ponla en «Opciones de la programación», en la pestaña de esa jornada, antes de repartir.</p>
             )}
             <div className="flex gap-2">
               <button onClick={repartir} disabled={!cuadra || sinHora.length > 0 || repartiendo} className="btn-inalde-primary !py-2 !px-4 !text-xs disabled:opacity-50">{repartiendo ? 'Repartiendo…' : 'Repartir'}</button>
@@ -372,21 +476,52 @@ export default function Programacion() {
 
       {!cohorte ? null : loading ? <p className="text-inalde-gray">Cargando…</p> : (
         <>
+          {/* Todas las opciones en un solo panel, fuera de las tablas (antes
+              las de cada jornada iban dentro de su barra negra). Se puede
+              sacar a una ventana flotante para cambiar una opción y ver la
+              tabla recalcularse debajo sin ir y volver con el scroll. */}
           {config && !publicada && (
-            <div className="bg-inalde-gray-bg/40 border border-inalde-gray-light rounded p-3 mb-5">
-              <h3 className="text-xs font-primary font-semibold uppercase tracking-wider text-inalde-gray mb-2">Tiempos del evento (minutos)</h3>
-              <div className="flex flex-wrap gap-3 items-end">
-                {([['evento_nombre', 'Evento', 'text'], ['expo', 'Exposición', 'n'], ['trans', 'Transición', 'n'], ['foto', 'Foto inicial', 'n'], ['cierre', 'Cierre', 'n'], ['break_min', 'Break entre bloques', 'n'], ['bloque', 'Presentaciones por bloque', 'n']] as const).map(([k, l, t]) => (
-                  <div key={k}>
-                    <label className="block text-[10px] uppercase text-inalde-gray mb-1">{l}</label>
-                    <input type={t === 'text' ? 'text' : 'number'} value={(config as any)[k]}
-                      onChange={(e) => setConfig({ ...config, [k]: t === 'text' ? e.target.value : Number(e.target.value) })}
-                      className={`input-inalde !py-1.5 ${t === 'text' ? 'w-32' : 'w-20'}`} />
+            <VentanaFlotante titulo="Opciones de la programación" clave="naves.programacion.opciones">
+              {(flotante) => (
+                <>
+                  {/* Flotando, el aviso de arriba de la página puede quedar
+                      fuera de la vista: se repite aquí, donde se está mirando. */}
+                  {flotante && msg && (
+                    <div role="status" className={`rounded border-l-4 px-3 py-2 text-xs mb-3 whitespace-pre-line ${msg.kind === 'ok' ? 'border-inalde-blue bg-blue-50' : 'border-inalde-red bg-red-50'}`}>{msg.text}</div>
+                  )}
+                  <div role="tablist" aria-label="Qué configurar" className="flex flex-wrap gap-x-1 border-b border-inalde-gray-light mb-4">
+                    {[...jornadas.map((j) => ({ id: j.id, texto: `Jornada ${j.numero}` })), { id: 'evento', texto: 'Tiempos del evento' }].map((p) => (
+                      <button key={p.id} type="button" role="tab" id={`tab-opciones-${p.id}`}
+                        aria-selected={pestanaActiva === p.id} aria-controls="panel-opciones"
+                        onClick={() => setPestana(p.id)}
+                        className={`-mb-px px-3 py-2 font-primary font-semibold text-xs tracking-wider uppercase border-b-2 transition-colors ${pestanaActiva === p.id ? 'border-inalde-red text-inalde-text' : 'border-transparent text-inalde-gray hover:text-inalde-text'}`}>
+                        {p.texto}
+                      </button>
+                    ))}
                   </div>
-                ))}
-                <button onClick={guardarConfig} className="btn-inalde-primary !py-2 !px-4 !text-xs">Guardar</button>
-              </div>
-            </div>
+                  <div role="tabpanel" id="panel-opciones" aria-labelledby={`tab-opciones-${pestanaActiva}`}>
+                    {jornadaActiva ? (
+                      <OpcionesJornada key={jornadaActiva.id} j={jornadaActiva} config={config} onGuardar={(c) => guardarJornada(jornadaActiva, c)} />
+                    ) : (
+                      <>
+                        <p className="text-xs text-inalde-gray mb-3">En minutos. Valen para todas las jornadas de la cohorte.</p>
+                        <div className="flex flex-wrap gap-3 items-end">
+                          {([['evento_nombre', 'Evento', 'text'], ['expo', 'Exposición', 'n'], ['trans', 'Transición', 'n'], ['foto', 'Foto inicial', 'n'], ['cierre', 'Cierre', 'n'], ['break_min', 'Break entre bloques', 'n'], ['bloque', 'Presentaciones por bloque', 'n']] as const).map(([k, l, t]) => (
+                            <div key={k}>
+                              <label htmlFor={`tiempo-${k}`} className="block text-[10px] uppercase text-inalde-gray mb-1">{l}</label>
+                              <input id={`tiempo-${k}`} type={t === 'text' ? 'text' : 'number'} value={(config as any)[k]}
+                                onChange={(e) => setConfig({ ...config, [k]: t === 'text' ? e.target.value : Number(e.target.value) })}
+                                className={`input-inalde !py-1.5 !px-2 !text-sm ${t === 'text' ? '!w-32' : '!w-20'}`} />
+                            </div>
+                          ))}
+                          <button onClick={guardarConfig} className="btn-inalde-primary !py-2 !px-4 !text-xs">Guardar</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </VentanaFlotante>
           )}
 
           {jornadas.length === 0 ? (
@@ -399,55 +534,17 @@ export default function Programacion() {
               <div className="bg-inalde-text text-white rounded-t-[7px] px-4 py-2.5 flex flex-wrap items-center gap-3">
                 <span className="font-primary font-extrabold tracking-widest uppercase text-sm"><span aria-hidden="true">📅 </span>Jornada {j.numero}</span>
                 {/* La fecha no se edita: viene del cronograma (hito 12/13). */}
-                <span className="text-white/70 text-sm capitalize" title={`Del cronograma de la cohorte — hito ${j.numero === 1 ? '12' : '13'}. Para cambiarla, edita la cohorte.`}>
+                <span className="inline-block first-letter:uppercase text-white/70 text-sm" title={`Del cronograma de la cohorte — hito ${j.numero === 1 ? '12' : '13'}. Para cambiarla, edita la cohorte.`}>
                   {j.fecha_legible ?? j.fecha}
                 </span>
-                {publicada ? (
+                {/* La barra es solo el título de la tabla: jornada y fecha. Las
+                    opciones se cambian en «Opciones de la programación». Ya
+                    publicada no hay panel, así que aquí queda el resumen de lo
+                    que se fijó. */}
+                {publicada && (
                   <span className="text-xs text-white/70 ml-auto">
                     {(j.hora_inicio ?? '').slice(0, 5) || '—'}–{(j.hora_fin ?? '').slice(0, 5) || '—'} · {j.foto_inicial ? 'con foto inicial · ' : ''}intro {j.intro_min} min{j.break_jornada ? ` · break ${j.break_jornada_min} min` : ''}{j.almuerzo ? ` · almuerzo ${j.almuerzo_min} min` : ''}
                   </span>
-                ) : (
-                  <>
-                    <label className="text-xs flex items-center gap-1 ml-auto" title="Hora en que arranca la jornada: la primera actividad (foto o introducción). Las presentaciones empiezan después.">
-                      Inicio de la jornada
-                      <input type="time" defaultValue={(j.hora_inicio ?? '').slice(0, 5)}
-                        onBlur={(e) => { if (e.target.value && e.target.value !== (j.hora_inicio ?? '').slice(0, 5)) guardarJornada(j, { hora_inicio: e.target.value }); }}
-                        className="text-inalde-text rounded px-1 py-0.5" />
-                    </label>
-                    {/* El fin no se elige: la jornada termina cuando termina su
-                        última franja. Se muestra calculado para que el admin lo
-                        vea moverse al agregar o quitar proyectos. */}
-                    <span className="text-xs text-white/70" title="La calcula el sistema: la jornada termina al acabar la última franja (el cierre). Cambia sola al agregar o quitar proyectos.">
-                      Termina (calculado) <span className="font-mono text-white">{(j.hora_fin ?? '').slice(0, 5) || '—'}</span>
-                    </span>
-                    <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={j.foto_inicial} onChange={(e) => guardarJornada(j, { foto_inicial: e.target.checked })} /> Foto inicial</label>
-                    <label className="text-xs flex items-center gap-1">Intro <NumeroDiferido valor={j.intro_min} min={0} max={240} onGuardar={(v) => guardarJornada(j, { intro_min: v })} className="w-14 text-inalde-text rounded px-1 py-0.5" /> min</label>
-                    {/* Break y almuerzo son DOS pausas distintas y de cada
-                        jornada: un día se para a almorzar y el otro no, y la
-                        parada no siempre dura lo mismo. Se pueden tener las dos.
-                        Aparte está el break automático de fin de bloque, que es
-                        de la cohorte y dura lo mismo en todas las jornadas. */}
-                    <label className="text-xs flex items-center gap-1" title="Una pausa larga solo para este día, además de los breaks automáticos entre bloques. Reemplaza el break que caiga en ese punto."><input type="checkbox" checked={j.break_jornada} onChange={(e) => guardarJornada(j, { break_jornada: e.target.checked })} /> Pausa adicional</label>
-                    {j.break_jornada && (
-                      <PausaJornada
-                        minutos={j.break_jornada_min} trasSlot={j.break_jornada_tras_slot} slots={j.slots}
-                        onMinutos={(v) => guardarJornada(j, { break_jornada_min: v })}
-                        onTrasSlot={(v) => guardarJornada(j, { break_jornada_tras_slot: v })} />
-                    )}
-                    <label className="text-xs flex items-center gap-1" title="La parada para almorzar de este día. Es independiente de la pausa adicional."><input type="checkbox" checked={j.almuerzo} onChange={(e) => guardarJornada(j, { almuerzo: e.target.checked })} /> Almuerzo</label>
-                    {j.almuerzo && (
-                      <PausaJornada
-                        minutos={j.almuerzo_min} trasSlot={j.almuerzo_tras_slot} slots={j.slots}
-                        onMinutos={(v) => guardarJornada(j, { almuerzo_min: v })}
-                        onTrasSlot={(v) => guardarJornada(j, { almuerzo_tras_slot: v })} />
-                    )}
-                    {config && (
-                      <span className="basis-full text-[11px] text-white/60">
-                        Cada {config.bloque} presentaciones hay un break de {config.break_min} min (se cambia en «Tiempos del evento»).
-                        La pausa adicional y el almuerzo reemplazan el break que caiga en ese punto; si los dos caen en el mismo sitio, queda solo el almuerzo.
-                      </span>
-                    )}
-                  </>
                 )}
               </div>
               {/* Desde 1280 px la tabla cabe entera: sin caja propia (la página
@@ -569,7 +666,7 @@ export default function Programacion() {
                         dejar al admin mirando guiones. */}
                     {!j.hora_inicio && (
                       <tr><td colSpan={8} className="px-4 py-3 text-xs text-inalde-text bg-inalde-gray-bg border-l-4 border-inalde-red">
-                        Esta jornada <strong>no tiene hora de inicio</strong>, así que no se pueden calcular los horarios. Ponle la hora de inicio arriba y se recalculan solos.
+                        Esta jornada <strong>no tiene hora de inicio</strong>, así que no se pueden calcular los horarios. Ponle la hora de inicio en «Opciones de la programación» → Jornada {j.numero} y se recalculan solos.
                       </td></tr>
                     )}
                     {/* El almuerzo parte el día EN DOS: con menos de dos
