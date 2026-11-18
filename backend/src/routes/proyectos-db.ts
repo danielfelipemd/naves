@@ -351,7 +351,13 @@ function revisarPost(post: string, nombreProyecto = ''): string[] {
   const problemas: string[] = [];
   // Dígitos sueltos; los pegados a letras son parte de una marca o sigla (B2B, Ready2).
   const digitos = texto.match(/(?<![\p{L}\d])\d[\d.,]*(?![\p{L}\d])/gu);
-  if (digitos) problemas.push(`Tiene cifras en dígitos (${[...new Set(digitos)].join(', ')}). Regla 10: cero cifras de cualquier tipo; reescribe esas frases sin ellas.`);
+  if (digitos) {
+    // Se le citan a la IA las frases exactas con cifras: con solo la lista de números
+    // (p. ej. Lusatech, un One Pager lleno de datos) volvía a meterlas.
+    const frases = post.split('#SoyINALDE')[0].split(/(?<=[.!?])\s+/)
+      .filter((f) => /(?<![\p{L}\d])\d/u.test(sinNombreProyecto(f, nombreProyecto)));
+    problemas.push(`Tiene cifras en dígitos (${[...new Set(digitos)].join(', ')}). Regla 10: cero cifras de cualquier tipo. Reescribe estas frases SIN ningún número (di la idea sin cantidades, o cambia el hecho por otro del one pager que no lleve cifras): ${frases.map((f) => `«${f.trim()}»`).join(' ')}`);
+  }
   const letras = texto.match(NUMEROS_EN_LETRAS);
   if (letras) problemas.push(`Tiene números o cantidades escritos en letras (${[...new Set(letras.map((w) => w.toLowerCase()))].join(', ')}). Regla 10: cero cifras, tampoco en letras ni ordinales; reescribe esas frases.`);
   const cond = (texto.match(/(?<!\p{L})\p{L}+(?:aría|ería|iría)n?(?!\p{L})/giu) ?? [])
@@ -366,7 +372,7 @@ function revisarPost(post: string, nombreProyecto = ''): string[] {
   return problemas;
 }
 
-async function generarUno(proyectoId: string): Promise<{ resumen: string; linkedin: string; sha256: string }> {
+export async function generarUno(proyectoId: string): Promise<{ resumen: string; linkedin: string; sha256: string }> {
   const f = await fuenteProyecto(proyectoId);
   if (!f) throw new Error('PROYECTO_NO_ENCONTRADO');
 
@@ -432,13 +438,13 @@ async function generarUno(proyectoId: string): Promise<{ resumen: string; linked
   ];
   const base = partesInstruccion.filter((l) => l !== '').join('\n');
 
-  // Hasta 3 intentos: si la revisión automática encuentra cifras, condicional,
+  // Hasta 4 intentos: si la revisión automática encuentra cifras, condicional,
   // preguntas o un largo fuera de rango, se le devuelve a la IA para corregir.
   let instruccion = base;
   let resumen = '';
   let linkedin = '';
   let problemas: string[] = [];
-  for (let intento = 0; intento < 3; intento++) {
+  for (let intento = 0; intento < 4; intento++) {
     const r = await generarContenidoOnePager({ system, instruccion, documento: doc, maxTokens: 1500 });
     resumen = r.resumen; linkedin = r.linkedin;
     if (!resumen || !linkedin) throw new Error('IA_RESPUESTA_INCOMPLETA');
