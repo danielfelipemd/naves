@@ -395,8 +395,8 @@ export default function Programacion() {
               Ponlas en <strong>Cohortes → Editar</strong>, en los hitos <strong>12 (Primera jornada presentaciones)</strong> y <strong>13 (Segunda jornada presentaciones)</strong>, y aparecerán aquí solas.
             </p>
           ) : jornadas.map((j) => (
-            <div key={j.id} className="border border-inalde-gray-light rounded-lg mb-5 overflow-hidden">
-              <div className="bg-inalde-text text-white px-4 py-2.5 flex flex-wrap items-center gap-3">
+            <div key={j.id} className="border border-inalde-gray-light rounded-lg mb-5 overflow-hidden xl:overflow-visible">
+              <div className="bg-inalde-text text-white rounded-t-[7px] px-4 py-2.5 flex flex-wrap items-center gap-3">
                 <span className="font-primary font-extrabold tracking-widest uppercase text-sm"><span aria-hidden="true">📅 </span>Jornada {j.numero}</span>
                 {/* La fecha no se edita: viene del cronograma (hito 12/13). */}
                 <span className="text-white/70 text-sm capitalize" title={`Del cronograma de la cohorte — hito ${j.numero === 1 ? '12' : '13'}. Para cambiarla, edita la cohorte.`}>
@@ -450,17 +450,26 @@ export default function Programacion() {
                   </>
                 )}
               </div>
-              <div className="tabla-scroll">
+              {/* Desde 1280 px la tabla cabe entera: sin caja propia (la página
+                  hace el scroll y los títulos se pegan bajo la cabecera). Por
+                  debajo, caja con scroll lateral como siempre. */}
+              <div className="tabla-scroll tabla-en-pagina xl:rounded-none xl:border-0">
                 {/* Los anchos se declaran UNA vez en el colgroup y el layout es
                     fijo: con table-auto el navegador reparte el sobrante a su
-                    manera y la cabecera deja de caer sobre su columna. */}
-                <table className="w-full min-w-[1280px] table-fixed border-collapse bg-white">
+                    manera y la cabecera deja de caer sobre su columna.
+                    Antes eran 8 anchos en px (1280 en total) y la caja del panel
+                    medía 1100: en cualquier pantalla quedaban 248 px escondidos y
+                    las filas medían ~409 px de alto. Ahora las columnas cortas
+                    tienen ancho fijo y Resumen y Post LinkedIn (sin ancho) se
+                    reparten lo que sobre: a 1845 px pasan de 290/250 a ~450 cada
+                    una. Por debajo de xl se conserva el mínimo de 1280. */}
+                <table className="w-full min-w-[1280px] xl:min-w-0 table-fixed border-collapse bg-white">
                   {/* Sin columna de logo: la miniatura repetía lo que ya abre el
-                      botón "Logo" de Archivos, y sus 95 px se los reparten
-                      Autores y Resumen, que sí necesitan ancho para leerse. */}
+                      botón "Logo" de Archivos. */}
                   <colgroup>
-                    <col className="w-[70px]" /><col className="w-[130px]" /><col className="w-[190px]" />
-                    <col className="w-[150px]" /><col className="w-[290px]" /><col className="w-[250px]" />
+                    {/* Slot: 104 px para que quepa el selector de día fijo (84 px). */}
+                    <col className="w-[104px]" /><col className="w-[10%]" /><col className="w-[12%]" />
+                    <col className="w-[140px]" /><col /><col />
                     <col className="w-[120px]" /><col className="w-[80px]" />
                   </colgroup>
                   {/* El encabezado de columnas solo tiene sentido si la jornada
@@ -488,7 +497,7 @@ export default function Programacion() {
                       </tr>
                     ) : (
                       <tr key={f.s.proyecto_id} className="border-b border-inalde-gray-light align-top">
-                        <td className="text-center px-3 py-2.5">
+                        <td className="text-center px-2 py-2.5">
                           <strong className="font-primary text-inalde-text">{f.s.slot}</strong>
                           <span className="block text-[0.7rem] text-inalde-gray mt-0.5 font-mono">{f.s.hora_inicio}–{f.s.hora_fin}</span>
                           {publicada ? (

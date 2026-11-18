@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { NotificationBell } from './NotificationBell';
 import { useAuth } from '../../auth/store';
@@ -79,6 +80,21 @@ export function Header() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const crumb = CRUMBS[pathname];
+  const ref = useRef<HTMLElement>(null);
+
+  // La cabecera es fija y su alto cambia con el ancho (la miga de pan baja de
+  // línea, el logo se achica en celular). Se publica en --alto-cabecera para
+  // que lo que se pega arriba al bajar —p. ej. los títulos de columna de la
+  // programación— quede justo debajo y no tapado. Medido, no supuesto.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fijar = () => document.documentElement.style.setProperty('--alto-cabecera', `${el.offsetHeight}px`);
+    fijar();
+    const ro = new ResizeObserver(fijar);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Botón "atrás" global: regla de navegación del sistema. Aparece en toda
   // pantalla salvo las "raíces" sin retroceso: el menú principal (destino de
@@ -97,7 +113,7 @@ export function Header() {
   }
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-white border-b border-inalde-gray-light shadow-sm">
+    <header ref={ref} className="fixed top-0 inset-x-0 z-50 bg-white border-b border-inalde-gray-light shadow-sm">
       <div className="bg-inalde-black px-4 sm:px-8 py-2">
         <p className="text-right text-white font-primary font-medium text-[10px] sm:text-xs tracking-wider uppercase">
           INALDE Business School

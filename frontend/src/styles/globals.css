@@ -107,6 +107,22 @@
     top: 0;
     z-index: 5;
   }
+  /* Variante para tablas que caben a lo ancho desde 1280 px (la programación).
+     Ahí la caja de 72vh sobraba: dos barras de scroll, y con filas altas solo
+     se veía proyecto y medio. Desde xl desplaza la página y los títulos de
+     columna se pegan bajo la cabecera fija (--alto-cabecera lo mide Header).
+     Por debajo de 1280 sigue siendo .tabla-scroll normal: la tabla no cabe y
+     hace falta el scroll lateral. Ojo: ningún ancestro puede tener overflow
+     distinto de visible, o el sticky se pega a ese ancestro y no a la página. */
+  @media (min-width: 1280px) {
+    .tabla-scroll.tabla-en-pagina {
+      overflow: visible;
+      max-height: none;
+    }
+    .tabla-scroll.tabla-en-pagina thead th {
+      top: var(--alto-cabecera, 0px);
+    }
+  }
 }
 
 @layer utilities {
