@@ -12,6 +12,7 @@ import { sendEmail } from '../services/email.js';
 import { decryptPII } from '../auth/crypto.js';
 import { config } from '../config.js';
 import { esCalificacion } from '../services/actas/calificacion.js';
+import { enviarCopiaActaFirmada, leerCopias, guardarCopias, normalizarCopias } from '../services/actas/copia-firmadas.js';
 
 // =====================================================================
 // Actas de Entrega de Trabajo de Grado.
@@ -293,6 +294,8 @@ router.post('/lote/:cohorteId/firmar', ...soloAdmin, async (req: AuthenticatedRe
       continue;
     }
     firmadas++;
+    // Acta recién completa: copia a los correos configurados (en segundo plano).
+    if (nuevoEstado === 'completa' && a.estado !== 'completa') void enviarCopiaActaFirmada(a.id);
   }
   // El conteo solo refleja lo realmente guardado; si algo falló se dice.
   if (fallidas.length > 0) {
@@ -869,6 +872,8 @@ router.post('/firmar/:token', async (req, res) => {
       continue;
     }
     firmadas++;
+    // Acta recién completa: copia a los correos configurados (en segundo plano).
+    if (nuevoEstado === 'completa' && a.estado !== 'completa') void enviarCopiaActaFirmada(a.id);
   }
 
   // El enlace solo se quema si TODAS las actas quedaron guardadas. Las que ya
@@ -1039,6 +1044,7 @@ router.post('/mi-acta/firmar', ...soloParticipante, async (req: AuthenticatedReq
     console.error('[actas.mi-acta] no se pudo guardar la firma del participante', a.id, error.message);
     return res.status(500).json({ error: 'FIRMA_NO_GUARDADA', mensaje: 'No pudimos registrar tu firma. Inténtalo de nuevo en unos minutos.' });
   }
+  if (nuevoEstado === 'completa' && a.estado !== 'completa') void enviarCopiaActaFirmada(a.id);
 
   res.json({ ok: true, estado: nuevoEstado });
 });
@@ -1047,6 +1053,22 @@ router.post('/mi-acta/firmar', ...soloParticipante, async (req: AuthenticatedReq
 // Se ofrece elegir en vez de teclear el nombre: escribirlo a mano es como se
 // llegó a tener "Álvaro Moreno García" en la cohorte y "Álvaro José Moreno
 // García" en la tabla, que son la misma persona con dos textos distintos.
+// GET/PUT /api/actas/config/copias — a quién le llega la copia en PDF de cada
+// acta cuando queda con todas sus firmas, por modalidad. Lo configura el super
+// admin en el panel de Actas (sql/62).
+router.get('/config/copias', ...soloAdmin, async (_req: AuthenticatedRequest, res) => {
+  res.json(await leerCopias());
+});
+
+router.put('/config/copias', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const r = normalizarCopias(req.body);
+  if (!r.ok) return res.status(400).json({ error: 'CORREO_INVALIDO', mensaje: r.mensaje });
+  const por = req.user?.sub ?? 'super_admin';
+  const { error } = await guardarCopias(r.valor, String(por));
+  if (error) return res.status(500).json({ error: 'NO_GUARDADO', mensaje: error });
+  res.json(r.valor);
+});
+
 router.get('/candidatos-director-mba', ...soloAdmin, async (_req: AuthenticatedRequest, res) => {
   const salida: Array<{ nombre: string; email: string | null; origen: string }> = [];
 

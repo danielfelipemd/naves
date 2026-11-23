@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import { formatBackendError } from '../../../lib/errors';
 import { ThOrden, useOrdenTabla } from '../../../lib/useOrdenTabla';
+import CopiasFirmadas from './CopiasFirmadas';
 
 // Actas de Grado — panel administrativo (dentro de /admin, sin Header propio).
 // Una acta por participante (Formato Acta Proyecto de Grado MBA v3). El panel
@@ -487,6 +488,9 @@ export default function ActasPanel() {
               )}
             </div>
           </div>
+
+          {/* A quién le llega la copia de cada acta firmada (config general) */}
+          <CopiasFirmadas />
 
           {/* Avance por firmante */}
           {data.firmantes.length > 0 && (
