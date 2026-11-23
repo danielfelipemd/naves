@@ -2,17 +2,37 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import { formatBackendError } from '../../../lib/errors';
+import { confirmar } from '../../../components/inalde/Dialogos';
 
 // Actas de Grado — vista fiel del Acta v3 (dentro de /admin, sin Header propio).
 // Renderiza el Formato de Acta Proyecto de Grado MBA (versión 3) con la cadena de
 // firmas, la nota y las observaciones. Permite editar observaciones y fijar la nota.
+//
+// El super admin manda sobre el acta: pone él los datos que falten (jurados,
+// fecha, proyecto, director, calificación del Caso), la abre antes de tiempo
+// («Generar ahora») y la manda a firma cuando quiera («Enviar a firma»).
 
 type Modalidad = 'business_plan' | 'caso' | 'proyecto_investigacion';
 type Nota = 'aceptado' | 'rechazado' | null;
+const ESCALA = ['A', 'B+', 'B', 'B-', 'C'] as const;
+type Calificacion = (typeof ESCALA)[number];
 
 interface Firma { rol: string; nombre: string; estado: string; fecha?: string | null; }
 type Jurado = string | { nombre: string; email?: string };
+interface Ajuste {
+  nombre_proyecto?: string | null;
+  fecha_sustentacion?: string | null;
+  director_nombre?: string | null;
+  director_email?: string | null;
+  jurados?: { nombre: string; email?: string | null }[] | null;
+  calificacion?: Calificacion | null;
+  forzar?: boolean;
+}
 interface Acta {
+  id: number;
+  equipo_id: string | null;
+  calificacion: Calificacion | null;
+  ajuste_admin: Ajuste | null;
   cohorte_id: string;
   nombre_participante: string;
   nombre_proyecto: string;
@@ -38,6 +58,14 @@ const MODALIDADES: { key: Modalidad; label: string }[] = [
 
 function nombreJurado(j: Jurado): string {
   return typeof j === 'string' ? j : j.nombre;
+}
+
+/** AAAA-MM-DD de una fecha guardada, en hora de Bogotá, para un <input type="date">. */
+function aInputFecha(f?: string | null): string {
+  if (!f) return '';
+  const d = new Date(f);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
 }
 
 function fmtFecha(f?: string | null): string {
@@ -72,6 +100,153 @@ function BloqueFirma({ titulo, nombre, cargo, firma }: { titulo: string; nombre?
   );
 }
 
+interface JuradoForm { nombre: string; email: string }
+
+/**
+ * Lo que el super admin pone a mano. Se guarda como ajuste del acta y manda
+ * sobre el cronograma y el microformulario del director.
+ */
+function EditarDatos({ acta, onGuardado, onCancelar }: { acta: Acta; onGuardado: (msg: string) => void; onCancelar: () => void }) {
+  const esBP = acta.modalidad === 'business_plan';
+  const esCaso = acta.modalidad === 'caso';
+  const [proyecto, setProyecto] = useState(acta.nombre_proyecto ?? '');
+  const [fecha, setFecha] = useState(aInputFecha(acta.fecha_sustentacion));
+  const [director, setDirector] = useState(acta.director_nombre ?? '');
+  const [directorEmail, setDirectorEmail] = useState(acta.ajuste_admin?.director_email ?? '');
+  const [jurados, setJurados] = useState<JuradoForm[]>(() => {
+    const base = acta.jurados.map((j) => (typeof j === 'string' ? { nombre: j, email: '' } : { nombre: j.nombre, email: j.email ?? '' }));
+    return base.length ? base : [{ nombre: '', email: '' }, { nombre: '', email: '' }];
+  });
+  const [calificacion, setCalificacion] = useState<Calificacion | ''>(acta.calificacion ?? '');
+  // Un Caso o un PI sustenta en equipo: lo normal es aplicar lo mismo a todos.
+  const [aplicarEquipo, setAplicarEquipo] = useState(!esBP && !!acta.equipo_id);
+  const [guardando, setGuardando] = useState(false);
+  const [err, setErr] = useState('');
+
+  const cambiarJurado = (i: number, campo: keyof JuradoForm, v: string) =>
+    setJurados((js) => js.map((j, k) => (k === i ? { ...j, [campo]: v } : j)));
+
+  async function guardar() {
+    setGuardando(true); setErr('');
+    const cuerpo: Record<string, unknown> = {
+      nombre_proyecto: proyecto,
+      fecha_sustentacion: fecha,
+      director_nombre: director,
+      aplicar_equipo: aplicarEquipo,
+    };
+    if (!esBP) {
+      cuerpo.director_email = directorEmail;
+      cuerpo.jurados = jurados.filter((j) => j.nombre.trim());
+    }
+    if (esCaso) cuerpo.calificacion = calificacion || null;
+    try {
+      let r;
+      try {
+        r = await api.post(`/actas/${acta.id}/ajustes`, cuerpo);
+      } catch (e: any) {
+        const d = e?.response?.data;
+        if (d?.error !== 'TIENE_FIRMAS') throw e;
+        // Cambiar un acta ya firmada deja esas firmas avalando un texto que
+        // nadie firmó: se borran y se vuelve a firmar. Se pregunta antes.
+        const ok = await confirmar({
+          titulo: 'El acta ya tiene firmas',
+          mensaje: `${d.mensaje}\n\n${(d.con_firmas ?? []).join(', ')}`,
+          aceptar: 'Cambiar y volver a firmar',
+          tono: 'peligro',
+        });
+        if (!ok) { setGuardando(false); return; }
+        r = await api.post(`/actas/${acta.id}/ajustes`, { ...cuerpo, reiniciar_firmas: true });
+      }
+      const actas = (r.data as any)?.actas ?? [];
+      const pendientes = actas.filter((a: any) => a.estado === 'faltan_datos');
+      const reinicio = (r.data as any)?.firmas_reiniciadas ? ' Las firmas se borraron: hay que volver a enviarla.' : '';
+      onGuardado(pendientes.length
+        ? `Guardado en ${actas.length} acta${actas.length === 1 ? '' : 's'}. Aún falta: ${[...new Set(pendientes.flatMap((a: any) => a.faltan ?? []))].join(', ')}.${reinicio}`
+        : `Guardado en ${actas.length} acta${actas.length === 1 ? '' : 's'}. Ya se puede enviar a firma.${reinicio}`);
+    } catch (e) {
+      setErr(formatBackendError(e));
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  const etiqueta = 'block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1';
+  return (
+    <div className="card-inalde p-5 max-w-3xl mx-auto mb-6">
+      <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-1">Editar datos del acta</h2>
+      <p className="text-xs text-inalde-gray mb-4">
+        Lo que pongas aquí manda sobre el cronograma y sobre el formulario del director.
+      </p>
+      {err && <div className="mb-4 rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm whitespace-pre-wrap">{err}</div>}
+
+      <div className="grid sm:grid-cols-2 gap-3 mb-3">
+        <div className="sm:col-span-2">
+          <label className={etiqueta}>Nombre del proyecto</label>
+          <input className="input-inalde !py-2 !text-sm" value={proyecto} onChange={(e) => setProyecto(e.target.value)} />
+        </div>
+        <div>
+          <label className={etiqueta}>Fecha de sustentación</label>
+          <input type="date" className="input-inalde !py-2 !text-sm" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        </div>
+        <div>
+          <label className={etiqueta}>{esBP ? 'Profesor NAVES' : 'Director del proyecto'}</label>
+          <input className="input-inalde !py-2 !text-sm" value={director} onChange={(e) => setDirector(e.target.value)} />
+        </div>
+        {!esBP && (
+          <div className="sm:col-span-2">
+            <label className={etiqueta}>Correo del director (para su enlace de firma)</label>
+            <input type="email" className="input-inalde !py-2 !text-sm" value={directorEmail} onChange={(e) => setDirectorEmail(e.target.value)}
+              placeholder="Si lo dejas vacío se usa el de su ficha de director" />
+          </div>
+        )}
+      </div>
+
+      {!esBP && (
+        <div className="mb-4">
+          <label className={etiqueta}>Jurados</label>
+          <div className="flex flex-col gap-2">
+            {jurados.map((j, i) => (
+              <div key={i} className="flex flex-wrap gap-2 items-center">
+                <input className="input-inalde !py-2 !text-sm flex-1 min-w-[160px]" placeholder={`Jurado ${i + 1} — nombre`} value={j.nombre} onChange={(e) => cambiarJurado(i, 'nombre', e.target.value)} />
+                <input type="email" className="input-inalde !py-2 !text-sm flex-1 min-w-[160px]" placeholder="correo" value={j.email} onChange={(e) => cambiarJurado(i, 'email', e.target.value)} />
+                <button type="button" className="text-xs text-inalde-gray hover:text-inalde-red" onClick={() => setJurados((js) => js.filter((_, k) => k !== i))}>Quitar</button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="btn-inalde-ghost mt-2" onClick={() => setJurados((js) => [...js, { nombre: '', email: '' }])}>+ Agregar jurado</button>
+          <p className="text-[11px] text-inalde-gray mt-1">El correo es a donde le llega su enlace para firmar.</p>
+        </div>
+      )}
+
+      {esCaso && (
+        <div className="mb-4">
+          <label className={etiqueta}>Calificación</label>
+          <div className="flex flex-wrap gap-2">
+            {ESCALA.map((c) => (
+              <button key={c} type="button" onClick={() => setCalificacion(c)}
+                className={`min-w-[52px] px-3 py-2 rounded border-2 font-primary font-bold text-sm ${calificacion === c ? 'border-inalde-red bg-red-50 text-inalde-red' : 'border-inalde-gray-light text-inalde-text'}`}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!!acta.equipo_id && (
+        <label className="flex items-center gap-2 text-sm text-inalde-text mb-4">
+          <input type="checkbox" checked={aplicarEquipo} onChange={(e) => setAplicarEquipo(e.target.checked)} />
+          Aplicar a todas las actas del equipo
+        </label>
+      )}
+
+      <div className="flex flex-wrap gap-3">
+        <button type="button" className="btn-inalde-primary" onClick={guardar} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar datos'}</button>
+        <button type="button" className="btn-inalde-ghost" onClick={onCancelar} disabled={guardando}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
 export default function Acta() {
   const { id } = useParams<{ id: string }>();
   const [acta, setActa] = useState<Acta | null>(null);
@@ -82,6 +257,9 @@ export default function Acta() {
   const [obs, setObs] = useState('');
   const [guardandoObs, setGuardandoObs] = useState(false);
   const [guardandoNota, setGuardandoNota] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [accion, setAccion] = useState<'' | 'generar' | 'enviar'>('');
+  const [enlaces, setEnlaces] = useState<any[] | null>(null);
 
   const cargar = useCallback(async () => {
     if (!id) return;
@@ -149,6 +327,60 @@ export default function Acta() {
     }
   }
 
+  async function guardarCalificacion(c: Calificacion) {
+    if (!id) return;
+    setGuardandoNota(true); setErr(''); setOkMsg('');
+    try {
+      await api.post(`/actas/${id}/ajustes`, { calificacion: c });
+      setOkMsg(`Calificación ${c} registrada.`);
+      await cargar();
+    } catch (e: any) {
+      if (e?.response?.data?.error === 'TIENE_FIRMAS') {
+        setErr('El acta ya tiene firmas. Para cambiar la calificación usa «Editar datos»: te pedirá confirmar que se vuelva a firmar.');
+      } else setErr(formatBackendError(e));
+    } finally {
+      setGuardandoNota(false);
+    }
+  }
+
+  async function generarAhora() {
+    if (!id) return;
+    setAccion('generar'); setErr(''); setOkMsg('');
+    try {
+      await api.post(`/actas/${id}/generar`);
+      setOkMsg('Acta generada. Ya se puede enviar a firma.');
+    } catch (e) {
+      setErr(formatBackendError(e));
+    } finally {
+      setAccion('');
+      await cargar();
+    }
+  }
+
+  async function enviarAFirma() {
+    if (!id || !acta) return;
+    const cierre = acta.estado === 'lista_para_cierre';
+    if (!(await confirmar({
+      titulo: 'Enviar a firma',
+      mensaje: cierre
+        ? 'Se enviará el enlace de firma del cierre al Director de Cohorte.'
+        : 'Se enviará a cada firmante pendiente de esta acta (profesor o director y jurados) un correo con su enlace para firmar. El participante la firma desde su sesión.',
+      aceptar: 'Enviar',
+    }))) return;
+    setAccion('enviar'); setErr(''); setOkMsg(''); setEnlaces(null);
+    try {
+      const r = await api.post(`/actas/${id}/enviar`, {});
+      const lista = (r.data as any)?.enlaces ?? [];
+      setEnlaces(lista);
+      setOkMsg(lista.length ? 'Acta enviada a firma.' : 'Acta enviada. No había firmantes pendientes a quién escribir en este paso.');
+    } catch (e) {
+      setErr(formatBackendError(e));
+    } finally {
+      setAccion('');
+      await cargar();
+    }
+  }
+
   if (loading) return <p className="text-inalde-gray text-sm">Cargando acta…</p>;
 
   if (!acta) {
@@ -161,6 +393,9 @@ export default function Acta() {
   }
 
   const esBP = acta.modalidad === 'business_plan';
+  const esCaso = acta.modalidad === 'caso';
+  const cerrada = ['anulada', 'archivada'].includes(acta.estado);
+  const puedeEnviar = !cerrada && !['faltan_datos', 'completa'].includes(acta.estado);
 
   return (
     <>
@@ -173,6 +408,46 @@ export default function Acta() {
 
       {err && <div className="mb-6 rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm whitespace-pre-wrap">{err}</div>}
       {okMsg && <div className="mb-6 rounded border-l-4 border-green-600 bg-green-50 px-4 py-3 text-sm text-green-800">{okMsg}</div>}
+
+      {/* Acciones del super admin sobre ESTA acta */}
+      {!cerrada && (
+        <div className="max-w-3xl mx-auto mb-6 flex flex-wrap gap-3">
+          <button type="button" className="btn-inalde-secondary" onClick={() => setEditando((v) => !v)} disabled={!!accion}>
+            {editando ? 'Cerrar edición' : '✏️ Editar datos'}
+          </button>
+          {acta.estado === 'faltan_datos' && (
+            <button type="button" className="btn-inalde-secondary" onClick={() => { void generarAhora(); }} disabled={!!accion}>
+              {accion === 'generar' ? 'Generando…' : 'Generar ahora'}
+            </button>
+          )}
+          {puedeEnviar && (
+            <button type="button" className="btn-inalde-primary" onClick={() => { void enviarAFirma(); }} disabled={!!accion}>
+              {accion === 'enviar' ? 'Enviando…' : '✉️ Enviar a firma'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {enlaces && enlaces.length > 0 && (
+        <div className="card-inalde p-4 max-w-3xl mx-auto mb-6">
+          {enlaces.map((e, i) => (
+            <div key={i} className="text-xs flex items-baseline justify-between gap-2">
+              <span className="truncate"><strong>{e.nombre}</strong> <span className="text-inalde-gray">· {e.rol}</span></span>
+              <span className={`whitespace-nowrap ${e.correo === 'enviado' ? 'text-green-700' : 'text-inalde-red'}`}>
+                {e.correo === 'enviado' ? '✓ correo enviado' : (e.email ? `no enviado (${e.correo ?? 'error'})` : 'sin correo: ponlo en «Editar datos»')}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editando && (
+        <EditarDatos
+          acta={acta}
+          onCancelar={() => setEditando(false)}
+          onGuardado={(msg) => { setEditando(false); setOkMsg(msg); void cargar(); }}
+        />
+      )}
 
       {/* Hoja del acta v3 */}
       <div className="bg-white border-2 border-inalde-gray-light rounded-lg shadow-inalde-card max-w-3xl mx-auto">
@@ -265,8 +540,22 @@ export default function Acta() {
 
           {/* Nota */}
           <div className="mb-6">
-            <p className="text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Nota / resultado</p>
-            {acta.nota ? (
+            <p className="text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">{esCaso ? 'Calificación' : 'Nota / resultado'}</p>
+            {esCaso ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {ESCALA.map((c) => (
+                  <button key={c} type="button" onClick={() => { void guardarCalificacion(c); }} disabled={guardandoNota || cerrada}
+                    className={`min-w-[48px] px-3 py-1.5 rounded border-2 font-primary font-bold text-sm ${acta.calificacion === c ? 'border-inalde-red bg-red-50 text-inalde-red' : 'border-inalde-gray-light text-inalde-text hover:border-inalde-gray'}`}>
+                    {c}
+                  </button>
+                ))}
+                <span className="text-xs text-inalde-gray">
+                  {acta.calificacion
+                    ? (acta.nota === 'aceptado' ? 'Aprobado' : 'No aprobado')
+                    : acta.nota ? `Registrado antes de la escala: ${acta.nota}` : 'Selecciona la calificación.'}
+                </span>
+              </div>
+            ) : acta.nota ? (
               <span className={`inline-block text-sm font-primary font-bold uppercase tracking-wider px-3 py-1 rounded ${acta.nota === 'aceptado' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-inalde-red'}`}>
                 {acta.nota === 'aceptado' ? 'Aceptado' : 'Rechazado'}
               </span>

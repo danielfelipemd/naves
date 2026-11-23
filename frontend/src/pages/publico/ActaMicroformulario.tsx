@@ -6,7 +6,10 @@ import { api } from '../../lib/api';
 // Caso / Proyecto de Investigación registre la fecha de sustentación, los jurados
 // y el resultado. El backend valida el token. Header INALDE simple sin campana.
 
-interface Data { director_nombre: string; proyecto: string; sugeridos_jurados: string[]; }
+interface Data { director_nombre: string; proyecto: string; modalidad?: string | null; sugeridos_jurados: string[]; }
+
+// El Caso se califica con esta escala; el Proyecto de Investigación, con aceptado/rechazado.
+const ESCALA = ['A', 'B+', 'B', 'B-', 'C'] as const;
 interface JuradoInput { nombre: string; email: string; }
 
 const VACIO: JuradoInput = { nombre: '', email: '' };
@@ -20,6 +23,7 @@ export default function ActaMicroformulario() {
   const [fecha, setFecha] = useState('');
   const [jurados, setJurados] = useState<JuradoInput[]>([{ ...VACIO }, { ...VACIO }, { ...VACIO }]);
   const [nota, setNota] = useState<'aceptado' | 'rechazado' | ''>('');
+  const [calificacion, setCalificacion] = useState<string>('');
   const [enviando, setEnviando] = useState(false);
   const [errorEnvio, setErrorEnvio] = useState('');
   const [exito, setExito] = useState(false);
@@ -49,7 +53,8 @@ export default function ActaMicroformulario() {
   const juradosValidos =
     jurados[0].nombre.trim() && jurados[0].email.trim() &&
     jurados[1].nombre.trim() && jurados[1].email.trim();
-  const formularioValido = !!fecha && !!juradosValidos && !!nota;
+  const esCaso = data?.modalidad === 'caso';
+  const formularioValido = !!fecha && !!juradosValidos && (esCaso ? !!calificacion : !!nota);
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -61,7 +66,7 @@ export default function ActaMicroformulario() {
         jurados: jurados
           .filter((j) => j.nombre.trim())
           .map((j) => ({ nombre: j.nombre.trim(), email: j.email.trim() })),
-        nota,
+        ...(esCaso ? { calificacion } : { nota }),
       };
       await api.post(`/actas/micro/${encodeURIComponent(token)}`, payload);
       setExito(true);
@@ -164,7 +169,26 @@ export default function ActaMicroformulario() {
                 ))}
               </div>
 
-              {/* Resultado */}
+              {/* Resultado: calificación en el Caso, aceptado/rechazado en el PI */}
+              {esCaso ? (
+              <div>
+                <label className="block text-[0.7rem] uppercase tracking-wider font-semibold text-inalde-gray mb-2">Calificación *</label>
+                <div className="flex gap-2">
+                  {ESCALA.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCalificacion(c)}
+                      className={`flex-1 rounded border-2 px-2 py-3 font-primary font-bold text-sm transition-colors ${
+                        calificacion === c ? 'border-inalde-red bg-red-50 text-inalde-red' : 'border-inalde-gray-light text-inalde-gray hover:border-inalde-blue'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              ) : (
               <div>
                 <label className="block text-[0.7rem] uppercase tracking-wider font-semibold text-inalde-gray mb-2">Resultado *</label>
                 <div className="flex gap-3">
@@ -184,6 +208,7 @@ export default function ActaMicroformulario() {
                   ))}
                 </div>
               </div>
+              )}
 
               {errorEnvio && <div className="rounded border-l-4 border-inalde-red bg-red-50 px-4 py-3 text-sm text-inalde-text">{errorEnvio}</div>}
 

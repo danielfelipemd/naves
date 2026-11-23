@@ -435,7 +435,9 @@ export default function ActasPanel() {
               <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Acciones de la cohorte</h2>
               <p className="text-xs text-inalde-gray mb-4">
                 Las actas se abren <strong>solas</strong> cuando termina la sustentación de cada
-                equipo, según el cronograma. No hay que generarlas a mano.
+                equipo, según el cronograma. Si quieres adelantarte, en <strong>Ver acta</strong> puedes
+                poner tú los datos (jurados, fecha, calificación), generarla y enviarla a firma
+                una por una, en cualquier momento.
               </p>
               <div className="flex flex-wrap gap-3">
                 <button type="button" className="btn-inalde-primary" onClick={enviar} disabled={!!accion}>
@@ -560,7 +562,7 @@ export default function ActasPanel() {
                                 Anular
                               </button>
                             )}
-                            <Link to={`/admin/actas/${a.id}`} className="text-[10px] uppercase tracking-wider font-semibold text-inalde-red hover:text-inalde-red-hover">Ver acta →</Link>
+                            <Link to={`/admin/actas/${a.id}`} className="text-[10px] uppercase tracking-wider font-semibold text-inalde-red hover:text-inalde-red-hover">{a.estado === 'faltan_datos' ? 'Completar →' : 'Ver acta →'}</Link>
                           </td>
                         </tr>
                       );
@@ -575,7 +577,10 @@ export default function ActasPanel() {
           {(pendientesJurados.length > 0 || data.microformularios_pendientes.length > 0) && (
             <section>
               <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4 pb-2 border-b border-inalde-gray-light">Pendientes de datos — Caso/PI sin jurados</h2>
-              <p className="text-xs text-inalde-gray mb-4">Crea un enlace de microformulario para que el director del proyecto registre la fecha de sustentación, los jurados y el resultado.</p>
+              <p className="text-xs text-inalde-gray mb-4">
+                Ponlos tú mismo en <strong>Ver acta → Editar datos</strong>, o crea un enlace de microformulario
+                para que el director del proyecto registre la fecha de sustentación, los jurados y la calificación.
+              </p>
 
               {pendientesJurados.length > 0 && (
                 <div className="card-inalde p-5 mb-5">

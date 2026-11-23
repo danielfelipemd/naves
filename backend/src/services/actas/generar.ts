@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../../db/supabase.js';
 import { decryptPII } from '../../auth/crypto.js';
+import { esCalificacion, notaDeCalificacion } from './calificacion.js';
 
 // =====================================================================
 // Actas de Grado — generación "cero digitación" (§1). Una acta por participante,
@@ -114,8 +115,9 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
   const { data: micros } = await supabaseAdmin.from('acta_microformulario').select('proyecto_id, datos, usado').eq('cohorte_id', cohorteId).eq('usado', true);
   const microPorProy = new Map(((micros ?? []) as any[]).map((m) => [m.proyecto_id, m.datos ?? {}]));
 
-  // Actas existentes (para conservar nota/observaciones ya capturadas).
-  const { data: existentes } = await supabaseAdmin.from('acta').select('participante_id, nota, observaciones, estado, firmas').eq('cohorte_id', cohorteId);
+  // Actas existentes (para conservar nota/observaciones ya capturadas y los
+  // datos que el super admin haya puesto a mano).
+  const { data: existentes } = await supabaseAdmin.from('acta').select('participante_id, nota, calificacion, observaciones, estado, firmas, ajuste_admin').eq('cohorte_id', cohorteId);
   const actaPrev = new Map(((existentes ?? []) as any[]).map((a) => [a.participante_id, a]));
 
   let generadas = 0, faltanDatos = 0;
@@ -124,58 +126,81 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
   for (const e of eqs) {
     const modalidad = e.tipo_trabajo_grado;
     const proyId = e.proyecto_definitivo_id;
-    const nombreProyecto = proyId ? (nombreProy.get(proyId) ?? null) : null;
     const sust = proyId ? sustentacionPorProy.get(proyId) : null;
     const micro = proyId ? microPorProy.get(proyId) : null;
-
-    // De dónde sale la fecha de sustentación, según la modalidad:
-    //
-    //  - Business Plan: del CRONOGRAMA. Presentan en el evento NAVES, así que el
-    //    slot manda y el acta se abre sola al terminar su hora.
-    //  - Caso / Proyecto de Investigación: del MICROFORMULARIO. Estos NO presentan
-    //    en el evento (`proyectosFase2` los excluye a propósito), así que nunca
-    //    tienen slot: su director sustenta aparte y registra la fecha ahí.
-    //
-    // Antes la fecha solo se leía del cronograma, así que un Caso o un PI se
-    // quedaba en 'faltan_datos' para siempre pidiendo una "fecha de sustentación
-    // (programación)" que por diseño nunca iba a existir. Su acta no se podía
-    // completar nunca.
-    const fechaMicro = micro?.fecha_sustentacion ?? null;
-    const fecha = sust?.fecha ?? fechaMicro ?? null;
-
-    // ¿Ya terminó la presentación? Para BP lo dice el cronograma (hora de fin);
-    // para Caso/PI, que el director ya haya diligenciado el microformulario: solo
-    // lo hace después de la sustentación, y registra ahí el resultado.
-    const yaSustentó = modalidad === 'business_plan'
-      ? !!(sust?.fin && new Date() >= sust.fin)
-      : !!fechaMicro;
-
-    const director = modalidad === 'business_plan'
-      ? { nombre: profPorEquipo.get(e.id) ?? null, email: null }
-      : (e.director_id ? dirById.get(e.director_id) ?? { nombre: null, email: null } : { nombre: null, email: null });
-    const jurados = modalidad === 'business_plan' ? [] : (micro?.jurados ?? []);
 
     for (const m of (e.miembros_equipo ?? []) as any[]) {
       const p = m.participantes_lista;
       if (!p?.id) continue;
       const prev = actaPrev.get(p.id);
-      // La nota sale del microformulario (Caso/PI) o de lo ya capturado; si no, falta.
-      // Resultado: 'aceptado' por defecto en cuanto la sustentación ocurrió.
-      // Quien llega a sustentar va preparado, así que el rechazo es la excepción
-      // y se corrige a mano desde el acta. Así ningún profesor tiene que
-      // registrar nada en el caso normal, que es lo que se pidió.
-      const nota = micro?.nota ?? prev?.nota ?? (yaSustentó ? 'aceptado' : null);
+      // Lo que el super admin puso a mano en ESTA acta. Manda sobre todo lo
+      // demás: él puede poner los jurados de un Caso sin esperar a que el
+      // director llene el microformulario, y abrir un acta cuando quiera.
+      const aj = (prev?.ajuste_admin ?? {}) as any;
+      const nombreProyecto = aj.nombre_proyecto ?? (proyId ? (nombreProy.get(proyId) ?? null) : null);
+      // De dónde sale la fecha de sustentación, según la modalidad:
+      //
+      //  - Business Plan: del CRONOGRAMA. Presentan en el evento NAVES, así que el
+      //    slot manda y el acta se abre sola al terminar su hora.
+      //  - Caso / Proyecto de Investigación: del MICROFORMULARIO. Estos NO presentan
+      //    en el evento (`proyectosFase2` los excluye a propósito), así que nunca
+      //    tienen slot: su director sustenta aparte y registra la fecha ahí.
+      //
+      // Antes la fecha solo se leía del cronograma, así que un Caso o un PI se
+      // quedaba en 'faltan_datos' para siempre pidiendo una "fecha de sustentación
+      // (programación)" que por diseño nunca iba a existir. Su acta no se podía
+      // completar nunca.
+      //
+      // Por encima de los dos, la fecha que ponga el super admin.
+      const fechaMicro = micro?.fecha_sustentacion ?? null;
+      const fechaAdmin = aj.fecha_sustentacion ?? null;
+      const fecha = fechaAdmin ?? sust?.fecha ?? fechaMicro ?? null;
+
+      // ¿Ya terminó la presentación? Para BP lo dice el cronograma (hora de fin);
+      // para Caso/PI, que el director ya haya diligenciado el microformulario: solo
+      // lo hace después de la sustentación, y registra ahí el resultado.
+      //
+      // El super admin puede abrirla antes («Generar ahora», aj.forzar), y en
+      // Caso/PI poner él la fecha cuenta igual que el microformulario.
+      const yaSustentó = !!aj.forzar || (modalidad === 'business_plan'
+        ? !!(sust?.fin && new Date() >= sust.fin)
+        : !!(fechaMicro || fechaAdmin));
+
+      const directorOrigen = modalidad === 'business_plan'
+        ? { nombre: profPorEquipo.get(e.id) ?? null, email: null }
+        : (e.director_id ? dirById.get(e.director_id) ?? { nombre: null, email: null } : { nombre: null, email: null });
+      const director = aj.director_nombre
+        ? { nombre: aj.director_nombre as string, email: (aj.director_email as string | undefined) ?? directorOrigen.email ?? null }
+        : directorOrigen;
+      const jurados = modalidad === 'business_plan'
+        ? []
+        : (Array.isArray(aj.jurados) && aj.jurados.length ? aj.jurados : (micro?.jurados ?? []));
+
+      // La calificación (A…C) es solo del Caso. Sale de lo puesto por el admin,
+      // del microformulario o de lo ya guardado; y de ella sale el resultado.
+      const calificacion = modalidad === 'caso'
+        ? [aj.calificacion, micro?.calificacion, prev?.calificacion].find(esCalificacion) ?? null
+        : null;
+
+      // Resultado. En el Caso lo dice la calificación: no hay aceptado por
+      // defecto, alguien tiene que calificar. En BP/PI, 'aceptado' por defecto
+      // en cuanto la sustentación ocurrió: quien llega a sustentar va
+      // preparado, el rechazo es la excepción y se corrige a mano desde el acta.
+      // Un Caso cerrado antes de que existiera la escala conserva su resultado.
+      const nota = modalidad === 'caso'
+        ? (calificacion ? notaDeCalificacion(calificacion) : (prev?.nota ?? micro?.nota ?? null))
+        : (micro?.nota ?? prev?.nota ?? (yaSustentó ? 'aceptado' : null));
 
       const faltan: string[] = [];
       if (!nombreProyecto) faltan.push('nombre del proyecto');
       // El mensaje dice DÓNDE se pone la fecha, que es distinto en cada modalidad.
       if (!fecha) faltan.push(modalidad === 'business_plan'
         ? 'fecha de sustentación (programación)'
-        : 'fecha de sustentación (microformulario)');
+        : 'fecha de sustentación');
       if (!yaSustentó && fecha) faltan.push('la presentación aún no ha ocurrido');
       if (!director.nombre) faltan.push(modalidad === 'business_plan' ? 'profesor asignado' : 'director de proyecto');
-      if (modalidad !== 'business_plan' && !jurados.length) faltan.push('jurados (microformulario)');
-      if (!nota) faltan.push('resultado de la sustentación');
+      if (modalidad !== 'business_plan' && !jurados.length) faltan.push('jurados');
+      if (!nota) faltan.push(modalidad === 'caso' ? 'calificación (A a C)' : 'resultado de la sustentación');
       if (!dirMba) faltan.push('Director de Cohorte (config)');
 
       const estado = faltan.length ? 'faltan_datos' : (prev && prev.estado !== 'faltan_datos' ? prev.estado : 'generada');
@@ -190,7 +215,7 @@ export async function generarActasCohorte(cohorteId: string): Promise<{ generada
         cohorte_id: cohorteId, participante_id: p.id, equipo_id: e.id, proyecto_id: proyId, modalidad, estado,
         nombre_participante: p.nombre_completo, nombre_proyecto: nombreProyecto, fecha_sustentacion: fecha,
         lugar: 'INALDE Business School', director_nombre: director.nombre, director_id: e.director_id ?? null,
-        jurados, nota, observaciones: prev?.observaciones ?? null,
+        jurados, nota, calificacion, observaciones: prev?.observaciones ?? null,
         director_mba_nombre: dirMba, director_mba_cargo: dirMbaCargo,
         firmas: conservarFirmas(cadenaFirmas(modalidad, director, jurados, dirMba), prev?.firmas), faltan,
       });

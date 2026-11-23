@@ -25,6 +25,7 @@ interface MiActaData {
   nombre_proyecto?: string | null;
   fecha_sustentacion?: string | null;
   nota?: string | null;
+  calificacion?: string | null;
   ya_firme?: boolean;
   firmada_en?: string | null;
   puede_firmar?: boolean;
@@ -277,7 +278,7 @@ export default function MiActa() {
           </div>
           <div>
             <p className="text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Resultado</p>
-            <p className="text-inalde-text">{data.nota === 'aceptado' ? 'Aceptado' : data.nota === 'rechazado' ? 'No aceptado' : '—'}</p>
+            <p className="text-inalde-text">{data.calificacion ? `Calificación ${data.calificacion}` : data.nota === 'aceptado' ? 'Aceptado' : data.nota === 'rechazado' ? 'No aceptado' : '—'}</p>
           </div>
         </div>
       </div>

@@ -59,6 +59,8 @@ export interface ActaPdfData {
   director_nombre: string | null;
   jurados: Array<{ nombre?: string } | string>;
   nota: string | null;
+  /** Solo Caso: A, B+, B, B-, C. */
+  calificacion?: string | null;
   observaciones: string | null;
   director_mba_nombre: string | null;
   director_mba_cargo: string | null;
@@ -266,9 +268,25 @@ function pintarActa(doc: PDFKit.PDFDocument, a: ActaPdfData) {
   seccion(doc, 'Resultado de la sustentación');
   const aceptado = a.nota === 'aceptado';
   const yR = doc.y;
-  if (a.nota) {
+  if (a.modalidad === 'caso' && a.calificacion) {
+    // El Caso se califica: la nota va en grande y el resultado al lado.
+    const etiqueta = `CALIFICACIÓN: ${a.calificacion}`;
+    // Se mide con la misma letra y el mismo espaciado con que se pinta: si no,
+    // la caja queda corta y la última letra se sale.
+    doc.font('Helvetica-Bold').fontSize(10);
+    const anchoCaja = doc.widthOfString(etiqueta, { characterSpacing: 1 }) + 26;
+    doc.roundedRect(MARGEN, yR, anchoCaja, 20, 3)
+      .fillAndStroke(aceptado ? '#f0fdf4' : '#fef2f2', aceptado ? '#15803d' : ROJO);
+    doc.fillColor(aceptado ? '#15803d' : ROJO).font('Helvetica-Bold').fontSize(10)
+      .text(etiqueta, MARGEN + 13, yR + 6, { characterSpacing: 1 });
+    doc.fillColor(GRIS).font('Helvetica').fontSize(8)
+      .text(`${aceptado ? 'Aprobado' : 'No aprobado'} · Escala: A, B+, B, B-, C`, MARGEN + anchoCaja + 12, yR + 7);
+  } else if (a.nota) {
     const etiqueta = aceptado ? 'ACEPTADO' : 'RECHAZADO';
-    const anchoCaja = doc.widthOfString(etiqueta) + 26;
+    // Se mide con la misma letra y el mismo espaciado con que se pinta: si no,
+    // la caja queda corta y la última letra se sale.
+    doc.font('Helvetica-Bold').fontSize(10);
+    const anchoCaja = doc.widthOfString(etiqueta, { characterSpacing: 1 }) + 26;
     doc.roundedRect(MARGEN, yR, anchoCaja, 20, 3)
       .fillAndStroke(aceptado ? '#f0fdf4' : '#fef2f2', aceptado ? '#15803d' : ROJO);
     doc.fillColor(aceptado ? '#15803d' : ROJO).font('Helvetica-Bold').fontSize(10)

@@ -11,6 +11,7 @@ import { validarFirmaImagen } from '../lib/formato-archivo.js';
 import { sendEmail } from '../services/email.js';
 import { decryptPII } from '../auth/crypto.js';
 import { config } from '../config.js';
+import { esCalificacion } from '../services/actas/calificacion.js';
 
 // =====================================================================
 // Actas de Entrega de Trabajo de Grado.
@@ -194,7 +195,10 @@ router.post('/:id(\\d+)', ...soloAdmin, async (req: AuthenticatedRequest, res) =
 
 // POST /api/actas/:cohorteId/enviar — envía a firma las actas 'generada' (crea sobres
 // por firmante; el envío de los enlaces se hace desde /actas/enlaces/:cohorteId).
-router.post('/:cohorteId/enviar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+router.post('/:cohorteId/enviar', ...soloAdmin, async (req: AuthenticatedRequest, res, next) => {
+  // Un id numérico es UN acta (POST /:id/enviar, más abajo), no una cohorte:
+  // los ids de cohorte son como «int-24-26».
+  if (/^\d+$/.test(req.params.cohorteId)) return next();
   const { data: listas } = await supabaseAdmin.from('acta').select('id').eq('cohorte_id', req.params.cohorteId).eq('estado', 'generada');
   const ids = ((listas ?? []) as any[]).map((a) => a.id);
   if (!ids.length) return res.json({ enviadas: 0 });
@@ -267,6 +271,14 @@ router.post('/lote/:cohorteId/firmar', ...soloAdmin, async (req: AuthenticatedRe
   res.json({ firmadas });
 });
 
+/** Modalidad del equipo dueño de un proyecto (Caso o Proyecto de Investigación). */
+async function modalidadDeProyecto(cohorteId: string, proyectoId: string | null): Promise<string | null> {
+  if (!proyectoId) return null;
+  const { data } = await supabaseAdmin.from('equipos').select('tipo_trabajo_grado')
+    .eq('cohorte_id', cohorteId).eq('proyecto_definitivo_id', proyectoId).limit(1).maybeSingle();
+  return (data as any)?.tipo_trabajo_grado ?? null;
+}
+
 // === Microformulario para jurados tardíos (Caso/PI) — PÚBLICO (sin login) ======
 // POST admin: crea el enlace para el director del proyecto.
 router.post('/micro/generar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
@@ -289,11 +301,13 @@ router.get('/micro/:token', async (req, res) => {
   if ((m as any).usado) return res.status(409).json({ error: 'YA_DILIGENCIADO' });
   if ((m as any).expira_en && new Date() > new Date((m as any).expira_en)) return res.status(410).json({ error: 'ENLACE_VENCIDO' });
   const { data: proy } = await supabaseAdmin.from('proyectos').select('nombre').eq('id', (m as any).proyecto_id).maybeSingle();
+  const modalidad = await modalidadDeProyecto((m as any).cohorte_id, (m as any).proyecto_id);
   // Lista de posibles jurados: panelistas de la cohorte + directores.
   const { data: panelistas } = await supabaseAdmin.from('panelistas').select('nombre_completo').eq('cohorte_id', (m as any).cohorte_id).eq('activo', true);
   res.json({
     director_nombre: (m as any).director_nombre,
     proyecto: (proy as any)?.nombre ?? '',
+    modalidad,
     sugeridos_jurados: ((panelistas ?? []) as any[]).map((p) => p.nombre_completo),
   });
 });
@@ -305,10 +319,16 @@ router.post('/micro/:token', async (req, res) => {
   if ((m as any).usado) return res.status(409).json({ error: 'YA_DILIGENCIADO' });
   const b = req.body ?? {};
   const jurados = Array.isArray(b.jurados) ? b.jurados.filter((j: any) => j?.nombre) : [];
-  if (!b.fecha_sustentacion || !jurados.length || !['aceptado', 'rechazado'].includes(b.nota)) {
-    return res.status(400).json({ error: 'DATOS_INCOMPLETOS', mensaje: 'Fecha, al menos un jurado y el resultado son obligatorios.' });
+  // El Caso se califica (A…C); el Proyecto de Investigación sigue con
+  // aceptado/rechazado.
+  const esCaso = (await modalidadDeProyecto((m as any).cohorte_id, (m as any).proyecto_id)) === 'caso';
+  const resultadoOk = esCaso ? esCalificacion(b.calificacion) : ['aceptado', 'rechazado'].includes(b.nota);
+  if (!b.fecha_sustentacion || !jurados.length || !resultadoOk) {
+    return res.status(400).json({ error: 'DATOS_INCOMPLETOS', mensaje: `Fecha, al menos un jurado y ${esCaso ? 'la calificación' : 'el resultado'} son obligatorios.` });
   }
-  const datos = { fecha_sustentacion: b.fecha_sustentacion, jurados, nota: b.nota };
+  const datos = esCaso
+    ? { fecha_sustentacion: b.fecha_sustentacion, jurados, calificacion: b.calificacion }
+    : { fecha_sustentacion: b.fecha_sustentacion, jurados, nota: b.nota };
   const { error } = await supabaseAdmin.from('acta_microformulario')
     .update({ usado: true, diligenciado_por: (m as any).director_nombre ?? 'director', diligenciado_en: new Date().toISOString(), datos })
     .eq('id', (m as any).id);
@@ -329,6 +349,163 @@ router.post('/:cohorteId/archivar', ...soloAdmin, async (req: AuthenticatedReque
     if (error) return res.status(500).json({ error: 'ARCHIVAR_FALLO', mensaje: error.message });
   }
   res.json({ archivadas: ids.length });
+});
+
+// =====================================================================
+// PODER DEL SUPER ADMIN SOBRE CADA ACTA
+//
+// La generación es automática, pero el super admin manda: puede poner él los
+// datos que falten (jurados de un Caso, fecha, proyecto, director,
+// calificación), abrir un acta antes de que el cronograma la habilite y
+// mandarla a firma en el momento que quiera, una por una.
+// =====================================================================
+
+/** Campos que el super admin puede fijar a mano en un acta. */
+function leerAjuste(b: any): { ajuste: Record<string, any>; error?: string } {
+  const aj: Record<string, any> = {};
+  const texto = (v: any) => (typeof v === 'string' ? v.trim() : '');
+  if (b.nombre_proyecto !== undefined) aj.nombre_proyecto = texto(b.nombre_proyecto) || null;
+  if (b.fecha_sustentacion !== undefined) {
+    const f = texto(b.fecha_sustentacion);
+    if (f && Number.isNaN(new Date(f).getTime())) return { ajuste: aj, error: 'La fecha de sustentación no es válida.' };
+    // Solo fecha (AAAA-MM-DD): se guarda al mediodía de Bogotá para que ningún
+    // huso horario la corra al día anterior.
+    aj.fecha_sustentacion = f ? (/^\d{4}-\d{2}-\d{2}$/.test(f) ? `${f}T12:00:00-05:00` : f) : null;
+  }
+  if (b.director_nombre !== undefined) aj.director_nombre = texto(b.director_nombre) || null;
+  if (b.director_email !== undefined) aj.director_email = texto(b.director_email) || null;
+  if (b.jurados !== undefined) {
+    if (!Array.isArray(b.jurados)) return { ajuste: aj, error: 'Los jurados deben ser una lista.' };
+    const jurados = b.jurados
+      .map((j: any) => ({ nombre: texto(j?.nombre), email: texto(j?.email) || null }))
+      .filter((j: any) => j.nombre);
+    const mal = jurados.find((j: any) => j.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(j.email));
+    if (mal) return { ajuste: aj, error: `El correo de ${mal.nombre} no es válido.` };
+    const nombres = jurados.map((j: any) => j.nombre.toLocaleLowerCase('es'));
+    if (new Set(nombres).size !== nombres.length) return { ajuste: aj, error: 'Hay un jurado repetido.' };
+    aj.jurados = jurados.length ? jurados : null;
+  }
+  if (b.calificacion !== undefined) {
+    if (b.calificacion !== null && b.calificacion !== '' && !esCalificacion(b.calificacion)) {
+      return { ajuste: aj, error: 'La calificación debe ser A, B+, B, B- o C.' };
+    }
+    aj.calificacion = b.calificacion || null;
+  }
+  if (aj.director_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(aj.director_email)) {
+    return { ajuste: aj, error: 'El correo del director no es válido.' };
+  }
+  return { ajuste: aj };
+}
+
+// POST /api/actas/:id/ajustes — el super admin pone los datos del acta.
+// Con aplicar_equipo: true se aplica a todas las actas del equipo (un Caso
+// sustenta en equipo: los mismos jurados y la misma fecha para todos).
+// Si el acta ya tiene firmas, cambiar lo que dice dejaría esas firmas avalando
+// un texto que nadie firmó: se exige reiniciar_firmas: true, que las borra y
+// devuelve el acta a «Generada» para volver a firmarla.
+router.post('/:id(\\d+)/ajustes', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const { ajuste, error: errAjuste } = leerAjuste(req.body ?? {});
+  if (errAjuste) return res.status(400).json({ error: 'DATO_NO_VALIDO', mensaje: errAjuste });
+  if (!Object.keys(ajuste).length) return res.status(400).json({ error: 'NADA_QUE_ACTUALIZAR' });
+
+  const { data: base } = await supabaseAdmin.from('acta').select('id, cohorte_id, equipo_id, modalidad').eq('id', Number(req.params.id)).maybeSingle();
+  if (!base) return res.status(404).json({ error: 'ACTA_NO_ENCONTRADA' });
+  const b = base as any;
+  if (ajuste.calificacion && b.modalidad !== 'caso') {
+    return res.status(400).json({ error: 'DATO_NO_VALIDO', mensaje: 'La calificación A a C es solo para las actas de Caso.' });
+  }
+
+  let q = supabaseAdmin.from('acta').select('id, estado, firmas, ajuste_admin, nombre_participante').eq('cohorte_id', b.cohorte_id);
+  q = req.body?.aplicar_equipo && b.equipo_id ? q.eq('equipo_id', b.equipo_id) : q.eq('id', b.id);
+  const { data: objetivo } = await q;
+  const actas = (objetivo ?? []) as any[];
+
+  const cerradas = actas.filter((a) => ['archivada', 'anulada'].includes(a.estado));
+  if (cerradas.length) {
+    return res.status(409).json({ error: 'ACTA_CERRADA', mensaje: `No se puede cambiar: ${cerradas.map((a) => a.nombre_participante).join(', ')} tiene el acta ${cerradas[0].estado}.` });
+  }
+  const conFirmas = actas.filter((a) => ((a.firmas ?? []) as any[]).some((f) => f.estado === 'firmada'));
+  if (conFirmas.length && req.body?.reiniciar_firmas !== true) {
+    return res.status(409).json({
+      error: 'TIENE_FIRMAS',
+      con_firmas: conFirmas.map((a) => a.nombre_participante),
+      mensaje: `${conFirmas.length === 1 ? 'El acta ya tiene firmas' : `${conFirmas.length} actas ya tienen firmas`}. Si cambias los datos, esas firmas se borran y hay que volver a firmar.`,
+    });
+  }
+
+  const quien = req.user?.sub ?? null;
+  for (const a of actas) {
+    const upd: any = { ajuste_admin: { ...(a.ajuste_admin ?? {}), ...ajuste, por: quien, en: new Date().toISOString() } };
+    if (conFirmas.includes(a)) {
+      upd.firmas = [];
+      upd.estado = 'generada';
+      upd.completa_en = null;
+    }
+    const { error } = await supabaseAdmin.from('acta').update(upd).eq('id', a.id);
+    if (error) return res.status(500).json({ error: 'AJUSTE_FALLO', mensaje: error.message });
+  }
+
+  try { await generarActasCohorte(b.cohorte_id); }
+  catch (e: any) { return res.status(500).json({ error: 'GENERAR_FALLO', mensaje: e?.message ?? 'No se pudo regenerar el acta.' }); }
+
+  const { data: actualizadas } = await supabaseAdmin.from('acta').select('id, nombre_participante, estado, faltan').in('id', actas.map((a) => a.id));
+  res.json({ ok: true, actas: actualizadas ?? [], firmas_reiniciadas: conFirmas.length });
+});
+
+// POST /api/actas/:id/generar — abre el acta YA, sin esperar al cronograma.
+// Si aún falta algún dato (fecha, jurados, calificación…), lo dice: esos sí
+// tiene que ponerlos con «Editar datos».
+router.post('/:id(\\d+)/generar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, ajuste_admin').eq('id', Number(req.params.id)).maybeSingle();
+  if (!a) return res.status(404).json({ error: 'ACTA_NO_ENCONTRADA' });
+  const acta = a as any;
+  if (['anulada', 'archivada'].includes(acta.estado)) return res.status(409).json({ error: 'ACTA_CERRADA', mensaje: `El acta está ${acta.estado}.` });
+
+  const { error } = await supabaseAdmin.from('acta')
+    .update({ ajuste_admin: { ...(acta.ajuste_admin ?? {}), forzar: true, por: req.user?.sub ?? null, en: new Date().toISOString() } })
+    .eq('id', acta.id);
+  if (error) return res.status(500).json({ error: 'GENERAR_FALLO', mensaje: error.message });
+
+  try { await generarActasCohorte(acta.cohorte_id); }
+  catch (e: any) { return res.status(500).json({ error: 'GENERAR_FALLO', mensaje: e?.message ?? 'No se pudo generar.' }); }
+
+  const { data: nueva } = await supabaseAdmin.from('acta').select('id, estado, faltan').eq('id', acta.id).maybeSingle();
+  const n = nueva as any;
+  if (n?.estado === 'faltan_datos') {
+    return res.status(409).json({ error: 'FALTAN_DATOS', faltan: n.faltan ?? [], mensaje: `Todavía falta: ${(n.faltan ?? []).join(', ')}. Ponlo con «Editar datos».` });
+  }
+  res.json({ ok: true, estado: n?.estado });
+});
+
+// POST /api/actas/:id/enviar — manda ESTA acta a firma ahora mismo: la pasa a
+// «Enviada» y escribe a sus firmantes con su enlace. Por defecto, a los que
+// firman en el medio (profesor, director de proyecto, jurados); al Director de
+// Cohorte solo cuando ya le toca (lista para cierre) o si se pide con roles.
+router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, faltan').eq('id', Number(req.params.id)).maybeSingle();
+  if (!a) return res.status(404).json({ error: 'ACTA_NO_ENCONTRADA' });
+  const acta = a as any;
+  if (acta.estado === 'faltan_datos') {
+    return res.status(409).json({ error: 'FALTAN_DATOS', faltan: acta.faltan ?? [], mensaje: `Antes de enviarla falta: ${(acta.faltan ?? []).join(', ')}.` });
+  }
+  if (['anulada', 'archivada', 'completa'].includes(acta.estado)) {
+    return res.status(409).json({ error: 'ACTA_CERRADA', mensaje: `El acta está ${acta.estado}: no hay nada que enviar.` });
+  }
+  if (acta.estado === 'generada') {
+    const { error } = await supabaseAdmin.from('acta').update({ estado: 'enviada', enviada_en: new Date().toISOString() }).eq('id', acta.id);
+    if (error) return res.status(500).json({ error: 'ENVIAR_FALLO', mensaje: error.message });
+  }
+  const pedidos: string[] = Array.isArray(req.body?.roles) ? req.body.roles : [];
+  const roles = pedidos.length ? pedidos
+    : acta.estado === 'lista_para_cierre' ? ['director_mba'] : ROLES_INTERNOS;
+  try {
+    const creados = await crearEnlacesFirma(acta.cohorte_id, {
+      roles, actaIds: [acta.id], enviar: req.body?.enviar_correo !== false, creadoPor: req.user?.profesorId ?? null,
+    });
+    res.json({ ok: true, enlaces: creados });
+  } catch (e: any) {
+    res.status(500).json({ error: 'ENLACES_FALLO', mensaje: e?.message ?? 'No se pudieron crear los enlaces.' });
+  }
 });
 
 // POST /api/actas/:id/anular — el participante no se gradúa.
@@ -409,7 +586,7 @@ router.get('/:id(\\d+)/pdf', ...soloAdmin, async (req: AuthenticatedRequest, res
 // =====================================================================
 
 /** Datos mínimos del acta que ve quien va a firmar. Nada de PII de terceros. */
-const CAMPOS_FIRMANTE = 'id, nombre_participante, nombre_proyecto, modalidad, fecha_sustentacion, nota, estado, firmas';
+const CAMPOS_FIRMANTE = 'id, nombre_participante, nombre_proyecto, modalidad, fecha_sustentacion, nota, calificacion, estado, firmas';
 
 /**
  * Igual que abrirEnlace pero sin exigir que el enlace siga sin usar: quien ya
@@ -441,14 +618,18 @@ async function abrirEnlace(token: string, res: any) {
 }
 
 
-// POST /api/actas/enlaces/:cohorteId — el admin crea los enlaces de firma.
-// Agrupa por firmante: un enlace por persona con TODAS sus actas pendientes.
-router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
-  const soloRoles: string[] = Array.isArray(req.body?.roles) ? req.body.roles : [];
-  const { data: actas } = await supabaseAdmin.from('acta')
-    .select('id, firmas, estado').eq('cohorte_id', req.params.cohorteId);
+/**
+ * Crea los enlaces de firma y, si se pide, manda el correo a cada firmante.
+ * Agrupa por firmante: un enlace por persona con TODAS sus actas pendientes
+ * dentro del alcance pedido (toda la cohorte, o solo `actaIds`).
+ */
+async function crearEnlacesFirma(cohorteId: string, op: { roles?: string[]; actaIds?: number[]; enviar: boolean; creadoPor: string | null }) {
+  const soloRoles = op.roles ?? [];
+  let q = supabaseAdmin.from('acta').select('id, firmas, estado').eq('cohorte_id', cohorteId);
+  if (op.actaIds?.length) q = q.in('id', op.actaIds);
+  const { data: actas } = await q;
 
-  const grupos = new Map<string, { rol: string; nombre: string; actaIds: number[] }>();
+  const grupos = new Map<string, { rol: string; nombre: string; email: string | null; actaIds: number[] }>();
   for (const a of (actas ?? []) as any[]) {
     if (a.estado === 'faltan_datos' || a.estado === 'anulada') continue;
     for (const f of (a.firmas ?? []) as any[]) {
@@ -456,7 +637,11 @@ router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedReques
       if (soloRoles.length && !soloRoles.includes(f.rol)) continue;
       if (!f.nombre) continue;
       const key = `${f.rol}|${f.nombre}`;
-      const g = grupos.get(key) ?? { rol: f.rol as string, nombre: f.nombre as string, actaIds: [] as number[] };
+      const g = grupos.get(key) ?? { rol: f.rol as string, nombre: f.nombre as string, email: null as string | null, actaIds: [] as number[] };
+      // El correo que viene en la casilla (jurados y directores puestos a mano
+      // por el super admin o por el microformulario). Antes se ignoraba y los
+      // jurados, que no están en ninguna tabla, se quedaban sin enlace.
+      if (!g.email && f.email) g.email = String(f.email).trim() || null;
       g.actaIds.push(a.id);
       grupos.set(key, g);
     }
@@ -479,30 +664,29 @@ router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedReques
   // configuran en la cohorte. Sin esto no hay a dónde mandarle su enlace,
   // aunque firma todas las actas.
   const { data: coh } = await supabaseAdmin.from('cohortes')
-    .select('director_mba_nombre, director_mba_email').eq('id', req.params.cohorteId).maybeSingle();
+    .select('director_mba_nombre, director_mba_email').eq('id', cohorteId).maybeSingle();
   const dirMba = coh as any;
   if (dirMba?.director_mba_nombre && dirMba?.director_mba_email) {
     emailPorNombre.set(dirMba.director_mba_nombre, dirMba.director_mba_email);
   }
 
-  const enviar = req.body?.enviar_correo !== false;
   const creados: any[] = [];
   for (const g of grupos.values()) {
     const token = randomBytes(32).toString('base64url');
+    const email = emailPorNombre.get(g.nombre) ?? g.email ?? null;
     const { error } = await supabaseAdmin.from('acta_enlace_firma').insert({
       token_hash: sha256Hex(token),
-      cohorte_id: req.params.cohorteId,
+      cohorte_id: cohorteId,
       rol: g.rol, firmante_nombre: g.nombre,
-      firmante_email: emailPorNombre.get(g.nombre) ?? null,
+      firmante_email: email,
       acta_ids: g.actaIds,
       // 7 días: suficiente para firmar sin dejar la puerta abierta un mes.
       expira_en: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
-      creado_por: req.user?.profesorId ?? null,
+      creado_por: op.creadoPor,
     });
-    if (error) return res.status(500).json({ error: error.message });
-    const email = emailPorNombre.get(g.nombre) ?? null;
+    if (error) throw new Error(error.message);
     let correo: string | null = null;
-    if (enviar && email) {
+    if (op.enviar && email) {
       const url = `${PUBLIC_URL}/actas/firmar/${token}`;
       const n = g.actaIds.length;
       const r = await sendEmail(
@@ -517,7 +701,21 @@ router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedReques
       email, correo, enlace: `/actas/firmar/${token}`,
     });
   }
-  res.json({ creados: creados.length, enlaces: creados });
+  return creados;
+}
+
+// POST /api/actas/enlaces/:cohorteId — el admin crea los enlaces de firma de la cohorte.
+router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const creados = await crearEnlacesFirma(req.params.cohorteId, {
+      roles: Array.isArray(req.body?.roles) ? req.body.roles : [],
+      enviar: req.body?.enviar_correo !== false,
+      creadoPor: req.user?.profesorId ?? null,
+    });
+    res.json({ creados: creados.length, enlaces: creados });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message ?? 'ENLACES_FALLO' });
+  }
 });
 
 // GET /api/actas/firmar/:token — PÚBLICO. Lo que ve el firmante: sus actas y
@@ -533,7 +731,7 @@ router.get('/firmar/:token', async (req, res) => {
     expira_en: e.expira_en,
     actas: ((actas ?? []) as any[]).map((a) => ({
       id: a.id, participante: a.nombre_participante, proyecto: a.nombre_proyecto,
-      modalidad: a.modalidad, fecha_sustentacion: a.fecha_sustentacion, nota: a.nota,
+      modalidad: a.modalidad, fecha_sustentacion: a.fecha_sustentacion, nota: a.nota, calificacion: a.calificacion,
     })),
   });
 });
@@ -709,6 +907,7 @@ router.get('/mi-acta', ...soloParticipante, async (req: AuthenticatedRequest, re
     nombre_proyecto: a.nombre_proyecto,
     fecha_sustentacion: a.fecha_sustentacion,
     nota: a.nota,
+    calificacion: a.calificacion,
     ya_firme: yaFirme,
     firmada_en: mia?.firmada_en ?? null,
     puede_firmar: disponible && !yaFirme,
