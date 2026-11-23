@@ -10,6 +10,7 @@ describe('calificación del Caso', () => {
 
   it('de cada calificación sale un resultado', () => {
     for (const c of ESCALA_CASO) assert.ok(['aceptado', 'rechazado'].includes(notaDeCalificacion(c)));
-    assert.equal(notaDeCalificacion('A'), 'aceptado');
+    for (const c of ['A', 'B+', 'B', 'B-'] as const) assert.equal(notaDeCalificacion(c), 'aceptado');
+    assert.equal(notaDeCalificacion('C'), 'rechazado');
   });
 });

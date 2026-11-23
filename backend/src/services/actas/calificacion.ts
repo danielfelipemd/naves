@@ -7,8 +7,8 @@
 export const ESCALA_CASO = ['A', 'B+', 'B', 'B-', 'C'] as const;
 export type Calificacion = (typeof ESCALA_CASO)[number];
 
-/** Calificaciones con las que el Caso queda aprobado. */
-export const APROBATORIAS: readonly Calificacion[] = ['A', 'B+', 'B', 'B-', 'C'];
+/** Calificaciones con las que el Caso queda aprobado. La C no aprueba (Daniel, 23/11/2026). */
+export const APROBATORIAS: readonly Calificacion[] = ['A', 'B+', 'B', 'B-'];
 
 export function esCalificacion(v: unknown): v is Calificacion {
   return typeof v === 'string' && (ESCALA_CASO as readonly string[]).includes(v);
