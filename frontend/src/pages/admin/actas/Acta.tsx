@@ -364,7 +364,7 @@ export default function Acta() {
       titulo: 'Enviar a firma',
       mensaje: cierre
         ? 'Se enviará el enlace de firma del cierre al Director de Cohorte.'
-        : 'Se enviará a cada firmante pendiente de esta acta (profesor o director y jurados) un correo con su enlace para firmar. El participante la firma desde su sesión.',
+        : 'Se enviará al participante y a cada firmante pendiente de esta acta (profesor o director y jurados) un correo con su enlace para revisarla y firmarla.',
       aceptar: 'Enviar',
     }))) return;
     setAccion('enviar'); setErr(''); setOkMsg(''); setEnlaces(null);

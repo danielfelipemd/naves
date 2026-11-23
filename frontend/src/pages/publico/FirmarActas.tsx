@@ -25,6 +25,7 @@ interface Data {
 }
 
 const ROL_LABEL: Record<string, string> = {
+  participante: 'Participante',
   profesor: 'Profesor NAVES',
   director_proyecto: 'Director del proyecto',
   jurado: 'Jurado',

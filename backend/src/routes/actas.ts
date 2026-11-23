@@ -71,6 +71,39 @@ function plantillaFirma(nombre: string, cuantas: number, url: string): string {
   </div>`;
 }
 
+/**
+ * Correo al participante: su acta ya está lista para que la revise y la firme.
+ * Se le escribe en cuanto termina su presentación, sin que tenga que entrar al
+ * sistema a buscarla.
+ */
+function plantillaParticipante(nombre: string, url: string): string {
+  return `
+  <div style="font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;max-width:560px;margin:0 auto">
+    <div style="border-bottom:3px solid #e30613;padding-bottom:12px;margin-bottom:24px">
+      <div style="font-weight:700;letter-spacing:1.5px;font-size:13px">INALDE BUSINESS SCHOOL</div>
+      <div style="color:#6b6b6b;font-size:11px;text-transform:uppercase;letter-spacing:1px">Trabajo de grado · MBA</div>
+    </div>
+    <p style="font-size:15px">Hola <strong>${nombre}</strong>,</p>
+    <p style="font-size:14px;line-height:1.6">
+      Tu acta de entrega de trabajo de grado ya está lista. Ábrela, revísala y fírmala:
+      es el primer paso para que la firmen el tribunal y el Director de Cohorte.
+    </p>
+    <p style="text-align:center;margin:32px 0">
+      <a href="${url}" style="background:#e30613;color:#fff;text-decoration:none;padding:14px 28px;border-radius:4px;font-weight:700;font-size:14px;display:inline-block">
+        Revisar y firmar mi acta
+      </a>
+    </p>
+    <p style="font-size:12px;color:#6b6b6b;line-height:1.6">
+      El enlace es personal y vence en 7 días. También puedes firmarla desde tu sesión en NAVES, en «Mi acta».
+      Si no funciona el botón, copia esta dirección en tu navegador:<br>
+      <span style="word-break:break-all">${url}</span>
+    </p>
+    <p style="font-size:11px;color:#6b6b6b;border-top:1px solid #e8e8e8;padding-top:12px;margin-top:24px">
+      Firma electrónica conforme a la Ley 527 de 1999 y el Decreto 2364 de 2012.
+    </p>
+  </div>`;
+}
+
 // Estado del acta según el avance de sus firmas (§2).
 function avanzarEstado(firmas: any[], estadoActual: string): string {
   if (['faltan_datos', 'generada'].includes(estadoActual)) return estadoActual;
@@ -478,9 +511,10 @@ router.post('/:id(\\d+)/generar', ...soloAdmin, async (req: AuthenticatedRequest
 });
 
 // POST /api/actas/:id/enviar — manda ESTA acta a firma ahora mismo: la pasa a
-// «Enviada» y escribe a sus firmantes con su enlace. Por defecto, a los que
-// firman en el medio (profesor, director de proyecto, jurados); al Director de
-// Cohorte solo cuando ya le toca (lista para cierre) o si se pide con roles.
+// «Enviada» y escribe a sus firmantes con su enlace. Por defecto, al
+// participante y a los que firman en el medio (profesor, director de proyecto,
+// jurados); al Director de Cohorte solo cuando ya le toca (lista para cierre)
+// o si se pide con roles (p. ej. roles: ['participante'] = solo al participante).
 router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, faltan').eq('id', Number(req.params.id)).maybeSingle();
   if (!a) return res.status(404).json({ error: 'ACTA_NO_ENCONTRADA' });
@@ -496,8 +530,9 @@ router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest,
     if (error) return res.status(500).json({ error: 'ENVIAR_FALLO', mensaje: error.message });
   }
   const pedidos: string[] = Array.isArray(req.body?.roles) ? req.body.roles : [];
+  // Por defecto: al participante (si aún no firma) y a los firmantes internos.
   const roles = pedidos.length ? pedidos
-    : acta.estado === 'lista_para_cierre' ? ['director_mba'] : ROLES_INTERNOS;
+    : acta.estado === 'lista_para_cierre' ? ['director_mba'] : ['participante', ...ROLES_INTERNOS];
   try {
     const creados = await crearEnlacesFirma(acta.cohorte_id, {
       roles, actaIds: [acta.id], enviar: req.body?.enviar_correo !== false, creadoPor: req.user?.profesorId ?? null,
@@ -623,17 +658,27 @@ async function abrirEnlace(token: string, res: any) {
  * Agrupa por firmante: un enlace por persona con TODAS sus actas pendientes
  * dentro del alcance pedido (toda la cohorte, o solo `actaIds`).
  */
-async function crearEnlacesFirma(cohorteId: string, op: { roles?: string[]; actaIds?: number[]; enviar: boolean; creadoPor: string | null }) {
+export async function crearEnlacesFirma(cohorteId: string, op: { roles?: string[]; actaIds?: number[]; enviar: boolean; creadoPor: string | null }) {
   const soloRoles = op.roles ?? [];
-  let q = supabaseAdmin.from('acta').select('id, firmas, estado').eq('cohorte_id', cohorteId);
+  let q = supabaseAdmin.from('acta').select('id, firmas, estado, participante_id, nombre_participante').eq('cohorte_id', cohorteId);
   if (op.actaIds?.length) q = q.in('id', op.actaIds);
   const { data: actas } = await q;
 
-  const grupos = new Map<string, { rol: string; nombre: string; email: string | null; actaIds: number[] }>();
+  // El participante solo recibe enlace si se pide expresamente (rol
+  // 'participante'): el envío general de la cohorte sigue yendo a profesores,
+  // directores y jurados, como antes.
+  const conParticipante = soloRoles.includes('participante');
+  const grupos = new Map<string, { rol: string; nombre: string; email: string | null; actaIds: number[]; participanteId?: string }>();
   for (const a of (actas ?? []) as any[]) {
     if (a.estado === 'faltan_datos' || a.estado === 'anulada') continue;
     for (const f of (a.firmas ?? []) as any[]) {
-      if (f.estado === 'firmada' || f.rol === 'participante') continue;
+      if (f.estado === 'firmada') continue;
+      if (f.rol === 'participante') {
+        // Un enlace por acta: cada participante firma solo la suya.
+        if (!conParticipante || !a.nombre_participante) continue;
+        grupos.set(`participante|${a.id}`, { rol: 'participante', nombre: a.nombre_participante, email: null, actaIds: [a.id], participanteId: a.participante_id });
+        continue;
+      }
       if (soloRoles.length && !soloRoles.includes(f.rol)) continue;
       if (!f.nombre) continue;
       const key = `${f.rol}|${f.nombre}`;
@@ -670,10 +715,25 @@ async function crearEnlacesFirma(cohorteId: string, op: { roles?: string[]; acta
     emailPorNombre.set(dirMba.director_mba_nombre, dirMba.director_mba_email);
   }
 
+  // Correos de los participantes (cifrados en su ficha).
+  const idsPart = [...grupos.values()].map((g) => g.participanteId).filter(Boolean) as string[];
+  const emailPart = new Map<string, string>();
+  if (idsPart.length) {
+    const { data } = await supabaseAdmin.from('participantes_lista').select('id, email_encriptado').in('id', idsPart);
+    for (const r of ((data ?? []) as any[])) {
+      try {
+        const mail = r.email_encriptado ? decryptPII(r.email_encriptado) : null;
+        if (mail) emailPart.set(r.id, mail);
+      } catch { /* ilegible: se reporta como «sin correo» */ }
+    }
+  }
+
   const creados: any[] = [];
   for (const g of grupos.values()) {
     const token = randomBytes(32).toString('base64url');
-    const email = emailPorNombre.get(g.nombre) ?? g.email ?? null;
+    const email = g.participanteId
+      ? (emailPart.get(g.participanteId) ?? null)
+      : (emailPorNombre.get(g.nombre) ?? g.email ?? null);
     const { error } = await supabaseAdmin.from('acta_enlace_firma').insert({
       token_hash: sha256Hex(token),
       cohorte_id: cohorteId,
@@ -689,17 +749,27 @@ async function crearEnlacesFirma(cohorteId: string, op: { roles?: string[]; acta
     if (op.enviar && email) {
       const url = `${PUBLIC_URL}/actas/firmar/${token}`;
       const n = g.actaIds.length;
-      const r = await sendEmail(
-        email,
-        `Actas por firmar — Trabajo de Grado MBA (${n})`,
-        plantillaFirma(g.nombre, n, url),
-      );
+      const r = g.rol === 'participante'
+        ? await sendEmail(email, 'Tu acta de trabajo de grado está lista para firmar', plantillaParticipante(g.nombre, url))
+        : await sendEmail(
+          email,
+          `Actas por firmar — Trabajo de Grado MBA (${n})`,
+          plantillaFirma(g.nombre, n, url),
+        );
       correo = r.ok ? 'enviado' : (r.reason ?? 'no enviado');
     }
     creados.push({
       rol: g.rol, nombre: g.nombre, actas: g.actaIds.length,
       email, correo, enlace: `/actas/firmar/${token}`,
     });
+  }
+
+  // Mandarle el acta al participante ES enviarla: pasa de «Generada» a
+  // «Enviada», igual que con el botón de la cohorte.
+  const enviadasPart = [...grupos.values()].filter((g) => g.rol === 'participante').flatMap((g) => g.actaIds);
+  if (enviadasPart.length) {
+    await supabaseAdmin.from('acta').update({ estado: 'enviada', enviada_en: new Date().toISOString() })
+      .in('id', enviadasPart).eq('estado', 'generada');
   }
   return creados;
 }
@@ -778,14 +848,17 @@ router.post('/firmar/:token', async (req, res) => {
     const firmas = (a.firmas ?? []) as any[];
     // Solo la casilla que corresponde a ESTE firmante. El enlace no sirve
     // para firmar en nombre de otro rol ni de otra persona.
-    const idx = firmas.findIndex((f) => f.rol === e.rol && f.nombre === e.firmante_nombre && f.estado !== 'firmada');
+    // El participante es uno solo por acta y su casilla no lleva nombre: se
+    // empareja por rol (el enlace ya está atado a SU acta y a nada más).
+    const idx = firmas.findIndex((f) => f.rol === e.rol
+      && (e.rol === 'participante' || f.nombre === e.firmante_nombre) && f.estado !== 'firmada');
     if (idx < 0) continue;
     const sellada = firmar(
       { actaId: a.id, rol: e.rol, nombre: e.firmante_nombre, imagen, ip, userAgent: ua },
       ultimoHash(firmas),
     );
     firmas[idx] = { ...firmas[idx], ...sellada };
-    const nuevoEstado = avanzarEstado(firmas, a.estado);
+    const nuevoEstado = avanzarEstado(firmas, a.estado === 'generada' ? 'enviada' : a.estado);
     const { error: upErr } = await supabaseAdmin.from('acta').update({
       firmas, estado: nuevoEstado,
       ...(nuevoEstado === 'completa' ? { completa_en: new Date().toISOString() } : {}),

@@ -235,7 +235,9 @@ export default function ActasPanel() {
   async function enviarEnlaces(roles?: string[]) {
     const aviso = roles?.length === 1 && roles[0] === 'director_mba'
       ? `Se enviará UN correo al Director de Cohorte${mbaNombre ? ` (${mbaNombre})` : ''} con su enlace para firmar el cierre. Nadie más lo recibirá. ¿Continuar?`
-      : 'Se enviará a cada profesor y director un correo con su enlace para firmar. ¿Continuar?';
+      : roles?.length === 1 && roles[0] === 'participante'
+        ? 'Se enviará a cada participante cuya acta ya está lista (y que aún no la firmó) un correo con su enlace para revisarla y firmarla. ¿Continuar?'
+        : 'Se enviará a cada profesor y director un correo con su enlace para firmar. ¿Continuar?';
     if (!(await confirmar({ titulo: 'Enviar enlaces de firma', mensaje: aviso, aceptar: 'Enviar' }))) return;
     setEnviandoEnlaces(true); setResultadoEnlaces(null);
     try {
@@ -245,7 +247,9 @@ export default function ActasPanel() {
       if (!enlaces.length) {
         setErr(roles?.length === 1 && roles[0] === 'director_mba'
           ? 'No se creó ningún enlace. El cierre solo se puede firmar cuando las actas ya pasaron por las firmas internas (estado "Lista para cierre").'
-          : 'No se creó ningún enlace: no hay firmas pendientes.');
+          : roles?.length === 1 && roles[0] === 'participante'
+            ? 'No se envió nada: ningún participante tiene el acta lista y sin firmar. Las actas se abren al terminar cada presentación; para adelantar una, usa «Generar ahora» en el acta.'
+            : 'No se creó ningún enlace: no hay firmas pendientes.');
       }
     } catch (e) {
       setErr(formatBackendError(e));
@@ -440,8 +444,11 @@ export default function ActasPanel() {
                 una por una, en cualquier momento.
               </p>
               <div className="flex flex-wrap gap-3">
-                <button type="button" className="btn-inalde-primary" onClick={enviar} disabled={!!accion}>
+                <button type="button" className="btn-inalde-secondary" onClick={enviar} disabled={!!accion}>
                   {accion === 'enviar' ? 'Enviando…' : 'Enviar a firma'}
+                </button>
+                <button type="button" className="btn-inalde-primary" onClick={() => { void enviarEnlaces(['participante']); }} disabled={enviandoEnlaces || !!accion}>
+                  {enviandoEnlaces ? 'Enviando…' : '✉️ Enviar a participantes'}
                 </button>
                 <button type="button" className="btn-inalde-secondary" onClick={() => { void enviarEnlaces(); }} disabled={enviandoEnlaces || !!accion}>
                   {enviandoEnlaces ? 'Enviando enlaces…' : '✉️ Enviar enlaces de firma'}
