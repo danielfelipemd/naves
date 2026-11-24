@@ -340,7 +340,8 @@ export default function ActasPanel() {
   const actasFiltradas = (data?.actas ?? []).filter((a) => {
     const fp = firmaParticipante(a);
     if (filtroPart === 'firmo' && fp.estado !== 'firmo') return false;
-    if (filtroPart === 'falta' && (fp.estado === 'firmo' || a.estado === 'anulada')) return false;
+    // «Falta el participante»: acta ya enviada que el participante aún no firma.
+    if (filtroPart === 'falta' && (fp.estado !== 'enviada' || ['anulada', 'archivada'].includes(a.estado))) return false;
     if (!palabras.length) return true;
     const texto = sinTildes([
       a.nombre_participante, a.nombre_proyecto, fp.texto,
