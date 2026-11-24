@@ -499,8 +499,8 @@ export default function Anteproyectos() {
         <p className="text-sm text-inalde-gray mt-2">Seguimiento y gestión de todos los anteproyectos de la cohorte. Consulta estado y detalle, asigna profesores y comunica.</p>
       </div>
 
-      <div className="flex gap-3 mb-6 items-end">
-        <div className="flex-1 max-w-sm">
+      <div className="flex flex-wrap gap-3 mb-6 items-end">
+        <div className="flex-1 min-w-[200px] max-w-sm">
           <label className="block font-primary font-semibold text-xs tracking-wider uppercase text-inalde-gray mb-1">Cohorte</label>
           <select value={cohorte} onChange={(e) => setCohorte(e.target.value)} className="input-inalde !py-2">
             <option value="">Selecciona…</option>
@@ -732,7 +732,7 @@ export default function Anteproyectos() {
                   <div className="flex flex-wrap items-center gap-1.5 mb-3 -mt-1">
                     <span className="text-[10px] uppercase tracking-wider text-inalde-gray font-semibold mr-1">Asignados por profesor:</span>
                     {[...porProfesor.entries()].sort((a, b) => b[1].total - a[1].total).map(([nombre, p]) => (
-                      <span key={nombre} className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-inalde-gold/15 text-[#8a7530] border border-inalde-gold/30 whitespace-nowrap"
+                      <span key={nombre} className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-inalde-gold/15 text-[#8a7530] border border-inalde-gold/30 max-w-full sm:whitespace-nowrap"
                         title={`${nombre}: ${p.total} equipo(s) asignado(s). Reunión 1: ${p.r1} de ${p.total} (${pct(p.r1, p.total)}%). Reunión 2: ${p.r2} de ${p.total} (${pct(p.r2, p.total)}%).`}>
                         {nombre} · {p.total}
                         <span className="ml-1.5 text-inalde-gray font-normal">|</span>

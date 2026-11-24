@@ -126,7 +126,7 @@ export default function Lotes() {
         <>
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             {/* Listas para imprimir */}
-            <div className="card-inalde p-5 border-l-4 border-l-green-600">
+            <div className="card-inalde p-5 min-w-0 border-l-4 border-l-green-600">
               <div className="flex items-baseline gap-3 mb-1">
                 <span className="font-primary font-extrabold text-3xl text-green-700">{data.listas.total}</span>
                 <span className="text-xs uppercase tracking-wider font-semibold text-inalde-gray">
@@ -161,7 +161,7 @@ export default function Lotes() {
                   <div className="max-h-[220px] overflow-auto divide-y divide-inalde-gray-light">
                     {data.listas.actas.map((a) => (
                       <div key={a.id} className="py-1.5 flex items-baseline justify-between gap-3 text-xs">
-                        <span className="truncate">{a.participante}</span>
+                        <span className="truncate min-w-0">{a.participante}</span>
                         <span className="text-inalde-gray whitespace-nowrap">{fmt(a.completa_en)}</span>
                       </div>
                     ))}
@@ -171,7 +171,7 @@ export default function Lotes() {
             </div>
 
             {/* Pendientes: a quién se espera */}
-            <div className="card-inalde p-5 border-l-4 border-l-inalde-gold">
+            <div className="card-inalde p-5 min-w-0 border-l-4 border-l-inalde-gold">
               <div className="flex items-baseline gap-3 mb-1">
                 <span className="font-primary font-extrabold text-3xl text-inalde-gold">{data.pendientes.total}</span>
                 <span className="text-xs uppercase tracking-wider font-semibold text-inalde-gray">
@@ -186,7 +186,7 @@ export default function Lotes() {
                 <div className="space-y-2">
                   {data.pendientes.esperando.map((e, i) => (
                     <div key={i} className="flex items-baseline justify-between gap-3 border-b border-inalde-gray-light pb-1.5">
-                      <span className="text-sm text-inalde-text truncate">{e.quien}</span>
+                      <span className="text-sm text-inalde-text truncate min-w-0">{e.quien}</span>
                       <span className="text-xs font-semibold text-inalde-gold whitespace-nowrap">
                         {e.actas} acta{e.actas === 1 ? '' : 's'}
                       </span>
