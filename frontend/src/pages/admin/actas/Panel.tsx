@@ -142,33 +142,33 @@ function MicroGenerarRow({ acta, cohorteId, onError }: { acta: Acta; cohorteId: 
     try { await navigator.clipboard.writeText(enlace); setCopiado(true); setTimeout(() => setCopiado(false), 1800); } catch { /* noop */ }
   }
 
+  // Una sola línea por acta: quién es, director, correo y el botón. Antes
+  // eran dos líneas con etiquetas y la sección se hacía larguísima.
   return (
-    <div className="border-b border-inalde-gray-light py-3 last:border-b-0">
-      <div className="flex flex-wrap items-center gap-2 mb-2">
-        <span className={`text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded ${MODALIDAD[acta.modalidad].pill}`}>
+    <div className="border-b border-inalde-gray-light py-2 last:border-b-0 grid gap-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-center">
+      <div className="min-w-0 flex items-center gap-2" title={acta.nombre_proyecto ? `${acta.nombre_participante} · ${acta.nombre_proyecto}` : acta.nombre_participante}>
+        <span className={`shrink-0 text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded ${MODALIDAD[acta.modalidad].pill}`}>
           {MODALIDAD[acta.modalidad].corto}
         </span>
-        <span className="font-primary font-bold text-sm text-inalde-text">{acta.nombre_participante}</span>
-        <span className="text-xs text-inalde-gray">· {acta.nombre_proyecto}</span>
+        <span className="min-w-0 truncate text-sm">
+          <strong className="font-primary text-inalde-text">{acta.nombre_participante}</strong>
+          {acta.nombre_proyecto && <span className="text-xs text-inalde-gray"> · {acta.nombre_proyecto}</span>}
+        </span>
       </div>
       {!enlace ? (
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="flex-1 min-w-[180px]">
-            <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Director del proyecto</label>
-            <input className="input-inalde !py-2 !text-sm" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre del director" />
-          </div>
-          <div className="flex-1 min-w-[180px]">
-            <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Correo del director</label>
-            <input className="input-inalde !py-2 !text-sm" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
-          </div>
-          <button type="button" className="btn-inalde-secondary" onClick={generar} disabled={generando || !nombre.trim() || !email.trim()}>
-            {generando ? 'Creando…' : 'Crear enlace microformulario'}
+        <>
+          <input className="input-inalde !py-1.5 !text-xs" aria-label={`Director del proyecto de ${acta.nombre_participante}`}
+            value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Director del proyecto" />
+          <input className="input-inalde !py-1.5 !text-xs" type="email" aria-label={`Correo del director de ${acta.nombre_participante}`}
+            value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Correo del director" />
+          <button type="button" className="btn-inalde-secondary !px-3 !py-1.5 text-xs whitespace-nowrap" onClick={generar} disabled={generando || !nombre.trim() || !email.trim()}>
+            {generando ? 'Creando…' : 'Crear enlace'}
           </button>
-        </div>
+        </>
       ) : (
-        <div className="flex flex-wrap items-center gap-2 rounded bg-inalde-gray-bg px-3 py-2">
-          <code className="text-xs text-inalde-blue break-all flex-1 min-w-[200px]">{enlace}</code>
-          <button type="button" className="btn-inalde-ghost" onClick={copiar}>{copiado ? '✓ Copiado' : 'Copiar'}</button>
+        <div className="lg:col-span-3 flex items-center gap-2 rounded bg-inalde-gray-bg px-3 py-1.5 min-w-0">
+          <code className="text-xs text-inalde-blue truncate flex-1 min-w-0" title={enlace}>{enlace}</code>
+          <button type="button" className="btn-inalde-ghost !py-1 text-xs" onClick={copiar}>{copiado ? '✓ Copiado' : 'Copiar'}</button>
         </div>
       )}
     </div>
@@ -573,7 +573,7 @@ export default function ActasPanel() {
 
           {/* Pendientes de datos — Caso/PI sin jurados */}
           {(pendientesJurados.length > 0 || data.microformularios_pendientes.length > 0) && (
-            <details className="border border-inalde-gray-light rounded">
+            <details open className="border border-inalde-gray-light rounded">
               <summary className="cursor-pointer px-4 py-3 bg-inalde-gray-bg font-primary font-semibold text-sm">
                 Pendientes de datos — Caso/PI sin jurados{' '}
                 <span className="text-inalde-gray font-normal">
@@ -582,13 +582,13 @@ export default function ActasPanel() {
                 </span>
               </summary>
               <div className="p-4">
-              <p className="text-xs text-inalde-gray mb-4">
+              <p className="text-xs text-inalde-gray mb-3">
                 Ponlos tú mismo en <strong>Ver acta → Editar datos</strong>, o crea un enlace de microformulario
                 para que el director del proyecto registre la fecha de sustentación, los jurados y la calificación.
               </p>
 
               {pendientesJurados.length > 0 && (
-                <div className="card-inalde p-5 mb-5">
+                <div className="mb-4 max-h-[50vh] overflow-auto pr-1">
                   {pendientesJurados.map((a) => (
                     <MicroGenerarRow key={a.id} acta={a} cohorteId={cohorte} onError={setErr} />
                   ))}
