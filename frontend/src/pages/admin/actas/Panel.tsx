@@ -60,6 +60,15 @@ interface Data {
 }
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
 
+// Nombre legible del rol en «Avance por firmante» (antes salía «DIRECTOR_MBA»).
+const ROL_CORTO: Record<string, string> = {
+  participante: 'Participante',
+  profesor: 'Profesor',
+  director_proyecto: 'Dir. proyecto',
+  jurado: 'Jurado',
+  director_mba: 'Dir. Cohorte',
+};
+
 const MODALIDAD: Record<Modalidad, { corto: string; largo: string; pill: string }> = {
   business_plan: { corto: 'BP', largo: 'Business Plan', pill: 'bg-inalde-text text-white' },
   caso: { corto: 'Caso', largo: 'Caso', pill: 'bg-inalde-blue text-white' },
@@ -389,148 +398,58 @@ export default function ActasPanel() {
             </section>
           )}
 
-          {/* Acciones + Config Director de Cohorte */}
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div className="card-inalde p-5">
-              <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Config Director de Cohorte</h2>
-              <p className="text-xs text-inalde-gray mb-4">
-                Firma el cierre de todas las actas de la cohorte. No es el director de un
-                Caso o un Proyecto de Investigación: ese firma solo las actas de su proyecto.
-              </p>
-              {candidatos.length > 0 && (
-                <div className="mb-3">
-                  <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">
-                    Seleccionar de la lista
-                  </label>
-                  <select
-                    className="input-inalde !py-2 !text-sm"
-                    value={candidatos.find((c) => c.nombre === mbaNombre) ? mbaNombre : ''}
-                    onChange={(e) => {
-                      const c = candidatos.find((x) => x.nombre === e.target.value);
-                      if (!c) return;
-                      setMbaNombre(c.nombre);
-                      // El correo se trae solo: tecleado a mano es donde se cuelan
-                      // las erratas que luego impiden enviarle su enlace.
-                      if (c.email) setMbaEmail(c.email);
-                    }}
-                  >
-                    <option value="">— Elegir profesor o director —</option>
-                    {candidatos.map((c) => (
-                      <option key={`${c.origen}-${c.nombre}`} value={c.nombre}>
-                        {c.nombre} · {c.origen}{c.email ? '' : ' (sin correo)'}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] text-inalde-gray mt-1">O escribe los datos a mano abajo.</p>
-                </div>
-              )}
-
-              <div className="grid sm:grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Nombre</label>
-                  <input className="input-inalde !py-2 !text-sm" value={mbaNombre} onChange={(e) => setMbaNombre(e.target.value)} placeholder="Nombre del Director de Cohorte" />
-                </div>
-                <div>
-                  <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Cargo</label>
-                  <input className="input-inalde !py-2 !text-sm" value={mbaCargo} onChange={(e) => setMbaCargo(e.target.value)} placeholder="Director de Cohorte" />
-                </div>
-              </div>
-              <div className="mb-3">
-                <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">
-                  Correo electrónico
-                </label>
-                <input className="input-inalde !py-2 !text-sm" type="email" value={mbaEmail}
-                  onChange={(e) => setMbaEmail(e.target.value)} placeholder="director.cohorte@inalde.edu.co" />
-                <p className="text-[11px] text-inalde-gray mt-1">
-                  Ahí le llega su enlace para firmar. Sin correo no se le puede pedir la firma.
-                </p>
-              </div>
-              <button type="button" className="btn-inalde-secondary" onClick={guardarMba} disabled={guardandoMba || !mbaNombre.trim() || !mbaCargo.trim()}>
-                {guardandoMba ? 'Guardando…' : 'Guardar Director de Cohorte'}
+          {/* Acciones de la cohorte */}
+          <div className="card-inalde p-5">
+            <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Acciones de la cohorte</h2>
+            <p className="text-xs text-inalde-gray mb-4">
+              Las actas se abren <strong>solas</strong> cuando termina la sustentación de cada
+              equipo, según el cronograma. Si quieres adelantarte, en <strong>Ver acta</strong> puedes
+              poner tú los datos (jurados, fecha, calificación), generarla y enviarla a firma
+              una por una, en cualquier momento.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" className="btn-inalde-secondary" onClick={enviar} disabled={!!accion}>
+                {accion === 'enviar' ? 'Enviando…' : 'Enviar a firma'}
+              </button>
+              <button type="button" className="btn-inalde-primary" onClick={() => { void enviarEnlaces(['participante']); }} disabled={enviandoEnlaces || !!accion}>
+                {enviandoEnlaces ? 'Enviando…' : '✉️ Enviar a participantes'}
+              </button>
+              <button type="button" className="btn-inalde-secondary" onClick={() => { void enviarEnlaces(); }} disabled={enviandoEnlaces || !!accion}>
+                {enviandoEnlaces ? 'Enviando enlaces…' : '✉️ Enviar enlaces de firma'}
+              </button>
+              {/* El cierre se pide aparte: el Director de Cohorte firma al
+                  final, cuando ya pasaron las firmas internas. Mandarle su
+                  enlace junto con los de todos le llegaría demasiado pronto. */}
+              <button type="button" className="btn-inalde-secondary" onClick={() => { void enviarEnlaces(['director_mba']); }} disabled={enviandoEnlaces || !!accion}>
+                {enviandoEnlaces ? 'Enviando…' : '✉️ Solo al Director de Cohorte'}
+              </button>
+              <Link to="/admin/actas/lote" className="btn-inalde-secondary">Ir a firma en lote →</Link>
+              <Link to="/admin/actas/impresion" className="btn-inalde-secondary">🖨️ Impresión por lotes →</Link>
+              <button type="button" className="btn-inalde-ghost" onClick={archivar} disabled={!!accion}>
+                {accion === 'archivar' ? 'Archivando…' : 'Archivar completas'}
               </button>
             </div>
 
-            <div className="card-inalde p-5">
-              <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Acciones de la cohorte</h2>
-              <p className="text-xs text-inalde-gray mb-4">
-                Las actas se abren <strong>solas</strong> cuando termina la sustentación de cada
-                equipo, según el cronograma. Si quieres adelantarte, en <strong>Ver acta</strong> puedes
-                poner tú los datos (jurados, fecha, calificación), generarla y enviarla a firma
-                una por una, en cualquier momento.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <button type="button" className="btn-inalde-secondary" onClick={enviar} disabled={!!accion}>
-                  {accion === 'enviar' ? 'Enviando…' : 'Enviar a firma'}
-                </button>
-                <button type="button" className="btn-inalde-primary" onClick={() => { void enviarEnlaces(['participante']); }} disabled={enviandoEnlaces || !!accion}>
-                  {enviandoEnlaces ? 'Enviando…' : '✉️ Enviar a participantes'}
-                </button>
-                <button type="button" className="btn-inalde-secondary" onClick={() => { void enviarEnlaces(); }} disabled={enviandoEnlaces || !!accion}>
-                  {enviandoEnlaces ? 'Enviando enlaces…' : '✉️ Enviar enlaces de firma'}
-                </button>
-                {/* El cierre se pide aparte: el Director de Cohorte firma al
-                    final, cuando ya pasaron las firmas internas. Mandarle su
-                    enlace junto con los de todos le llegaría demasiado pronto. */}
-                <button type="button" className="btn-inalde-secondary" onClick={() => { void enviarEnlaces(['director_mba']); }} disabled={enviandoEnlaces || !!accion}>
-                  {enviandoEnlaces ? 'Enviando…' : '✉️ Solo al Director de Cohorte'}
-                </button>
-                <Link to="/admin/actas/lote" className="btn-inalde-secondary">Ir a firma en lote →</Link>
-                <Link to="/admin/actas/impresion" className="btn-inalde-secondary">🖨️ Impresión por lotes →</Link>
-                <button type="button" className="btn-inalde-ghost" onClick={archivar} disabled={!!accion}>
-                  {accion === 'archivar' ? 'Archivando…' : 'Archivar completas'}
-                </button>
-              </div>
-
-              {resultadoEnlaces && (
-                <div className="mt-4 border-t border-inalde-gray-light pt-3">
-                  <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-2">
-                    {resultadoEnlaces.length} enlace{resultadoEnlaces.length === 1 ? '' : 's'} creado{resultadoEnlaces.length === 1 ? '' : 's'}
-                  </p>
-                  <div className="space-y-1 max-h-[160px] overflow-auto">
-                    {resultadoEnlaces.map((e, i) => (
-                      <div key={i} className="text-xs flex items-baseline justify-between gap-2">
-                        <span className="truncate">
-                          <strong>{e.nombre}</strong> <span className="text-inalde-gray">· {e.actas} acta{e.actas === 1 ? '' : 's'}</span>
-                        </span>
-                        <span className={`whitespace-nowrap ${e.correo === 'enviado' ? 'text-green-700' : 'text-inalde-red'}`}>
-                          {e.correo === 'enviado' ? '✓ enviado' : (e.email ? 'no enviado' : 'sin correo')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* A quién le llega la copia de cada acta firmada (config general) */}
-          <CopiasFirmadas />
-
-          {/* Avance por firmante */}
-          {data.firmantes.length > 0 && (
-            <section>
-              <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4 pb-2 border-b border-inalde-gray-light">Avance por firmante</h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {data.firmantes.map((f, i) => {
-                  const pct = f.total > 0 ? Math.round((f.firmadas / f.total) * 100) : 0;
-                  return (
-                    <div key={i} className="card-inalde p-4">
-                      <div className="flex items-baseline justify-between gap-2 mb-2">
-                        <div className="min-w-0">
-                          <p className="text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray">{f.rol}</p>
-                          <p className="font-primary font-bold text-sm text-inalde-text truncate">{f.nombre}</p>
-                        </div>
-                        <span className="font-primary font-bold text-sm text-inalde-text tabular-nums shrink-0">{f.firmadas}/{f.total}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-inalde-gray-light overflow-hidden">
-                        <div className="h-full bg-inalde-red transition-all" style={{ width: `${pct}%` }} />
-                      </div>
+            {resultadoEnlaces && (
+              <div className="mt-4 border-t border-inalde-gray-light pt-3">
+                <p className="text-xs uppercase tracking-wider font-semibold text-inalde-gray mb-2">
+                  {resultadoEnlaces.length} enlace{resultadoEnlaces.length === 1 ? '' : 's'} creado{resultadoEnlaces.length === 1 ? '' : 's'}
+                </p>
+                <div className="space-y-1 max-h-[160px] overflow-auto">
+                  {resultadoEnlaces.map((e, i) => (
+                    <div key={i} className="text-xs flex items-baseline justify-between gap-2">
+                      <span className="truncate">
+                        <strong>{e.nombre}</strong> <span className="text-inalde-gray">· {e.actas} acta{e.actas === 1 ? '' : 's'}</span>
+                      </span>
+                      <span className={`whitespace-nowrap ${e.correo === 'enviado' ? 'text-green-700' : 'text-inalde-red'}`}>
+                        {e.correo === 'enviado' ? '✓ enviado' : (e.email ? 'no enviado' : 'sin correo')}
+                      </span>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </section>
-          )}
+            )}
+          </div>
 
           {/* Tabla de actas */}
           <section>
@@ -642,6 +561,103 @@ export default function ActasPanel() {
               )}
             </section>
           )}
+
+          {/* Avance por firmante: compacto y plegable (una línea por persona) */}
+          {data.firmantes.length > 0 && (
+            <details className="border border-inalde-gray-light rounded">
+              <summary className="cursor-pointer px-4 py-3 bg-inalde-gray-bg font-primary font-semibold text-sm">
+                Avance por firmante <span className="text-inalde-gray font-normal">· {data.firmantes.length} firmantes</span>
+              </summary>
+              <div className="p-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
+                {data.firmantes.map((f, i) => {
+                  const pct = f.total > 0 ? Math.round((f.firmadas / f.total) * 100) : 0;
+                  return (
+                    <div key={i} className="min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-[0.8rem] text-inalde-text truncate">
+                          <strong className="font-primary">{f.nombre}</strong>{' '}
+                          <span className="text-[0.65rem] uppercase tracking-wider text-inalde-gray">{ROL_CORTO[f.rol] ?? f.rol}</span>
+                        </p>
+                        <span className="text-[0.8rem] font-semibold text-inalde-text tabular-nums shrink-0">{f.firmadas}/{f.total}</span>
+                      </div>
+                      <div className="h-1 rounded-full bg-inalde-gray-light overflow-hidden mt-1">
+                        <div className="h-full bg-inalde-red transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )}
+
+          {/* Configuración de la cohorte: plegada, se usa poco */}
+          <details className="border border-inalde-gray-light rounded">
+            <summary className="cursor-pointer px-4 py-3 bg-inalde-gray-bg font-primary font-semibold text-sm">
+              Configuración <span className="text-inalde-gray font-normal">· Director de Cohorte{data.director_mba?.nombre ? ` (${data.director_mba.nombre})` : ''} y copia de actas firmadas</span>
+            </summary>
+            <div className="p-4 grid lg:grid-cols-2 gap-6 items-start">
+            <div className="card-inalde p-5">
+              <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4">Config Director de Cohorte</h2>
+              <p className="text-xs text-inalde-gray mb-4">
+                Firma el cierre de todas las actas de la cohorte. No es el director de un
+                Caso o un Proyecto de Investigación: ese firma solo las actas de su proyecto.
+              </p>
+              {candidatos.length > 0 && (
+                <div className="mb-3">
+                  <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">
+                    Seleccionar de la lista
+                  </label>
+                  <select
+                    className="input-inalde !py-2 !text-sm"
+                    value={candidatos.find((c) => c.nombre === mbaNombre) ? mbaNombre : ''}
+                    onChange={(e) => {
+                      const c = candidatos.find((x) => x.nombre === e.target.value);
+                      if (!c) return;
+                      setMbaNombre(c.nombre);
+                      // El correo se trae solo: tecleado a mano es donde se cuelan
+                      // las erratas que luego impiden enviarle su enlace.
+                      if (c.email) setMbaEmail(c.email);
+                    }}
+                  >
+                    <option value="">— Elegir profesor o director —</option>
+                    {candidatos.map((c) => (
+                      <option key={`${c.origen}-${c.nombre}`} value={c.nombre}>
+                        {c.nombre} · {c.origen}{c.email ? '' : ' (sin correo)'}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-inalde-gray mt-1">O escribe los datos a mano abajo.</p>
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Nombre</label>
+                  <input className="input-inalde !py-2 !text-sm" value={mbaNombre} onChange={(e) => setMbaNombre(e.target.value)} placeholder="Nombre del Director de Cohorte" />
+                </div>
+                <div>
+                  <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">Cargo</label>
+                  <input className="input-inalde !py-2 !text-sm" value={mbaCargo} onChange={(e) => setMbaCargo(e.target.value)} placeholder="Director de Cohorte" />
+                </div>
+              </div>
+              <div className="mb-3">
+                <label className="block text-[0.65rem] uppercase tracking-wider font-semibold text-inalde-gray mb-1">
+                  Correo electrónico
+                </label>
+                <input className="input-inalde !py-2 !text-sm" type="email" value={mbaEmail}
+                  onChange={(e) => setMbaEmail(e.target.value)} placeholder="director.cohorte@inalde.edu.co" />
+                <p className="text-[11px] text-inalde-gray mt-1">
+                  Ahí le llega su enlace para firmar. Sin correo no se le puede pedir la firma.
+                </p>
+              </div>
+              <button type="button" className="btn-inalde-secondary" onClick={guardarMba} disabled={guardandoMba || !mbaNombre.trim() || !mbaCargo.trim()}>
+                {guardandoMba ? 'Guardando…' : 'Guardar Director de Cohorte'}
+              </button>
+            </div>
+
+              <CopiasFirmadas />
+            </div>
+          </details>
         </div>
       )}
 
