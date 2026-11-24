@@ -626,8 +626,8 @@ export default function TrabajoGrado() {
     return (
       <>
         <Header />
-        <main className="pt-36 pb-16 px-4">
-          <div className="max-w-[700px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
+        <main className="pt-36 pb-16 px-4 sm:px-8">
+          <div className="w-full bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
             <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
               {m && <p className="section-subtitle mb-2">Trabajo de grado</p>}
               <h1 className="section-title">{titulo}</h1>
@@ -755,8 +755,8 @@ export default function TrabajoGrado() {
         </div>
       )}
 
-      <main className="pt-36 pb-16 px-4">
-        <div className="max-w-[860px] mx-auto">
+      <main className="pt-36 pb-16 px-4 sm:px-8">
+        <div className="w-full">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
             <p className="section-subtitle mb-2">Trabajo de grado</p>
             <h1 className="section-title">{modalidad ? TITULO_MODALIDAD[modalidad] : 'Modalidad'}</h1>

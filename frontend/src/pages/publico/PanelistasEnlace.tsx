@@ -189,14 +189,14 @@ export default function PanelistasEnlace() {
   return (
     <div className="min-h-screen bg-inalde-gray-bg/40 pb-28">
       <header className="bg-inalde-text text-white py-5 px-4">
-        <div className="max-w-[960px] mx-auto">
+        <div className="w-full">
           <p className="text-[11px] uppercase tracking-[2px] text-white/60">Panel de Evaluación · NAVES</p>
           <p className="text-lg font-primary font-bold">INALDE Business School — Executive MBA</p>
           {datos && <p className="text-sm text-white/70 mt-0.5">{datos.evento_nombre || 'Presentaciones NAVES'} · {datos.cohorte}</p>}
         </div>
       </header>
 
-      <main className="max-w-[960px] mx-auto px-4 py-8">
+      <main className="w-full px-4 py-8">
         {renderContenido()}
       </main>
 
@@ -205,7 +205,7 @@ export default function PanelistasEnlace() {
           escribiendo nombre y correo cada vez). */}
       {datos && !hecho && !error && nSeleccion > 0 && !confirmando && (
         <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t-[3px] border-inalde-red shadow-[0_-4px_16px_rgba(0,0,0,0.12)]">
-          <div className="max-w-[960px] mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+          <div className="w-full px-4 py-3 flex flex-wrap items-center gap-3">
             <p className="text-sm text-inalde-text"><strong>{todas ? 'Todas las jornadas' : `${nSeleccion} bloque${nSeleccion === 1 ? '' : 's'} seleccionado${nSeleccion === 1 ? '' : 's'}`}</strong></p>
             <button onClick={() => setConfirmando(true)} className="btn-inalde-primary !py-2.5 !px-5 !text-xs ml-auto">Confirmar asistencia →</button>
           </div>

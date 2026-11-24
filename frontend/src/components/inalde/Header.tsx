@@ -119,7 +119,7 @@ export function Header() {
           INALDE Business School
         </p>
       </div>
-      <div className="flex items-center max-w-[1400px] mx-auto px-4 sm:px-8 py-3 sm:py-4 bg-white">
+      <div className="flex items-center w-full px-4 sm:px-8 py-3 sm:py-4 bg-white">
         {mostrarAtras && (
           <button
             onClick={volver}
@@ -153,7 +153,7 @@ export function Header() {
       </div>
       {crumb && (
         <nav aria-label="Ruta de navegación" className="bg-white border-t border-inalde-gray-light/70 px-4 sm:px-8 py-1.5">
-          <div className="max-w-[1400px] mx-auto flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+          <div className="w-full flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
             <Link to="/" className="text-inalde-gray hover:text-inalde-red font-primary font-semibold tracking-wider uppercase">
               Menú principal
             </Link>

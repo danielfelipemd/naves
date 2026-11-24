@@ -64,7 +64,7 @@ export default function PanelistasAcceso() {
   return (
     <div className="min-h-screen bg-inalde-gray-bg/40">
       <header className="bg-inalde-text text-white py-5 px-4">
-        <div className="max-w-[1800px] mx-auto flex flex-wrap items-end gap-x-6 gap-y-1">
+        <div className="w-full flex flex-wrap items-end gap-x-6 gap-y-1">
           <div>
             <p className="text-[11px] uppercase tracking-[2px] text-white/60">Panel de panelistas · NAVES</p>
             <p className="text-lg font-primary font-bold">INALDE Business School — Executive MBA</p>
@@ -77,7 +77,7 @@ export default function PanelistasAcceso() {
           )}
         </div>
       </header>
-      <main className="max-w-[1800px] mx-auto px-4 py-8">{renderContenido()}</main>
+      <main className="w-full px-4 py-8">{renderContenido()}</main>
     </div>
   );
 }

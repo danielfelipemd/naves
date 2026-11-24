@@ -53,8 +53,8 @@ export default function SabanaSocios() {
   return (
     <>
       <Header />
-      <main className="pt-36 pb-16 px-4">
-        <div className="max-w-[1400px] mx-auto">
+      <main className="pt-36 pb-16 px-4 sm:px-8">
+        <div className="w-full">
           <Link to="/" className="text-sm text-inalde-gray hover:text-inalde-red">← Menú principal</Link>
           <div className="border-b-[3px] border-inalde-red pb-4 mb-6 mt-3">
             <p className="section-subtitle mb-1">Participante</p>

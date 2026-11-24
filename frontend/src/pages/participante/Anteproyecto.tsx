@@ -700,7 +700,7 @@ export default function Anteproyecto() {
 
       {/* Progress bar fija arriba */}
       <div className="fixed top-[140px] inset-x-0 z-40 px-4">
-        <div className="max-w-[1400px] mx-auto h-1.5 bg-inalde-gray-light/80 backdrop-blur rounded-full overflow-hidden shadow"
+        <div className="w-full h-1.5 bg-inalde-gray-light/80 backdrop-blur rounded-full overflow-hidden shadow"
           role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}
           aria-label="Progreso del anteproyecto">
           <div
@@ -712,8 +712,8 @@ export default function Anteproyecto() {
         </div>
       </div>
 
-      <main className="pt-40 pb-16 px-4">
-        <div className="max-w-[1400px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
+      <main className="pt-40 pb-16 px-4 sm:px-8">
+        <div className="w-full bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-6">
             <p className="section-subtitle mb-2">Anteproyecto NAVES</p>
             <h1 className="section-title">

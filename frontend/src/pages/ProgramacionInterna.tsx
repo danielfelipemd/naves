@@ -67,8 +67,8 @@ export default function ProgramacionInterna() {
   return (
     <>
       <Header />
-      <main className="pt-32 pb-16 px-4">
-        <div className="max-w-[1400px] mx-auto">
+      <main className="pt-32 pb-16 px-4 sm:px-8">
+        <div className="w-full">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-8 flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="section-subtitle mb-2">{data?.evento_nombre ?? 'NAVES'}{data?.cohorte ? ` · ${data.cohorte}` : ''}</p>

@@ -170,7 +170,7 @@ export default function ProgramacionVer() {
       {/* Al imprimir: carta horizontal y solo la tabla (para las carteleras). */}
       <style>{'@page { size: letter landscape; margin: 10mm; } @media print { header.no-imprimir { display: none; } }'}</style>
       <header className="no-imprimir bg-inalde-text text-white py-5 px-4">
-        <div className="max-w-[1800px] mx-auto flex flex-wrap items-end gap-x-6 gap-y-1">
+        <div className="w-full flex flex-wrap items-end gap-x-6 gap-y-1">
           <div>
             <p className="text-[11px] uppercase tracking-[2px] text-white/60">Programación · NAVES{datos ? ` · ${datos.publico_nombre}` : ''}</p>
             <p className="text-lg font-primary font-bold">INALDE Business School — Executive MBA</p>
@@ -182,7 +182,7 @@ export default function ProgramacionVer() {
           )}
         </div>
       </header>
-      <main className="max-w-[1800px] mx-auto px-4 py-8 print:p-0">
+      <main className="w-full px-4 py-8 print:p-0">
         {datos?.publicada && <h1 className="hidden print:block font-primary font-bold text-base mb-2">{datos.evento_nombre || 'NAVES'} — Programación · {datos.cohorte}</h1>}
         {renderContenido()}
       </main>

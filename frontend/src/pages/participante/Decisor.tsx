@@ -52,7 +52,7 @@ export default function Decisor() {
     <>
       <Header />
       <main className="pt-[140px] min-h-screen bg-inalde-gray-bg/30">
-        <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="w-full px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
           <button
             onClick={() => navigate('/trabajo-grado')}
             className="text-sm text-inalde-gray hover:text-inalde-text"
@@ -65,7 +65,7 @@ export default function Decisor() {
         </div>
 
         {estado === 'verificando' && (
-          <div className="max-w-[1400px] mx-auto px-4 py-16 text-center text-inalde-gray">
+          <div className="w-full px-4 py-16 text-center text-inalde-gray">
             Abriendo la herramienta de apoyo…
           </div>
         )}

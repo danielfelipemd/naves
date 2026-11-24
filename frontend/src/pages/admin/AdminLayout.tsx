@@ -20,28 +20,22 @@ const sectionLabels: Record<string, string> = {
   'roles-permisos': 'Roles y permisos',
 };
 
-// Pantallas cuyo contenido es una tabla ancha. Con la caja fija en 1100 px la
-// tabla de Programación (1280 px) nunca cabía, ni en un monitor de 1920: se
-// medía 248 px escondidos a la derecha y el 40 % de la pantalla en márgenes
-// vacíos. Estas usan el ancho de la ventana, hasta 1800 px. Las demás van en
-// 1400, alineadas con el encabezado (Daniel, 24/11/2026; antes 1100).
-const seccionesAnchas = new Set(['programacion', 'anteproyectos', 'participantes']);
+// Todas las pantallas usan el ancho de la ventana donde se abra el sistema
+// (celular, portátil o monitor grande), con el mismo margen lateral que el
+// encabezado. Antes unas iban en 1100 px y otras en 1800 (Daniel, 24/11/2026).
 
 export default function AdminLayout() {
   const { pathname } = useLocation();
   // /admin/<seccion>(/sub)
-  const [seg = '', sub] = pathname.replace(/^\/admin\/?/, '').split('/');
+  const [seg = ''] = pathname.replace(/^\/admin\/?/, '').split('/');
   const isHome = !seg;
   const sectionLabel = sectionLabels[seg];
-  // Solo la lista: el detalle (/admin/anteproyectos/:id) es un documento y
-  // conserva el ancho de lectura.
-  const ancha = seccionesAnchas.has(seg) && !sub;
 
   return (
     <>
       <Header />
-      <main className="pt-32 pb-16 px-4">
-        <div className={`${ancha ? 'max-w-[1800px]' : 'max-w-[1400px]'} mx-auto`}>
+      <main className="pt-32 pb-16 px-4 sm:px-8">
+        <div className="w-full">
           <nav className="mb-6 text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
             <Link to="/" className="text-inalde-gray hover:text-inalde-red font-primary font-semibold tracking-wider uppercase text-xs">
               ← Menú principal

@@ -34,13 +34,13 @@ export default function ConfirmarAsistencia() {
   return (
     <div className="min-h-screen bg-inalde-gray-bg/40">
       <header className="bg-inalde-text text-white py-5 px-4">
-        <div className="max-w-[680px] mx-auto">
+        <div className="w-full">
           <p className="text-[11px] uppercase tracking-[2px] text-white/60">Panel de Evaluación · NAVES</p>
           <p className="text-lg font-primary font-bold">INALDE Business School — Executive MBA</p>
         </div>
       </header>
 
-      <main className="max-w-[680px] mx-auto px-4 py-8">
+      <main className="w-full px-4 py-8">
         {loading ? <p className="text-inalde-gray">Cargando…</p> :
           error ? (
             <div role="alert" className="bg-white rounded-lg shadow-inalde-card p-6 border-l-4 border-inalde-red">

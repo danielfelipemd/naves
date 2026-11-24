@@ -110,8 +110,8 @@ export default function SeleccionDefinitivo() {
   return (
     <>
       <Header />
-      <main className="pt-36 pb-16 px-4">
-        <div className="max-w-[800px] mx-auto bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
+      <main className="pt-36 pb-16 px-4 sm:px-8">
+        <div className="w-full bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
             <p className="section-subtitle mb-2">Proyecto definitivo</p>
             <h1 className="section-title">Selección del proyecto definitivo</h1>

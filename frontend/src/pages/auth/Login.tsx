@@ -89,7 +89,7 @@ export default function Login() {
   return (
     <>
       <Header />
-      <main className="pt-36 pb-16 px-4">
+      <main className="pt-36 pb-16 px-4 sm:px-8">
         <div className="max-w-[480px] mx-auto">
           <div className="bg-white rounded-lg shadow-inalde-card p-5 sm:p-10">
             <div className="border-b-[3px] border-inalde-red pb-5 mb-8">

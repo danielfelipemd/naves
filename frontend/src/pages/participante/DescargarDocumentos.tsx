@@ -124,8 +124,8 @@ export default function DescargarDocumentos() {
   return (
     <>
       <Header />
-      <main className="pt-36 pb-16 px-4">
-        <div className="max-w-[900px] mx-auto">
+      <main className="pt-36 pb-16 px-4 sm:px-8">
+        <div className="w-full">
           <div className="border-b-[3px] border-inalde-red pb-5 mb-8">
             <p className="section-subtitle mb-2">Trabajo de grado</p>
             <h1 className="section-title">Descargar Documentos</h1>
