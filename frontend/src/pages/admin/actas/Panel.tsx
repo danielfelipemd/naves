@@ -23,7 +23,7 @@ type Estado =
   | 'archivada'
   | 'anulada';
 
-interface FirmaResumen { rol: string; nombre: string; estado: string; }
+interface FirmaResumen { rol: string; nombre: string; estado: string; firmada_en?: string | null; }
 interface Acta {
   id: string;
   nombre_participante: string;
@@ -32,6 +32,7 @@ interface Acta {
   estado: Estado;
   firmas: FirmaResumen[];
   faltan: string[];
+  enviada_en?: string | null;
   proyecto_id?: string;
   equipo_id?: string;
 }
@@ -59,6 +60,19 @@ interface Data {
   microformularios_pendientes: MicroPendiente[];
 }
 interface Cohorte { id: string; etiqueta: string; activa: boolean; }
+
+// Firma del participante, para la columna de la tabla y el filtro rápido.
+type EstadoPart = 'firmo' | 'enviada' | 'no_enviada';
+function firmaParticipante(a: Acta): { estado: EstadoPart; texto: string; cuando: string | null } {
+  const fs = a.firmas.filter((f) => f.rol === 'participante');
+  if (fs.length && fs.every((f) => f.estado === 'firmada')) {
+    const t = fs.map((f) => f.firmada_en).filter(Boolean).sort().pop() ?? null;
+    return { estado: 'firmo', texto: 'Firmó', cuando: t };
+  }
+  if (a.enviada_en || !['generada', 'faltan_datos'].includes(a.estado)) return { estado: 'enviada', texto: 'Enviada, sin firmar', cuando: null };
+  return { estado: 'no_enviada', texto: 'No enviada', cuando: null };
+}
+const fechaCorta = (iso: string) => new Date(iso).toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 
 // Nombre legible del rol en «Avance por firmante» (antes salía «DIRECTOR_MBA»).
 const ROL_CORTO: Record<string, string> = {
@@ -167,6 +181,7 @@ export default function ActasPanel() {
   const [data, setData] = useState<Data | null>(null);
   const orden = useOrdenTabla();
   const [busca, setBusca] = useState('');
+  const [filtroPart, setFiltroPart] = useState<'todas' | 'firmo' | 'falta'>('todas');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
@@ -248,13 +263,17 @@ export default function ActasPanel() {
       ? `Se enviará UN correo al Director de Cohorte${mbaNombre ? ` (${mbaNombre})` : ''} con su enlace para firmar el cierre. Nadie más lo recibirá. ¿Continuar?`
       : roles?.length === 1 && roles[0] === 'participante'
         ? 'Se enviará a cada participante cuya acta ya está lista (y que aún no la firmó) un correo con su enlace para revisarla y firmarla. ¿Continuar?'
-        : 'Se enviará a cada profesor y director un correo con su enlace para firmar. ¿Continuar?';
+        : 'Se enviará a cada profesor, director y jurado un correo con su enlace para firmar, solo con las actas que el participante ya firmó. ¿Continuar?';
     if (!(await confirmar({ titulo: 'Enviar enlaces de firma', mensaje: aviso, aceptar: 'Enviar' }))) return;
-    setEnviandoEnlaces(true); setResultadoEnlaces(null);
+    setEnviandoEnlaces(true); setResultadoEnlaces(null); setErr(''); setOkMsg('');
     try {
       const r = await api.post(`/actas/enlaces/${cohorte}`, roles?.length ? { roles } : {});
       const enlaces = (r.data as any)?.enlaces ?? [];
+      const esperando: number = (r.data as any)?.esperando_participante ?? 0;
       setResultadoEnlaces(enlaces);
+      if (esperando > 0) {
+        setOkMsg(`${esperando} acta${esperando === 1 ? '' : 's'} no se incluy${esperando === 1 ? 'ó' : 'eron'}: espera${esperando === 1 ? '' : 'n'} la firma del participante.`);
+      }
       if (!enlaces.length) {
         setErr(roles?.length === 1 && roles[0] === 'director_mba'
           ? 'No se creó ningún enlace. El cierre solo se puede firmar cuando las actas ya pasaron por las firmas internas (estado "Lista para cierre").'
@@ -318,9 +337,13 @@ export default function ActasPanel() {
   // en algún dato del acta (participante, proyecto, firmantes, modalidad, estado).
   const sinTildes = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const palabras = sinTildes(busca).split(/\s+/).filter(Boolean);
-  const actasFiltradas = !palabras.length ? (data?.actas ?? []) : (data?.actas ?? []).filter((a) => {
+  const actasFiltradas = (data?.actas ?? []).filter((a) => {
+    const fp = firmaParticipante(a);
+    if (filtroPart === 'firmo' && fp.estado !== 'firmo') return false;
+    if (filtroPart === 'falta' && (fp.estado === 'firmo' || a.estado === 'anulada')) return false;
+    if (!palabras.length) return true;
     const texto = sinTildes([
-      a.nombre_participante, a.nombre_proyecto,
+      a.nombre_participante, a.nombre_proyecto, fp.texto,
       MODALIDAD[a.modalidad]?.corto, MODALIDAD[a.modalidad]?.largo, ESTADO[a.estado]?.label,
       ...a.firmas.map((f) => f.nombre),
     ].filter(Boolean).join(' '));
@@ -459,7 +482,15 @@ export default function ActasPanel() {
                 <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)}
                   placeholder="Buscar por participante, proyecto, firmante, modalidad o estado…"
                   aria-label="Buscar actas" className="input-inalde !py-2 flex-1 min-w-[220px]" />
-                {busca.trim() && (
+                <div className="flex rounded border border-inalde-gray-light overflow-hidden text-xs" role="group" aria-label="Filtrar por firma del participante">
+                  {([['todas', 'Todas'], ['firmo', 'Firmó el participante'], ['falta', 'Falta el participante']] as const).map(([v, t]) => (
+                    <button key={v} type="button" onClick={() => setFiltroPart(v)} aria-pressed={filtroPart === v}
+                      className={`px-3 py-2 whitespace-nowrap ${filtroPart === v ? 'bg-inalde-text text-white' : 'bg-white text-inalde-gray hover:text-inalde-text'}`}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                {(busca.trim() || filtroPart !== 'todas') && (
                   <span className="text-xs text-inalde-gray whitespace-nowrap">{actasFiltradas.length} de {data.actas.length}</span>
                 )}
               </div>
@@ -467,16 +498,17 @@ export default function ActasPanel() {
             {data.actas.length === 0 ? (
               <p className="text-inalde-gray text-sm">Aún no hay actas. Usa «Generar/actualizar actas».</p>
             ) : actasFiltradas.length === 0 ? (
-              <p className="text-inalde-gray text-sm">Ninguna acta coincide con «{busca.trim()}».</p>
+              <p className="text-inalde-gray text-sm">Ninguna acta coincide{busca.trim() ? ` con «${busca.trim()}»` : ''} con ese filtro.</p>
             ) : (
               <div className="overflow-auto max-h-[72vh]">
-                <table className="w-full min-w-[820px] border-collapse bg-white">
+                <table className="w-full min-w-[940px] border-collapse bg-white">
                   <thead>
                     <tr className="bg-inalde-text text-white">
                       <ThOrden orden={orden} campo="participante" variante="oscuro">Participante</ThOrden>
                       <ThOrden orden={orden} campo="modalidad" variante="oscuro">Modalidad</ThOrden>
                       <ThOrden orden={orden} campo="proyecto" variante="oscuro">Proyecto</ThOrden>
                       <ThOrden orden={orden} campo="estado" variante="oscuro">Estado</ThOrden>
+                      <ThOrden orden={orden} campo="participante_firma" variante="oscuro">Firma participante</ThOrden>
                       <ThOrden orden={orden} campo="firmas" variante="oscuro">Firmas</ThOrden>
                       <th className="px-3 py-2.5" />
                     </tr>
@@ -487,6 +519,7 @@ export default function ActasPanel() {
                       modalidad: (a) => a.modalidad,
                       proyecto: (a) => a.nombre_proyecto,
                       estado: (a) => a.estado,
+                      participante_firma: (a) => { const f = firmaParticipante(a); return f.estado === 'firmo' ? `0${f.cuando ?? ''}` : f.estado === 'enviada' ? '1' : '2'; },
                       firmas: (a) => a.firmas.filter((s) => s.estado === 'firmada').length,
                     }).map((a) => {
                       const firmadas = a.firmas.filter((s) => s.estado === 'firmada').length;
@@ -504,6 +537,15 @@ export default function ActasPanel() {
                             {a.faltan.length > 0 && (
                               <p className="text-[10px] text-inalde-red mt-1" title={a.faltan.join(', ')}>Falta: {a.faltan.join(', ')}</p>
                             )}
+                          </td>
+                          <td className="px-3 py-3 text-[0.75rem] whitespace-nowrap">
+                            {(() => {
+                              const fp = firmaParticipante(a);
+                              if (fp.estado === 'firmo') return (
+                                <span className="text-green-700 font-semibold">✓ Firmó{fp.cuando && <span className="block font-normal text-[0.7rem] text-inalde-gray tabular-nums">{fechaCorta(fp.cuando)}</span>}</span>
+                              );
+                              return <span className={fp.estado === 'enviada' ? 'text-inalde-text' : 'text-inalde-gray'}>{fp.texto}</span>;
+                            })()}
                           </td>
                           <td className="px-3 py-3 text-sm text-inalde-text tabular-nums">{firmadas}/{a.firmas.length}</td>
                           <td className="px-3 py-3 text-right whitespace-nowrap">

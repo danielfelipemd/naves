@@ -683,7 +683,12 @@ async function abrirEnlace(token: string, res: any) {
  * Agrupa por firmante: un enlace por persona con TODAS sus actas pendientes
  * dentro del alcance pedido (toda la cohorte, o solo `actaIds`).
  */
-export async function crearEnlacesFirma(cohorteId: string, op: { roles?: string[]; actaIds?: number[]; enviar: boolean; creadoPor: string | null }) {
+export async function crearEnlacesFirma(cohorteId: string, op: {
+  roles?: string[]; actaIds?: number[]; enviar: boolean; creadoPor: string | null;
+  // Envío masivo: profesores, directores y jurados solo reciben las actas que
+  // el participante ya firmó (Daniel, 24/11/2026). Las demás se anotan aquí.
+  soloConParticipanteFirmado?: boolean; esperandoParticipante?: number[];
+}) {
   const soloRoles = op.roles ?? [];
   let q = supabaseAdmin.from('acta').select('id, firmas, estado, participante_id, nombre_participante').eq('cohorte_id', cohorteId);
   if (op.actaIds?.length) q = q.in('id', op.actaIds);
@@ -696,6 +701,7 @@ export async function crearEnlacesFirma(cohorteId: string, op: { roles?: string[
   const grupos = new Map<string, { rol: string; nombre: string; email: string | null; actaIds: number[]; participanteId?: string }>();
   for (const a of (actas ?? []) as any[]) {
     if (a.estado === 'faltan_datos' || a.estado === 'anulada') continue;
+    const partFirmo = ((a.firmas ?? []) as any[]).filter((f) => f.rol === 'participante').every((f) => f.estado === 'firmada');
     for (const f of (a.firmas ?? []) as any[]) {
       if (f.estado === 'firmada') continue;
       if (f.rol === 'participante') {
@@ -706,6 +712,10 @@ export async function crearEnlacesFirma(cohorteId: string, op: { roles?: string[
       }
       if (soloRoles.length && !soloRoles.includes(f.rol)) continue;
       if (!f.nombre) continue;
+      if (op.soloConParticipanteFirmado && !partFirmo) {
+        if (op.esperandoParticipante && !op.esperandoParticipante.includes(a.id)) op.esperandoParticipante.push(a.id);
+        continue;
+      }
       const key = `${f.rol}|${f.nombre}`;
       const g = grupos.get(key) ?? { rol: f.rol as string, nombre: f.nombre as string, email: null as string | null, actaIds: [] as number[] };
       // El correo que viene en la casilla (jurados y directores puestos a mano
@@ -802,12 +812,16 @@ export async function crearEnlacesFirma(cohorteId: string, op: { roles?: string[
 // POST /api/actas/enlaces/:cohorteId — el admin crea los enlaces de firma de la cohorte.
 router.post('/enlaces/:cohorteId', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
   try {
+    // Envío masivo: a profesores, directores y jurados solo les van las actas
+    // que el participante ya firmó (Daniel, 24/11/2026).
+    const esperando: number[] = [];
     const creados = await crearEnlacesFirma(req.params.cohorteId, {
       roles: Array.isArray(req.body?.roles) ? req.body.roles : [],
       enviar: req.body?.enviar_correo !== false,
       creadoPor: req.user?.profesorId ?? null,
+      soloConParticipanteFirmado: true, esperandoParticipante: esperando,
     });
-    res.json({ creados: creados.length, enlaces: creados });
+    res.json({ creados: creados.length, enlaces: creados, esperando_participante: esperando.length });
   } catch (e: any) {
     res.status(500).json({ error: e?.message ?? 'ENLACES_FALLO' });
   }
