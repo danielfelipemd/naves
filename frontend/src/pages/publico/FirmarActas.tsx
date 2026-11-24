@@ -378,7 +378,7 @@ export default function FirmarActas() {
 function Marco({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-inalde-gray-bg py-10 px-4">
-      <div className="max-w-[1100px] mx-auto">
+      <div className="max-w-[1400px] mx-auto">
         <div className="bg-white rounded-lg shadow-inalde-card overflow-hidden">
           <div className="border-b-[3px] border-inalde-red px-6 sm:px-10 py-4">
             <p className="font-primary font-extrabold text-sm tracking-widest uppercase text-inalde-text">INALDE Business School</p>

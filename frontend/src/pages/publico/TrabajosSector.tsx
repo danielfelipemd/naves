@@ -65,7 +65,7 @@ export default function TrabajosSector() {
         <div className="bg-inalde-black px-4 sm:px-8 py-2">
           <p className="text-right text-white font-primary font-medium text-[10px] sm:text-xs tracking-wider uppercase">INALDE Business School</p>
         </div>
-        <div className="flex items-center gap-3 sm:gap-6 max-w-[1200px] mx-auto px-4 sm:px-8 py-3 sm:py-4">
+        <div className="flex items-center gap-3 sm:gap-6 max-w-[1400px] mx-auto px-4 sm:px-8 py-3 sm:py-4">
           <img src="/inalde-logo.jpg" alt="INALDE Business School" className="h-10 sm:h-14 w-auto" />
           <div className="w-px h-9 sm:h-11 bg-inalde-gray-light" />
           <div>
@@ -75,7 +75,7 @@ export default function TrabajosSector() {
         </div>
       </header>
 
-      <main className="max-w-[1200px] mx-auto px-4 sm:px-8 py-10">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-8 py-10">
         {!data ? (
           <div className="max-w-md mx-auto bg-white rounded-lg shadow-inalde-card p-6 sm:p-8 mt-6">
             <h1 className="font-primary font-extrabold text-xl text-inalde-text mb-2">Acceso a los proyectos</h1>

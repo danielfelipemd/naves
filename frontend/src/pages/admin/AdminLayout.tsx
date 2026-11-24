@@ -41,7 +41,7 @@ export default function AdminLayout() {
     <>
       <Header />
       <main className="pt-32 pb-16 px-4">
-        <div className={`${ancha ? 'max-w-[1800px]' : 'max-w-[1100px]'} mx-auto`}>
+        <div className={`${ancha ? 'max-w-[1800px]' : 'max-w-[1400px]'} mx-auto`}>
           <nav className="mb-6 text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
             <Link to="/" className="text-inalde-gray hover:text-inalde-red font-primary font-semibold tracking-wider uppercase text-xs">
               ← Menú principal
