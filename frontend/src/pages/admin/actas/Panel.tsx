@@ -573,8 +573,15 @@ export default function ActasPanel() {
 
           {/* Pendientes de datos — Caso/PI sin jurados */}
           {(pendientesJurados.length > 0 || data.microformularios_pendientes.length > 0) && (
-            <section>
-              <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4 pb-2 border-b border-inalde-gray-light">Pendientes de datos — Caso/PI sin jurados</h2>
+            <details className="border border-inalde-gray-light rounded">
+              <summary className="cursor-pointer px-4 py-3 bg-inalde-gray-bg font-primary font-semibold text-sm">
+                Pendientes de datos — Caso/PI sin jurados{' '}
+                <span className="text-inalde-gray font-normal">
+                  · {pendientesJurados.length} acta{pendientesJurados.length === 1 ? '' : 's'}
+                  {data.microformularios_pendientes.length > 0 && ` · ${data.microformularios_pendientes.length} microformulario${data.microformularios_pendientes.length === 1 ? '' : 's'} sin diligenciar`}
+                </span>
+              </summary>
+              <div className="p-4">
               <p className="text-xs text-inalde-gray mb-4">
                 Ponlos tú mismo en <strong>Ver acta → Editar datos</strong>, o crea un enlace de microformulario
                 para que el director del proyecto registre la fecha de sustentación, los jurados y la calificación.
@@ -601,7 +608,8 @@ export default function ActasPanel() {
                   </ul>
                 </div>
               )}
-            </section>
+              </div>
+            </details>
           )}
 
           {/* Avance por firmante: compacto y plegable (una línea por persona) */}
