@@ -23,8 +23,8 @@ const sectionLabels: Record<string, string> = {
 // Pantallas cuyo contenido es una tabla ancha. Con la caja fija en 1100 px la
 // tabla de Programación (1280 px) nunca cabía, ni en un monitor de 1920: se
 // medía 248 px escondidos a la derecha y el 40 % de la pantalla en márgenes
-// vacíos. Estas usan el ancho de la ventana, hasta 1800 px. Las demás siguen
-// en 1100: un formulario estirado a todo lo ancho se lee peor.
+// vacíos. Estas usan el ancho de la ventana, hasta 1800 px. Las demás van en
+// 1400, alineadas con el encabezado (Daniel, 24/11/2026; antes 1100).
 const seccionesAnchas = new Set(['programacion', 'anteproyectos', 'participantes']);
 
 export default function AdminLayout() {
