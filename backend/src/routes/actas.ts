@@ -518,8 +518,10 @@ router.post('/:id(\\d+)/generar', ...soloAdmin, async (req: AuthenticatedRequest
 // participante y a los que firman en el medio (profesor, director de proyecto,
 // jurados); al Director de Cohorte solo cuando ya le toca (lista para cierre)
 // o si se pide con roles (p. ej. roles: ['participante'] = solo al participante).
+// Business Plan: solo al participante. Al profesor y al Director de Cohorte el
+// super admin les manda sus actas en bloque (pedido de Daniel, 24/11/2026).
 router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
-  const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, faltan').eq('id', Number(req.params.id)).maybeSingle();
+  const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, faltan, modalidad').eq('id', Number(req.params.id)).maybeSingle();
   if (!a) return res.status(404).json({ error: 'ACTA_NO_ENCONTRADA' });
   const acta = a as any;
   if (acta.estado === 'faltan_datos') {
@@ -535,6 +537,7 @@ router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest,
   const pedidos: string[] = Array.isArray(req.body?.roles) ? req.body.roles : [];
   // Por defecto: al participante (si aún no firma) y a los firmantes internos.
   const roles = pedidos.length ? pedidos
+    : acta.modalidad === 'business_plan' ? ['participante']
     : acta.estado === 'lista_para_cierre' ? ['director_mba'] : ['participante', ...ROLES_INTERNOS];
   try {
     const creados = await crearEnlacesFirma(acta.cohorte_id, {

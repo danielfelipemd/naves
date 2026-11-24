@@ -360,9 +360,12 @@ export default function Acta() {
   async function enviarAFirma() {
     if (!id || !acta) return;
     const cierre = acta.estado === 'lista_para_cierre';
+    const bp = acta.modalidad === 'business_plan';
     if (!(await confirmar({
       titulo: 'Enviar a firma',
-      mensaje: cierre
+      mensaje: bp
+        ? 'Se enviará solo al participante un correo con su enlace para revisarla y firmarla. Al profesor y al Director de Cohorte se les manda en bloque.'
+        : cierre
         ? 'Se enviará el enlace de firma del cierre al Director de Cohorte.'
         : 'Se enviará al participante y a cada firmante pendiente de esta acta (profesor o director y jurados) un correo con su enlace para revisarla y firmarla.',
       aceptar: 'Enviar',
@@ -372,7 +375,9 @@ export default function Acta() {
       const r = await api.post(`/actas/${id}/enviar`, {});
       const lista = (r.data as any)?.enlaces ?? [];
       setEnlaces(lista);
-      setOkMsg(lista.length ? 'Acta enviada a firma.' : 'Acta enviada. No había firmantes pendientes a quién escribir en este paso.');
+      setOkMsg(lista.length ? 'Acta enviada a firma.'
+        : bp ? 'El participante ya firmó: no había a quién escribir. Al profesor y al Director de Cohorte se les manda en bloque.'
+        : 'Acta enviada. No había firmantes pendientes a quién escribir en este paso.');
     } catch (e) {
       setErr(formatBackendError(e));
     } finally {
