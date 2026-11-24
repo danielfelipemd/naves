@@ -157,6 +157,7 @@ export default function ActasPanel() {
   const [cohorte, setCohorte] = useState('');
   const [data, setData] = useState<Data | null>(null);
   const orden = useOrdenTabla();
+  const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [okMsg, setOkMsg] = useState('');
@@ -303,6 +304,19 @@ export default function ActasPanel() {
   const archivar = () => correr('archivar', () => api.post(`/actas/${cohorte}/archivar`).then(() => {}), 'Actas completas archivadas.');
 
   const pendientesJurados = data?.actas.filter((a) => a.modalidad !== 'business_plan' && a.estado === 'faltan_datos') ?? [];
+
+  // Buscador de la tabla: sin tildes ni mayúsculas, y cada palabra debe aparecer
+  // en algún dato del acta (participante, proyecto, firmantes, modalidad, estado).
+  const sinTildes = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const palabras = sinTildes(busca).split(/\s+/).filter(Boolean);
+  const actasFiltradas = !palabras.length ? (data?.actas ?? []) : (data?.actas ?? []).filter((a) => {
+    const texto = sinTildes([
+      a.nombre_participante, a.nombre_proyecto,
+      MODALIDAD[a.modalidad]?.corto, MODALIDAD[a.modalidad]?.largo, ESTADO[a.estado]?.label,
+      ...a.firmas.map((f) => f.nombre),
+    ].filter(Boolean).join(' '));
+    return palabras.every((p) => texto.includes(p));
+  });
 
   return (
     <>
@@ -521,8 +535,20 @@ export default function ActasPanel() {
           {/* Tabla de actas */}
           <section>
             <h2 className="font-primary font-bold text-sm uppercase tracking-widest text-inalde-red mb-4 pb-2 border-b border-inalde-gray-light">Actas de la cohorte</h2>
+            {data.actas.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar por participante, proyecto, firmante, modalidad o estado…"
+                  aria-label="Buscar actas" className="input-inalde !py-2 flex-1 min-w-[220px]" />
+                {busca.trim() && (
+                  <span className="text-xs text-inalde-gray whitespace-nowrap">{actasFiltradas.length} de {data.actas.length}</span>
+                )}
+              </div>
+            )}
             {data.actas.length === 0 ? (
               <p className="text-inalde-gray text-sm">Aún no hay actas. Usa «Generar/actualizar actas».</p>
+            ) : actasFiltradas.length === 0 ? (
+              <p className="text-inalde-gray text-sm">Ninguna acta coincide con «{busca.trim()}».</p>
             ) : (
               <div className="overflow-auto max-h-[72vh]">
                 <table className="w-full min-w-[820px] border-collapse bg-white">
@@ -537,7 +563,7 @@ export default function ActasPanel() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orden.ordenar(data.actas, {
+                    {orden.ordenar(actasFiltradas, {
                       participante: (a) => a.nombre_participante,
                       modalidad: (a) => a.modalidad,
                       proyecto: (a) => a.nombre_proyecto,
