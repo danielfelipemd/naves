@@ -491,16 +491,34 @@ router.post('/:id(\\d+)/ajustes', ...soloAdmin, async (req: AuthenticatedRequest
 // POST /api/actas/:id/generar — abre el acta YA, sin esperar al cronograma.
 // Si aún falta algún dato (fecha, jurados, calificación…), lo dice: esos sí
 // tiene que ponerlos con «Editar datos».
+// Las actas de los demás autores del mismo proyecto (o equipo, si el acta no
+// tiene proyecto) y de la misma modalidad: cada autor tiene la suya.
+async function actasHermanas(acta: { id: number; cohorte_id: string; modalidad: string; proyecto_id: string | null; equipo_id: string | null }) {
+  if (!acta.proyecto_id && !acta.equipo_id) return [] as any[];
+  let q = supabaseAdmin.from('acta').select('id, estado, nombre_participante, ajuste_admin')
+    .eq('cohorte_id', acta.cohorte_id).eq('modalidad', acta.modalidad).neq('id', acta.id);
+  q = acta.proyecto_id ? q.eq('proyecto_id', acta.proyecto_id) : q.eq('equipo_id', acta.equipo_id as string);
+  const { data } = await q;
+  return (data ?? []) as any[];
+}
+
+// Proyecto de varios autores: abre también las actas de sus compañeros. Antes
+// solo se abría la del autor que estaba en pantalla, y al enviarla las otras
+// salían «le faltan datos» (Energix e IGEM, 24/11/2026).
 router.post('/:id(\\d+)/generar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
-  const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, ajuste_admin').eq('id', Number(req.params.id)).maybeSingle();
+  const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, ajuste_admin, modalidad, proyecto_id, equipo_id').eq('id', Number(req.params.id)).maybeSingle();
   if (!a) return res.status(404).json({ error: 'ACTA_NO_ENCONTRADA' });
   const acta = a as any;
   if (['anulada', 'archivada'].includes(acta.estado)) return res.status(409).json({ error: 'ACTA_CERRADA', mensaje: `El acta está ${acta.estado}.` });
 
-  const { error } = await supabaseAdmin.from('acta')
-    .update({ ajuste_admin: { ...(acta.ajuste_admin ?? {}), forzar: true, por: req.user?.sub ?? null, en: new Date().toISOString() } })
-    .eq('id', acta.id);
-  if (error) return res.status(500).json({ error: 'GENERAR_FALLO', mensaje: error.message });
+  const hermanas = (await actasHermanas(acta)).filter((h) => !['anulada', 'archivada'].includes(h.estado));
+  const en = new Date().toISOString();
+  for (const x of [acta, ...hermanas]) {
+    const { error } = await supabaseAdmin.from('acta')
+      .update({ ajuste_admin: { ...(x.ajuste_admin ?? {}), forzar: true, por: req.user?.sub ?? null, en } })
+      .eq('id', x.id);
+    if (error) return res.status(500).json({ error: 'GENERAR_FALLO', mensaje: error.message });
+  }
 
   try { await generarActasCohorte(acta.cohorte_id); }
   catch (e: any) { return res.status(500).json({ error: 'GENERAR_FALLO', mensaje: e?.message ?? 'No se pudo generar.' }); }
@@ -524,6 +542,11 @@ router.post('/:id(\\d+)/generar', ...soloAdmin, async (req: AuthenticatedRequest
 // envía también las de sus compañeros del mismo proyecto (mismo paso de firma).
 // Antes solo le llegaba al autor del acta abierta (Daniel, 24/11/2026).
 router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
+  const { data: a0 } = await supabaseAdmin.from('acta').select('cohorte_id').eq('id', Number(req.params.id)).maybeSingle();
+  if (!a0) return res.status(404).json({ error: 'ACTA_NO_ENCONTRADA' });
+  // Recalcula antes de mirar qué falta: si la presentación ya terminó desde la
+  // última generación, las actas de los compañeros ya están listas.
+  try { await generarActasCohorte((a0 as any).cohorte_id); } catch { /* best effort */ }
   const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, faltan, modalidad, proyecto_id, equipo_id').eq('id', Number(req.params.id)).maybeSingle();
   if (!a) return res.status(404).json({ error: 'ACTA_NO_ENCONTRADA' });
   const acta = a as any;
@@ -536,18 +559,16 @@ router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest,
   // Las actas de los demás autores del mismo proyecto (o equipo, si el acta no
   // tiene proyecto), de la misma modalidad. Solo las que están en el mismo paso:
   // en el cierre el enlace va al Director de Cohorte, antes no.
+  // Una compañera que ya salió a firma no se reenvía (le llegaría el correo
+  // otra vez): solo van las que aún no se han enviado, o en el cierre las que
+  // están listas para él. La que está en pantalla sí se reenvía siempre.
   const cierre = acta.estado === 'lista_para_cierre';
-  let qHermanas = supabaseAdmin.from('acta').select('id, estado, nombre_participante')
-    .eq('cohorte_id', acta.cohorte_id).eq('modalidad', acta.modalidad).neq('id', acta.id);
-  qHermanas = acta.proyecto_id ? qHermanas.eq('proyecto_id', acta.proyecto_id)
-    : acta.equipo_id ? qHermanas.eq('equipo_id', acta.equipo_id) : qHermanas.eq('id', -1);
-  const { data: hermanas } = await qHermanas;
+  const hermanas = await actasHermanas(acta);
   const ids: number[] = [acta.id];
   const sinEnviar: Array<{ id: number; participante: string; motivo: string }> = [];
-  for (const h of ((hermanas ?? []) as any[])) {
+  for (const h of hermanas) {
     if (h.estado === 'faltan_datos') sinEnviar.push({ id: h.id, participante: h.nombre_participante, motivo: 'le faltan datos' });
-    else if (['anulada', 'archivada', 'completa'].includes(h.estado)) continue;
-    else if ((h.estado === 'lista_para_cierre') === cierre) ids.push(h.id);
+    else if (cierre ? h.estado === 'lista_para_cierre' : h.estado === 'generada') ids.push(h.id);
   }
   const ahora = new Date().toISOString();
   const { error: errEnv } = await supabaseAdmin.from('acta').update({ estado: 'enviada', enviada_en: ahora })

@@ -348,7 +348,7 @@ export default function Acta() {
     setAccion('generar'); setErr(''); setOkMsg('');
     try {
       await api.post(`/actas/${id}/generar`);
-      setOkMsg('Acta generada. Ya se puede enviar a firma.');
+      setOkMsg('Acta generada (también las de los demás autores del proyecto). Ya se puede enviar a firma.');
     } catch (e) {
       setErr(formatBackendError(e));
     } finally {
