@@ -520,8 +520,11 @@ router.post('/:id(\\d+)/generar', ...soloAdmin, async (req: AuthenticatedRequest
 // o si se pide con roles (p. ej. roles: ['participante'] = solo al participante).
 // Business Plan: solo al participante. Al profesor y al Director de Cohorte el
 // super admin les manda sus actas en bloque (pedido de Daniel, 24/11/2026).
+// Proyecto de varios autores: cada autor tiene su propia acta, y enviar una
+// envía también las de sus compañeros del mismo proyecto (mismo paso de firma).
+// Antes solo le llegaba al autor del acta abierta (Daniel, 24/11/2026).
 router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest, res) => {
-  const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, faltan, modalidad').eq('id', Number(req.params.id)).maybeSingle();
+  const { data: a } = await supabaseAdmin.from('acta').select('id, cohorte_id, estado, faltan, modalidad, proyecto_id, equipo_id').eq('id', Number(req.params.id)).maybeSingle();
   if (!a) return res.status(404).json({ error: 'ACTA_NO_ENCONTRADA' });
   const acta = a as any;
   if (acta.estado === 'faltan_datos') {
@@ -530,10 +533,26 @@ router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest,
   if (['anulada', 'archivada', 'completa'].includes(acta.estado)) {
     return res.status(409).json({ error: 'ACTA_CERRADA', mensaje: `El acta está ${acta.estado}: no hay nada que enviar.` });
   }
-  if (acta.estado === 'generada') {
-    const { error } = await supabaseAdmin.from('acta').update({ estado: 'enviada', enviada_en: new Date().toISOString() }).eq('id', acta.id);
-    if (error) return res.status(500).json({ error: 'ENVIAR_FALLO', mensaje: error.message });
+  // Las actas de los demás autores del mismo proyecto (o equipo, si el acta no
+  // tiene proyecto), de la misma modalidad. Solo las que están en el mismo paso:
+  // en el cierre el enlace va al Director de Cohorte, antes no.
+  const cierre = acta.estado === 'lista_para_cierre';
+  let qHermanas = supabaseAdmin.from('acta').select('id, estado, nombre_participante')
+    .eq('cohorte_id', acta.cohorte_id).eq('modalidad', acta.modalidad).neq('id', acta.id);
+  qHermanas = acta.proyecto_id ? qHermanas.eq('proyecto_id', acta.proyecto_id)
+    : acta.equipo_id ? qHermanas.eq('equipo_id', acta.equipo_id) : qHermanas.eq('id', -1);
+  const { data: hermanas } = await qHermanas;
+  const ids: number[] = [acta.id];
+  const sinEnviar: Array<{ id: number; participante: string; motivo: string }> = [];
+  for (const h of ((hermanas ?? []) as any[])) {
+    if (h.estado === 'faltan_datos') sinEnviar.push({ id: h.id, participante: h.nombre_participante, motivo: 'le faltan datos' });
+    else if (['anulada', 'archivada', 'completa'].includes(h.estado)) continue;
+    else if ((h.estado === 'lista_para_cierre') === cierre) ids.push(h.id);
   }
+  const ahora = new Date().toISOString();
+  const { error: errEnv } = await supabaseAdmin.from('acta').update({ estado: 'enviada', enviada_en: ahora })
+    .in('id', ids).eq('estado', 'generada');
+  if (errEnv) return res.status(500).json({ error: 'ENVIAR_FALLO', mensaje: errEnv.message });
   const pedidos: string[] = Array.isArray(req.body?.roles) ? req.body.roles : [];
   // Por defecto: al participante (si aún no firma) y a los firmantes internos.
   const roles = pedidos.length ? pedidos
@@ -541,9 +560,9 @@ router.post('/:id(\\d+)/enviar', ...soloAdmin, async (req: AuthenticatedRequest,
     : acta.estado === 'lista_para_cierre' ? ['director_mba'] : ['participante', ...ROLES_INTERNOS];
   try {
     const creados = await crearEnlacesFirma(acta.cohorte_id, {
-      roles, actaIds: [acta.id], enviar: req.body?.enviar_correo !== false, creadoPor: req.user?.profesorId ?? null,
+      roles, actaIds: ids, enviar: req.body?.enviar_correo !== false, creadoPor: req.user?.profesorId ?? null,
     });
-    res.json({ ok: true, enlaces: creados });
+    res.json({ ok: true, actas: ids, enlaces: creados, sin_enviar: sinEnviar });
   } catch (e: any) {
     res.status(500).json({ error: 'ENLACES_FALLO', mensaje: e?.message ?? 'No se pudieron crear los enlaces.' });
   }

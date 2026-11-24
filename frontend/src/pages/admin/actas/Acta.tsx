@@ -364,20 +364,26 @@ export default function Acta() {
     if (!(await confirmar({
       titulo: 'Enviar a firma',
       mensaje: bp
-        ? 'Se enviará solo al participante un correo con su enlace para revisarla y firmarla. Al profesor y al Director de Cohorte se les manda en bloque.'
+        ? 'Se enviará a cada autor del proyecto que aún no firma un correo con el enlace de su acta para revisarla y firmarla. Al profesor y al Director de Cohorte se les manda en bloque.'
         : cierre
         ? 'Se enviará el enlace de firma del cierre al Director de Cohorte.'
-        : 'Se enviará al participante y a cada firmante pendiente de esta acta (profesor o director y jurados) un correo con su enlace para revisarla y firmarla.',
+        : 'Se enviará a cada autor del proyecto y a cada firmante pendiente (profesor o director y jurados) un correo con su enlace para revisar y firmar.',
       aceptar: 'Enviar',
     }))) return;
     setAccion('enviar'); setErr(''); setOkMsg(''); setEnlaces(null);
     try {
       const r = await api.post(`/actas/${id}/enviar`, {});
       const lista = (r.data as any)?.enlaces ?? [];
+      const sinEnviar: Array<{ participante: string; motivo: string }> = (r.data as any)?.sin_enviar ?? [];
+      const nActas = ((r.data as any)?.actas ?? [id]).length;
       setEnlaces(lista);
-      setOkMsg(lista.length ? 'Acta enviada a firma.'
-        : bp ? 'El participante ya firmó: no había a quién escribir. Al profesor y al Director de Cohorte se les manda en bloque.'
-        : 'Acta enviada. No había firmantes pendientes a quién escribir en este paso.');
+      const base = lista.length ? (nActas > 1 ? `Enviadas a firma las ${nActas} actas del proyecto.` : 'Acta enviada a firma.')
+        : bp ? 'Los autores ya firmaron: no había a quién escribir. Al profesor y al Director de Cohorte se les manda en bloque.'
+        : 'Acta enviada. No había firmantes pendientes a quién escribir en este paso.';
+      const aviso = sinEnviar.length
+        ? ` No se envió la de ${sinEnviar.map((s) => `${s.participante} (${s.motivo})`).join(', ')}.`
+        : '';
+      setOkMsg(base + aviso);
     } catch (e) {
       setErr(formatBackendError(e));
     } finally {
